@@ -21,6 +21,9 @@ const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
 const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
 const CROSSHAIR_POINT_COLOR = "#101010";
+const AXIS_TEXT_COLOR = "rgba(16, 16, 16, 0.72)";
+const AXIS_LABEL_BACKGROUND = "rgba(255, 253, 247, 0.96)";
+const AXIS_LABEL_BORDER = "rgba(16, 16, 16, 0.14)";
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
@@ -313,6 +316,8 @@ export class PhaseOneChartHarness {
     context.strokeStyle = FRAME_COLOR;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
+    drawPriceAxis(context, layout, this.priceScale);
+    drawTimeAxis(context, layout, rows, this.timeScale);
     emitReadout(canvas, rows, this.crosshair, this.timeScale, this.priceScale);
   }
 }
@@ -459,6 +464,92 @@ function drawCrosshair(
   context.beginPath();
   context.arc(crosshair.x, crosshair.y, 2.5, 0, Math.PI * 2);
   context.fill();
+  context.restore();
+}
+
+function drawPriceAxis(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  priceScale: PriceScale,
+): void {
+  const range = priceScale.getPriceRange();
+  if (range === null) {
+    return;
+  }
+
+  const paneHeight = layout.height - layout.top - layout.bottom;
+  const labels = [
+    { price: range.maxValue(), y: 0 },
+    { price: range.maxValue() - range.length() * 0.5, y: paneHeight * 0.5 },
+    { price: range.minValue(), y: paneHeight },
+  ];
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textBaseline = "middle";
+  context.fillStyle = AXIS_TEXT_COLOR;
+
+  for (const label of labels) {
+    const text = label.price.toFixed(2);
+    const textWidth = context.measureText(text).width;
+    const boxX = layout.width - layout.right + 6;
+    const boxY = layout.top + label.y - 9;
+    const boxWidth = Math.ceil(textWidth + 12);
+    const boxHeight = 18;
+
+    context.fillStyle = AXIS_LABEL_BACKGROUND;
+    context.strokeStyle = AXIS_LABEL_BORDER;
+    context.lineWidth = 1;
+    context.fillRect(boxX, boxY, boxWidth, boxHeight);
+    context.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
+    context.fillStyle = AXIS_TEXT_COLOR;
+    context.fillText(text, boxX + 6, boxY + boxHeight / 2);
+  }
+
+  context.restore();
+}
+
+function drawTimeAxis(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  rows: readonly { time: number; index: number }[],
+  timeScale: TimeScale,
+): void {
+  if (rows.length === 0) {
+    return;
+  }
+
+  const paneHeight = layout.height - layout.top - layout.bottom;
+  const lastIndex = rows.length - 1;
+  const anchors = [
+    rows[0],
+    rows[Math.floor(lastIndex * 0.5)],
+    rows[lastIndex],
+  ];
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textBaseline = "top";
+  context.fillStyle = AXIS_TEXT_COLOR;
+
+  for (const row of anchors) {
+    const text = `T ${row.time}`;
+    const textWidth = context.measureText(text).width;
+    const x = layout.left + timeScale.indexToCoordinate(row.index as never);
+    const boxWidth = Math.ceil(textWidth + 12);
+    const boxHeight = 18;
+    const boxX = clamp(x - boxWidth / 2, layout.left, layout.width - layout.right - boxWidth);
+    const boxY = layout.top + paneHeight + 8;
+
+    context.fillStyle = AXIS_LABEL_BACKGROUND;
+    context.strokeStyle = AXIS_LABEL_BORDER;
+    context.lineWidth = 1;
+    context.fillRect(boxX, boxY, boxWidth, boxHeight);
+    context.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
+    context.fillStyle = AXIS_TEXT_COLOR;
+    context.fillText(text, boxX + 6, boxY + 4);
+  }
+
   context.restore();
 }
 

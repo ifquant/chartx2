@@ -19,6 +19,8 @@ const FRAME_COLOR = "rgba(16, 16, 16, 0.18)";
 const UP_COLOR = "#0c8f62";
 const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
+const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
+const CROSSHAIR_POINT_COLOR = "#101010";
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 
@@ -40,6 +42,11 @@ type Layout = {
   left: number;
 };
 
+type PanePoint = {
+  x: number;
+  y: number;
+};
+
 const DEFAULT_LAYOUT: Layout = {
   width: 960,
   height: 520,
@@ -58,10 +65,28 @@ export class PhaseOneChartHarness {
   private data: readonly PhaseOneCandlestickData[] = [];
   private seriesAttached = false;
   private canvas: HTMLCanvasElement | null = null;
+  private crosshair: PanePoint | null = null;
   private readonly handleResize = () => {
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
+  };
+  private readonly handlePointerMove = (event: PointerEvent) => {
+    if (this.canvas === null) {
+      return;
+    }
+
+    const layout = measureLayout(this.canvas);
+    this.crosshair = resolvePanePoint(this.canvas, event, layout);
+    this.render(this.canvas);
+  };
+  private readonly handlePointerLeave = () => {
+    if (this.canvas === null || this.crosshair === null) {
+      return;
+    }
+
+    this.crosshair = null;
+    this.render(this.canvas);
   };
 
   public attach(canvas: HTMLCanvasElement): void {
@@ -69,11 +94,18 @@ export class PhaseOneChartHarness {
     this.canvas = canvas;
     this.render(canvas);
     window.addEventListener("resize", this.handleResize);
+    canvas.addEventListener("pointermove", this.handlePointerMove);
+    canvas.addEventListener("pointerleave", this.handlePointerLeave);
   }
 
   public detach(): void {
+    if (this.canvas !== null) {
+      this.canvas.removeEventListener("pointermove", this.handlePointerMove);
+      this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
+    }
     window.removeEventListener("resize", this.handleResize);
     this.canvas = null;
+    this.crosshair = null;
   }
 
   public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {
@@ -183,6 +215,7 @@ export class PhaseOneChartHarness {
       wickColor: WICK_COLOR,
     });
 
+    drawCrosshair(context, paneWidth, paneHeight, this.crosshair);
     context.strokeStyle = FRAME_COLOR;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
@@ -262,6 +295,60 @@ function measureLayout(canvas: HTMLCanvasElement): Layout {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function resolvePanePoint(
+  canvas: HTMLCanvasElement,
+  event: PointerEvent,
+  layout: Layout,
+): PanePoint | null {
+  const rect = canvas.getBoundingClientRect();
+  const localX = event.clientX - rect.left - layout.left;
+  const localY = event.clientY - rect.top - layout.top;
+  const paneWidth = layout.width - layout.left - layout.right;
+  const paneHeight = layout.height - layout.top - layout.bottom;
+
+  if (localX < 0 || localX > paneWidth || localY < 0 || localY > paneHeight) {
+    return null;
+  }
+
+  return {
+    x: clamp(localX, 0, paneWidth),
+    y: clamp(localY, 0, paneHeight),
+  };
+}
+
+function drawCrosshair(
+  context: CanvasRenderingContext2D,
+  paneWidth: number,
+  paneHeight: number,
+  crosshair: PanePoint | null,
+): void {
+  if (crosshair === null) {
+    return;
+  }
+
+  context.save();
+  context.strokeStyle = CROSSHAIR_COLOR;
+  context.lineWidth = 1;
+  context.setLineDash([4, 4]);
+
+  context.beginPath();
+  context.moveTo(Math.round(crosshair.x) + 0.5, 0);
+  context.lineTo(Math.round(crosshair.x) + 0.5, paneHeight);
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(0, Math.round(crosshair.y) + 0.5);
+  context.lineTo(paneWidth, Math.round(crosshair.y) + 0.5);
+  context.stroke();
+
+  context.setLineDash([]);
+  context.fillStyle = CROSSHAIR_POINT_COLOR;
+  context.beginPath();
+  context.arc(crosshair.x, crosshair.y, 2.5, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

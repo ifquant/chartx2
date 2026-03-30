@@ -60,6 +60,7 @@
         <li>Deterministic sample OHLC data</li>
         <li>Internal time and price scales</li>
         <li>Canvas-based candle and grid renderers</li>
+        <li>Baseline pointer-driven crosshair rendering</li>
         <li>Visible host error state if chart initialization fails</li>
       </ul>
     </div>

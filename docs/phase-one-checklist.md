@@ -255,7 +255,7 @@ Exit criteria:
 - [x] app launch shows a single chart with deterministic sample data
 - [ ] pan works
 - [ ] zoom works
-- [ ] crosshair works at the baseline level
+- [x] crosshair works at the baseline level
 - [x] engine init failure produces a visible host error instead of a silent blank page
 
 ## Test Strategy Checklist
@@ -281,7 +281,7 @@ Required:
 - [x] fixed device pixel ratio or equivalent deterministic setup
 - [x] baseline candle/bar snapshot
 - [x] one resize-sensitive snapshot
-- [ ] one crosshair or viewport update snapshot if deterministic enough
+- [x] one crosshair or viewport update snapshot if deterministic enough
 
 ### Upstream Parity Contract Tests
 
@@ -327,7 +327,7 @@ These failure modes must have both handling and tests where applicable.
 - [ ] resize -> axes and bars stay aligned
 - [ ] high-DPI -> output remains stable
 - [ ] pan/zoom -> viewport updates without silent desync
-- [ ] crosshair -> inspected position stays aligned with rendered bars
+- [x] crosshair -> inspected position stays aligned with rendered bars
 
 ## Verification Checklist
 

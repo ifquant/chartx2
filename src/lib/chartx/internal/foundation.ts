@@ -70,12 +70,12 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests, add a narrow-layout snapshot, and start fixed parity contract checks.",
+      note: "Pin model and scale behavior with unit tests, keep resize and crosshair snapshots stable, and extend parity checks carefully.",
     },
     {
       id: "08",
       title: "Minimal Public API",
-      status: "active",
+      status: "complete",
       note: "Expose the narrow create chart, add one series, and set data flow through the public boundary.",
     },
     {

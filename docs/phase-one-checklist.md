@@ -259,6 +259,7 @@ Pass means:
 - wheel-driven zoom through `barSpacing`
 - drag-driven pan through `rightOffset`
 - host-visible OHLC readout fed by engine state
+- crosshair-following time and price axis labels
 
 Not pass:
 
@@ -309,7 +310,7 @@ Explicitly deferred from phase one:
 - parity for non-candlestick series
 - parity for full `lightweight-charts` option surface
 - public `update` and subscription APIs
-- axis labels and richer time/price formatting
+- richer tick generation, axis options, and time/price formatting
 - indicators, plugins, drawings, alerts, replay, layouts, and desktop-specific workflows
 - final TradingView-grade performance targets
 

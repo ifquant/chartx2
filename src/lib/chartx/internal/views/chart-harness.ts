@@ -24,6 +24,8 @@ const CROSSHAIR_POINT_COLOR = "#101010";
 const AXIS_TEXT_COLOR = "rgba(16, 16, 16, 0.72)";
 const AXIS_LABEL_BACKGROUND = "rgba(255, 253, 247, 0.96)";
 const AXIS_LABEL_BORDER = "rgba(16, 16, 16, 0.14)";
+const AXIS_ACTIVE_BACKGROUND = "#101010";
+const AXIS_ACTIVE_TEXT = "#fffdf7";
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
@@ -316,8 +318,8 @@ export class PhaseOneChartHarness {
     context.strokeStyle = FRAME_COLOR;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
-    drawPriceAxis(context, layout, this.priceScale);
-    drawTimeAxis(context, layout, rows, this.timeScale);
+    drawPriceAxis(context, layout, this.priceScale, this.crosshair);
+    drawTimeAxis(context, layout, rows, this.timeScale, this.crosshair);
     emitReadout(canvas, rows, this.crosshair, this.timeScale, this.priceScale);
   }
 }
@@ -471,6 +473,7 @@ function drawPriceAxis(
   context: CanvasRenderingContext2D,
   layout: Layout,
   priceScale: PriceScale,
+  crosshair: PanePoint | null,
 ): void {
   const range = priceScale.getPriceRange();
   if (range === null) {
@@ -487,23 +490,25 @@ function drawPriceAxis(
   context.save();
   context.font = '11px "SF Mono", "Menlo", monospace';
   context.textBaseline = "middle";
-  context.fillStyle = AXIS_TEXT_COLOR;
 
   for (const label of labels) {
-    const text = label.price.toFixed(2);
-    const textWidth = context.measureText(text).width;
-    const boxX = layout.width - layout.right + 6;
-    const boxY = layout.top + label.y - 9;
-    const boxWidth = Math.ceil(textWidth + 12);
-    const boxHeight = 18;
+    drawAxisTag(context, {
+      text: label.price.toFixed(2),
+      x: layout.width - layout.right + 6,
+      y: layout.top + label.y - 9,
+    });
+  }
 
-    context.fillStyle = AXIS_LABEL_BACKGROUND;
-    context.strokeStyle = AXIS_LABEL_BORDER;
-    context.lineWidth = 1;
-    context.fillRect(boxX, boxY, boxWidth, boxHeight);
-    context.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
-    context.fillStyle = AXIS_TEXT_COLOR;
-    context.fillText(text, boxX + 6, boxY + boxHeight / 2);
+  if (crosshair !== null) {
+    const price = priceScale.coordinateToPrice(crosshair.y);
+    if (price !== null) {
+      drawAxisTag(context, {
+        text: price.toFixed(2),
+        x: layout.width - layout.right + 6,
+        y: layout.top + crosshair.y - 9,
+        active: true,
+      });
+    }
   }
 
   context.restore();
@@ -514,6 +519,7 @@ function drawTimeAxis(
   layout: Layout,
   rows: readonly { time: number; index: number }[],
   timeScale: TimeScale,
+  crosshair: PanePoint | null,
 ): void {
   if (rows.length === 0) {
     return;
@@ -534,23 +540,58 @@ function drawTimeAxis(
 
   for (const row of anchors) {
     const text = `T ${row.time}`;
-    const textWidth = context.measureText(text).width;
     const x = layout.left + timeScale.indexToCoordinate(row.index as never);
-    const boxWidth = Math.ceil(textWidth + 12);
-    const boxHeight = 18;
-    const boxX = clamp(x - boxWidth / 2, layout.left, layout.width - layout.right - boxWidth);
-    const boxY = layout.top + paneHeight + 8;
+    drawAxisTag(context, {
+      text,
+      x: clampCenterTag(x, context.measureText(text).width, layout.left, layout.width - layout.right),
+      y: layout.top + paneHeight + 8,
+    });
+  }
 
-    context.fillStyle = AXIS_LABEL_BACKGROUND;
-    context.strokeStyle = AXIS_LABEL_BORDER;
-    context.lineWidth = 1;
-    context.fillRect(boxX, boxY, boxWidth, boxHeight);
-    context.strokeRect(boxX + 0.5, boxY + 0.5, boxWidth - 1, boxHeight - 1);
-    context.fillStyle = AXIS_TEXT_COLOR;
-    context.fillText(text, boxX + 6, boxY + 4);
+  if (crosshair !== null) {
+    const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
+    const row = rows[clamp(logical, 0, rows.length - 1)];
+    const text = `T ${row.time}`;
+    drawAxisTag(context, {
+      text,
+      x: clampCenterTag(layout.left + crosshair.x, context.measureText(text).width, layout.left, layout.width - layout.right),
+      y: layout.top + paneHeight + 8,
+      active: true,
+    });
   }
 
   context.restore();
+}
+
+function drawAxisTag(
+  context: CanvasRenderingContext2D,
+  options: { text: string; x: number; y: number; active?: boolean },
+): void {
+  const textWidth = context.measureText(options.text).width;
+  const boxWidth = Math.ceil(textWidth + 12);
+  const boxHeight = 18;
+
+  context.fillStyle = options.active ? AXIS_ACTIVE_BACKGROUND : AXIS_LABEL_BACKGROUND;
+  context.strokeStyle = options.active ? AXIS_ACTIVE_BACKGROUND : AXIS_LABEL_BORDER;
+  context.lineWidth = 1;
+  context.fillRect(options.x, options.y, boxWidth, boxHeight);
+  context.strokeRect(options.x + 0.5, options.y + 0.5, boxWidth - 1, boxHeight - 1);
+  context.fillStyle = options.active ? AXIS_ACTIVE_TEXT : AXIS_TEXT_COLOR;
+  context.fillText(
+    options.text,
+    options.x + 6,
+    options.y + (context.textBaseline === "middle" ? boxHeight / 2 : 4),
+  );
+}
+
+function clampCenterTag(
+  centerX: number,
+  textWidth: number,
+  minX: number,
+  maxX: number,
+): number {
+  const boxWidth = Math.ceil(textWidth + 12);
+  return clamp(centerX - boxWidth / 2, minX, maxX - boxWidth);
 }
 
 function emitReadout(

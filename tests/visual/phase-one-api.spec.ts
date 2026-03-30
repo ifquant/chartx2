@@ -51,6 +51,33 @@ test("phase-one public api mounts a single candlestick chart and renders the fir
   expect(metrics.height).toBeGreaterThan(0);
 });
 
+test("phase-one public api applies an incremental update and rerenders", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-update-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-update-canvas" aria-label="phase-one api update chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-update-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API update fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    series.update({ time: 5, open: 136, high: 145, low: 134, close: 143 });
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-update-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-update.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

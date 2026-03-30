@@ -26,6 +26,25 @@ export class SeriesDataStore<TTime extends ChartTime = ChartTime> {
     return rows;
   }
 
+  public update(bar: OhlcDataPoint<TTime>): readonly PlotRow<TTime>[] {
+    if (this.sourceData.length === 0) {
+      return this.setData([bar]);
+    }
+
+    const next = [...this.sourceData];
+    const last = next[next.length - 1];
+    const comparison = compareTimes(last.time, bar.time);
+
+    if (comparison === 0) {
+      next[next.length - 1] = bar;
+      return this.setData(next);
+    }
+
+    assert(comparison < 0, "series update must append a new bar or replace the latest bar");
+    next.push(bar);
+    return this.setData(next);
+  }
+
   public rows(): readonly PlotRow<TTime>[] {
     return this.plots.rows();
   }

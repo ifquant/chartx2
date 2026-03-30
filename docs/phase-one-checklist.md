@@ -181,10 +181,10 @@ Pass means:
 - single-bar datasets do not crash
 - unordered bars are rejected explicitly
 - the current minimal public path supports replacing the full dataset through `setData`
+- the current minimal public path supports replacing the latest bar or appending one new bar through `update`
 
 Not pass:
 
-- incremental `update` semantics
 - partial historical backfill merge behavior
 - whitespace bars
 - mixed time types in one series
@@ -241,6 +241,7 @@ Pass means:
 - `createChartxPhaseOneChart(canvas)` creates one narrow chart instance
 - `addCandlestickSeries()` is the only in-scope series attachment path
 - `setData()` is the only in-scope data write path
+- `update()` supports only replace-last-bar or append-one-bar semantics
 - unsupported host or multi-series usage fails explicitly
 
 Not pass:
@@ -458,7 +459,7 @@ Required:
 - [x] price-scale transforms
 - [x] data ingestion with empty dataset
 - [x] data ingestion with single-bar dataset
-- [ ] baseline update/replace semantics
+- [x] baseline update/replace semantics
 
 ### Visual Regression
 

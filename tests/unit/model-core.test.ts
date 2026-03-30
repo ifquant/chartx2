@@ -91,6 +91,49 @@ describe("model core scales and data", () => {
     expect(range?.maxValue()).toBe(16);
   });
 
+  it("series data store appends a new bar through update", () => {
+    const store = new SeriesDataStore<number>();
+    store.setData([
+      { time: 1, open: 10, high: 14, low: 8, close: 11 },
+      { time: 2, open: 11, high: 15, low: 10, close: 14 },
+    ]);
+
+    const rows = store.update({ time: 3, open: 14, high: 18, low: 13, close: 17 });
+
+    expect(rows).toHaveLength(3);
+    expect(rows[2].time).toBe(3);
+    expect(rows[2].value).toEqual([14, 18, 13, 17]);
+  });
+
+  it("series data store replaces the latest bar through update", () => {
+    const store = new SeriesDataStore<number>();
+    store.setData([
+      { time: 1, open: 10, high: 14, low: 8, close: 11 },
+      { time: 2, open: 11, high: 15, low: 10, close: 14 },
+    ]);
+
+    const rows = store.update({ time: 2, open: 12, high: 16, low: 11, close: 15 });
+
+    expect(rows).toHaveLength(2);
+    expect(rows[1].value).toEqual([12, 16, 11, 15]);
+    expect(store.source()).toEqual([
+      { time: 1, open: 10, high: 14, low: 8, close: 11 },
+      { time: 2, open: 12, high: 16, low: 11, close: 15 },
+    ]);
+  });
+
+  it("series data store rejects out-of-order updates", () => {
+    const store = new SeriesDataStore<number>();
+    store.setData([
+      { time: 1, open: 10, high: 14, low: 8, close: 11 },
+      { time: 2, open: 11, high: 15, low: 10, close: 14 },
+    ]);
+
+    expect(() =>
+      store.update({ time: 1, open: 9, high: 13, low: 8, close: 10 }),
+    ).toThrow(/append a new bar or replace the latest bar/);
+  });
+
   it("visible timed values extends one item on both sides when requested", () => {
     const items: TimedValue[] = [
       { time: 0 as never, x: 0 as never },

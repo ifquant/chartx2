@@ -38,6 +38,7 @@ export type PhaseOneReadoutDetail = {
 
 export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
+  update(bar: PhaseOneCandlestickData): void;
 };
 
 export type PhaseOneChartApi = {
@@ -189,6 +190,9 @@ export class PhaseOneChartHarness {
       setData: (data) => {
         this.setData(data);
       },
+      update: (bar) => {
+        this.update(bar);
+      },
     };
   }
 
@@ -200,6 +204,23 @@ export class PhaseOneChartHarness {
     this.data = [...data];
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  public update(bar: PhaseOneCandlestickData): void {
+    if (!this.seriesAttached) {
+      throw new Error("chartx phase-one chart requires addCandlestickSeries before update");
+    }
+
+    this.data = this.store.update(bar).map((row) => ({
+      time: row.time,
+      open: row.value[PlotRowValueIndex.Open],
+      high: row.value[PlotRowValueIndex.High],
+      low: row.value[PlotRowValueIndex.Low],
+      close: row.value[PlotRowValueIndex.Close],
+    }));
     if (this.canvas !== null) {
       this.render(this.canvas);
     }

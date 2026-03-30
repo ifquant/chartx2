@@ -70,13 +70,13 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests, keep resize and crosshair snapshots stable, cover zoom plus drag-pan baselines, and surface readout state into a host OHLC bar.",
+      note: "Pin model and scale behavior with unit tests, cover setData plus update flows, keep viewport snapshots stable, and surface readout state into a host OHLC bar.",
     },
     {
       id: "08",
       title: "Minimal Public API",
       status: "complete",
-      note: "Expose the narrow create chart, add one series, and set data flow through the public boundary.",
+      note: "Expose the narrow create chart, add one series, and setData/update flows through the public boundary.",
     },
     {
       id: "09",

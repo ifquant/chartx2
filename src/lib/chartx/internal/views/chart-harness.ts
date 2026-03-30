@@ -50,6 +50,11 @@ type PanePoint = {
   y: number;
 };
 
+type DragState = {
+  startClientX: number;
+  startRightOffset: number;
+};
+
 const DEFAULT_LAYOUT: Layout = {
   width: 960,
   height: 520,
@@ -71,6 +76,7 @@ export class PhaseOneChartHarness {
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
   private rightOffset = DEFAULT_RIGHT_OFFSET;
+  private dragState: DragState | null = null;
   private readonly handleResize = () => {
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -82,6 +88,13 @@ export class PhaseOneChartHarness {
     }
 
     const layout = measureLayout(this.canvas);
+    if (this.dragState !== null && this.data.length > 0) {
+      const paneWidth = layout.width - layout.left - layout.right;
+      const spacing = resolveBarSpacing(this.barSpacing, paneWidth, this.data.length);
+      const deltaBars = (event.clientX - this.dragState.startClientX) / spacing;
+      this.rightOffset = this.dragState.startRightOffset - deltaBars;
+    }
+
     this.crosshair = resolvePanePoint(this.canvas, event, layout);
     this.render(this.canvas);
   };
@@ -92,6 +105,27 @@ export class PhaseOneChartHarness {
 
     this.crosshair = null;
     this.render(this.canvas);
+  };
+  private readonly handlePointerDown = (event: PointerEvent) => {
+    if (this.canvas === null || this.data.length === 0) {
+      return;
+    }
+
+    this.dragState = {
+      startClientX: event.clientX,
+      startRightOffset: this.rightOffset,
+    };
+    this.canvas.setPointerCapture(event.pointerId);
+  };
+  private readonly handlePointerUp = (event: PointerEvent) => {
+    if (this.canvas === null) {
+      return;
+    }
+
+    if (this.canvas.hasPointerCapture(event.pointerId)) {
+      this.canvas.releasePointerCapture(event.pointerId);
+    }
+    this.dragState = null;
   };
   private readonly handleWheel = (event: WheelEvent) => {
     if (this.canvas === null || this.data.length === 0) {
@@ -113,20 +147,27 @@ export class PhaseOneChartHarness {
     this.canvas = canvas;
     this.render(canvas);
     window.addEventListener("resize", this.handleResize);
+    canvas.addEventListener("pointerdown", this.handlePointerDown);
     canvas.addEventListener("pointermove", this.handlePointerMove);
+    canvas.addEventListener("pointerup", this.handlePointerUp);
+    canvas.addEventListener("pointercancel", this.handlePointerUp);
     canvas.addEventListener("pointerleave", this.handlePointerLeave);
     canvas.addEventListener("wheel", this.handleWheel, { passive: false });
   }
 
   public detach(): void {
     if (this.canvas !== null) {
+      this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
       this.canvas.removeEventListener("pointermove", this.handlePointerMove);
+      this.canvas.removeEventListener("pointerup", this.handlePointerUp);
+      this.canvas.removeEventListener("pointercancel", this.handlePointerUp);
       this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
       this.canvas.removeEventListener("wheel", this.handleWheel);
     }
     window.removeEventListener("resize", this.handleResize);
     this.canvas = null;
     this.crosshair = null;
+    this.dragState = null;
   }
 
   public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {

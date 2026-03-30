@@ -253,7 +253,7 @@ Checklist:
 Exit criteria:
 
 - [x] app launch shows a single chart with deterministic sample data
-- [ ] pan works
+- [x] pan works
 - [x] zoom works
 - [x] crosshair works at the baseline level
 - [x] engine init failure produces a visible host error instead of a silent blank page
@@ -326,7 +326,7 @@ These failure modes must have both handling and tests where applicable.
 - [x] single-bar dataset -> no crash, no nonsense rendering
 - [ ] resize -> axes and bars stay aligned
 - [ ] high-DPI -> output remains stable
-- [ ] pan/zoom -> viewport updates without silent desync
+- [x] pan/zoom -> viewport updates without silent desync
 - [x] crosshair -> inspected position stays aligned with rendered bars
 
 ## Verification Checklist
@@ -364,7 +364,7 @@ Phase one is done when all of these are true:
 - [ ] the engine has a real internal boundary and the host uses only the public chart API
 - [ ] the phase-one parity checklist is complete and reviewed
 - [ ] a single-chart, single-pane candle/bar flow works end-to-end
-- [ ] pan, zoom, and crosshair work at baseline level
+- [x] pan, zoom, and crosshair work at baseline level
 - [ ] browser-based visual regression exists
 - [ ] model and scale logic has unit tests
 - [ ] selected upstream parity contract tests exist

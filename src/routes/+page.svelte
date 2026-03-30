@@ -62,6 +62,7 @@
         <li>Canvas-based candle and grid renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Wheel-driven viewport zoom baseline</li>
+        <li>Drag-driven viewport pan baseline</li>
         <li>Visible host error state if chart initialization fails</li>
       </ul>
     </div>

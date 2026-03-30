@@ -70,7 +70,7 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests, keep resize and crosshair snapshots stable, and add the first wheel-driven viewport zoom baseline.",
+      note: "Pin model and scale behavior with unit tests, keep resize and crosshair snapshots stable, and cover the first zoom plus drag-pan viewport baselines.",
     },
     {
       id: "08",

@@ -59,6 +59,8 @@ Current state:
 - `priceScale()`
 - `subscribeCrosshairMove()`
 - `unsubscribeCrosshairMove()`
+- `subscribeClick()`
+- `unsubscribeClick()`
 - `setData()`
 - `update()`
 - `destroy()`
@@ -70,8 +72,9 @@ Current references:
 
 Why this is still simplified:
 
-- `applyOptions()` currently covers only a narrow layout color surface
-- crosshair move is the only public chart event subscription so far
+- `applyOptions()` now covers a meaningful but still narrow chart color surface
+- series options exist, but only as a small styling subset
+- click and crosshair move subscriptions exist, but other event and interaction surfaces are still missing
 - public scale objects exist but still expose only a small subset of useful behavior
 
 ### Time and price scales

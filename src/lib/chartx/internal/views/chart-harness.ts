@@ -55,12 +55,42 @@ export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
 };
 
 export type PhaseOneCrosshairMoveHandler = (event: PhaseOneCrosshairMoveEvent) => void;
+export type PhaseOneClickEvent = PhaseOneReadoutDetail & {
+  point: PanePoint | null;
+};
+export type PhaseOneClickHandler = (event: PhaseOneClickEvent) => void;
 export type PhaseOneChartOptions = {
   layout?: {
     backgroundColor?: string;
     paneBackgroundColor?: string;
     gridColor?: string;
+    frameColor?: string;
+    axisTextColor?: string;
+    axisLabelBackground?: string;
+    axisLabelBorder?: string;
+    axisActiveBackground?: string;
+    axisActiveText?: string;
   };
+  crosshair?: {
+    lineColor?: string;
+    pointColor?: string;
+  };
+};
+
+export type PhaseOneCandlestickSeriesOptions = {
+  upColor?: string;
+  downColor?: string;
+  wickColor?: string;
+};
+
+export type PhaseOneBarSeriesOptions = {
+  upColor?: string;
+  downColor?: string;
+};
+
+export type PhaseOneLineSeriesOptions = {
+  color?: string;
+  lineWidth?: number;
 };
 
 export type PhaseOneTimeScaleApi = {
@@ -75,16 +105,19 @@ export type PhaseOnePriceScaleApi = {
 export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
+  applyOptions(options: PhaseOneCandlestickSeriesOptions): void;
 };
 
 export type PhaseOneBarSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
+  applyOptions(options: PhaseOneBarSeriesOptions): void;
 };
 
 export type PhaseOneLineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
+  applyOptions(options: PhaseOneLineSeriesOptions): void;
 };
 
 export type PhaseOneChartApi = {
@@ -100,6 +133,8 @@ export type PhaseOneChartApi = {
   priceScale(): PhaseOnePriceScaleApi;
   subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
   unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
+  subscribeClick(handler: PhaseOneClickHandler): void;
+  unsubscribeClick(handler: PhaseOneClickHandler): void;
   destroy(): void;
 };
 
@@ -162,10 +197,34 @@ export class PhaseOneChartHarness {
     backgroundColor: CHART_BACKGROUND,
     paneBackgroundColor: PANE_BACKGROUND,
     gridColor: GRID_COLOR,
+    frameColor: FRAME_COLOR,
+    axisTextColor: AXIS_TEXT_COLOR,
+    axisLabelBackground: AXIS_LABEL_BACKGROUND,
+    axisLabelBorder: AXIS_LABEL_BORDER,
+    axisActiveBackground: AXIS_ACTIVE_BACKGROUND,
+    axisActiveText: AXIS_ACTIVE_TEXT,
+  };
+  private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> = {
+    lineColor: CROSSHAIR_COLOR,
+    pointColor: CROSSHAIR_POINT_COLOR,
+  };
+  private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
+    upColor: UP_COLOR,
+    downColor: DOWN_COLOR,
+    wickColor: WICK_COLOR,
+  };
+  private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
+    upColor: UP_COLOR,
+    downColor: DOWN_COLOR,
+  };
+  private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
+    color: LINE_COLOR,
+    lineWidth: 2,
   };
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
+  private readonly clickHandlers = new Set<PhaseOneClickHandler>();
   private readonly handleResize = () => {
     if (this.canvas !== null && this.manualLayout === null) {
       this.render(this.canvas);
@@ -230,6 +289,23 @@ export class PhaseOneChartHarness {
     this.barSpacing = clamp(currentSpacing * factor, MIN_BAR_SPACING, MAX_BAR_SPACING);
     this.render(this.canvas);
   };
+  private readonly handleClick = (event: MouseEvent) => {
+    if (this.canvas === null) {
+      return;
+    }
+
+    const layout = measureLayout(this.canvas, this.manualLayout);
+    const point = resolvePanePoint(this.canvas, event, layout);
+    const rows = this.store.setData(this.data);
+    const readout = buildCrosshairReadout(rows, point, this.timeScale, this.priceScale);
+
+    for (const handler of this.clickHandlers) {
+      handler({
+        ...readout,
+        point,
+      });
+    }
+  };
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
@@ -242,6 +318,7 @@ export class PhaseOneChartHarness {
     canvas.addEventListener("pointercancel", this.handlePointerUp);
     canvas.addEventListener("pointerleave", this.handlePointerLeave);
     canvas.addEventListener("wheel", this.handleWheel, { passive: false });
+    canvas.addEventListener("click", this.handleClick);
   }
 
   public detach(): void {
@@ -252,12 +329,14 @@ export class PhaseOneChartHarness {
       this.canvas.removeEventListener("pointercancel", this.handlePointerUp);
       this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
       this.canvas.removeEventListener("wheel", this.handleWheel);
+      this.canvas.removeEventListener("click", this.handleClick);
     }
     window.removeEventListener("resize", this.handleResize);
     this.canvas = null;
     this.crosshair = null;
     this.dragState = null;
     this.crosshairMoveHandlers.clear();
+    this.clickHandlers.clear();
   }
 
   public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {
@@ -275,6 +354,21 @@ export class PhaseOneChartHarness {
       update: (bar) => {
         this.assertSeriesActive(api);
         this.update(bar);
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.candlestickOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.candlestickOptions.downColor = options.downColor;
+        }
+        if (options.wickColor !== undefined) {
+          this.candlestickOptions.wickColor = options.wickColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
       },
     };
     this.currentSeriesApi = api;
@@ -297,6 +391,18 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         this.update(normalizeLineBar(bar));
       },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.color !== undefined) {
+          this.lineOptions.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          this.lineOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     };
     this.currentSeriesApi = api;
     return api;
@@ -317,6 +423,18 @@ export class PhaseOneChartHarness {
       update: (bar) => {
         this.assertSeriesActive(api);
         this.update(bar);
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.barOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.barOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
       },
     };
     this.currentSeriesApi = api;
@@ -352,6 +470,30 @@ export class PhaseOneChartHarness {
     }
     if (options.layout?.gridColor !== undefined) {
       this.chartOptions.gridColor = options.layout.gridColor;
+    }
+    if (options.layout?.frameColor !== undefined) {
+      this.chartOptions.frameColor = options.layout.frameColor;
+    }
+    if (options.layout?.axisTextColor !== undefined) {
+      this.chartOptions.axisTextColor = options.layout.axisTextColor;
+    }
+    if (options.layout?.axisLabelBackground !== undefined) {
+      this.chartOptions.axisLabelBackground = options.layout.axisLabelBackground;
+    }
+    if (options.layout?.axisLabelBorder !== undefined) {
+      this.chartOptions.axisLabelBorder = options.layout.axisLabelBorder;
+    }
+    if (options.layout?.axisActiveBackground !== undefined) {
+      this.chartOptions.axisActiveBackground = options.layout.axisActiveBackground;
+    }
+    if (options.layout?.axisActiveText !== undefined) {
+      this.chartOptions.axisActiveText = options.layout.axisActiveText;
+    }
+    if (options.crosshair?.lineColor !== undefined) {
+      this.crosshairOptions.lineColor = options.crosshair.lineColor;
+    }
+    if (options.crosshair?.pointColor !== undefined) {
+      this.crosshairOptions.pointColor = options.crosshair.pointColor;
     }
 
     if (this.canvas !== null) {
@@ -413,6 +555,14 @@ export class PhaseOneChartHarness {
 
   public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
     this.crosshairMoveHandlers.delete(handler);
+  }
+
+  public subscribeClick(handler: PhaseOneClickHandler): void {
+    this.clickHandlers.add(handler);
+  }
+
+  public unsubscribeClick(handler: PhaseOneClickHandler): void {
+    this.clickHandlers.delete(handler);
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {
@@ -481,7 +631,7 @@ export class PhaseOneChartHarness {
 
     const rows = this.store.setData(this.data);
     if (rows.length === 0) {
-      context.strokeStyle = FRAME_COLOR;
+      context.strokeStyle = this.chartOptions.frameColor;
       context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
       context.restore();
       return;
@@ -530,8 +680,8 @@ export class PhaseOneChartHarness {
 
       this.lineRenderer.draw(context, {
         items: lineItems,
-        lineColor: LINE_COLOR,
-        lineWidth: 2,
+        lineColor: this.lineOptions.color,
+        lineWidth: this.lineOptions.lineWidth,
       });
     } else if (this.seriesType === "bar") {
       const barItems = rows.map((row): BarItem => ({
@@ -554,25 +704,25 @@ export class PhaseOneChartHarness {
       this.barRenderer.draw(context, {
         items: barItems,
         barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
-        upColor: UP_COLOR,
-        downColor: DOWN_COLOR,
+        upColor: this.barOptions.upColor,
+        downColor: this.barOptions.downColor,
       });
     } else {
       this.candlesRenderer.draw(context, {
         items,
         barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
-        upColor: UP_COLOR,
-        downColor: DOWN_COLOR,
-        wickColor: WICK_COLOR,
+        upColor: this.candlestickOptions.upColor,
+        downColor: this.candlestickOptions.downColor,
+        wickColor: this.candlestickOptions.wickColor,
       });
     }
 
-    drawCrosshair(context, paneWidth, paneHeight, this.crosshair);
-    context.strokeStyle = FRAME_COLOR;
+    drawCrosshair(context, paneWidth, paneHeight, this.crosshair, this.crosshairOptions);
+    context.strokeStyle = this.chartOptions.frameColor;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
-    drawPriceAxis(context, layout, this.priceScale, this.crosshair);
-    drawTimeAxis(context, layout, rows, this.timeScale, this.crosshair);
+    drawPriceAxis(context, layout, this.priceScale, this.crosshair, this.chartOptions);
+    drawTimeAxis(context, layout, rows, this.timeScale, this.crosshair, this.chartOptions);
     const readout = buildCrosshairReadout(rows, this.crosshair, this.timeScale, this.priceScale);
     emitReadout(canvas, readout);
     this.emitCrosshairMove(readout);
@@ -640,6 +790,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     unsubscribeCrosshairMove(handler) {
       harness.unsubscribeCrosshairMove(handler);
+    },
+    subscribeClick(handler) {
+      harness.subscribeClick(handler);
+    },
+    unsubscribeClick(handler) {
+      harness.unsubscribeClick(handler);
     },
     destroy() {
       harness.detach();
@@ -750,7 +906,7 @@ function resolveBarSpacing(
 
 function resolvePanePoint(
   canvas: HTMLCanvasElement,
-  event: PointerEvent,
+  event: Pick<MouseEvent, "clientX" | "clientY">,
   layout: Layout,
 ): PanePoint | null {
   const rect = canvas.getBoundingClientRect();
@@ -774,13 +930,14 @@ function drawCrosshair(
   paneWidth: number,
   paneHeight: number,
   crosshair: PanePoint | null,
+  options: { lineColor: string; pointColor: string },
 ): void {
   if (crosshair === null) {
     return;
   }
 
   context.save();
-  context.strokeStyle = CROSSHAIR_COLOR;
+  context.strokeStyle = options.lineColor;
   context.lineWidth = 1;
   context.setLineDash([4, 4]);
 
@@ -795,7 +952,7 @@ function drawCrosshair(
   context.stroke();
 
   context.setLineDash([]);
-  context.fillStyle = CROSSHAIR_POINT_COLOR;
+  context.fillStyle = options.pointColor;
   context.beginPath();
   context.arc(crosshair.x, crosshair.y, 2.5, 0, Math.PI * 2);
   context.fill();
@@ -807,6 +964,7 @@ function drawPriceAxis(
   layout: Layout,
   priceScale: PriceScale,
   crosshair: PanePoint | null,
+  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
 ): void {
   const range = priceScale.getPriceRange();
   if (range === null) {
@@ -830,7 +988,7 @@ function drawPriceAxis(
   context.textBaseline = "middle";
 
   for (const label of labels) {
-    drawAxisTag(context, label);
+    drawAxisTag(context, label, options);
   }
 
   if (crosshair !== null) {
@@ -841,7 +999,7 @@ function drawPriceAxis(
         x: layout.width - layout.right + 6,
         y: layout.top + crosshair.y - 9,
         active: true,
-      });
+      }, options);
     }
   }
 
@@ -854,6 +1012,7 @@ function drawTimeAxis(
   rows: readonly { time: number; index: number }[],
   timeScale: TimeScale,
   crosshair: PanePoint | null,
+  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
 ): void {
   if (rows.length === 0) {
     return;
@@ -869,7 +1028,7 @@ function drawTimeAxis(
   context.save();
   context.font = '11px "SF Mono", "Menlo", monospace';
   context.textBaseline = "top";
-  context.fillStyle = AXIS_TEXT_COLOR;
+  context.fillStyle = options.axisTextColor;
 
   for (const row of anchors) {
     const text = formatTimeAxisLabel(row.time);
@@ -878,7 +1037,7 @@ function drawTimeAxis(
       text,
       x: clampCenterTag(x, context.measureText(text).width, layout.left, layout.width - layout.right),
       y: layout.top + paneHeight + 8,
-    });
+    }, options);
   }
 
   if (crosshair !== null) {
@@ -890,27 +1049,31 @@ function drawTimeAxis(
       x: clampCenterTag(layout.left + crosshair.x, context.measureText(text).width, layout.left, layout.width - layout.right),
       y: layout.top + paneHeight + 8,
       active: true,
-    });
+    }, options);
   }
 
   context.restore();
 }
 
-function drawAxisTag(context: CanvasRenderingContext2D, options: AxisTag): void {
-  const textWidth = context.measureText(options.text).width;
+function drawAxisTag(
+  context: CanvasRenderingContext2D,
+  tag: AxisTag,
+  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
+): void {
+  const textWidth = context.measureText(tag.text).width;
   const boxWidth = Math.ceil(textWidth + 12);
   const boxHeight = 18;
 
-  context.fillStyle = options.active ? AXIS_ACTIVE_BACKGROUND : AXIS_LABEL_BACKGROUND;
-  context.strokeStyle = options.active ? AXIS_ACTIVE_BACKGROUND : AXIS_LABEL_BORDER;
+  context.fillStyle = tag.active ? options.axisActiveBackground : options.axisLabelBackground;
+  context.strokeStyle = tag.active ? options.axisActiveBackground : options.axisLabelBorder;
   context.lineWidth = 1;
-  context.fillRect(options.x, options.y, boxWidth, boxHeight);
-  context.strokeRect(options.x + 0.5, options.y + 0.5, boxWidth - 1, boxHeight - 1);
-  context.fillStyle = options.active ? AXIS_ACTIVE_TEXT : AXIS_TEXT_COLOR;
+  context.fillRect(tag.x, tag.y, boxWidth, boxHeight);
+  context.strokeRect(tag.x + 0.5, tag.y + 0.5, boxWidth - 1, boxHeight - 1);
+  context.fillStyle = tag.active ? options.axisActiveText : options.axisTextColor;
   context.fillText(
-    options.text,
-    options.x + 6,
-    options.y + (context.textBaseline === "middle" ? boxHeight / 2 : 4),
+    tag.text,
+    tag.x + 6,
+    tag.y + (context.textBaseline === "middle" ? boxHeight / 2 : 4),
   );
 }
 

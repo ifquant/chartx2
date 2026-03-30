@@ -353,3 +353,140 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
     maxValue: expect.any(Number),
   });
 });
+
+test("phase-one public api supports click subscriptions and series-level options", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-series-options-fixture" style="width: 820px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-series-options-canvas" aria-label="phase-one api series options chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-series-options-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API series options fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const events: Array<{ active: boolean; hasPoint: boolean; time: number | null }> = [];
+    const clickHandler = (event: {
+      active: boolean;
+      point: { x: number; y: number } | null;
+      time: number | null;
+    }) => {
+      events.push({
+        active: event.active,
+        hasPoint: event.point !== null,
+        time: event.time,
+      });
+    };
+
+    chart.subscribeClick(clickHandler);
+    chart.applyOptions({
+      layout: {
+        backgroundColor: "#f7f4ea",
+        paneBackgroundColor: "#fff6dd",
+        gridColor: "rgba(199, 84, 62, 0.16)",
+        frameColor: "rgba(199, 84, 62, 0.34)",
+        axisTextColor: "rgba(70, 46, 26, 0.88)",
+        axisLabelBackground: "rgba(255, 247, 221, 0.96)",
+        axisLabelBorder: "rgba(199, 84, 62, 0.22)",
+        axisActiveBackground: "#c7543e",
+        axisActiveText: "#fffdf7",
+      },
+      crosshair: {
+        lineColor: "rgba(199, 84, 62, 0.55)",
+        pointColor: "#c7543e",
+      },
+    });
+
+    const series = chart.addLineSeries();
+    series.applyOptions({
+      color: "#c7543e",
+      lineWidth: 4,
+    });
+    series.setData([
+      { time: 1, value: 126 },
+      { time: 2, value: 130 },
+      { time: 3, value: 128 },
+      { time: 4, value: 135 },
+      { time: 5, value: 133 },
+    ]);
+
+    (window as Window & {
+      __chartxSeriesOptionsState?: {
+        events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+        chart: { unsubscribeClick(handler: unknown): void };
+        clickHandler: typeof clickHandler;
+      };
+    }).__chartxSeriesOptionsState = {
+      events,
+      chart,
+      clickHandler,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-series-options-fixture");
+  const canvas = page.getByLabel("phase-one api series options chart");
+  await expect(fixture).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API series options fixture canvas is missing");
+  }
+
+  await page.mouse.click(box.x + box.width * 0.54, box.y + box.height * 0.42);
+  await expect(fixture).toHaveScreenshot("phase-one-api-series-options.png");
+
+  const clickEvent = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxSeriesOptionsState?: {
+        events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+      };
+    }).__chartxSeriesOptionsState;
+
+    return state?.events.at(-1) ?? null;
+  });
+
+  expect(clickEvent).toEqual({
+    active: true,
+    hasPoint: true,
+    time: expect.any(Number),
+  });
+
+  const unsubscribeCount = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxSeriesOptionsState?: {
+        events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+        chart: { unsubscribeClick(handler: unknown): void };
+        clickHandler: unknown;
+      };
+    }).__chartxSeriesOptionsState;
+
+    if (!state) {
+      throw new Error("API series options state is missing");
+    }
+
+    const before = state.events.length;
+    state.chart.unsubscribeClick(state.clickHandler);
+    return before;
+  });
+
+  await page.mouse.click(box.x + box.width * 0.44, box.y + box.height * 0.36);
+  const afterUnsubscribeCount = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxSeriesOptionsState?: {
+        events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+      };
+    }).__chartxSeriesOptionsState;
+
+    return state?.events.length ?? 0;
+  });
+
+  expect(afterUnsubscribeCount).toBe(unsubscribeCount);
+});

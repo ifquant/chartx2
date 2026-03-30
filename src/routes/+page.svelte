@@ -76,12 +76,12 @@
 <main class="page">
   <section class="hero">
     <p class="eyebrow">chartx2 / phase one</p>
-    <h1>Phase-one lightweight-charts floor is now complete.</h1>
+    <h1>Phase-one floor is now carrying the first real pane architecture.</h1>
     <p class="lede">
-      This page is still the host shell, but the chart preview now closes the full
-      phase-one loop: public chart boundary, deterministic canvas rendering, baseline
-      interactions, three core series paths, and the verification gates that keep the
-      floor stable before phase two begins.
+      This page is still the host shell, but the chart preview now steps past the
+      single-pane floor into the first true multi-pane layout: a primary price pane,
+      a dedicated volume pane, a shared time scale, and independent pane-local price
+      scales that keep the engine pointed toward a fuller chart workstation.
     </p>
   </section>
 
@@ -108,17 +108,18 @@
     <div class="chart-copy">
       <h2>Browser Harness</h2>
       <p>
-        This is the first deterministic browser harness for validating scale math, plot
-        rows, and candle rendering before the broader renderer and view migration continues.
+        This deterministic browser harness now validates the first pane split as well:
+        one primary chart pane plus one dedicated volume pane sharing a single time scale.
       </p>
       <ul>
         <li>Deterministic sample OHLC data</li>
-        <li>Internal time and price scales</li>
-        <li>Canvas-based candle, bar, line, and grid renderers</li>
+        <li>Primary price pane plus a dedicated volume pane</li>
+        <li>Shared time scale with pane-local price scales</li>
+        <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
-        <li>Public single-series API with candlestick, bar, and line paths</li>
+        <li>Public API with one primary series plus one volume series path</li>
         <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>

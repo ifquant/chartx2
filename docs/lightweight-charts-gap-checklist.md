@@ -21,6 +21,10 @@ The categories below are intentionally practical:
   - current entrypoints: [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts)
 - one pane renders deterministic data end to end
   - current harness: [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
+- a fixed two-pane path now exists for primary series plus volume
+  - shared time scale
+  - pane-local price scales
+  - deterministic browser harness coverage
 - four core series paths exist, plus one volume-flavored bridge path
   - candlestick
   - bar
@@ -80,6 +84,7 @@ Why this is still simplified:
 - series options exist, but only as a small styling subset
 - click and crosshair move subscriptions exist, but other event and interaction surfaces are still missing
 - public scale objects exist but still expose only a small subset of useful behavior
+- multi-pane is currently fixed to `primary + volume`, not a general pane API
 
 ### Time and price scales
 
@@ -216,6 +221,7 @@ Must-close items:
 Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
+- `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
 
 ## Deferred Beyond Lightweight-Charts
 

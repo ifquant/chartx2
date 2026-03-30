@@ -217,6 +217,36 @@ test("phase-one public api mounts a single volume chart and renders the first fr
   await expect(fixture).toHaveScreenshot("phase-one-api-volume-series.png");
 });
 
+test("phase-one public api mounts a candlestick chart with a dedicated volume pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-multipane-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-multipane-canvas" aria-label="phase-one api multi-pane chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-multipane-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API multi-pane fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumeSeries = chart.addVolumeSeries();
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+  }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-multipane-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-multi-pane.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

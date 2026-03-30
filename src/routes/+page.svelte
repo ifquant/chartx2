@@ -98,7 +98,7 @@
     <h2>Phase-One Opening Moves</h2>
     <div class="step-grid">
       {#each foundation.phaseOneSteps as step}
-        <article class:active={step.status === "active"}>
+        <article class:active={step.status === "active"} class:complete={step.status === "complete"}>
           <p class="step-id">{step.id}</p>
           <h3>{step.title}</h3>
           <p>{step.note}</p>
@@ -231,6 +231,10 @@ li + li {
 .step-grid article {
   min-height: 13rem;
   padding: 1.25rem;
+}
+
+.step-grid article.complete {
+  background: rgba(88, 107, 70, 0.12);
 }
 
 .step-grid article.active {

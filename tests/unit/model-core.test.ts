@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  PlotRowValueIndex,
+  PriceRangeImpl,
+  PriceScale,
+  RangeImpl,
+  SeriesDataStore,
+  TimeScale,
+  TimeScaleVisibleRange,
+  visibleTimedValues,
+  type TimedValue,
+} from "../../src/lib/chartx/internal/model";
+
+describe("model core scales and data", () => {
+  it("strict visible range floors and ceils logical values", () => {
+    const range = new TimeScaleVisibleRange(new RangeImpl(1.2 as never, 8.8 as never));
+    const strict = range.strictRange();
+
+    expect(strict?.left()).toBe(1);
+    expect(strict?.right()).toBe(9);
+  });
+
+  it("time scale converts indexes to coordinates and back", () => {
+    const scale = new TimeScale();
+    scale.applyOptions({
+      width: 600,
+      pointCount: 60,
+      barSpacing: 10,
+      rightOffset: 0.5,
+    });
+
+    const coordinate = scale.indexToCoordinate(30 as never);
+    const logical = scale.coordinateToLogical(coordinate);
+
+    expect(Math.round(logical)).toBe(30);
+    expect(scale.visibleStrictRange()).not.toBeNull();
+  });
+
+  it("price scale maps prices into pane coordinates", () => {
+    const scale = new PriceScale();
+    scale.applyOptions({
+      height: 400,
+      priceRange: new PriceRangeImpl(100, 200),
+    });
+
+    const top = scale.priceToCoordinate(200);
+    const bottom = scale.priceToCoordinate(100);
+    const midpoint = scale.coordinateToPrice(200);
+
+    expect(top).toBe(0);
+    expect(bottom).toBe(400);
+    expect(midpoint).toBe(150);
+  });
+
+  it("series data store accepts empty and single-bar datasets", () => {
+    const store = new SeriesDataStore<number>();
+
+    expect(store.setData([])).toEqual([]);
+
+    const rows = store.setData([
+      { time: 1, open: 10, high: 12, low: 9, close: 11 },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].value).toEqual([10, 12, 9, 11]);
+  });
+
+  it("series data store rejects unordered bars", () => {
+    const store = new SeriesDataStore<number>();
+
+    expect(() =>
+      store.setData([
+        { time: 2, open: 10, high: 12, low: 9, close: 11 },
+        { time: 1, open: 12, high: 13, low: 10, close: 11 },
+      ]),
+    ).toThrow(/strictly ordered/);
+  });
+
+  it("series data store returns a merged low/high price range", () => {
+    const store = new SeriesDataStore<number>();
+    const rows = store.setData([
+      { time: 1, open: 10, high: 14, low: 8, close: 11 },
+      { time: 2, open: 11, high: 15, low: 10, close: 14 },
+      { time: 3, open: 14, high: 16, low: 12, close: 13 },
+    ]);
+
+    const range = store.priceRange(rows[0].index, rows[2].index);
+
+    expect(range?.minValue()).toBe(8);
+    expect(range?.maxValue()).toBe(16);
+  });
+
+  it("visible timed values extends one item on both sides when requested", () => {
+    const items: TimedValue[] = [
+      { time: 0 as never, x: 0 as never },
+      { time: 1 as never, x: 10 as never },
+      { time: 2 as never, x: 20 as never },
+      { time: 3 as never, x: 30 as never },
+    ];
+
+    const visible = visibleTimedValues(items, new RangeImpl(1 as never, 2 as never), true);
+
+    expect(visible).toEqual({ from: 0, to: 4 });
+  });
+
+  it("plot list min max respects requested plot slots", () => {
+    const store = new SeriesDataStore<number>();
+    const rows = store.setData([
+      { time: 1, open: 5, high: 8, low: 4, close: 7 },
+      { time: 2, open: 7, high: 9, low: 6, close: 8 },
+      { time: 3, open: 8, high: 10, low: 7, close: 9 },
+    ]);
+
+    const closeRange = store["plots"].minMaxOnRangeCached(rows[0].index, rows[2].index, [
+      PlotRowValueIndex.Close,
+    ]);
+
+    expect(closeRange).toEqual({ min: 7, max: 9 });
+  });
+});

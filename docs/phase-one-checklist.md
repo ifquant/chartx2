@@ -188,10 +188,10 @@ Current migrated subset:
 
 Exit criteria:
 
-- [ ] unit tests cover visible range math
-- [ ] unit tests cover time-scale transforms
-- [ ] unit tests cover price-scale transforms
-- [ ] unit tests cover empty, single-bar, and normal dataset ingestion
+- [x] unit tests cover visible range math
+- [x] unit tests cover time-scale transforms
+- [x] unit tests cover price-scale transforms
+- [x] unit tests cover empty, single-bar, and normal dataset ingestion
 
 ### Step 3: Renderers And Views
 
@@ -216,7 +216,7 @@ Current migrated subset:
 Exit criteria:
 
 - [x] browser harness renders a baseline chart reliably
-- [ ] visual regression snapshot exists for baseline candle/bar render
+- [x] visual regression snapshot exists for baseline candle/bar render
 - [ ] visual regression snapshot exists for at least one resize or DPR-sensitive case
 
 ### Step 4: Minimal Public Chart API
@@ -264,22 +264,22 @@ Exit criteria:
 
 Required:
 
-- [ ] visible range math
-- [ ] time-scale transforms
-- [ ] price-scale transforms
-- [ ] data ingestion with empty dataset
-- [ ] data ingestion with single-bar dataset
+- [x] visible range math
+- [x] time-scale transforms
+- [x] price-scale transforms
+- [x] data ingestion with empty dataset
+- [x] data ingestion with single-bar dataset
 - [ ] baseline update/replace semantics
 
 ### Visual Regression
 
 Required:
 
-- [ ] browser-based harness, not Tauri-first
-- [ ] fixed dataset
-- [ ] fixed viewport size
-- [ ] fixed device pixel ratio or equivalent deterministic setup
-- [ ] baseline candle/bar snapshot
+- [x] browser-based harness, not Tauri-first
+- [x] fixed dataset
+- [x] fixed viewport size
+- [x] fixed device pixel ratio or equivalent deterministic setup
+- [x] baseline candle/bar snapshot
 - [ ] one resize-sensitive snapshot
 - [ ] one crosshair or viewport update snapshot if deterministic enough
 
@@ -321,8 +321,8 @@ Record, but do not use as phase-one gate:
 These failure modes must have both handling and tests where applicable.
 
 - [ ] engine init fails -> host shows visible error state
-- [ ] empty dataset -> safe empty state
-- [ ] single-bar dataset -> no crash, no nonsense rendering
+- [x] empty dataset -> safe empty state
+- [x] single-bar dataset -> no crash, no nonsense rendering
 - [ ] resize -> axes and bars stay aligned
 - [ ] high-DPI -> output remains stable
 - [ ] pan/zoom -> viewport updates without silent desync
@@ -332,11 +332,11 @@ These failure modes must have both handling and tests where applicable.
 
 Minimum verification for each migration slice:
 
-- [ ] `pnpm check`
-- [ ] `pnpm build` when frontend output shape changes
-- [ ] browser harness verification for render-affecting work
+- [x] `pnpm check`
+- [x] `pnpm build` when frontend output shape changes
+- [x] browser harness verification for render-affecting work
 - [ ] `cargo check` when Tauri-side code changes
-- [ ] commit tutorial updated for each non-trivial slice
+- [x] commit tutorial updated for each non-trivial slice
 
 ## Suggested Implementation Order
 

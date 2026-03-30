@@ -1,7 +1,7 @@
 export type PhaseOneStep = {
   id: string;
   title: string;
-  status: "active" | "queued";
+  status: "complete" | "active" | "queued";
   note: string;
 };
 
@@ -32,47 +32,53 @@ const boundarySummary: EngineBoundarySummary = {
     {
       id: "01",
       title: "Repo Hygiene",
-      status: "active",
+      status: "complete",
       note: "Remove stale scaffolding and keep local-only tooling out of version control.",
     },
     {
       id: "02",
       title: "Engine Boundary",
-      status: "active",
+      status: "complete",
       note: "Create a public chartx entrypoint and keep internals behind it from day one.",
     },
     {
       id: "03",
       title: "Typings And Helpers",
-      status: "active",
+      status: "complete",
       note: "Migrate the smallest upstream helper subset needed for future model and scale work.",
     },
     {
       id: "04",
       title: "Model Core Scales Data",
-      status: "active",
+      status: "complete",
       note: "Land the smallest range, scale, and data-store layer needed for later rendering work.",
     },
     {
       id: "05",
       title: "Renderers Views",
-      status: "active",
+      status: "complete",
       note: "Render deterministic candle data through the first browser harness and keep it behind the chartx boundary.",
     },
     {
       id: "06",
       title: "Host Integration",
-      status: "active",
+      status: "complete",
       note: "Mount the browser harness through the public chartx entrypoint and fail visibly if initialization breaks.",
     },
     {
       id: "07",
+      title: "Unit And Visual Tests",
+      status: "active",
+      note: "Pin model and scale behavior with unit tests and save the first browser baseline screenshot.",
+    },
+    {
+      id: "08",
       title: "Parity Definition",
       status: "queued",
       note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
     },
     {
-      id: "08",
+      id: "09",
       title: "Layered Migration",
       status: "queued",
       note: "Migrate upstream in dependency order, validating each layer before the next one.",

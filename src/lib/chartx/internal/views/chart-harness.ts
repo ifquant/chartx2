@@ -9,9 +9,11 @@ import {
   BarRenderer,
   CandlesticksRenderer,
   GridRenderer,
+  HistogramRenderer,
   LineRenderer,
   type BarItem,
   type CandlestickItem,
+  type HistogramItem,
   type LineItem,
 } from "../renderers";
 import type { Coordinate } from "../model";
@@ -39,6 +41,11 @@ export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
   time: number;
   value: number;
+};
+export type PhaseOneHistogramData = {
+  time: number;
+  value: number;
+  color?: string;
 };
 export type PhaseOneReadoutDetail = {
   active: boolean;
@@ -93,6 +100,11 @@ export type PhaseOneLineSeriesOptions = {
   lineWidth?: number;
 };
 
+export type PhaseOneHistogramSeriesOptions = {
+  upColor?: string;
+  downColor?: string;
+};
+
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
   applyOptions(options: { barSpacing?: number; rightOffset?: number }): void;
@@ -120,13 +132,24 @@ export type PhaseOneLineSeriesApi = {
   applyOptions(options: PhaseOneLineSeriesOptions): void;
 };
 
+export type PhaseOneHistogramSeriesApi = {
+  setData(data: readonly PhaseOneHistogramData[]): void;
+  update(bar: PhaseOneHistogramData): void;
+  applyOptions(options: PhaseOneHistogramSeriesOptions): void;
+};
+
 export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
   addBarSeries(): PhaseOneBarSeriesApi;
   addLineSeries(): PhaseOneLineSeriesApi;
+  addHistogramSeries(): PhaseOneHistogramSeriesApi;
   applyOptions(options: PhaseOneChartOptions): void;
   removeSeries(
-    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+    series:
+      | PhaseOneCandlestickSeriesApi
+      | PhaseOneBarSeriesApi
+      | PhaseOneLineSeriesApi
+      | PhaseOneHistogramSeriesApi,
   ): void;
   resize(width: number, height: number): void;
   timeScale(): PhaseOneTimeScaleApi;
@@ -180,14 +203,16 @@ export class PhaseOneChartHarness {
   private readonly barRenderer = new BarRenderer();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
+  private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private data: readonly PhaseOneCandlestickData[] = [];
-  private seriesType: "candlestick" | "bar" | "line" | null = null;
+  private seriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
   private seriesAttached = false;
   private currentSeriesApi:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
+    | PhaseOneHistogramSeriesApi
     | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -220,6 +245,10 @@ export class PhaseOneChartHarness {
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
     color: LINE_COLOR,
     lineWidth: 2,
+  };
+  private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = {
+    upColor: UP_COLOR,
+    downColor: DOWN_COLOR,
   };
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
@@ -441,8 +470,45 @@ export class PhaseOneChartHarness {
     return api;
   }
 
+  public addHistogramSeries(): PhaseOneHistogramSeriesApi {
+    if (this.seriesAttached) {
+      throw new Error("chartx phase-one chart supports only one series");
+    }
+
+    this.seriesAttached = true;
+    this.seriesType = "histogram";
+    const api: PhaseOneHistogramSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setData(normalizeHistogramData(data));
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.update(normalizeHistogramBar(bar));
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.histogramOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.histogramOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentSeriesApi = api;
+    return api;
+  }
+
   public removeSeries(
-    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+    series:
+      | PhaseOneCandlestickSeriesApi
+      | PhaseOneBarSeriesApi
+      | PhaseOneLineSeriesApi
+      | PhaseOneHistogramSeriesApi,
   ): void {
     if (this.currentSeriesApi !== series) {
       throw new Error("chartx phase-one chart can remove only the currently attached series");
@@ -707,6 +773,25 @@ export class PhaseOneChartHarness {
         upColor: this.barOptions.upColor,
         downColor: this.barOptions.downColor,
       });
+    } else if (this.seriesType === "histogram") {
+      const baseY = toCoordinate(
+        this.priceScale.priceToCoordinate(priceRange?.minValue() ?? 0),
+      );
+      const histogramItems = rows.map((row): HistogramItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        valueY: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]),
+        ),
+        baseY,
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.histogramRenderer.draw(context, {
+        items: histogramItems,
+        barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
+        upColor: this.histogramOptions.upColor,
+        downColor: this.histogramOptions.downColor,
+      });
     } else {
       this.candlesRenderer.draw(context, {
         items,
@@ -729,7 +814,11 @@ export class PhaseOneChartHarness {
   }
 
   private assertSeriesActive(
-    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+    series:
+      | PhaseOneCandlestickSeriesApi
+      | PhaseOneBarSeriesApi
+      | PhaseOneLineSeriesApi
+      | PhaseOneHistogramSeriesApi,
   ): void {
     if (this.currentSeriesApi !== series) {
       throw new Error("chartx phase-one series has been removed");
@@ -769,6 +858,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addLineSeries() {
       return harness.addLineSeries();
+    },
+    addHistogramSeries() {
+      return harness.addHistogramSeries();
     },
     applyOptions(options) {
       harness.applyOptions(options);
@@ -845,6 +937,22 @@ function normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData {
     open: bar.value,
     high: bar.value,
     low: bar.value,
+    close: bar.value,
+  };
+}
+
+function normalizeHistogramData(
+  data: readonly PhaseOneHistogramData[],
+): readonly PhaseOneCandlestickData[] {
+  return data.map(normalizeHistogramBar);
+}
+
+function normalizeHistogramBar(bar: PhaseOneHistogramData): PhaseOneCandlestickData {
+  return {
+    time: bar.time,
+    open: 0,
+    high: Math.max(0, bar.value),
+    low: Math.min(0, bar.value),
     close: bar.value,
   };
 }

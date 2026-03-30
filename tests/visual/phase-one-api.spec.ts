@@ -20,6 +20,13 @@ const BAR_API_DATA = [
   { time: 3, open: 130, high: 137, low: 126, close: 127 },
   { time: 4, open: 127, high: 139, low: 123, close: 135 },
 ] as const;
+const HISTOGRAM_API_DATA = [
+  { time: 1, value: 24 },
+  { time: 2, value: 38 },
+  { time: 3, value: 31 },
+  { time: 4, value: 44 },
+  { time: 5, value: 29 },
+] as const;
 
 test("phase-one public api mounts a single candlestick chart and renders the first frame", async ({
   page,
@@ -145,6 +152,34 @@ test("phase-one public api mounts a single bar chart and renders the first frame
   const fixture = page.locator("#api-bar-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-bar-series.png");
+});
+
+test("phase-one public api mounts a single histogram chart and renders the first frame", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-histogram-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-histogram-canvas" aria-label="phase-one api histogram chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-histogram-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API histogram fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addHistogramSeries();
+    series.setData(data);
+  }, { data: HISTOGRAM_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-histogram-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-histogram-series.png");
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

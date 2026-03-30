@@ -22,9 +22,11 @@ The categories below are intentionally practical:
 - one pane renders deterministic data end to end
   - current harness: [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
 - three core series paths exist
+- four core series paths exist
   - candlestick
   - bar
   - line
+  - histogram
 - basic data write flow exists
   - `setData()`
   - minimal `update()`
@@ -150,14 +152,13 @@ Why it matters:
 
 Next series types to add:
 
-- histogram
 - area
 - baseline
 
 Why this matters:
 
 - these are part of the normal `lightweight-charts` expectation surface
-- histogram is especially important because it is the most direct bridge toward volume rendering
+- histogram is already in place and acts as the direct bridge toward future volume rendering
 
 ### 3. Add public options surfaces
 

@@ -69,8 +69,8 @@ const boundarySummary: EngineBoundarySummary = {
     {
       id: "07",
       title: "Unit And Visual Tests",
-      status: "active",
-      note: "Pin model and scale behavior with unit tests, cover candlestick, bar, and line-series visual baselines, keep viewport snapshots stable, surface readout state into a host OHLC bar, and add dynamic axis labels with active crosshair tags.",
+      status: "complete",
+      note: "Pin model and scale behavior with unit tests, cover candlestick, bar, and line-series visual baselines, verify high-DPI and visible init-failure handling, and keep viewport snapshots stable.",
     },
     {
       id: "08",
@@ -87,8 +87,8 @@ const boundarySummary: EngineBoundarySummary = {
     {
       id: "10",
       title: "Layered Migration",
-      status: "queued",
-      note: "Migrate upstream in dependency order, validating each layer before the next one.",
+      status: "complete",
+      note: "Migrate the phase-one floor in dependency order, validating each layer before widening the supported series and verification surface.",
     },
   ],
 };

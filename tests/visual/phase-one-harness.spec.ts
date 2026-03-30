@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("phase-one harness renders the baseline chart", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /minimal model data/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /phase-one lightweight-charts floor is now complete/i }),
+  ).toBeVisible();
   const frame = page.locator(".chart-frame");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness.png");
@@ -14,6 +16,37 @@ test("phase-one harness keeps a deterministic smaller-layout baseline", async ({
   const frame = page.locator(".chart-frame");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-narrow.png");
+});
+
+test("phase-one harness keeps a deterministic high-dpi baseline", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "devicePixelRatio", {
+      configurable: true,
+      get: () => 2,
+    });
+  });
+
+  await page.goto("/");
+  const frame = page.locator(".chart-frame");
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  await expect(frame).toBeVisible();
+  await expect(frame).toHaveScreenshot("phase-one-harness-hidpi.png");
+
+  const metrics = await canvas.evaluate((node) => {
+    if (!(node instanceof HTMLCanvasElement)) {
+      throw new Error("phase-one harness canvas is missing");
+    }
+
+    return {
+      width: node.width,
+      height: node.height,
+      cssWidth: parseFloat(getComputedStyle(node).width),
+      cssHeight: parseFloat(getComputedStyle(node).height),
+    };
+  });
+
+  expect(metrics.width).toBe(metrics.cssWidth * 2);
+  expect(metrics.height).toBe(metrics.cssHeight * 2);
 });
 
 test("phase-one harness renders a deterministic crosshair snapshot", async ({ page }) => {
@@ -69,4 +102,28 @@ test("phase-one harness renders a deterministic dragged viewport snapshot", asyn
   await page.mouse.up();
 
   await expect(frame).toHaveScreenshot("phase-one-harness-panned.png");
+});
+
+test("phase-one harness shows a visible error state when chart init fails", async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    const patchedGetContext = function (
+      this: HTMLCanvasElement,
+      contextId: string,
+      options?: unknown,
+    ) {
+      if (contextId === "2d") {
+        return null;
+      }
+
+      return original.call(this, contextId as never, options as never);
+    } as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = patchedGetContext;
+  });
+
+  await page.goto("/");
+  const errorState = page.locator(".error-state");
+  await expect(errorState).toBeVisible();
+  await expect(errorState).toContainText("chart init failure");
+  await expect(errorState).toContainText("Canvas 2D context is unavailable");
 });

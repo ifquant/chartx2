@@ -2,6 +2,8 @@
 
 This document turns the approved design direction and eng review decisions into an execution checklist.
 
+Status: `COMPLETE`
+
 Phase one is not "build TradingView."
 
 Phase one is:
@@ -94,13 +96,13 @@ Current phase-one boundary artifact:
 - [x] Decide the engine root directory and write it down before adding files
   - engine root: `src/lib/chartx`
 - [x] Add ignore rules or explicit decisions for local-only folders such as `.vscode/` and `.trae/`
-- [ ] Delete, archive, or explicitly document scratch files:
+- [x] Delete, archive, or explicitly document scratch files:
   - [x] `a`
   - [x] `b`
   - [x] `temp_page.html`
 - [x] Repair or remove stale scaffolding:
   - [x] [chart-model.ts](/Users/dev/workspace2/hc_apps/chartx2/chart-model.ts)
-- [ ] Keep `git status` clean enough that future migration work shows only meaningful diffs
+- [x] Keep `git status` clean enough that future migration work shows only meaningful diffs
 
 ## Parity Definition Checklist
 
@@ -331,8 +333,8 @@ Checklist:
 
 - [x] identify the minimal upstream `typings/helpers` subset required by model and renderer work
 - [x] migrate only the subset needed for the next layer
-- [ ] keep names and semantics close enough to upstream that parity comparison remains possible
-- [ ] avoid adding convenience helpers that only serve `chartx2` host UI at this stage
+- [x] keep names and semantics close enough to upstream that parity comparison remains possible
+- [x] avoid adding convenience helpers that only serve `chartx2` host UI at this stage
 
 Current migrated subset:
 
@@ -347,7 +349,12 @@ Current migrated subset:
 Exit criteria:
 
 - [x] TypeScript compiles with the migrated helper layer in place
-- [ ] no host-shell code imports these files directly unless they are intentionally public
+- [x] no host-shell code imports these files directly unless they are intentionally public
+
+Current alignment notes:
+
+- helper file names intentionally stay close to the upstream naming so later parity comparison is still possible
+- no helper was added just to support the Svelte host shell, which continues to talk only to the public chart boundary
 
 ### Step 2: Model Core, Scales, Data
 
@@ -362,7 +369,7 @@ Checklist:
 - [x] migrate time-scale transform logic
 - [x] migrate price-scale transform logic
 - [x] migrate baseline data ingestion and replacement/update flow
-- [ ] document any intentional differences from upstream
+- [x] document any intentional differences from upstream
 
 Current migrated subset:
 
@@ -384,6 +391,12 @@ Exit criteria:
 - [x] unit tests cover price-scale transforms
 - [x] unit tests cover empty, single-bar, and normal dataset ingestion
 
+Intentional differences from upstream:
+
+- `chartx2` phase one keeps a narrower scope and does not mirror the full upstream option surface
+- `line series` is normalized into the same internal OHLC-shaped row model so series types can share the same scale and update path
+- the browser harness uses deterministic minute timestamps instead of upstream's broader time-model permutations
+
 ### Step 3: Renderers And Views
 
 Goal:
@@ -402,6 +415,8 @@ Current migrated subset:
 
 - [x] `grid-renderer`
 - [x] `candlesticks-renderer`
+- [x] `bar-renderer`
+- [x] `line-renderer`
 - [x] `chart-harness`
 
 Exit criteria:
@@ -478,11 +493,10 @@ Required:
 
 Required:
 
-- [ ] scale math parity for a small fixed input/output set
 - [x] scale math parity for a small fixed input/output set
 - [x] data ingestion parity for a small fixed dataset
 - [x] baseline API happy path parity where phase-one API overlaps upstream behavior
-- [ ] baseline render parity check through controlled snapshots
+- [x] baseline render parity check through controlled snapshots
 
 Not required:
 
@@ -492,12 +506,19 @@ Not required:
 
 ### Phase-One Floor
 
-- [ ] define a reference machine or repeatable local baseline
-- [ ] single chart
-- [ ] single pane
-- [ ] candle/bar baseline render
-- [ ] `2K-5K bars`
-- [ ] pan/zoom/crosshair have no obvious frame hitch in the founder's baseline workflow
+- [x] define a reference machine or repeatable local baseline
+- [x] single chart
+- [x] single pane
+- [x] candle/bar baseline render
+- [x] `2K-5K bars`
+- [x] pan/zoom/crosshair have no obvious frame hitch in the founder's baseline workflow
+
+Current repeatable local baseline:
+
+- Playwright Chromium against the local Vite dev server
+- viewport `1280x1100`
+- default DPR `1` for standard baselines, explicit override to `2` for high-DPI verification
+- performance smoke covers one chart, one pane, one candlestick series at `2K` and `5K` bars
 
 ### Phase-Two Target
 
@@ -512,11 +533,11 @@ Record, but do not use as phase-one gate:
 
 These failure modes must have both handling and tests where applicable.
 
-- [ ] engine init fails -> host shows visible error state
+- [x] engine init fails -> host shows visible error state
 - [x] empty dataset -> safe empty state
 - [x] single-bar dataset -> no crash, no nonsense rendering
-- [ ] resize -> axes and bars stay aligned
-- [ ] high-DPI -> output remains stable
+- [x] resize -> axes and bars stay aligned
+- [x] high-DPI -> output remains stable
 - [x] pan/zoom -> viewport updates without silent desync
 - [x] crosshair -> inspected position stays aligned with rendered bars
 
@@ -527,7 +548,7 @@ Minimum verification for each migration slice:
 - [x] `pnpm check`
 - [x] `pnpm build` when frontend output shape changes
 - [x] browser harness verification for render-affecting work
-- [ ] `cargo check` when Tauri-side code changes
+- [x] `cargo check` when Tauri-side code changes
 - [x] commit tutorial updated for each non-trivial slice
 
 ## Suggested Implementation Order
@@ -552,15 +573,15 @@ Minimum verification for each migration slice:
 
 Phase one is done when all of these are true:
 
-- [ ] the engine has a real internal boundary and the host uses only the public chart API
-- [ ] the phase-one parity checklist is complete and reviewed
-- [ ] a single-chart, single-pane candle/bar flow works end-to-end
+- [x] the engine has a real internal boundary and the host uses only the public chart API
+- [x] the phase-one parity checklist is complete and reviewed
+- [x] a single-chart, single-pane candle/bar flow works end-to-end
 - [x] pan, zoom, and crosshair work at baseline level
-- [ ] browser-based visual regression exists
-- [ ] model and scale logic has unit tests
-- [ ] selected upstream parity contract tests exist
-- [ ] host initialization failure is visible and tested
-- [ ] phase-one performance floor is checked on a reference machine
+- [x] browser-based visual regression exists
+- [x] model and scale logic has unit tests
+- [x] selected upstream parity contract tests exist
+- [x] host initialization failure is visible and tested
+- [x] phase-one performance floor is checked on a reference machine
 
 If any one of these is missing, phase one is not done yet.
 

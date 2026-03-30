@@ -76,11 +76,12 @@
 <main class="page">
   <section class="hero">
     <p class="eyebrow">chartx2 / phase one</p>
-    <h1>Minimal model data now lands on a real canvas harness.</h1>
+    <h1>Phase-one lightweight-charts floor is now complete.</h1>
     <p class="lede">
-      This page still acts as the host shell, but the chart preview now mounts through
-      the public chartx entrypoint and renders deterministic OHLC data with the internal
-      model, scale, renderer, and view layers.
+      This page is still the host shell, but the chart preview now closes the full
+      phase-one loop: public chart boundary, deterministic canvas rendering, baseline
+      interactions, three core series paths, and the verification gates that keep the
+      floor stable before phase two begins.
     </p>
   </section>
 
@@ -121,7 +122,8 @@
         <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>
-        <li>Visible host error state if chart initialization fails</li>
+        <li>Visible host error state plus high-DPI browser verification</li>
+        <li>2K and 5K bars performance smoke coverage</li>
       </ul>
     </div>
   </section>
@@ -156,7 +158,7 @@
   </section>
 
   <section class="steps">
-    <h2>Phase-One Opening Moves</h2>
+    <h2>Phase-One Closure</h2>
     <div class="step-grid">
       {#each foundation.phaseOneSteps as step}
         <article class:active={step.status === "active"} class:complete={step.status === "complete"}>

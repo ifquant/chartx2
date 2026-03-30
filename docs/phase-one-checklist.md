@@ -254,7 +254,7 @@ Exit criteria:
 
 - [x] app launch shows a single chart with deterministic sample data
 - [ ] pan works
-- [ ] zoom works
+- [x] zoom works
 - [x] crosshair works at the baseline level
 - [x] engine init failure produces a visible host error instead of a silent blank page
 

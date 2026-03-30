@@ -30,3 +30,17 @@ test("phase-one harness renders a deterministic crosshair snapshot", async ({ pa
   await page.mouse.move(box.x + box.width * 0.42, box.y + box.height * 0.33);
   await expect(frame).toHaveScreenshot("phase-one-harness-crosshair.png");
 });
+
+test("phase-one harness renders a deterministic zoomed viewport snapshot", async ({ page }) => {
+  await page.goto("/");
+  const frame = page.locator(".chart-frame");
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  await expect(canvas).toBeVisible();
+
+  await canvas.evaluate((node) => {
+    node.dispatchEvent(new WheelEvent("wheel", { deltaY: -240, bubbles: true, cancelable: true }));
+    node.dispatchEvent(new WheelEvent("wheel", { deltaY: -240, bubbles: true, cancelable: true }));
+  });
+
+  await expect(frame).toHaveScreenshot("phase-one-harness-zoomed.png");
+});

@@ -21,6 +21,9 @@ const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
 const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
 const CROSSHAIR_POINT_COLOR = "#101010";
+const DEFAULT_RIGHT_OFFSET = 0.8;
+const MIN_BAR_SPACING = 4;
+const MAX_BAR_SPACING = 36;
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 
@@ -66,6 +69,8 @@ export class PhaseOneChartHarness {
   private seriesAttached = false;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
+  private barSpacing: number | null = null;
+  private rightOffset = DEFAULT_RIGHT_OFFSET;
   private readonly handleResize = () => {
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -88,6 +93,20 @@ export class PhaseOneChartHarness {
     this.crosshair = null;
     this.render(this.canvas);
   };
+  private readonly handleWheel = (event: WheelEvent) => {
+    if (this.canvas === null || this.data.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const layout = measureLayout(this.canvas);
+    const paneWidth = layout.width - layout.left - layout.right;
+    const baseSpacing = calculateBaseBarSpacing(paneWidth, this.data.length);
+    const currentSpacing = this.barSpacing ?? baseSpacing;
+    const factor = event.deltaY < 0 ? 1.15 : 0.87;
+    this.barSpacing = clamp(currentSpacing * factor, MIN_BAR_SPACING, MAX_BAR_SPACING);
+    this.render(this.canvas);
+  };
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
@@ -96,12 +115,14 @@ export class PhaseOneChartHarness {
     window.addEventListener("resize", this.handleResize);
     canvas.addEventListener("pointermove", this.handlePointerMove);
     canvas.addEventListener("pointerleave", this.handlePointerLeave);
+    canvas.addEventListener("wheel", this.handleWheel, { passive: false });
   }
 
   public detach(): void {
     if (this.canvas !== null) {
       this.canvas.removeEventListener("pointermove", this.handlePointerMove);
       this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
+      this.canvas.removeEventListener("wheel", this.handleWheel);
     }
     window.removeEventListener("resize", this.handleResize);
     this.canvas = null;
@@ -127,6 +148,8 @@ export class PhaseOneChartHarness {
     }
 
     this.data = [...data];
+    this.barSpacing = null;
+    this.rightOffset = DEFAULT_RIGHT_OFFSET;
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -177,8 +200,8 @@ export class PhaseOneChartHarness {
     this.timeScale.applyOptions({
       width: paneWidth,
       pointCount: rows.length,
-      barSpacing: paneWidth / Math.max(rows.length + 2, 12),
-      rightOffset: 0.8,
+      barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, rows.length),
+      rightOffset: this.rightOffset,
     });
 
     const priceRange = this.store.priceRange(
@@ -295,6 +318,22 @@ function measureLayout(canvas: HTMLCanvasElement): Layout {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function calculateBaseBarSpacing(paneWidth: number, pointCount: number): number {
+  return paneWidth / Math.max(pointCount + 2, 12);
+}
+
+function resolveBarSpacing(
+  currentSpacing: number | null,
+  paneWidth: number,
+  pointCount: number,
+): number {
+  return clamp(
+    currentSpacing ?? calculateBaseBarSpacing(paneWidth, pointCount),
+    MIN_BAR_SPACING,
+    MAX_BAR_SPACING,
+  );
 }
 
 function resolvePanePoint(

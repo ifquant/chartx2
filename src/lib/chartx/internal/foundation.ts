@@ -55,12 +55,24 @@ const boundarySummary: EngineBoundarySummary = {
     },
     {
       id: "05",
+      title: "Renderers Views",
+      status: "active",
+      note: "Render deterministic candle data through the first browser harness and keep it behind the chartx boundary.",
+    },
+    {
+      id: "06",
+      title: "Host Integration",
+      status: "active",
+      note: "Mount the browser harness through the public chartx entrypoint and fail visibly if initialization breaks.",
+    },
+    {
+      id: "07",
       title: "Parity Definition",
       status: "queued",
       note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
     },
     {
-      id: "06",
+      id: "08",
       title: "Layered Migration",
       status: "queued",
       note: "Migrate upstream in dependency order, validating each layer before the next one.",

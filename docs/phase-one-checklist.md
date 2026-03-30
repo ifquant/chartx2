@@ -201,15 +201,21 @@ Goal:
 
 Checklist:
 
-- [ ] migrate the minimum renderer/view set required for one chart and one pane
-- [ ] render deterministic sample data
-- [ ] support resize without axis/body desync
-- [ ] support high-DPI baseline rendering
-- [ ] keep rendering testable outside the Tauri shell
+- [x] migrate the minimum renderer/view set required for one chart and one pane
+- [x] render deterministic sample data
+- [x] support resize without axis/body desync
+- [x] support high-DPI baseline rendering
+- [x] keep rendering testable outside the Tauri shell
+
+Current migrated subset:
+
+- [x] `grid-renderer`
+- [x] `candlesticks-renderer`
+- [x] `chart-harness`
 
 Exit criteria:
 
-- [ ] browser harness renders a baseline chart reliably
+- [x] browser harness renders a baseline chart reliably
 - [ ] visual regression snapshot exists for baseline candle/bar render
 - [ ] visual regression snapshot exists for at least one resize or DPR-sensitive case
 
@@ -239,18 +245,18 @@ Goal:
 
 Checklist:
 
-- [ ] replace the template welcome flow in [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte) with a chart host path
-- [ ] keep chart setup behind the public API boundary
-- [ ] ensure the host can mount deterministic sample data
-- [ ] add a visible error state when engine initialization fails
+- [x] replace the template welcome flow in [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte) with a chart host path
+- [x] keep chart setup behind the public API boundary
+- [x] ensure the host can mount deterministic sample data
+- [x] add a visible error state when engine initialization fails
 
 Exit criteria:
 
-- [ ] app launch shows a single chart with deterministic sample data
+- [x] app launch shows a single chart with deterministic sample data
 - [ ] pan works
 - [ ] zoom works
 - [ ] crosshair works at the baseline level
-- [ ] engine init failure produces a visible host error instead of a silent blank page
+- [x] engine init failure produces a visible host error instead of a silent blank page
 
 ## Test Strategy Checklist
 

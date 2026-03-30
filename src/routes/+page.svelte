@@ -1,156 +1,183 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { getChartxFoundation } from "$lib/chartx/public";
 
-  let name = $state("");
-  let greetMsg = $state("");
-
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
+  const foundation = getChartxFoundation();
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<svelte:head>
+  <title>chartx2 | Phase One Foundation</title>
+</svelte:head>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
-  </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
+<main class="page">
+  <section class="hero">
+    <p class="eyebrow">chartx2 / phase one</p>
+    <h1>Engine boundary established before chart migration starts.</h1>
+    <p class="lede">
+      The host shell now reads chart foundation data through a public chartx entrypoint
+      instead of keeping future engine structure trapped in the page file.
+    </p>
+  </section>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
+  <section class="panel">
+    <div>
+      <h2>Public Surface</h2>
+      <ul>
+        {#each foundation.publicSurface as item}
+          <li>{item}</li>
+        {/each}
+      </ul>
+    </div>
+
+    <div>
+      <h2>Internal Layers</h2>
+      <ul>
+        {#each foundation.internalLayers as item}
+          <li>{item}</li>
+        {/each}
+      </ul>
+    </div>
+
+    <div>
+      <h2>Forbidden Shortcuts</h2>
+      <ul>
+        {#each foundation.forbiddenShortcuts as item}
+          <li>{item}</li>
+        {/each}
+      </ul>
+    </div>
+  </section>
+
+  <section class="steps">
+    <h2>Phase-One Opening Moves</h2>
+    <div class="step-grid">
+      {#each foundation.phaseOneSteps as step}
+        <article class:active={step.status === "active"}>
+          <p class="step-id">{step.id}</p>
+          <h3>{step.title}</h3>
+          <p>{step.note}</p>
+        </article>
+      {/each}
+    </div>
+  </section>
 </main>
 
 <style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
-
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  color: #101010;
+  background:
+    radial-gradient(circle at top, rgba(221, 232, 255, 0.95), transparent 34%),
+    linear-gradient(180deg, #f7f6f1 0%, #ece8dc 100%);
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
 }
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+.page {
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
+.hero,
+.panel,
+.steps {
+  width: min(1080px, 100%);
+  margin: 0 auto;
 }
 
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
+.hero {
+  margin-bottom: 2rem;
 }
 
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 h1 {
-  text-align: center;
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.8rem, 7vw, 5.6rem);
+  line-height: 0.94;
+  font-weight: 700;
 }
 
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+.lede {
+  max-width: 52rem;
+  margin: 1.25rem 0 0;
+  font-size: 1.15rem;
+  line-height: 1.6;
 }
 
-button {
-  cursor: pointer;
+.panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
+.panel > div,
+.step-grid article {
+  border: 1px solid rgba(16, 16, 16, 0.14);
+  background: rgba(255, 253, 247, 0.82);
+  box-shadow: 0 12px 30px rgba(16, 16, 16, 0.08);
 }
 
-#greet-input {
-  margin-right: 5px;
+.panel > div {
+  padding: 1.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+li + li {
+  margin-top: 0.55rem;
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.step-grid article {
+  min-height: 13rem;
+  padding: 1.25rem;
+}
+
+.step-grid article.active {
+  background: #101010;
+  color: #f7f6f1;
+}
+
+.step-id {
+  margin: 0 0 1rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+}
+
+h3 {
+  margin: 0 0 0.85rem;
+  font-size: 1.4rem;
+}
+
+article p:last-child {
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .panel,
+  .step-grid {
+    grid-template-columns: 1fr;
   }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
 }
-
 </style>

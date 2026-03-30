@@ -69,7 +69,7 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests and save the first browser baseline screenshot.",
+      note: "Pin model and scale behavior with unit tests, add a narrow-layout snapshot, and start fixed parity contract checks.",
     },
     {
       id: "08",

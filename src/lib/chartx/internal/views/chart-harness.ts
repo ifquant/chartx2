@@ -48,7 +48,7 @@ export class PhaseOneChartHarness {
 
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
-    const layout = DEFAULT_LAYOUT;
+    const layout = measureLayout(canvas);
     canvas.width = Math.round(layout.width * dpr);
     canvas.height = Math.round(layout.height * dpr);
     canvas.style.width = `${layout.width}px`;
@@ -162,4 +162,28 @@ function buildDemoBars(): readonly OhlcDataPoint<number>[] {
 
 function toCoordinate(value: Coordinate | null): Coordinate {
   return (value ?? 0) as Coordinate;
+}
+
+function measureLayout(canvas: HTMLCanvasElement): Layout {
+  const container = canvas.parentElement;
+  if (container === null) {
+    return DEFAULT_LAYOUT;
+  }
+
+  const styles = window.getComputedStyle(container);
+  const horizontalPadding =
+    parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
+  const availableWidth = Math.floor(container.clientWidth - horizontalPadding);
+  const width = clamp(availableWidth, 480, DEFAULT_LAYOUT.width);
+  const height = Math.round((width / DEFAULT_LAYOUT.width) * DEFAULT_LAYOUT.height);
+
+  return {
+    ...DEFAULT_LAYOUT,
+    width,
+    height: Math.max(320, height),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }

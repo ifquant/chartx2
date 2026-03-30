@@ -217,7 +217,7 @@ Exit criteria:
 
 - [x] browser harness renders a baseline chart reliably
 - [x] visual regression snapshot exists for baseline candle/bar render
-- [ ] visual regression snapshot exists for at least one resize or DPR-sensitive case
+- [x] visual regression snapshot exists for at least one resize or DPR-sensitive case
 
 ### Step 4: Minimal Public Chart API
 
@@ -280,7 +280,7 @@ Required:
 - [x] fixed viewport size
 - [x] fixed device pixel ratio or equivalent deterministic setup
 - [x] baseline candle/bar snapshot
-- [ ] one resize-sensitive snapshot
+- [x] one resize-sensitive snapshot
 - [ ] one crosshair or viewport update snapshot if deterministic enough
 
 ### Upstream Parity Contract Tests
@@ -288,7 +288,8 @@ Required:
 Required:
 
 - [ ] scale math parity for a small fixed input/output set
-- [ ] data ingestion parity for a small fixed dataset
+- [x] scale math parity for a small fixed input/output set
+- [x] data ingestion parity for a small fixed dataset
 - [ ] baseline API happy path parity where phase-one API overlaps upstream behavior
 - [ ] baseline render parity check through controlled snapshots
 

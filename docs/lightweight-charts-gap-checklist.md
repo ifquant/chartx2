@@ -30,6 +30,7 @@ The categories below are intentionally practical:
   - `addPane()`
   - `removePane()`
   - `setHeight()` on secondary panes
+  - pointer-driven divider resize in the browser harness
 - secondary panes are no longer volume-only
   - `candlestick`
   - `line`
@@ -105,6 +106,7 @@ Why this is still simplified:
 - pane lifecycle now exists, and the first study series can target secondary panes
 - pane targeting is now more explicit, but the primary slot is still special and volume still stays secondary-only
 - pane handles currently expose only a narrow lifecycle subset
+- pane resize is now visible in the harness, but it still lacks a richer public interaction model
 
 ### Time and price scales
 

@@ -120,6 +120,7 @@
         <li>Public pane handles with add/remove, pane sizing, and explicit series-to-pane targeting</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
+        <li>Pointer-driven secondary pane resize baseline</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
         <li>Public API with one primary slot plus one basic series per managed secondary pane</li>

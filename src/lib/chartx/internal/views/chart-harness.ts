@@ -224,6 +224,14 @@ type DragState = {
   startRightOffset: number;
 };
 
+type PaneResizeState = {
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  startClientY: number;
+  startUpperHeight: number;
+  startLowerHeight: number;
+};
+
 type AxisTag = {
   text: string;
   x: number;
@@ -278,6 +286,9 @@ const DEFAULT_LAYOUT: Layout = {
   bottom: 34,
   left: 18,
 };
+
+const PANE_GAP = 10;
+const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
@@ -343,6 +354,7 @@ export class PhaseOneChartHarness {
   private primaryHistogramVisuals = new Map<number, HistogramVisual>();
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
+  private paneResizeState: PaneResizeState | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
   private readonly clickHandlers = new Set<PhaseOneClickHandler>();
   private readonly handleResize = () => {
@@ -356,6 +368,14 @@ export class PhaseOneChartHarness {
     }
 
     const layout = measureLayout(this.canvas);
+    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    if (this.paneResizeState !== null) {
+      this.applyPaneResize(event.clientY, layout, paneFrames);
+      this.crosshair = resolvePanePoint(this.canvas, event, layout);
+      this.render(this.canvas);
+      return;
+    }
+
     const pointCount = this.getPointCount();
     if (this.dragState !== null && pointCount > 0) {
       const paneWidth = layout.width - layout.left - layout.right;
@@ -364,15 +384,19 @@ export class PhaseOneChartHarness {
       this.rightOffset = this.dragState.startRightOffset - deltaBars;
     }
 
+    const divider = resolvePaneDivider(paneFrames, resolvePanePoint(this.canvas, event, layout)?.y ?? null);
+    this.canvas.style.cursor = divider === null ? (this.dragState === null ? "crosshair" : "grabbing") : "row-resize";
+
     this.crosshair = resolvePanePoint(this.canvas, event, layout);
     this.render(this.canvas);
   };
   private readonly handlePointerLeave = () => {
-    if (this.canvas === null || this.crosshair === null) {
+    if (this.canvas === null || this.crosshair === null || this.dragState !== null || this.paneResizeState !== null) {
       return;
     }
 
     this.crosshair = null;
+    this.canvas.style.cursor = "default";
     this.render(this.canvas);
   };
   private readonly handlePointerDown = (event: PointerEvent) => {
@@ -380,10 +404,28 @@ export class PhaseOneChartHarness {
       return;
     }
 
+    const layout = measureLayout(this.canvas);
+    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const point = resolvePanePoint(this.canvas, event, layout);
+    const divider = resolvePaneDivider(paneFrames, point?.y ?? null);
+    if (divider !== null) {
+      this.paneResizeState = {
+        dividerAfterPaneId: divider.upperPaneId,
+        dividerBeforePaneId: divider.lowerPaneId,
+        startClientY: event.clientY,
+        startUpperHeight: divider.upperHeight,
+        startLowerHeight: divider.lowerHeight,
+      };
+      this.canvas.style.cursor = "row-resize";
+      this.canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+
     this.dragState = {
       startClientX: event.clientX,
       startRightOffset: this.rightOffset,
     };
+    this.canvas.style.cursor = "grabbing";
     this.canvas.setPointerCapture(event.pointerId);
   };
   private readonly handlePointerUp = (event: PointerEvent) => {
@@ -395,6 +437,8 @@ export class PhaseOneChartHarness {
       this.canvas.releasePointerCapture(event.pointerId);
     }
     this.dragState = null;
+    this.paneResizeState = null;
+    this.canvas.style.cursor = this.crosshair === null ? "default" : "crosshair";
   };
   private readonly handleWheel = (event: WheelEvent) => {
     const pointCount = this.getPointCount();
@@ -431,6 +475,7 @@ export class PhaseOneChartHarness {
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
     this.canvas = canvas;
+    this.canvas.style.cursor = "crosshair";
     this.render(canvas);
     window.addEventListener("resize", this.handleResize);
     canvas.addEventListener("pointerdown", this.handlePointerDown);
@@ -456,6 +501,7 @@ export class PhaseOneChartHarness {
     this.canvas = null;
     this.crosshair = null;
     this.dragState = null;
+    this.paneResizeState = null;
     this.crosshairMoveHandlers.clear();
     this.clickHandlers.clear();
   }
@@ -1163,6 +1209,47 @@ export class PhaseOneChartHarness {
     }
   }
 
+  private applyPaneResize(clientY: number, layout: Layout, paneFrames: readonly PaneFrame[]): void {
+    if (this.paneResizeState === null) {
+      return;
+    }
+
+    const delta = Math.round(clientY - this.paneResizeState.startClientY);
+    const upperPane = this.getPaneById(this.paneResizeState.dividerAfterPaneId);
+    const lowerPane = this.getPaneById(this.paneResizeState.dividerBeforePaneId);
+    if (upperPane === undefined || lowerPane === undefined) {
+      return;
+    }
+
+    const minUpper = upperPane.kind === "primary" ? 160 : normalizePaneHeight(72);
+    const minLower = lowerPane.kind === "primary" ? 160 : normalizePaneHeight(72);
+    const maxDeltaDown = this.paneResizeState.startLowerHeight - minLower;
+    const maxDeltaUp = this.paneResizeState.startUpperHeight - minUpper;
+    const clampedDelta = clamp(delta, -maxDeltaUp, maxDeltaDown);
+
+    if (upperPane.kind === "secondary") {
+      upperPane.preferredHeight = normalizePaneHeight(this.paneResizeState.startUpperHeight + clampedDelta);
+    }
+    if (lowerPane.kind === "secondary") {
+      lowerPane.preferredHeight = normalizePaneHeight(this.paneResizeState.startLowerHeight - clampedDelta);
+    }
+
+    if (this.canvas !== null) {
+      const updatedFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+      const divider = resolvePaneDividerByIds(
+        updatedFrames,
+        this.paneResizeState.dividerAfterPaneId,
+        this.paneResizeState.dividerBeforePaneId,
+      );
+      if (divider !== null) {
+        this.crosshair = {
+          x: this.crosshair?.x ?? 0,
+          y: divider.position,
+        };
+      }
+    }
+  }
+
   private paneHasSeries(paneId: string): boolean {
     if (paneId === "primary") {
       return this.currentPrimarySeriesApi !== null;
@@ -1790,7 +1877,7 @@ function buildPaneFrames(
     return [];
   }
 
-  const gap = panes.length > 1 ? 10 : 0;
+  const gap = panes.length > 1 ? PANE_GAP : 0;
   const totalGap = gap * Math.max(0, panes.length - 1);
   const secondaryPanes = panes.filter((pane) => pane.kind === "secondary");
   const preferredSecondaryTotal = secondaryPanes.reduce(
@@ -1833,6 +1920,52 @@ function buildPaneFrames(
   }
 
   return frames;
+}
+
+function resolvePaneDivider(
+  panes: readonly PaneFrame[],
+  y: number | null,
+): { upperPaneId: string; lowerPaneId: string; upperHeight: number; lowerHeight: number; position: number } | null {
+  if (y === null) {
+    return null;
+  }
+
+  for (let index = 0; index < panes.length - 1; index += 1) {
+    const upper = panes[index];
+    const lower = panes[index + 1];
+    const dividerPosition = upper.top + upper.height + PANE_GAP / 2;
+    if (Math.abs(y - dividerPosition) <= PANE_DIVIDER_HIT_SLOP) {
+      return {
+        upperPaneId: upper.id,
+        lowerPaneId: lower.id,
+        upperHeight: upper.height,
+        lowerHeight: lower.height,
+        position: dividerPosition,
+      };
+    }
+  }
+
+  return null;
+}
+
+function resolvePaneDividerByIds(
+  panes: readonly PaneFrame[],
+  upperPaneId: string,
+  lowerPaneId: string,
+): { upperPaneId: string; lowerPaneId: string; upperHeight: number; lowerHeight: number; position: number } | null {
+  const upper = panes.find((pane) => pane.id === upperPaneId);
+  const lower = panes.find((pane) => pane.id === lowerPaneId);
+  if (upper === undefined || lower === undefined) {
+    return null;
+  }
+
+  return {
+    upperPaneId,
+    lowerPaneId,
+    upperHeight: upper.height,
+    lowerHeight: lower.height,
+    position: upper.top + upper.height + PANE_GAP / 2,
+  };
 }
 
 function resolveActivePane(

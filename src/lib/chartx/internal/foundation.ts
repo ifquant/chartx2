@@ -70,7 +70,7 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "complete",
-      note: "Pin model and scale behavior with unit tests, cover candlestick, bar, and line-series visual baselines, verify high-DPI and visible init-failure handling, and keep viewport snapshots stable.",
+      note: "Pin model and scale behavior with unit tests, cover candlestick, bar, and line-series visual baselines, verify high-DPI and visible init-failure handling, and keep viewport and pane-resize snapshots stable.",
     },
     {
       id: "08",

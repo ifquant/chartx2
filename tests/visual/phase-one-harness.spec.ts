@@ -104,6 +104,27 @@ test("phase-one harness renders a deterministic dragged viewport snapshot", asyn
   await expect(frame).toHaveScreenshot("phase-one-harness-panned.png");
 });
 
+test("phase-one harness renders a deterministic pane-resized snapshot", async ({ page }) => {
+  await page.goto("/");
+  const frame = page.locator(".chart-frame");
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  await expect(canvas).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one harness canvas is missing");
+  }
+
+  const dividerX = box.x + box.width * 0.52;
+  const dividerY = box.y + box.height * 0.665;
+  await page.mouse.move(dividerX, dividerY);
+  await page.mouse.down();
+  await page.mouse.move(dividerX, dividerY - box.height * 0.12, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(frame).toHaveScreenshot("phase-one-harness-pane-resized.png");
+});
+
 test("phase-one harness shows a visible error state when chart init fails", async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;

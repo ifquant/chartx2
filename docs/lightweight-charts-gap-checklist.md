@@ -21,12 +21,12 @@ The categories below are intentionally practical:
   - current entrypoints: [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts)
 - one pane renders deterministic data end to end
   - current harness: [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
-- three core series paths exist
-- four core series paths exist
+- four core series paths exist, plus one volume-flavored bridge path
   - candlestick
   - bar
   - line
   - histogram
+  - volume (rendered through a dedicated histogram-style path for future pane work)
 - basic data write flow exists
   - `setData()`
   - minimal `update()`
@@ -55,6 +55,8 @@ Current state:
 - `addCandlestickSeries()`
 - `addBarSeries()`
 - `addLineSeries()`
+- `addHistogramSeries()`
+- `addVolumeSeries()`
 - `removeSeries()`
 - `resize()`
 - `timeScale()`
@@ -159,6 +161,7 @@ Why this matters:
 
 - these are part of the normal `lightweight-charts` expectation surface
 - histogram is already in place and acts as the direct bridge toward future volume rendering
+- a first dedicated volume expression now exists, but it is still single-pane and not yet a real pane-local volume overlay
 
 ### 3. Add public options surfaces
 
@@ -236,12 +239,11 @@ These belong to the broader product direction already recorded in:
 If the next goal is still `close the gap to lightweight-charts`, the best order is:
 
 1. chart-level API breadth
-2. histogram series
-3. chart and series options
-4. scale APIs and formatter hooks
-5. markers / price lines / subscriptions
-6. pane architecture
-7. area / baseline series
+2. chart and series options
+3. scale APIs and formatter hooks
+4. markers / price lines / subscriptions
+5. pane architecture
+6. area / baseline series
 
 ## Current Bottom Line
 

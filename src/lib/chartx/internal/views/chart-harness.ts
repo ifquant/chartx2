@@ -33,6 +33,9 @@ const AXIS_LABEL_BACKGROUND = "rgba(255, 253, 247, 0.96)";
 const AXIS_LABEL_BORDER = "rgba(16, 16, 16, 0.14)";
 const AXIS_ACTIVE_BACKGROUND = "#101010";
 const AXIS_ACTIVE_TEXT = "#fffdf7";
+const VOLUME_BAND_BACKGROUND = "rgba(16, 16, 16, 0.03)";
+const VOLUME_SEPARATOR_COLOR = "rgba(16, 16, 16, 0.10)";
+const VOLUME_BAND_TOP_RATIO = 0.66;
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
@@ -46,6 +49,13 @@ export type PhaseOneHistogramData = {
   time: number;
   value: number;
   color?: string;
+  up?: boolean;
+};
+export type PhaseOneVolumeData = {
+  time: number;
+  value: number;
+  color?: string;
+  up?: boolean;
 };
 export type PhaseOneReadoutDetail = {
   active: boolean;
@@ -105,6 +115,11 @@ export type PhaseOneHistogramSeriesOptions = {
   downColor?: string;
 };
 
+export type PhaseOneVolumeSeriesOptions = {
+  upColor?: string;
+  downColor?: string;
+};
+
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
   applyOptions(options: { barSpacing?: number; rightOffset?: number }): void;
@@ -138,18 +153,26 @@ export type PhaseOneHistogramSeriesApi = {
   applyOptions(options: PhaseOneHistogramSeriesOptions): void;
 };
 
+export type PhaseOneVolumeSeriesApi = {
+  setData(data: readonly PhaseOneVolumeData[]): void;
+  update(bar: PhaseOneVolumeData): void;
+  applyOptions(options: PhaseOneVolumeSeriesOptions): void;
+};
+
 export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
   addBarSeries(): PhaseOneBarSeriesApi;
   addLineSeries(): PhaseOneLineSeriesApi;
   addHistogramSeries(): PhaseOneHistogramSeriesApi;
+  addVolumeSeries(): PhaseOneVolumeSeriesApi;
   applyOptions(options: PhaseOneChartOptions): void;
   removeSeries(
     series:
       | PhaseOneCandlestickSeriesApi
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
-      | PhaseOneHistogramSeriesApi,
+      | PhaseOneHistogramSeriesApi
+      | PhaseOneVolumeSeriesApi,
   ): void;
   resize(width: number, height: number): void;
   timeScale(): PhaseOneTimeScaleApi;
@@ -187,6 +210,11 @@ type AxisTag = {
   active?: boolean;
 };
 
+type HistogramVisual = {
+  color?: string;
+  isUp: boolean;
+};
+
 const DEFAULT_LAYOUT: Layout = {
   width: 960,
   height: 520,
@@ -206,13 +234,14 @@ export class PhaseOneChartHarness {
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private data: readonly PhaseOneCandlestickData[] = [];
-  private seriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
+  private seriesType: "candlestick" | "bar" | "line" | "histogram" | "volume" | null = null;
   private seriesAttached = false;
   private currentSeriesApi:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
     | PhaseOneHistogramSeriesApi
+    | PhaseOneVolumeSeriesApi
     | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -250,6 +279,11 @@ export class PhaseOneChartHarness {
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
   };
+  private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = {
+    upColor: UP_COLOR,
+    downColor: DOWN_COLOR,
+  };
+  private histogramVisuals = new Map<number, HistogramVisual>();
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
@@ -375,6 +409,7 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "candlestick";
+    this.histogramVisuals.clear();
     const api: PhaseOneCandlestickSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -411,6 +446,7 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "line";
+    this.histogramVisuals.clear();
     const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -444,6 +480,7 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "bar";
+    this.histogramVisuals.clear();
     const api: PhaseOneBarSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -480,11 +517,11 @@ export class PhaseOneChartHarness {
     const api: PhaseOneHistogramSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
-        this.setData(normalizeHistogramData(data));
+        this.setHistogramLikeData(data);
       },
       update: (bar) => {
         this.assertSeriesActive(api);
-        this.update(normalizeHistogramBar(bar));
+        this.updateHistogramLike(bar);
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
@@ -503,12 +540,46 @@ export class PhaseOneChartHarness {
     return api;
   }
 
+  public addVolumeSeries(): PhaseOneVolumeSeriesApi {
+    if (this.seriesAttached) {
+      throw new Error("chartx phase-one chart supports only one series");
+    }
+
+    this.seriesAttached = true;
+    this.seriesType = "volume";
+    const api: PhaseOneVolumeSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setHistogramLikeData(data);
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateHistogramLike(bar);
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.volumeOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.volumeOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentSeriesApi = api;
+    return api;
+  }
+
   public removeSeries(
     series:
       | PhaseOneCandlestickSeriesApi
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
-      | PhaseOneHistogramSeriesApi,
+      | PhaseOneHistogramSeriesApi
+      | PhaseOneVolumeSeriesApi,
   ): void {
     if (this.currentSeriesApi !== series) {
       throw new Error("chartx phase-one chart can remove only the currently attached series");
@@ -518,6 +589,7 @@ export class PhaseOneChartHarness {
     this.seriesAttached = false;
     this.seriesType = null;
     this.data = [];
+    this.histogramVisuals.clear();
     this.crosshair = null;
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -637,6 +709,7 @@ export class PhaseOneChartHarness {
     }
 
     this.data = [...data];
+    this.histogramVisuals.clear();
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
     if (this.canvas !== null) {
@@ -659,6 +732,24 @@ export class PhaseOneChartHarness {
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
+  }
+
+  public setHistogramLikeData(data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[]): void {
+    this.histogramVisuals = buildHistogramVisuals(data);
+    this.setData(normalizeHistogramData(data));
+  }
+
+  public updateHistogramLike(bar: PhaseOneHistogramData | PhaseOneVolumeData): void {
+    const previous = this.data.length === 0 ? null : this.data[this.data.length - 1];
+    this.histogramVisuals.set(bar.time, {
+      color: bar.color,
+      isUp:
+        bar.up ??
+        (previous === null || bar.time <= previous.time
+          ? (this.histogramVisuals.get(bar.time)?.isUp ?? true)
+          : bar.value >= previous.close),
+    });
+    this.update(normalizeHistogramBar(bar));
   }
 
   public render(canvas: HTMLCanvasElement): void {
@@ -773,24 +864,53 @@ export class PhaseOneChartHarness {
         upColor: this.barOptions.upColor,
         downColor: this.barOptions.downColor,
       });
-    } else if (this.seriesType === "histogram") {
-      const baseY = toCoordinate(
-        this.priceScale.priceToCoordinate(priceRange?.minValue() ?? 0),
-      );
+    } else if (this.seriesType === "histogram" || this.seriesType === "volume") {
+      const volumeBand = this.seriesType === "volume" ? resolveVolumeBand(paneHeight) : null;
+      if (volumeBand !== null) {
+        context.save();
+        context.fillStyle = VOLUME_BAND_BACKGROUND;
+        context.fillRect(0, volumeBand.top, paneWidth, volumeBand.height);
+        context.strokeStyle = VOLUME_SEPARATOR_COLOR;
+        context.beginPath();
+        context.moveTo(0, volumeBand.top + 0.5);
+        context.lineTo(paneWidth, volumeBand.top + 0.5);
+        context.stroke();
+        context.restore();
+      }
+
+      const baseY = this.seriesType === "volume"
+        ? volumeBand!.baseY
+        : toCoordinate(this.priceScale.priceToCoordinate(priceRange?.minValue() ?? 0));
       const histogramItems = rows.map((row): HistogramItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
-        valueY: toCoordinate(
-          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]),
-        ),
+        valueY:
+          this.seriesType === "volume"
+            ? toCoordinate(volumeToBandCoordinate(
+                row.value[PlotRowValueIndex.Close],
+                priceRange?.maxValue() ?? 0,
+                volumeBand!,
+              ))
+            : toCoordinate(
+                this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]),
+              ),
         baseY,
-        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+        isUp:
+          this.histogramVisuals.get(row.time)?.isUp ??
+          row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+        color: this.histogramVisuals.get(row.time)?.color,
       }));
 
       this.histogramRenderer.draw(context, {
         items: histogramItems,
         barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
-        upColor: this.histogramOptions.upColor,
-        downColor: this.histogramOptions.downColor,
+        upColor:
+          this.seriesType === "volume"
+            ? this.volumeOptions.upColor
+            : this.histogramOptions.upColor,
+        downColor:
+          this.seriesType === "volume"
+            ? this.volumeOptions.downColor
+            : this.histogramOptions.downColor,
       });
     } else {
       this.candlesRenderer.draw(context, {
@@ -806,7 +926,7 @@ export class PhaseOneChartHarness {
     context.strokeStyle = this.chartOptions.frameColor;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
-    drawPriceAxis(context, layout, this.priceScale, this.crosshair, this.chartOptions);
+    drawPriceAxis(context, layout, this.priceScale, this.crosshair, this.chartOptions, this.seriesType);
     drawTimeAxis(context, layout, rows, this.timeScale, this.crosshair, this.chartOptions);
     const readout = buildCrosshairReadout(rows, this.crosshair, this.timeScale, this.priceScale);
     emitReadout(canvas, readout);
@@ -818,7 +938,8 @@ export class PhaseOneChartHarness {
       | PhaseOneCandlestickSeriesApi
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
-      | PhaseOneHistogramSeriesApi,
+      | PhaseOneHistogramSeriesApi
+      | PhaseOneVolumeSeriesApi,
   ): void {
     if (this.currentSeriesApi !== series) {
       throw new Error("chartx phase-one series has been removed");
@@ -861,6 +982,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addHistogramSeries() {
       return harness.addHistogramSeries();
+    },
+    addVolumeSeries() {
+      return harness.addVolumeSeries();
     },
     applyOptions(options) {
       harness.applyOptions(options);
@@ -942,12 +1066,14 @@ function normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData {
 }
 
 function normalizeHistogramData(
-  data: readonly PhaseOneHistogramData[],
+  data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
 ): readonly PhaseOneCandlestickData[] {
   return data.map(normalizeHistogramBar);
 }
 
-function normalizeHistogramBar(bar: PhaseOneHistogramData): PhaseOneCandlestickData {
+function normalizeHistogramBar(
+  bar: PhaseOneHistogramData | PhaseOneVolumeData,
+): PhaseOneCandlestickData {
   return {
     time: bar.time,
     open: 0,
@@ -955,6 +1081,23 @@ function normalizeHistogramBar(bar: PhaseOneHistogramData): PhaseOneCandlestickD
     low: Math.min(0, bar.value),
     close: bar.value,
   };
+}
+
+function buildHistogramVisuals(
+  data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
+): Map<number, HistogramVisual> {
+  const visuals = new Map<number, HistogramVisual>();
+
+  for (let index = 0; index < data.length; index += 1) {
+    const item = data[index];
+    const previous = index === 0 ? null : data[index - 1];
+    visuals.set(item.time, {
+      color: item.color,
+      isUp: item.up ?? (previous === null ? true : item.value >= previous.value),
+    });
+  }
+
+  return visuals;
 }
 
 function toCoordinate(value: Coordinate | null): Coordinate {
@@ -1073,6 +1216,7 @@ function drawPriceAxis(
   priceScale: PriceScale,
   crosshair: PanePoint | null,
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
+  seriesType: PhaseOneChartHarness["seriesType"],
 ): void {
   const range = priceScale.getPriceRange();
   if (range === null) {
@@ -1080,14 +1224,23 @@ function drawPriceAxis(
   }
 
   const paneHeight = layout.height - layout.top - layout.bottom;
-  const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
+  const volumeBand = seriesType === "volume" ? resolveVolumeBand(paneHeight) : null;
+  const labelHeight = volumeBand?.height ?? paneHeight;
+  const tickCount = clamp(Math.floor(labelHeight / 76), 3, 7);
   const labels: AxisTag[] = Array.from({ length: tickCount }, (_, index) => {
     const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
     const price = range.maxValue() - range.length() * ratio;
+    const y =
+      volumeBand === null
+        ? layout.top + paneHeight * ratio - 9
+        : layout.top + volumeBand.top + volumeBand.height * ratio - 9;
     return {
-      text: formatPriceAxisLabel(price),
+      text:
+        seriesType === "volume"
+          ? formatVolumeAxisLabel(price)
+          : formatPriceAxisLabel(price),
       x: layout.width - layout.right + 6,
-      y: layout.top + paneHeight * ratio - 9,
+      y,
     };
   });
 
@@ -1103,7 +1256,10 @@ function drawPriceAxis(
     const price = priceScale.coordinateToPrice(crosshair.y);
     if (price !== null) {
       drawAxisTag(context, {
-        text: price.toFixed(2),
+        text:
+          seriesType === "volume"
+            ? formatVolumeAxisLabel(price)
+            : formatPriceAxisLabel(price),
         x: layout.width - layout.right + 6,
         y: layout.top + crosshair.y - 9,
         active: true,
@@ -1224,6 +1380,20 @@ function formatPriceAxisLabel(value: number): string {
   });
 }
 
+function formatVolumeAxisLabel(value: number): string {
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (absolute >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (absolute >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+  return value.toFixed(0);
+}
+
 function formatTimeAxisLabel(value: number): string {
   if (Math.abs(value) < 100_000_000_000) {
     return `T ${value}`;
@@ -1242,6 +1412,32 @@ function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): 
       detail,
     }),
   );
+}
+
+function resolveVolumeBand(
+  paneHeight: number,
+): { top: number; height: number; baseY: Coordinate } {
+  const top = Math.round(paneHeight * VOLUME_BAND_TOP_RATIO);
+  const height = Math.max(72, paneHeight - top - 6);
+  return {
+    top,
+    height,
+    baseY: (top + height) as Coordinate,
+  };
+}
+
+function volumeToBandCoordinate(
+  value: number,
+  maxValue: number,
+  band: { top: number; height: number; baseY: Coordinate },
+): Coordinate {
+  if (!Number.isFinite(maxValue) || maxValue <= 0) {
+    return band.baseY;
+  }
+
+  const normalized = clamp(value / maxValue, 0, 1);
+  const drawableHeight = Math.max(8, band.height - 8);
+  return (band.baseY - normalized * drawableHeight) as Coordinate;
 }
 
 function buildCrosshairReadout(

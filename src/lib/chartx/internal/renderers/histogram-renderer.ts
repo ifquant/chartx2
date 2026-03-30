@@ -5,6 +5,7 @@ export type HistogramItem = {
   valueY: Coordinate;
   baseY: Coordinate;
   isUp: boolean;
+  color?: string;
 };
 
 export type HistogramRendererData = {
@@ -19,7 +20,7 @@ export class HistogramRenderer {
     const bodyWidth = Math.max(2, Math.floor(data.barWidth));
 
     for (const item of data.items) {
-      const color = item.isUp ? data.upColor : data.downColor;
+      const color = item.color ?? (item.isUp ? data.upColor : data.downColor);
       const top = Math.min(item.valueY, item.baseY);
       const bottom = Math.max(item.valueY, item.baseY);
       const height = Math.max(1, bottom - top);

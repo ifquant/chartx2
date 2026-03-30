@@ -25,6 +25,9 @@ import {
   type PhaseOnePriceScaleApi,
   type PhaseOneReadoutDetail,
   type PhaseOneTimeScaleApi,
+  type PhaseOneVolumeData,
+  type PhaseOneVolumeSeriesApi,
+  type PhaseOneVolumeSeriesOptions,
 } from "../internal/views";
 
 export type {
@@ -49,6 +52,9 @@ export type {
   PhaseOnePriceScaleApi,
   PhaseOneReadoutDetail,
   PhaseOneTimeScaleApi,
+  PhaseOneVolumeData,
+  PhaseOneVolumeSeriesApi,
+  PhaseOneVolumeSeriesOptions,
 };
 
 export function getChartxFoundation(): EngineBoundarySummary {

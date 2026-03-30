@@ -27,6 +27,13 @@ const HISTOGRAM_API_DATA = [
   { time: 4, value: 44 },
   { time: 5, value: 29 },
 ] as const;
+const VOLUME_API_DATA = [
+  { time: 1, value: 820_000, up: true },
+  { time: 2, value: 1_140_000, up: false },
+  { time: 3, value: 960_000, up: false, color: "#9b5de5" },
+  { time: 4, value: 1_520_000, up: true },
+  { time: 5, value: 1_180_000, up: false },
+] as const;
 
 test("phase-one public api mounts a single candlestick chart and renders the first frame", async ({
   page,
@@ -180,6 +187,34 @@ test("phase-one public api mounts a single histogram chart and renders the first
   const fixture = page.locator("#api-histogram-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-histogram-series.png");
+});
+
+test("phase-one public api mounts a single volume chart and renders the first frame", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-volume-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-volume-canvas" aria-label="phase-one api volume chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-volume-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API volume fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addVolumeSeries();
+    series.setData(data);
+  }, { data: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-volume-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-volume-series.png");
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

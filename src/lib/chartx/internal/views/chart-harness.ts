@@ -6,9 +6,11 @@ import {
   type OhlcDataPoint,
 } from "../model";
 import {
+  BarRenderer,
   CandlesticksRenderer,
   GridRenderer,
   LineRenderer,
+  type BarItem,
   type CandlestickItem,
   type LineItem,
 } from "../renderers";
@@ -53,6 +55,11 @@ export type PhaseOneCandlestickSeriesApi = {
   update(bar: PhaseOneCandlestickData): void;
 };
 
+export type PhaseOneBarSeriesApi = {
+  setData(data: readonly PhaseOneCandlestickData[]): void;
+  update(bar: PhaseOneCandlestickData): void;
+};
+
 export type PhaseOneLineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
@@ -60,6 +67,7 @@ export type PhaseOneLineSeriesApi = {
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
+  addBarSeries(): PhaseOneBarSeriesApi;
   addLineSeries(): PhaseOneLineSeriesApi;
   destroy(): void;
 };
@@ -103,11 +111,12 @@ export class PhaseOneChartHarness {
   private readonly store = new SeriesDataStore<number>();
   private readonly timeScale = new TimeScale();
   private readonly priceScale = new PriceScale();
+  private readonly barRenderer = new BarRenderer();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
   private readonly lineRenderer = new LineRenderer();
   private data: readonly PhaseOneCandlestickData[] = [];
-  private seriesType: "candlestick" | "line" | null = null;
+  private seriesType: "candlestick" | "bar" | "line" | null = null;
   private seriesAttached = false;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -241,6 +250,23 @@ export class PhaseOneChartHarness {
     };
   }
 
+  public addBarSeries(): PhaseOneBarSeriesApi {
+    if (this.seriesAttached) {
+      throw new Error("chartx phase-one chart supports only one series");
+    }
+
+    this.seriesAttached = true;
+    this.seriesType = "bar";
+    return {
+      setData: (data) => {
+        this.setData(data);
+      },
+      update: (bar) => {
+        this.update(bar);
+      },
+    };
+  }
+
   public setData(data: readonly PhaseOneCandlestickData[]): void {
     if (!this.seriesAttached) {
       throw new Error("chartx phase-one chart requires a series before setData");
@@ -359,6 +385,30 @@ export class PhaseOneChartHarness {
         lineColor: LINE_COLOR,
         lineWidth: 2,
       });
+    } else if (this.seriesType === "bar") {
+      const barItems = rows.map((row): BarItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        openY: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open]),
+        ),
+        highY: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High]),
+        ),
+        lowY: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low]),
+        ),
+        closeY: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]),
+        ),
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.barRenderer.draw(context, {
+        items: barItems,
+        barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
+      });
     } else {
       this.candlesRenderer.draw(context, {
         items,
@@ -388,6 +438,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
   return {
     addCandlestickSeries() {
       return harness.addCandlestickSeries();
+    },
+    addBarSeries() {
+      return harness.addBarSeries();
     },
     addLineSeries() {
       return harness.addLineSeries();

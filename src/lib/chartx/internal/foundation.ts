@@ -16,7 +16,7 @@ const boundarySummary: EngineBoundarySummary = {
   publicSurface: [
     "src/lib/chartx/public",
     "host shell reads chartx only through public entrypoints",
-    "createChartxPhaseOneChart exposes the narrow single-chart API with candlestick and line series entrypoints",
+    "createChartxPhaseOneChart exposes the narrow single-chart API with candlestick, bar, and line series entrypoints",
   ],
   internalLayers: [
     "typings/helpers",
@@ -70,13 +70,13 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests, cover candlestick and line-series visual baselines, keep viewport snapshots stable, surface readout state into a host OHLC bar, and add dynamic axis labels with active crosshair tags.",
+      note: "Pin model and scale behavior with unit tests, cover candlestick, bar, and line-series visual baselines, keep viewport snapshots stable, surface readout state into a host OHLC bar, and add dynamic axis labels with active crosshair tags.",
     },
     {
       id: "08",
       title: "Minimal Public API",
       status: "complete",
-      note: "Expose the narrow create chart, add one candlestick or line series, and setData/update flows through the public boundary.",
+      note: "Expose the narrow create chart, add one candlestick, bar, or line series, and setData/update flows through the public boundary.",
     },
     {
       id: "09",

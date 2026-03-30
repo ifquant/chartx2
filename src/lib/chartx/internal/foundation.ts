@@ -81,8 +81,8 @@ const boundarySummary: EngineBoundarySummary = {
     {
       id: "09",
       title: "Parity Definition",
-      status: "queued",
-      note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
+      status: "complete",
+      note: "Write the pass/fail checklist for what lightweight-charts parity actually means in the current phase-one scope.",
     },
     {
       id: "10",

@@ -110,23 +110,212 @@ Before migration starts, write a narrower checklist answering:
 
 Required sections:
 
-- [ ] chart primitives
-- [ ] time scale behavior
-- [ ] price scale behavior
-- [ ] data model and update semantics
-- [ ] supported series types in scope
-- [ ] pane model in scope
-- [ ] render pipeline assumptions
-- [ ] baseline public API surface
-- [ ] baseline interaction support
-- [ ] test expectations
-- [ ] performance floor
-- [ ] explicit deferrals
+- [x] chart primitives
+- [x] time scale behavior
+- [x] price scale behavior
+- [x] data model and update semantics
+- [x] supported series types in scope
+- [x] pane model in scope
+- [x] render pipeline assumptions
+- [x] baseline public API surface
+- [x] baseline interaction support
+- [x] test expectations
+- [x] performance floor
+- [x] explicit deferrals
+
+Phase-one parity for `chartx2` means the current implementation can satisfy the following narrow floor. Anything outside this list is not silently assumed.
+
+### Chart primitives
+
+Pass means:
+
+- one chart instance can mount into one HTML canvas
+- one pane is rendered inside that canvas
+- one candlestick series can be attached and drawn
+- deterministic sample OHLC data can be rendered repeatedly without host-side chart logic
+
+Not pass:
+
+- multi-pane rendering
+- multi-series composition
+- overlay studies
+- non-canvas rendering targets
+
+### Time scale behavior
+
+Pass means:
+
+- logical indexes map to x coordinates and back through the current `TimeScale`
+- `rightOffset` changes the visible viewport position
+- `barSpacing` changes the visible viewport density
+- visible logical range and visible strict range math are stable enough to lock with fixed-input tests
+
+Not pass:
+
+- custom sessions or trading calendars
+- business-day parsing
+- custom tick mark generation
+- timezone-aware formatting
+
+### Price scale behavior
+
+Pass means:
+
+- prices map to pane y coordinates and back through the current `PriceScale`
+- the visible price range is derived from the rendered series subset
+- zero-length ranges collapse to a stable midpoint behavior instead of exploding
+
+Not pass:
+
+- logarithmic scale
+- percentage scale
+- inverted scale options
+- auto precision or instrument-aware formatting
+
+### Data model and update semantics
+
+Pass means:
+
+- ordered OHLC arrays can be ingested through the current series store
+- empty datasets do not crash
+- single-bar datasets do not crash
+- unordered bars are rejected explicitly
+- the current minimal public path supports replacing the full dataset through `setData`
+
+Not pass:
+
+- incremental `update` semantics
+- partial historical backfill merge behavior
+- whitespace bars
+- mixed time types in one series
+
+### Supported series types in scope
+
+Pass means:
+
+- candlestick series only
+
+Not pass:
+
+- bar series
+- line series
+- area/baseline series
+- custom series types
+
+### Pane model in scope
+
+Pass means:
+
+- one pane
+- one rendered plotting area
+- one host-level OHLC bar above the canvas
+
+Not pass:
+
+- secondary panes
+- pane resizing
+- pane separators
+- synchronized pane cursors
+
+### Render pipeline assumptions
+
+Pass means:
+
+- rendering is canvas 2D only
+- the harness owns the draw order: background -> pane fill -> grid -> candles -> crosshair -> frame
+- high-DPI output is handled through canvas backing-store scaling
+- resize recomputes layout from the host container width
+
+Not pass:
+
+- WebGL acceleration
+- layer invalidation optimization
+- partial redraw regions
+- theme packs or runtime skinning
+
+### Baseline public API surface
+
+Pass means:
+
+- `mountChartxPhaseOneHarness(canvas)` mounts the demo path
+- `createChartxPhaseOneChart(canvas)` creates one narrow chart instance
+- `addCandlestickSeries()` is the only in-scope series attachment path
+- `setData()` is the only in-scope data write path
+- unsupported host or multi-series usage fails explicitly
+
+Not pass:
+
+- full `lightweight-charts` API breadth
+- option setters for layout, scales, or styling
+- public subscription APIs
+- plugin extension hooks
+
+### Baseline interaction support
+
+Pass means:
+
+- pointer-driven crosshair
+- wheel-driven zoom through `barSpacing`
+- drag-driven pan through `rightOffset`
+- host-visible OHLC readout fed by engine state
+
+Not pass:
+
+- kinetic scrolling
+- touch gestures
+- selection or drawing tools
+- replay, magnet, or snapping modes
+
+### Test expectations
+
+Pass means:
+
+- unit tests lock current scale math and data ingestion behavior
+- parity contract tests lock a small fixed input/output set for scale math and data ingestion
+- browser visual regression covers:
+  - baseline render
+  - narrow layout render
+  - crosshair render
+  - zoomed viewport render
+  - panned viewport render
+  - minimal public API happy path
+
+Not pass:
+
+- full upstream mirrored test suite
+- Tauri-level automated visual tests
+- interaction fuzzing
+
+### Performance floor
+
+Pass means:
+
+- one chart, one pane, one candlestick series
+- deterministic interaction baselines remain visually stable under browser test runs
+- the founder reference workflow for current sample data does not show obvious frame hitch during hover, zoom, or drag pan
+
+Not pass:
+
+- `40K historical bars`
+- multi-chart stress
+- indicator-heavy stress
+- production benchmark claims
+
+### Explicit deferrals
+
+Explicitly deferred from phase one:
+
+- parity for non-candlestick series
+- parity for full `lightweight-charts` option surface
+- public `update` and subscription APIs
+- axis labels and richer time/price formatting
+- indicators, plugins, drawings, alerts, replay, layouts, and desktop-specific workflows
+- final TradingView-grade performance targets
 
 Required outcome:
 
-- [ ] every item is specific enough to verify as pass/fail
-- [ ] every deferred capability is named, not silently omitted
+- [x] every item is specific enough to verify as pass/fail
+- [x] every deferred capability is named, not silently omitted
 
 ## Migration Order Checklist
 

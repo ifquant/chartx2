@@ -138,14 +138,24 @@ Goal:
 
 Checklist:
 
-- [ ] identify the minimal upstream `typings/helpers` subset required by model and renderer work
-- [ ] migrate only the subset needed for the next layer
+- [x] identify the minimal upstream `typings/helpers` subset required by model and renderer work
+- [x] migrate only the subset needed for the next layer
 - [ ] keep names and semantics close enough to upstream that parity comparison remains possible
 - [ ] avoid adding convenience helpers that only serve `chartx2` host UI at this stage
 
+Current migrated subset:
+
+- [x] `assertions`
+- [x] `delegate`
+- [x] `idestroyable`
+- [x] `isubscription`
+- [x] `mutable`
+- [x] `nominal`
+- [x] `strict-type-checks`
+
 Exit criteria:
 
-- [ ] TypeScript compiles with the migrated helper layer in place
+- [x] TypeScript compiles with the migrated helper layer in place
 - [ ] no host-shell code imports these files directly unless they are intentionally public
 
 ### Step 2: Model Core, Scales, Data

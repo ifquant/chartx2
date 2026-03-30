@@ -43,12 +43,18 @@ const boundarySummary: EngineBoundarySummary = {
     },
     {
       id: "03",
+      title: "Typings And Helpers",
+      status: "active",
+      note: "Migrate the smallest upstream helper subset needed for future model and scale work.",
+    },
+    {
+      id: "04",
       title: "Parity Definition",
       status: "queued",
       note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
     },
     {
-      id: "04",
+      id: "05",
       title: "Layered Migration",
       status: "queued",
       note: "Migrate upstream in dependency order, validating each layer before the next one.",

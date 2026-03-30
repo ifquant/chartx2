@@ -21,6 +21,8 @@ const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
 const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
 const CROSSHAIR_POINT_COLOR = "#101010";
+const READOUT_BACKGROUND = "rgba(16, 16, 16, 0.82)";
+const READOUT_TEXT = "#fffdf7";
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
@@ -280,6 +282,7 @@ export class PhaseOneChartHarness {
     });
 
     drawCrosshair(context, paneWidth, paneHeight, this.crosshair);
+    drawReadout(context, rows, this.crosshair, this.timeScale, this.priceScale);
     context.strokeStyle = FRAME_COLOR;
     context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
     context.restore();
@@ -429,6 +432,44 @@ function drawCrosshair(
   context.arc(crosshair.x, crosshair.y, 2.5, 0, Math.PI * 2);
   context.fill();
   context.restore();
+}
+
+function drawReadout(
+  context: CanvasRenderingContext2D,
+  rows: readonly { time: number }[],
+  crosshair: PanePoint | null,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  const text = crosshair === null
+    ? "Hover to inspect time / price"
+    : buildCrosshairReadout(rows, crosshair, timeScale, priceScale);
+
+  context.save();
+  context.font = '12px "SF Mono", "Menlo", monospace';
+  const textWidth = context.measureText(text).width;
+  const labelWidth = Math.ceil(textWidth + 18);
+
+  context.fillStyle = READOUT_BACKGROUND;
+  context.fillRect(12, 12, labelWidth, 24);
+  context.fillStyle = READOUT_TEXT;
+  context.textBaseline = "middle";
+  context.fillText(text, 21, 24);
+  context.restore();
+}
+
+function buildCrosshairReadout(
+  rows: readonly { time: number }[],
+  crosshair: PanePoint,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): string {
+  const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
+  const row = rows[clamp(logical, 0, rows.length - 1)];
+  const price = priceScale.coordinateToPrice(crosshair.y);
+  const priceLabel = price === null ? "--" : price.toFixed(2);
+
+  return `T ${row.time} | P ${priceLabel}`;
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

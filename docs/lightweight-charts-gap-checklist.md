@@ -25,6 +25,11 @@ The categories below are intentionally practical:
   - shared time scale
   - pane-local price scales
   - deterministic browser harness coverage
+- a first pane lifecycle surface now exists
+  - `panes()`
+  - `addPane()`
+  - `removePane()`
+  - `setHeight()` on secondary panes
 - four core series paths exist, plus one volume-flavored bridge path
   - candlestick
   - bar
@@ -61,6 +66,9 @@ Current state:
 - `addLineSeries()`
 - `addHistogramSeries()`
 - `addVolumeSeries()`
+- `panes()`
+- `addPane()`
+- `removePane()`
 - `removeSeries()`
 - `resize()`
 - `timeScale()`
@@ -84,7 +92,8 @@ Why this is still simplified:
 - series options exist, but only as a small styling subset
 - click and crosshair move subscriptions exist, but other event and interaction surfaces are still missing
 - public scale objects exist but still expose only a small subset of useful behavior
-- multi-pane is currently fixed to `primary + volume`, not a general pane API
+- pane lifecycle now exists, but only the volume path can target secondary panes
+- pane handles currently expose only a narrow lifecycle subset
 
 ### Time and price scales
 
@@ -222,6 +231,7 @@ Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
 - `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
+- `chartx2` now has a first pane lifecycle surface, but arbitrary non-volume series still cannot target custom panes
 
 ## Deferred Beyond Lightweight-Charts
 

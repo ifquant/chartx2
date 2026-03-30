@@ -79,9 +79,10 @@
     <h1>Phase-one floor is now carrying the first real pane architecture.</h1>
     <p class="lede">
       This page is still the host shell, but the chart preview now steps past the
-      single-pane floor into the first true multi-pane layout: a primary price pane,
-      a dedicated volume pane, a shared time scale, and independent pane-local price
-      scales that keep the engine pointed toward a fuller chart workstation.
+      single-pane floor into the first pane lifecycle: a primary price pane,
+      one removable secondary pane carrying volume, a shared time scale, and
+      independent pane-local price scales that keep the engine pointed toward a
+      fuller chart workstation.
     </p>
   </section>
 
@@ -108,13 +109,15 @@
     <div class="chart-copy">
       <h2>Browser Harness</h2>
       <p>
-        This deterministic browser harness now validates the first pane split as well:
-        one primary chart pane plus one dedicated volume pane sharing a single time scale.
+        This deterministic browser harness now validates the first pane lifecycle as
+        well: one primary chart pane, one managed secondary pane for volume, and a
+        shared time scale across both.
       </p>
       <ul>
         <li>Deterministic sample OHLC data</li>
-        <li>Primary price pane plus a dedicated volume pane</li>
+        <li>Primary price pane plus a managed secondary volume pane</li>
         <li>Shared time scale with pane-local price scales</li>
+        <li>Public pane handles with add/remove and secondary pane sizing</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>

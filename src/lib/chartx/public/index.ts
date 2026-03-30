@@ -22,12 +22,16 @@ import {
   type PhaseOneLineData,
   type PhaseOneLineSeriesApi,
   type PhaseOneLineSeriesOptions,
+  type PhaseOnePaneApi,
+  type PhaseOnePaneKind,
+  type PhaseOnePaneOptions,
   type PhaseOnePriceScaleApi,
   type PhaseOneReadoutDetail,
   type PhaseOneTimeScaleApi,
   type PhaseOneVolumeData,
   type PhaseOneVolumeSeriesApi,
   type PhaseOneVolumeSeriesOptions,
+  type PhaseOneVolumeSeriesTarget,
 } from "../internal/views";
 
 export type {
@@ -49,12 +53,16 @@ export type {
   PhaseOneLineData,
   PhaseOneLineSeriesApi,
   PhaseOneLineSeriesOptions,
+  PhaseOnePaneApi,
+  PhaseOnePaneKind,
+  PhaseOnePaneOptions,
   PhaseOnePriceScaleApi,
   PhaseOneReadoutDetail,
   PhaseOneTimeScaleApi,
   PhaseOneVolumeData,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesOptions,
+  PhaseOneVolumeSeriesTarget,
 };
 
 export function getChartxFoundation(): EngineBoundarySummary {

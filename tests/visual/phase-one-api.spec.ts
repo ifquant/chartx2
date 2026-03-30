@@ -247,6 +247,76 @@ test("phase-one public api mounts a candlestick chart with a dedicated volume pa
   await expect(fixture).toHaveScreenshot("phase-one-api-multi-pane.png");
 });
 
+test("phase-one public api supports pane lifecycle operations around a dedicated volume pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const paneMetrics = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-pane-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-pane-canvas" aria-label="phase-one api pane lifecycle chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-pane-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API pane fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const volumePane = chart.addPane({ height: 118 });
+    const sparePane = chart.addPane({ height: 92 });
+    volumePane.setHeight(142);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+
+    const beforeRemove = chart.panes().map((pane: {
+      paneIndex(): number;
+      getHeight(): number;
+      isPrimary(): boolean;
+      hasSeries(): boolean;
+    }) => ({
+      index: pane.paneIndex(),
+      height: pane.getHeight(),
+      primary: pane.isPrimary(),
+      hasSeries: pane.hasSeries(),
+    }));
+
+    chart.removePane(sparePane);
+
+    const afterRemove = chart.panes().map((pane: {
+      paneIndex(): number;
+      getHeight(): number;
+      isPrimary(): boolean;
+      hasSeries(): boolean;
+    }) => ({
+      index: pane.paneIndex(),
+      height: pane.getHeight(),
+      primary: pane.isPrimary(),
+      hasSeries: pane.hasSeries(),
+    }));
+
+    return {
+      beforeRemove,
+      afterRemove,
+    };
+  }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(paneMetrics.beforeRemove).toHaveLength(3);
+  expect(paneMetrics.afterRemove).toHaveLength(2);
+  expect(paneMetrics.afterRemove[0]?.primary).toBe(true);
+  expect(paneMetrics.afterRemove[1]?.hasSeries).toBe(true);
+  expect(paneMetrics.afterRemove[1]?.height).toBeGreaterThanOrEqual(120);
+
+  const fixture = page.locator("#api-pane-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-pane-lifecycle.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

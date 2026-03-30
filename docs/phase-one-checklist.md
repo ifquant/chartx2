@@ -563,3 +563,69 @@ Phase one is done when all of these are true:
 - [ ] phase-one performance floor is checked on a reference machine
 
 If any one of these is missing, phase one is not done yet.
+
+## Phase-Two Direction
+
+Phase two starts only after the phase-one floor is stable enough to stop arguing about whether `chartx2` is still just a demo harness.
+
+Phase two is not a separate product direction. It is the same long-term plan continuing upward:
+
+- first align `chartx2` with the `lightweight-charts` floor
+- then use that floor to move toward a TradingView-style chart workspace like the reference image shared by the user
+
+This means there is one long-term plan with two stages, not two unrelated plans.
+
+### Phase-Two Goal
+
+Turn the single-chart phase-one engine into the foundation of a TradingView-like workstation:
+
+- main price chart plus supporting panes
+- volume pane under the main chart
+- indicator panes such as RSI / Stoch RSI / CCI
+- richer chart header and timeframe/symbol controls
+- left-side tool rail and chart interaction affordances
+- right-side market context panels such as watchlist or instrument detail
+
+### Phase-Two Entry Condition
+
+Do not start phase two broadly until these are true:
+
+- phase-one parity definition is written and accepted as the floor
+- single-chart candlestick flow is stable under current unit and visual tests
+- pan / zoom / crosshair / update semantics are no longer changing every commit
+- the host/public-engine boundary is holding
+
+### Phase-Two Priorities
+
+Build in this order unless a later item becomes a hard blocker:
+
+1. multi-pane layout model
+2. volume pane
+3. indicator pane container and lifecycle
+4. richer time/price axis behavior and chart legend/header
+5. top toolbar / bottom timeframe bar / left tool rail shell
+6. right-side watchlist / instrument info shell
+
+### Phase-Two Scope
+
+In scope first:
+
+- multiple panes inside one chart workspace
+- pane sizing and vertical layout rules
+- volume as the first built-in supporting pane
+- at least one indicator pane path that proves the container model
+- host-level UI shells that make the app structurally resemble the target TradingView layout
+
+Explicitly later, not immediate phase-two entry:
+
+- full drawing suite
+- alerts
+- replay
+- multi-chart grids
+- watchlist trading actions
+- Pine-level scripting
+- the whole feature list from the final target image
+
+### Phase-Two Success Condition
+
+Phase two is succeeding when `chartx2` no longer reads as "one canvas demo with extras", but as "a chart workspace with a real pane model and UI shell" that is visibly on the path toward the reference TradingView-style product.

@@ -8,7 +8,9 @@ import {
 import {
   CandlesticksRenderer,
   GridRenderer,
+  LineRenderer,
   type CandlestickItem,
+  type LineItem,
 } from "../renderers";
 import type { Coordinate } from "../model";
 
@@ -19,6 +21,7 @@ const FRAME_COLOR = "rgba(16, 16, 16, 0.18)";
 const UP_COLOR = "#0c8f62";
 const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
+const LINE_COLOR = "#3f6fd8";
 const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
 const CROSSHAIR_POINT_COLOR = "#101010";
 const AXIS_TEXT_COLOR = "rgba(16, 16, 16, 0.72)";
@@ -31,6 +34,10 @@ const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
+export type PhaseOneLineData = {
+  time: number;
+  value: number;
+};
 export type PhaseOneReadoutDetail = {
   active: boolean;
   time: number | null;
@@ -46,8 +53,14 @@ export type PhaseOneCandlestickSeriesApi = {
   update(bar: PhaseOneCandlestickData): void;
 };
 
+export type PhaseOneLineSeriesApi = {
+  setData(data: readonly PhaseOneLineData[]): void;
+  update(bar: PhaseOneLineData): void;
+};
+
 export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
+  addLineSeries(): PhaseOneLineSeriesApi;
   destroy(): void;
 };
 
@@ -92,7 +105,9 @@ export class PhaseOneChartHarness {
   private readonly priceScale = new PriceScale();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
+  private readonly lineRenderer = new LineRenderer();
   private data: readonly PhaseOneCandlestickData[] = [];
+  private seriesType: "candlestick" | "line" | null = null;
   private seriesAttached = false;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -194,10 +209,11 @@ export class PhaseOneChartHarness {
 
   public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {
     if (this.seriesAttached) {
-      throw new Error("chartx phase-one chart supports only one candlestick series");
+      throw new Error("chartx phase-one chart supports only one series");
     }
 
     this.seriesAttached = true;
+    this.seriesType = "candlestick";
     return {
       setData: (data) => {
         this.setData(data);
@@ -208,9 +224,26 @@ export class PhaseOneChartHarness {
     };
   }
 
+  public addLineSeries(): PhaseOneLineSeriesApi {
+    if (this.seriesAttached) {
+      throw new Error("chartx phase-one chart supports only one series");
+    }
+
+    this.seriesAttached = true;
+    this.seriesType = "line";
+    return {
+      setData: (data) => {
+        this.setData(normalizeLineData(data));
+      },
+      update: (bar) => {
+        this.update(normalizeLineBar(bar));
+      },
+    };
+  }
+
   public setData(data: readonly PhaseOneCandlestickData[]): void {
     if (!this.seriesAttached) {
-      throw new Error("chartx phase-one chart requires addCandlestickSeries before setData");
+      throw new Error("chartx phase-one chart requires a series before setData");
     }
 
     this.data = [...data];
@@ -223,7 +256,7 @@ export class PhaseOneChartHarness {
 
   public update(bar: PhaseOneCandlestickData): void {
     if (!this.seriesAttached) {
-      throw new Error("chartx phase-one chart requires addCandlestickSeries before update");
+      throw new Error("chartx phase-one chart requires a series before update");
     }
 
     this.data = this.store.update(bar).map((row) => ({
@@ -313,13 +346,28 @@ export class PhaseOneChartHarness {
       isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
     }));
 
-    this.candlesRenderer.draw(context, {
-      items,
-      barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
-      upColor: UP_COLOR,
-      downColor: DOWN_COLOR,
-      wickColor: WICK_COLOR,
-    });
+    if (this.seriesType === "line") {
+      const lineItems = rows.map((row): LineItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        y: toCoordinate(
+          this.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]),
+        ),
+      }));
+
+      this.lineRenderer.draw(context, {
+        items: lineItems,
+        lineColor: LINE_COLOR,
+        lineWidth: 2,
+      });
+    } else {
+      this.candlesRenderer.draw(context, {
+        items,
+        barWidth: paneWidth / Math.max(rows.length * 1.8, 24),
+        upColor: UP_COLOR,
+        downColor: DOWN_COLOR,
+        wickColor: WICK_COLOR,
+      });
+    }
 
     drawCrosshair(context, paneWidth, paneHeight, this.crosshair);
     context.strokeStyle = FRAME_COLOR;
@@ -340,6 +388,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
   return {
     addCandlestickSeries() {
       return harness.addCandlestickSeries();
+    },
+    addLineSeries() {
+      return harness.addLineSeries();
     },
     destroy() {
       harness.detach();
@@ -377,6 +428,20 @@ function buildDemoBars(): readonly OhlcDataPoint<number>[] {
       close,
     };
   });
+}
+
+function normalizeLineData(data: readonly PhaseOneLineData[]): readonly PhaseOneCandlestickData[] {
+  return data.map(normalizeLineBar);
+}
+
+function normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData {
+  return {
+    time: bar.time,
+    open: bar.value,
+    high: bar.value,
+    low: bar.value,
+    close: bar.value,
+  };
 }
 
 function toCoordinate(value: Coordinate | null): Coordinate {

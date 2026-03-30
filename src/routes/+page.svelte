@@ -113,10 +113,11 @@
       <ul>
         <li>Deterministic sample OHLC data</li>
         <li>Internal time and price scales</li>
-        <li>Canvas-based candle and grid renderers</li>
+        <li>Canvas-based candle, line, and grid renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
+        <li>Public single-series API with candlestick and line paths</li>
         <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>

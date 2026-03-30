@@ -7,6 +7,13 @@ const API_DATA = [
   { time: 3, open: 133, high: 140, low: 129, close: 131 },
   { time: 4, open: 131, high: 138, low: 126, close: 136 },
 ] as const;
+const LINE_API_DATA = [
+  { time: 1, value: 126 },
+  { time: 2, value: 130 },
+  { time: 3, value: 128 },
+  { time: 4, value: 135 },
+  { time: 5, value: 133 },
+] as const;
 
 test("phase-one public api mounts a single candlestick chart and renders the first frame", async ({
   page,
@@ -76,6 +83,34 @@ test("phase-one public api applies an incremental update and rerenders", async (
   const fixture = page.locator("#api-update-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-update.png");
+});
+
+test("phase-one public api mounts a single line chart and renders the first frame", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-line-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-line-canvas" aria-label="phase-one api line chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-line-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API line fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addLineSeries();
+    series.setData(data);
+  }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-line-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-line-series.png");
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

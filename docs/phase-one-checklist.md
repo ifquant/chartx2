@@ -193,12 +193,12 @@ Not pass:
 
 Pass means:
 
-- candlestick series only
+- candlestick series
+- line series
 
 Not pass:
 
 - bar series
-- line series
 - area/baseline series
 - custom series types
 
@@ -239,7 +239,7 @@ Pass means:
 
 - `mountChartxPhaseOneHarness(canvas)` mounts the demo path
 - `createChartxPhaseOneChart(canvas)` creates one narrow chart instance
-- `addCandlestickSeries()` is the only in-scope series attachment path
+- `addCandlestickSeries()` and `addLineSeries()` are the in-scope series attachment paths
 - `setData()` is the only in-scope data write path
 - `update()` supports only replace-last-bar or append-one-bar semantics
 - unsupported host or multi-series usage fails explicitly
@@ -307,7 +307,7 @@ Not pass:
 
 Explicitly deferred from phase one:
 
-- parity for non-candlestick series
+- parity for bar, area, baseline, and custom series types
 - parity for full `lightweight-charts` option surface
 - public `update` and subscription APIs
 - richer tick generation, axis options, and time/price formatting

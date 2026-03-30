@@ -8,6 +8,8 @@ import {
   type PhaseOneCandlestickData,
   type PhaseOneCandlestickSeriesApi,
   type PhaseOneChartApi,
+  type PhaseOneLineData,
+  type PhaseOneLineSeriesApi,
   type PhaseOneReadoutDetail,
 } from "../internal/views";
 
@@ -16,6 +18,8 @@ export type {
   PhaseOneCandlestickData,
   PhaseOneCandlestickSeriesApi,
   PhaseOneChartApi,
+  PhaseOneLineData,
+  PhaseOneLineSeriesApi,
   PhaseOneReadoutDetail,
 };
 

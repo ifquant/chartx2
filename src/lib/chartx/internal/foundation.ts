@@ -70,7 +70,7 @@ const boundarySummary: EngineBoundarySummary = {
       id: "07",
       title: "Unit And Visual Tests",
       status: "active",
-      note: "Pin model and scale behavior with unit tests, cover setData plus update flows, keep viewport snapshots stable, surface readout state into a host OHLC bar, and add crosshair-following axis labels.",
+      note: "Pin model and scale behavior with unit tests, cover setData plus update flows, keep viewport snapshots stable, surface readout state into a host OHLC bar, and add dynamic axis labels with active crosshair tags.",
     },
     {
       id: "08",

@@ -70,6 +70,13 @@ type DragState = {
   startRightOffset: number;
 };
 
+type AxisTag = {
+  text: string;
+  x: number;
+  y: number;
+  active?: boolean;
+};
+
 const DEFAULT_LAYOUT: Layout = {
   width: 960,
   height: 520,
@@ -352,6 +359,7 @@ export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void
 
 function buildDemoBars(): readonly OhlcDataPoint<number>[] {
   let lastClose = 16_500;
+  const startTime = Date.UTC(2025, 0, 2, 9, 30);
 
   return Array.from({ length: 42 }, (_, index) => {
     const drift = Math.sin(index / 5) * 42;
@@ -362,7 +370,7 @@ function buildDemoBars(): readonly OhlcDataPoint<number>[] {
     lastClose = close;
 
     return {
-      time: index,
+      time: startTime + index * 60_000,
       open,
       high,
       low,
@@ -481,22 +489,23 @@ function drawPriceAxis(
   }
 
   const paneHeight = layout.height - layout.top - layout.bottom;
-  const labels = [
-    { price: range.maxValue(), y: 0 },
-    { price: range.maxValue() - range.length() * 0.5, y: paneHeight * 0.5 },
-    { price: range.minValue(), y: paneHeight },
-  ];
+  const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
+  const labels: AxisTag[] = Array.from({ length: tickCount }, (_, index) => {
+    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
+    const price = range.maxValue() - range.length() * ratio;
+    return {
+      text: formatPriceAxisLabel(price),
+      x: layout.width - layout.right + 6,
+      y: layout.top + paneHeight * ratio - 9,
+    };
+  });
 
   context.save();
   context.font = '11px "SF Mono", "Menlo", monospace';
   context.textBaseline = "middle";
 
   for (const label of labels) {
-    drawAxisTag(context, {
-      text: label.price.toFixed(2),
-      x: layout.width - layout.right + 6,
-      y: layout.top + label.y - 9,
-    });
+    drawAxisTag(context, label);
   }
 
   if (crosshair !== null) {
@@ -526,12 +535,11 @@ function drawTimeAxis(
   }
 
   const paneHeight = layout.height - layout.top - layout.bottom;
-  const lastIndex = rows.length - 1;
-  const anchors = [
-    rows[0],
-    rows[Math.floor(lastIndex * 0.5)],
-    rows[lastIndex],
-  ];
+  const visible = timeScale.visibleStrictRange();
+  const start = visible === null ? 0 : clamp(visible.left(), 0, rows.length - 1);
+  const end = visible === null ? rows.length - 1 : clamp(visible.right(), 0, rows.length - 1);
+  const tickCount = clamp(Math.floor((layout.width - layout.left - layout.right) / 140), 3, 7);
+  const anchors = collectVisibleTimeAnchors(rows, start, end, tickCount);
 
   context.save();
   context.font = '11px "SF Mono", "Menlo", monospace';
@@ -539,7 +547,7 @@ function drawTimeAxis(
   context.fillStyle = AXIS_TEXT_COLOR;
 
   for (const row of anchors) {
-    const text = `T ${row.time}`;
+    const text = formatTimeAxisLabel(row.time);
     const x = layout.left + timeScale.indexToCoordinate(row.index as never);
     drawAxisTag(context, {
       text,
@@ -551,7 +559,7 @@ function drawTimeAxis(
   if (crosshair !== null) {
     const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
     const row = rows[clamp(logical, 0, rows.length - 1)];
-    const text = `T ${row.time}`;
+    const text = formatTimeAxisLabel(row.time);
     drawAxisTag(context, {
       text,
       x: clampCenterTag(layout.left + crosshair.x, context.measureText(text).width, layout.left, layout.width - layout.right),
@@ -563,10 +571,7 @@ function drawTimeAxis(
   context.restore();
 }
 
-function drawAxisTag(
-  context: CanvasRenderingContext2D,
-  options: { text: string; x: number; y: number; active?: boolean },
-): void {
+function drawAxisTag(context: CanvasRenderingContext2D, options: AxisTag): void {
   const textWidth = context.measureText(options.text).width;
   const boxWidth = Math.ceil(textWidth + 12);
   const boxHeight = 18;
@@ -584,6 +589,27 @@ function drawAxisTag(
   );
 }
 
+function collectVisibleTimeAnchors(
+  rows: readonly { time: number; index: number }[],
+  start: number,
+  end: number,
+  tickCount: number,
+): Array<{ time: number; index: number }> {
+  const anchors: Array<{ time: number; index: number }> = [];
+  const seen = new Set<number>();
+
+  for (let index = 0; index < tickCount; index += 1) {
+    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
+    const candidate = clamp(Math.round(start + (end - start) * ratio), start, end);
+    if (!seen.has(candidate)) {
+      seen.add(candidate);
+      anchors.push(rows[candidate]);
+    }
+  }
+
+  return anchors;
+}
+
 function clampCenterTag(
   centerX: number,
   textWidth: number,
@@ -592,6 +618,26 @@ function clampCenterTag(
 ): number {
   const boxWidth = Math.ceil(textWidth + 12);
   return clamp(centerX - boxWidth / 2, minX, maxX - boxWidth);
+}
+
+function formatPriceAxisLabel(value: number): string {
+  const digits = Math.abs(value) >= 1000 ? 2 : 3;
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  });
+}
+
+function formatTimeAxisLabel(value: number): string {
+  if (Math.abs(value) < 100_000_000_000) {
+    return `T ${value}`;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
 }
 
 function emitReadout(

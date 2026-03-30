@@ -44,7 +44,28 @@
   });
 
   function formatValue(value: number | null, digits = 2): string {
-    return value === null ? "--" : value.toFixed(digits);
+    return value === null
+      ? "--"
+      : value.toLocaleString("en-US", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: digits,
+        });
+  }
+
+  function formatTime(value: number | null): string {
+    if (value === null) {
+      return "--";
+    }
+
+    if (Math.abs(value) < 100_000_000_000) {
+      return String(value);
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(value));
   }
 </script>
 
@@ -72,7 +93,7 @@
         </div>
       {:else}
         <div class="readout-bar" aria-live="polite">
-          <span class:inactive={!readout.active}>T {readout.time ?? "--"}</span>
+          <span class:inactive={!readout.active}>T {formatTime(readout.time)}</span>
           <span class:inactive={!readout.active}>O {formatValue(readout.open)}</span>
           <span class:inactive={!readout.active}>H {formatValue(readout.high)}</span>
           <span class:inactive={!readout.active}>L {formatValue(readout.low)}</span>
@@ -96,7 +117,7 @@
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
-        <li>Crosshair-following time and price axis labels</li>
+        <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>
         <li>Visible host error state if chart initialization fails</li>

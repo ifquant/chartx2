@@ -227,15 +227,15 @@ Goal:
 
 Checklist:
 
-- [ ] define one narrow entry for chart creation
-- [ ] define one narrow path for adding the in-scope series type(s)
-- [ ] define one narrow path for setting or updating data
-- [ ] reject or defer unsupported API breadth explicitly
+- [x] define one narrow entry for chart creation
+- [x] define one narrow path for adding the in-scope series type(s)
+- [x] define one narrow path for setting or updating data
+- [x] reject or defer unsupported API breadth explicitly
 
 Exit criteria:
 
-- [ ] integration test covers `create chart -> add series -> set data -> first render`
-- [ ] invalid host usage has a defined failure mode
+- [x] integration test covers `create chart -> add series -> set data -> first render`
+- [x] invalid host usage has a defined failure mode
 
 ### Step 5: Host Integration
 
@@ -290,7 +290,7 @@ Required:
 - [ ] scale math parity for a small fixed input/output set
 - [x] scale math parity for a small fixed input/output set
 - [x] data ingestion parity for a small fixed dataset
-- [ ] baseline API happy path parity where phase-one API overlaps upstream behavior
+- [x] baseline API happy path parity where phase-one API overlaps upstream behavior
 - [ ] baseline render parity check through controlled snapshots
 
 Not required:

@@ -16,6 +16,7 @@ const boundarySummary: EngineBoundarySummary = {
   publicSurface: [
     "src/lib/chartx/public",
     "host shell reads chartx only through public entrypoints",
+    "createChartxPhaseOneChart exposes the narrow single-chart, single-series API",
   ],
   internalLayers: [
     "typings/helpers",
@@ -73,12 +74,18 @@ const boundarySummary: EngineBoundarySummary = {
     },
     {
       id: "08",
+      title: "Minimal Public API",
+      status: "active",
+      note: "Expose the narrow create chart, add one series, and set data flow through the public boundary.",
+    },
+    {
+      id: "09",
       title: "Parity Definition",
       status: "queued",
       note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
     },
     {
-      id: "09",
+      id: "10",
       title: "Layered Migration",
       status: "queued",
       note: "Migrate upstream in dependency order, validating each layer before the next one.",

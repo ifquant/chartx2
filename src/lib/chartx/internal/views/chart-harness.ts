@@ -20,6 +20,17 @@ const UP_COLOR = "#0c8f62";
 const DOWN_COLOR = "#c7543e";
 const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
 
+export type PhaseOneCandlestickData = OhlcDataPoint<number>;
+
+export type PhaseOneCandlestickSeriesApi = {
+  setData(data: readonly PhaseOneCandlestickData[]): void;
+};
+
+export type PhaseOneChartApi = {
+  addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
+  destroy(): void;
+};
+
 type Layout = {
   width: number;
   height: number;
@@ -44,7 +55,50 @@ export class PhaseOneChartHarness {
   private readonly priceScale = new PriceScale();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
-  private readonly data = buildDemoBars();
+  private data: readonly PhaseOneCandlestickData[] = [];
+  private seriesAttached = false;
+  private canvas: HTMLCanvasElement | null = null;
+  private readonly handleResize = () => {
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  };
+
+  public attach(canvas: HTMLCanvasElement): void {
+    assertCanvasElement(canvas);
+    this.canvas = canvas;
+    this.render(canvas);
+    window.addEventListener("resize", this.handleResize);
+  }
+
+  public detach(): void {
+    window.removeEventListener("resize", this.handleResize);
+    this.canvas = null;
+  }
+
+  public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {
+    if (this.seriesAttached) {
+      throw new Error("chartx phase-one chart supports only one candlestick series");
+    }
+
+    this.seriesAttached = true;
+    return {
+      setData: (data) => {
+        this.setData(data);
+      },
+    };
+  }
+
+  public setData(data: readonly PhaseOneCandlestickData[]): void {
+    if (!this.seriesAttached) {
+      throw new Error("chartx phase-one chart requires addCandlestickSeries before setData");
+    }
+
+    this.data = [...data];
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
 
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
@@ -81,6 +135,13 @@ export class PhaseOneChartHarness {
     });
 
     const rows = this.store.setData(this.data);
+    if (rows.length === 0) {
+      context.strokeStyle = FRAME_COLOR;
+      context.strokeRect(0.5, 0.5, paneWidth - 1, paneHeight - 1);
+      context.restore();
+      return;
+    }
+
     this.timeScale.applyOptions({
       width: paneWidth,
       pointCount: rows.length,
@@ -128,14 +189,29 @@ export class PhaseOneChartHarness {
   }
 }
 
-export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {
+export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {
+  assertCanvasElement(canvas);
+
   const harness = new PhaseOneChartHarness();
-  const render = () => harness.render(canvas);
-  render();
-  window.addEventListener("resize", render);
+  harness.attach(canvas);
+
+  return {
+    addCandlestickSeries() {
+      return harness.addCandlestickSeries();
+    },
+    destroy() {
+      harness.detach();
+    },
+  };
+}
+
+export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {
+  const chart = createPhaseOneChart(canvas);
+  const series = chart.addCandlestickSeries();
+  series.setData(buildDemoBars());
 
   return () => {
-    window.removeEventListener("resize", render);
+    chart.destroy();
   };
 }
 
@@ -186,4 +262,10 @@ function measureLayout(canvas: HTMLCanvasElement): Layout {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {
+  if (!(value instanceof HTMLCanvasElement)) {
+    throw new Error("chartx phase-one chart requires an HTMLCanvasElement");
+  }
 }

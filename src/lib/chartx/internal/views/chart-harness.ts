@@ -55,6 +55,22 @@ export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
 };
 
 export type PhaseOneCrosshairMoveHandler = (event: PhaseOneCrosshairMoveEvent) => void;
+export type PhaseOneChartOptions = {
+  layout?: {
+    backgroundColor?: string;
+    paneBackgroundColor?: string;
+    gridColor?: string;
+  };
+};
+
+export type PhaseOneTimeScaleApi = {
+  getVisibleLogicalRange(): { from: number; to: number } | null;
+  applyOptions(options: { barSpacing?: number; rightOffset?: number }): void;
+};
+
+export type PhaseOnePriceScaleApi = {
+  getVisibleRange(): { minValue: number; maxValue: number } | null;
+};
 
 export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
@@ -75,10 +91,13 @@ export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
   addBarSeries(): PhaseOneBarSeriesApi;
   addLineSeries(): PhaseOneLineSeriesApi;
+  applyOptions(options: PhaseOneChartOptions): void;
   removeSeries(
     series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
   ): void;
   resize(width: number, height: number): void;
+  timeScale(): PhaseOneTimeScaleApi;
+  priceScale(): PhaseOnePriceScaleApi;
   subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
   unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
   destroy(): void;
@@ -139,6 +158,11 @@ export class PhaseOneChartHarness {
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
   private rightOffset = DEFAULT_RIGHT_OFFSET;
+  private readonly chartOptions: Required<NonNullable<PhaseOneChartOptions["layout"]>> = {
+    backgroundColor: CHART_BACKGROUND,
+    paneBackgroundColor: PANE_BACKGROUND,
+    gridColor: GRID_COLOR,
+  };
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
@@ -319,6 +343,22 @@ export class PhaseOneChartHarness {
     }
   }
 
+  public applyOptions(options: PhaseOneChartOptions): void {
+    if (options.layout?.backgroundColor !== undefined) {
+      this.chartOptions.backgroundColor = options.layout.backgroundColor;
+    }
+    if (options.layout?.paneBackgroundColor !== undefined) {
+      this.chartOptions.paneBackgroundColor = options.layout.paneBackgroundColor;
+    }
+    if (options.layout?.gridColor !== undefined) {
+      this.chartOptions.gridColor = options.layout.gridColor;
+    }
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
   public resize(width: number, height: number): void {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
       throw new Error("chartx phase-one chart resize requires positive finite width and height");
@@ -331,6 +371,40 @@ export class PhaseOneChartHarness {
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
+  }
+
+  public timeScaleApi(): PhaseOneTimeScaleApi {
+    return {
+      getVisibleLogicalRange: () => {
+        const range = this.timeScale.visibleLogicalRange().logicalRange();
+        if (range === null) {
+          return null;
+        }
+
+        return {
+          from: range.left(),
+          to: range.right(),
+        };
+      },
+      applyOptions: (options) => {
+        if (options.barSpacing !== undefined) {
+          this.barSpacing = clamp(options.barSpacing, MIN_BAR_SPACING, MAX_BAR_SPACING);
+        }
+        if (options.rightOffset !== undefined) {
+          this.rightOffset = options.rightOffset;
+        }
+
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+  }
+
+  public priceScaleApi(): PhaseOnePriceScaleApi {
+    return {
+      getVisibleRange: () => this.priceScale.getPriceRange()?.toRaw() ?? null,
+    };
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
@@ -387,14 +461,14 @@ export class PhaseOneChartHarness {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.scale(dpr, dpr);
     context.clearRect(0, 0, layout.width, layout.height);
-    context.fillStyle = CHART_BACKGROUND;
+    context.fillStyle = this.chartOptions.backgroundColor;
     context.fillRect(0, 0, layout.width, layout.height);
 
     const paneWidth = layout.width - layout.left - layout.right;
     const paneHeight = layout.height - layout.top - layout.bottom;
     context.save();
     context.translate(layout.left, layout.top);
-    context.fillStyle = PANE_BACKGROUND;
+    context.fillStyle = this.chartOptions.paneBackgroundColor;
     context.fillRect(0, 0, paneWidth, paneHeight);
 
     this.gridRenderer.draw(context, {
@@ -402,7 +476,7 @@ export class PhaseOneChartHarness {
       height: paneHeight,
       columns: 8,
       rows: 5,
-      lineColor: GRID_COLOR,
+      lineColor: this.chartOptions.gridColor,
     });
 
     const rows = this.store.setData(this.data);
@@ -546,11 +620,20 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     addLineSeries() {
       return harness.addLineSeries();
     },
+    applyOptions(options) {
+      harness.applyOptions(options);
+    },
     removeSeries(series) {
       harness.removeSeries(series);
     },
     resize(width, height) {
       harness.resize(width, height);
+    },
+    timeScale() {
+      return harness.timeScaleApi();
+    },
+    priceScale() {
+      return harness.priceScaleApi();
     },
     subscribeCrosshairMove(handler) {
       harness.subscribeCrosshairMove(handler);

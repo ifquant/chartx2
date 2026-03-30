@@ -285,3 +285,71 @@ test("phase-one public api supports resize, crosshair subscriptions, and series 
 
   expect(removalResult).toContain("series has been removed");
 });
+
+test("phase-one public api supports applyOptions and scale handles", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-options-fixture" style="width: 820px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-options-canvas" aria-label="phase-one api options chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-options-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API options fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+
+    chart.applyOptions({
+      layout: {
+        backgroundColor: "#f3efe4",
+        paneBackgroundColor: "#fff8e8",
+        gridColor: "rgba(63, 111, 216, 0.14)",
+      },
+    });
+
+    const timeScale = chart.timeScale();
+    timeScale.applyOptions({
+      barSpacing: 14,
+      rightOffset: 1.25,
+    });
+
+    (window as Window & {
+      __chartxOptionsState?: {
+        logicalRange: { from: number; to: number } | null;
+        priceRange: { minValue: number; maxValue: number } | null;
+      };
+    }).__chartxOptionsState = {
+      logicalRange: chart.timeScale().getVisibleLogicalRange(),
+      priceRange: chart.priceScale().getVisibleRange(),
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-options-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-options.png");
+
+  const state = await page.evaluate(() => {
+    return (window as Window & {
+      __chartxOptionsState?: {
+        logicalRange: { from: number; to: number } | null;
+        priceRange: { minValue: number; maxValue: number } | null;
+      };
+    }).__chartxOptionsState ?? null;
+  });
+
+  expect(state?.logicalRange).toEqual({
+    from: expect.any(Number),
+    to: expect.any(Number),
+  });
+  expect(state?.priceRange).toEqual({
+    minValue: expect.any(Number),
+    maxValue: expect.any(Number),
+  });
+});

@@ -49,11 +49,14 @@ The categories below are intentionally practical:
 Current state:
 
 - `createChartxPhaseOneChart(canvas)`
+- `applyOptions()`
 - `addCandlestickSeries()`
 - `addBarSeries()`
 - `addLineSeries()`
 - `removeSeries()`
 - `resize()`
+- `timeScale()`
+- `priceScale()`
 - `subscribeCrosshairMove()`
 - `unsubscribeCrosshairMove()`
 - `setData()`
@@ -67,9 +70,9 @@ Current references:
 
 Why this is still simplified:
 
-- no chart-level `applyOptions`
+- `applyOptions()` currently covers only a narrow layout color surface
 - crosshair move is the only public chart event subscription so far
-- no public `timeScale()` or `priceScale()` objects
+- public scale objects exist but still expose only a small subset of useful behavior
 
 ### Time and price scales
 

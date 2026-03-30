@@ -81,7 +81,8 @@
       This page is still the host shell, but the chart preview now steps past the
       single-pane floor into the first pane lifecycle: a primary price pane,
       removable secondary panes, a shared time scale, and pane-local price
-      scales that now support the first non-volume study series as well.
+      scales with explicit series-to-pane targeting on both the primary slot and
+      managed secondary panes.
     </p>
   </section>
 
@@ -109,19 +110,19 @@
       <h2>Browser Harness</h2>
       <p>
         This deterministic browser harness now validates the first pane lifecycle as
-        well: one primary chart pane, one managed secondary pane for studies, and a
-        shared time scale across both.
+        well: one primary chart pane, managed secondary panes, and a shared time
+        scale across the whole stack.
       </p>
       <ul>
         <li>Deterministic sample OHLC data</li>
         <li>Primary price pane plus managed secondary study panes</li>
         <li>Shared time scale with pane-local price scales</li>
-        <li>Public pane handles with add/remove, pane sizing, and study-pane targeting</li>
+        <li>Public pane handles with add/remove, pane sizing, and explicit series-to-pane targeting</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
-        <li>Public API with one primary series plus one volume series path</li>
+        <li>Public API with one primary slot plus one basic series per managed secondary pane</li>
         <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>

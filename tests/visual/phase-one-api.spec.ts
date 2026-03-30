@@ -348,6 +348,37 @@ test("phase-one public api lets a line series target a managed secondary pane", 
   await expect(fixture).toHaveScreenshot("phase-one-api-secondary-line-pane.png");
 });
 
+test("phase-one public api lets a candlestick series target a managed secondary pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, line, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-secondary-candles-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-secondary-candles-canvas" aria-label="phase-one api secondary candlestick chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-secondary-candles-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API secondary candlestick fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const studyPane = chart.addPane({ height: 136 });
+    const mainSeries = chart.addLineSeries({ pane: chart.panes()[0] });
+    const candleSeries = chart.addCandlestickSeries({ pane: studyPane });
+    mainSeries.setData(line);
+    candleSeries.setData(bars);
+  }, { bars: API_DATA, line: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-secondary-candles-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-secondary-candles-pane.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

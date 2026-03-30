@@ -31,6 +31,7 @@ The categories below are intentionally practical:
   - `removePane()`
   - `setHeight()` on secondary panes
 - secondary panes are no longer volume-only
+  - `candlestick`
   - `line`
   - `bar`
   - `histogram`
@@ -67,6 +68,7 @@ Current state:
 - `createChartxPhaseOneChart(canvas)`
 - `applyOptions()`
 - `addCandlestickSeries()`
+- `addCandlestickSeries({ pane })`
 - `addBarSeries()`
 - `addLineSeries()`
 - `addHistogramSeries()`
@@ -101,6 +103,7 @@ Why this is still simplified:
 - click and crosshair move subscriptions exist, but other event and interaction surfaces are still missing
 - public scale objects exist but still expose only a small subset of useful behavior
 - pane lifecycle now exists, and the first study series can target secondary panes
+- pane targeting is now more explicit, but the primary slot is still special and volume still stays secondary-only
 - pane handles currently expose only a narrow lifecycle subset
 
 ### Time and price scales
@@ -239,7 +242,7 @@ Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
 - `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
-- `chartx2` now has a first pane lifecycle surface and secondary-pane study routing, but candlestick and generalized series composition are still constrained
+- `chartx2` now has a first pane lifecycle surface and explicit pane targeting for candlestick, line, bar, and histogram, but generalized multi-series composition is still constrained
 
 ## Deferred Beyond Lightweight-Charts
 

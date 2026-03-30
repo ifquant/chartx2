@@ -317,6 +317,37 @@ test("phase-one public api supports pane lifecycle operations around a dedicated
   await expect(fixture).toHaveScreenshot("phase-one-api-pane-lifecycle.png");
 });
 
+test("phase-one public api lets a line series target a managed secondary pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, line, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-secondary-line-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-secondary-line-canvas" aria-label="phase-one api secondary line chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-secondary-line-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API secondary line fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const studyPane = chart.addPane({ height: 124 });
+    const mainSeries = chart.addCandlestickSeries();
+    const lineSeries = chart.addLineSeries({ pane: studyPane });
+    mainSeries.setData(bars);
+    lineSeries.setData(line);
+  }, { bars: API_DATA, line: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-secondary-line-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-secondary-line-pane.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

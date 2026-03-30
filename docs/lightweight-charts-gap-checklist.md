@@ -30,6 +30,11 @@ The categories below are intentionally practical:
   - `addPane()`
   - `removePane()`
   - `setHeight()` on secondary panes
+- secondary panes are no longer volume-only
+  - `line`
+  - `bar`
+  - `histogram`
+  - `volume`
 - four core series paths exist, plus one volume-flavored bridge path
   - candlestick
   - bar
@@ -66,6 +71,9 @@ Current state:
 - `addLineSeries()`
 - `addHistogramSeries()`
 - `addVolumeSeries()`
+- `addLineSeries({ pane })`
+- `addBarSeries({ pane })`
+- `addHistogramSeries({ pane })`
 - `panes()`
 - `addPane()`
 - `removePane()`
@@ -92,7 +100,7 @@ Why this is still simplified:
 - series options exist, but only as a small styling subset
 - click and crosshair move subscriptions exist, but other event and interaction surfaces are still missing
 - public scale objects exist but still expose only a small subset of useful behavior
-- pane lifecycle now exists, but only the volume path can target secondary panes
+- pane lifecycle now exists, and the first study series can target secondary panes
 - pane handles currently expose only a narrow lifecycle subset
 
 ### Time and price scales
@@ -231,7 +239,7 @@ Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
 - `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
-- `chartx2` now has a first pane lifecycle surface, but arbitrary non-volume series still cannot target custom panes
+- `chartx2` now has a first pane lifecycle surface and secondary-pane study routing, but candlestick and generalized series composition are still constrained
 
 ## Deferred Beyond Lightweight-Charts
 

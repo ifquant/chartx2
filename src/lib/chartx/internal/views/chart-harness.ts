@@ -132,9 +132,11 @@ export type PhaseOnePaneOptions = {
   height?: number;
 };
 
-export type PhaseOneVolumeSeriesTarget = {
+export type PhaseOneSeriesTarget = {
   pane?: number | PhaseOnePaneApi;
 };
+
+export type PhaseOneVolumeSeriesTarget = PhaseOneSeriesTarget;
 
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
@@ -177,9 +179,9 @@ export type PhaseOneVolumeSeriesApi = {
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
-  addBarSeries(): PhaseOneBarSeriesApi;
-  addLineSeries(): PhaseOneLineSeriesApi;
-  addHistogramSeries(): PhaseOneHistogramSeriesApi;
+  addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi;
+  addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi;
+  addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi;
   addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
@@ -234,6 +236,22 @@ type HistogramVisual = {
   isUp: boolean;
 };
 
+type SecondarySeriesKind = "line" | "bar" | "histogram" | "volume";
+
+type SecondarySeriesState = {
+  paneId: string;
+  kind: SecondarySeriesKind;
+  api:
+    | PhaseOneBarSeriesApi
+    | PhaseOneLineSeriesApi
+    | PhaseOneHistogramSeriesApi
+    | PhaseOneVolumeSeriesApi;
+  data: readonly PhaseOneCandlestickData[];
+  store: SeriesDataStore<number>;
+  priceScale: PriceScale;
+  visuals: Map<number, HistogramVisual>;
+};
+
 type PaneFrame = {
   id: string;
   kind: PhaseOnePaneKind;
@@ -259,20 +277,16 @@ const DEFAULT_LAYOUT: Layout = {
 export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
   private readonly primaryStore = new SeriesDataStore<number>();
-  private readonly volumeStore = new SeriesDataStore<number>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
-  private readonly volumePriceScale = new PriceScale();
   private readonly barRenderer = new BarRenderer();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
-  private volumeData: readonly PhaseOneCandlestickData[] = [];
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null }];
   private nextPaneId = 1;
-  private volumePaneId: string | null = null;
   private primarySeriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
   private currentPrimarySeriesApi:
     | PhaseOneCandlestickSeriesApi
@@ -280,7 +294,7 @@ export class PhaseOneChartHarness {
     | PhaseOneLineSeriesApi
     | PhaseOneHistogramSeriesApi
     | null = null;
-  private currentVolumeSeriesApi: PhaseOneVolumeSeriesApi | null = null;
+  private readonly secondarySeries = new Map<string, SecondarySeriesState>();
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
@@ -322,7 +336,6 @@ export class PhaseOneChartHarness {
     downColor: DOWN_COLOR,
   };
   private primaryHistogramVisuals = new Map<number, HistogramVisual>();
-  private volumeVisuals = new Map<number, HistogramVisual>();
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
@@ -478,136 +491,29 @@ export class PhaseOneChartHarness {
     return api;
   }
 
-  public addLineSeries(): PhaseOneLineSeriesApi {
-    if (this.currentPrimarySeriesApi !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
+  public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
+    if (target?.pane === undefined) {
+      return this.addPrimaryLineSeries();
     }
-
-    this.primarySeriesType = "line";
-    this.primaryHistogramVisuals.clear();
-    const api: PhaseOneLineSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(normalizeLineData(data));
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(normalizeLineBar(bar));
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        if (options.color !== undefined) {
-          this.lineOptions.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          this.lineOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
-    this.currentPrimarySeriesApi = api;
-    return api;
+    return this.addSecondaryLineSeries(target.pane);
   }
 
-  public addBarSeries(): PhaseOneBarSeriesApi {
-    if (this.currentPrimarySeriesApi !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
+  public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
+    if (target?.pane === undefined) {
+      return this.addPrimaryBarSeries();
     }
-
-    this.primarySeriesType = "bar";
-    this.primaryHistogramVisuals.clear();
-    const api: PhaseOneBarSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(data);
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        if (options.upColor !== undefined) {
-          this.barOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          this.barOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
-    this.currentPrimarySeriesApi = api;
-    return api;
+    return this.addSecondaryBarSeries(target.pane);
   }
 
-  public addHistogramSeries(): PhaseOneHistogramSeriesApi {
-    if (this.currentPrimarySeriesApi !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
+  public addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi {
+    if (target?.pane === undefined) {
+      return this.addPrimaryHistogramSeries();
     }
-
-    this.primarySeriesType = "histogram";
-    const api: PhaseOneHistogramSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryHistogramLikeData(data);
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimaryHistogramLike(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        if (options.upColor !== undefined) {
-          this.histogramOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          this.histogramOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
-    this.currentPrimarySeriesApi = api;
-    return api;
+    return this.addSecondaryHistogramSeries(target.pane);
   }
 
   public addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi {
-    if (this.currentVolumeSeriesApi !== null) {
-      throw new Error("chartx phase-one chart supports only one volume series");
-    }
-
-    const targetPaneId = this.resolveOrCreateVolumePane(target?.pane);
-    this.volumePaneId = targetPaneId;
-
-    const api: PhaseOneVolumeSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setVolumeData(data);
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateVolume(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        if (options.upColor !== undefined) {
-          this.volumeOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          this.volumeOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
-    this.currentVolumeSeriesApi = api;
-    return api;
+    return this.addSecondaryVolumeSeries(target?.pane);
   }
 
   public removeSeries(
@@ -623,13 +529,12 @@ export class PhaseOneChartHarness {
       this.primarySeriesType = null;
       this.primaryData = [];
       this.primaryHistogramVisuals.clear();
-    } else if (this.currentVolumeSeriesApi === series) {
-      this.currentVolumeSeriesApi = null;
-      this.volumePaneId = null;
-      this.volumeData = [];
-      this.volumeVisuals.clear();
     } else {
-      throw new Error("chartx phase-one chart can remove only the currently attached series");
+      const state = Array.from(this.secondarySeries.values()).find((entry) => entry.api === series);
+      if (state === undefined) {
+        throw new Error("chartx phase-one chart can remove only the currently attached series");
+      }
+      this.secondarySeries.delete(state.paneId);
     }
     this.crosshair = null;
     this.barSpacing = null;
@@ -753,7 +658,7 @@ export class PhaseOneChartHarness {
     return {
       getVisibleRange: () =>
         this.primaryPriceScale.getPriceRange()?.toRaw() ??
-        this.volumePriceScale.getPriceRange()?.toRaw() ??
+        Array.from(this.secondarySeries.values())[0]?.priceScale.getPriceRange()?.toRaw() ??
         null,
     };
   }
@@ -833,13 +738,253 @@ export class PhaseOneChartHarness {
     this.updatePrimary(normalizeHistogramBar(bar));
   }
 
-  private setVolumeData(data: readonly PhaseOneVolumeData[]): void {
-    if (this.currentVolumeSeriesApi === null) {
-      throw new Error("chartx phase-one chart requires a volume series before setData");
+  private getPointCount(): number {
+    let pointCount = this.primaryData.length;
+    for (const state of this.secondarySeries.values()) {
+      pointCount = Math.max(pointCount, state.data.length);
+    }
+    return pointCount;
+  }
+
+  private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
+    if (this.currentPrimarySeriesApi !== null) {
+      throw new Error("chartx phase-one chart supports only one primary series");
     }
 
-    this.volumeVisuals = buildHistogramVisuals(data);
-    this.volumeData = normalizeHistogramData(data);
+    this.primarySeriesType = "line";
+    this.primaryHistogramVisuals.clear();
+    const api: PhaseOneLineSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryData(normalizeLineData(data));
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updatePrimary(normalizeLineBar(bar));
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.color !== undefined) {
+          this.lineOptions.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          this.lineOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentPrimarySeriesApi = api;
+    return api;
+  }
+
+  private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
+    if (this.currentPrimarySeriesApi !== null) {
+      throw new Error("chartx phase-one chart supports only one primary series");
+    }
+
+    this.primarySeriesType = "bar";
+    this.primaryHistogramVisuals.clear();
+    const api: PhaseOneBarSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryData(data);
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updatePrimary(bar);
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.barOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.barOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentPrimarySeriesApi = api;
+    return api;
+  }
+
+  private addPrimaryHistogramSeries(): PhaseOneHistogramSeriesApi {
+    if (this.currentPrimarySeriesApi !== null) {
+      throw new Error("chartx phase-one chart supports only one primary series");
+    }
+
+    this.primarySeriesType = "histogram";
+    const api: PhaseOneHistogramSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryHistogramLikeData(data);
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updatePrimaryHistogramLike(bar);
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.histogramOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.histogramOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentPrimarySeriesApi = api;
+    return api;
+  }
+
+  private addSecondaryLineSeries(target: number | PhaseOnePaneApi): PhaseOneLineSeriesApi {
+    const paneId = this.resolveOrCreateSecondaryPane(target);
+    const api: PhaseOneLineSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, normalizeLineData(data), "line");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, normalizeLineBar(bar), "line");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.color !== undefined) {
+          this.lineOptions.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          this.lineOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "line", api);
+    return api;
+  }
+
+  private addSecondaryBarSeries(target: number | PhaseOnePaneApi): PhaseOneBarSeriesApi {
+    const paneId = this.resolveOrCreateSecondaryPane(target);
+    const api: PhaseOneBarSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, data, "bar");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, bar, "bar");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.barOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.barOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "bar", api);
+    return api;
+  }
+
+  private addSecondaryHistogramSeries(target: number | PhaseOnePaneApi): PhaseOneHistogramSeriesApi {
+    const paneId = this.resolveOrCreateSecondaryPane(target);
+    const api: PhaseOneHistogramSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryHistogramLikeData(api, data, "histogram");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondaryHistogramLike(api, bar, "histogram");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.histogramOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.histogramOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "histogram", api);
+    return api;
+  }
+
+  private addSecondaryVolumeSeries(target: number | PhaseOnePaneApi | undefined): PhaseOneVolumeSeriesApi {
+    const paneId = this.resolveOrCreateSecondaryPane(target);
+    const api: PhaseOneVolumeSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryHistogramLikeData(api, data, "volume");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondaryHistogramLike(api, bar, "volume");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.upColor !== undefined) {
+          this.volumeOptions.upColor = options.upColor;
+        }
+        if (options.downColor !== undefined) {
+          this.volumeOptions.downColor = options.downColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "volume", api);
+    return api;
+  }
+
+  private attachSecondarySeries(
+    paneId: string,
+    kind: SecondarySeriesKind,
+    api: SecondarySeriesState["api"],
+  ): void {
+    const existing = this.secondarySeries.get(paneId);
+    if (existing !== undefined) {
+      throw new Error("chartx phase-one chart supports only one series per secondary pane");
+    }
+
+    this.secondarySeries.set(paneId, {
+      paneId,
+      kind,
+      api,
+      data: [],
+      store: new SeriesDataStore<number>(),
+      priceScale: new PriceScale(),
+      visuals: new Map<number, HistogramVisual>(),
+    });
+  }
+
+  private setSecondaryData(
+    api: SecondarySeriesState["api"],
+    data: readonly PhaseOneCandlestickData[],
+    kind: SecondarySeriesKind,
+  ): void {
+    const state = this.getSecondaryStateByApi(api, kind);
+    state.data = [...data];
+    state.visuals.clear();
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
     if (this.canvas !== null) {
@@ -847,21 +992,13 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private updateVolume(bar: PhaseOneVolumeData): void {
-    if (this.currentVolumeSeriesApi === null) {
-      throw new Error("chartx phase-one chart requires a volume series before update");
-    }
-
-    const previous = this.volumeData.length === 0 ? null : this.volumeData[this.volumeData.length - 1];
-    this.volumeVisuals.set(bar.time, {
-      color: bar.color,
-      isUp:
-        bar.up ??
-        (previous === null || bar.time <= previous.time
-          ? (this.volumeVisuals.get(bar.time)?.isUp ?? true)
-          : bar.value >= previous.close),
-    });
-    this.volumeData = this.volumeStore.update(normalizeHistogramBar(bar)).map((row) => ({
+  private updateSecondary(
+    api: SecondarySeriesState["api"],
+    bar: PhaseOneCandlestickData,
+    kind: SecondarySeriesKind,
+  ): void {
+    const state = this.getSecondaryStateByApi(api, kind);
+    state.data = state.store.update(bar).map((row) => ({
       time: row.time,
       open: row.value[PlotRowValueIndex.Open],
       high: row.value[PlotRowValueIndex.High],
@@ -873,8 +1010,46 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private getPointCount(): number {
-    return Math.max(this.primaryData.length, this.volumeData.length);
+  private setSecondaryHistogramLikeData(
+    api: SecondarySeriesState["api"],
+    data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
+    kind: SecondarySeriesKind,
+  ): void {
+    const state = this.getSecondaryStateByApi(api, kind);
+    state.visuals = buildHistogramVisuals(data);
+    this.setSecondaryData(api, normalizeHistogramData(data), kind);
+  }
+
+  private updateSecondaryHistogramLike(
+    api: SecondarySeriesState["api"],
+    bar: PhaseOneHistogramData | PhaseOneVolumeData,
+    kind: SecondarySeriesKind,
+  ): void {
+    const state = this.getSecondaryStateByApi(api, kind);
+    const previous = state.data.length === 0 ? null : state.data[state.data.length - 1];
+    state.visuals.set(bar.time, {
+      color: bar.color,
+      isUp:
+        bar.up ??
+        (previous === null || bar.time <= previous.time
+          ? (state.visuals.get(bar.time)?.isUp ?? true)
+          : bar.value >= previous.close),
+    });
+    this.updateSecondary(api, normalizeHistogramBar(bar), kind);
+  }
+
+  private getSecondaryStateByApi(
+    api: SecondarySeriesState["api"],
+    kind?: SecondarySeriesKind,
+  ): SecondarySeriesState {
+    const state = Array.from(this.secondarySeries.values()).find((entry) => entry.api === api);
+    if (state === undefined) {
+      throw new Error("chartx phase-one series has been removed");
+    }
+    if (kind !== undefined && state.kind !== kind) {
+      throw new Error("chartx phase-one series is attached to an unexpected secondary pane kind");
+    }
+    return state;
   }
 
   private createPaneHandle(paneId: string): PhaseOnePaneApi {
@@ -945,12 +1120,12 @@ export class PhaseOneChartHarness {
     if (paneId === "primary") {
       return this.currentPrimarySeriesApi !== null;
     }
-    return this.volumePaneId === paneId && this.currentVolumeSeriesApi !== null;
+    return this.secondarySeries.has(paneId);
   }
 
-  private resolveOrCreateVolumePane(target: number | PhaseOnePaneApi | undefined): string {
+  private resolveOrCreateSecondaryPane(target: number | PhaseOnePaneApi | undefined): string {
     if (target === undefined) {
-      const existing = this.volumePaneId ?? this.panes.find((pane) => pane.kind === "secondary")?.id;
+      const existing = this.panes.find((pane) => pane.kind === "secondary" && !this.secondarySeries.has(pane.id))?.id;
       if (existing !== undefined) {
         return existing;
       }
@@ -965,24 +1140,30 @@ export class PhaseOneChartHarness {
     if (typeof target === "number") {
       const pane = this.panes[target];
       if (pane === undefined) {
-        throw new Error("chartx phase-one chart volume pane index is out of range");
+        throw new Error("chartx phase-one chart series pane index is out of range");
       }
       if (pane.kind === "primary") {
-        throw new Error("chartx phase-one chart volume series requires a secondary pane");
+        throw new Error("chartx phase-one chart targeted secondary series requires a secondary pane");
+      }
+      if (this.secondarySeries.has(pane.id)) {
+        throw new Error("chartx phase-one chart supports only one series per secondary pane");
       }
       return pane.id;
     }
 
     const paneId = this.paneHandleIds.get(target);
     if (paneId === undefined) {
-      throw new Error("chartx phase-one chart volume pane handle must come from this chart");
+      throw new Error("chartx phase-one chart pane handle must come from this chart");
     }
     const pane = this.getPaneById(paneId);
     if (pane === undefined) {
       throw new Error("chartx phase-one pane has been removed");
     }
     if (pane.kind === "primary") {
-      throw new Error("chartx phase-one chart volume series requires a secondary pane");
+      throw new Error("chartx phase-one chart targeted secondary series requires a secondary pane");
+    }
+    if (this.secondarySeries.has(pane.id)) {
+      throw new Error("chartx phase-one chart supports only one series per secondary pane");
     }
     return pane.id;
   }
@@ -995,15 +1176,12 @@ export class PhaseOneChartHarness {
     if (pane.kind === "primary") {
       throw new Error("chartx phase-one chart cannot remove the primary pane");
     }
-    if (this.volumePaneId === paneId && this.currentVolumeSeriesApi !== null) {
+    if (this.secondarySeries.has(paneId)) {
       throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
     }
 
     const index = this.getPaneIndex(paneId);
     this.panes.splice(index, 1);
-    if (this.volumePaneId === paneId) {
-      this.volumePaneId = null;
-    }
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -1011,7 +1189,6 @@ export class PhaseOneChartHarness {
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
     const primaryRows = this.primaryStore.setData(this.primaryData);
-    const volumeRows = this.volumeStore.setData(this.volumeData);
     const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
     const activePane = point === null ? null : resolveActivePane(paneFrames, point.y);
     const logicalPoint = point === null ? null : resolveLocalPanePoint(activePane, point);
@@ -1024,23 +1201,32 @@ export class PhaseOneChartHarness {
         this.primaryPriceScale,
       );
 
-      if (activePane?.id === this.volumePaneId && logicalPoint !== null) {
-        return {
-          ...baseReadout,
-          price: this.volumePriceScale.coordinateToPrice(logicalPoint.y),
-        };
+      if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
+        const state = this.secondarySeries.get(activePane.id);
+        if (state !== undefined) {
+          return {
+            ...baseReadout,
+            price: state.priceScale.coordinateToPrice(logicalPoint.y),
+          };
+        }
       }
 
       return baseReadout;
     }
 
-    if (volumeRows.length > 0) {
-      return buildCrosshairReadout(
-        volumeRows,
-        logicalPoint === null ? null : { x: logicalPoint.x, y: logicalPoint.y },
-        this.timeScale,
-        this.volumePriceScale,
-      );
+    if (activePane !== null && activePane.kind === "secondary") {
+      const state = this.secondarySeries.get(activePane.id);
+      if (state !== undefined) {
+        const rows = state.store.setData(state.data);
+        return {
+          ...buildCrosshairReadout(
+            rows,
+            logicalPoint === null ? null : { x: logicalPoint.x, y: logicalPoint.y },
+            this.timeScale,
+            state.priceScale,
+          ),
+        };
+      }
     }
 
     return {
@@ -1076,8 +1262,13 @@ export class PhaseOneChartHarness {
     const paneWidth = layout.width - layout.left - layout.right;
     const plotHeight = layout.height - layout.top - layout.bottom;
     const primaryRows = this.primaryStore.setData(this.primaryData);
-    const volumeRows = this.volumeStore.setData(this.volumeData);
-    const pointCount = Math.max(primaryRows.length, volumeRows.length);
+    const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
+    let pointCount = primaryRows.length;
+    for (const [paneId, state] of this.secondarySeries.entries()) {
+      const rows = state.store.setData(state.data);
+      secondaryRows.set(paneId, rows);
+      pointCount = Math.max(pointCount, rows.length);
+    }
 
     if (pointCount === 0) {
       context.save();
@@ -1189,33 +1380,66 @@ export class PhaseOneChartHarness {
         }
       }
 
-      if (pane.id === this.volumePaneId && volumeRows.length > 0) {
-        const volumeRange = this.volumeStore.priceRange(
-          volumeRows[0].index,
-          volumeRows[volumeRows.length - 1].index,
-        );
-        this.volumePriceScale.applyOptions({
-          height: pane.height,
-          priceRange: volumeRange,
-        });
+      if (pane.kind === "secondary") {
+        const state = this.secondarySeries.get(pane.id);
+        const rows = state === undefined ? undefined : secondaryRows.get(pane.id);
+        if (state !== undefined && rows !== undefined && rows.length > 0) {
+          const range = state.store.priceRange(
+            rows[0].index,
+            rows[rows.length - 1].index,
+          );
+          state.priceScale.applyOptions({
+            height: pane.height,
+            priceRange: range,
+          });
 
-        const volumeRangeMin = volumeRange?.minValue() ?? 0;
-        const histogramItems = volumeRows.map((row): HistogramItem => ({
-          x: this.timeScale.indexToCoordinate(row.index),
-          valueY: toCoordinate(this.volumePriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-          baseY: toCoordinate(this.volumePriceScale.priceToCoordinate(volumeRangeMin)),
-          isUp:
-            this.volumeVisuals.get(row.time)?.isUp ??
-            row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-          color: this.volumeVisuals.get(row.time)?.color,
-        }));
+          if (state.kind === "line") {
+            const lineItems = rows.map((row): LineItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+            }));
 
-        this.histogramRenderer.draw(context, {
-          items: histogramItems,
-          barWidth,
-          upColor: this.volumeOptions.upColor,
-          downColor: this.volumeOptions.downColor,
-        });
+            this.lineRenderer.draw(context, {
+              items: lineItems,
+              lineColor: this.lineOptions.color,
+              lineWidth: this.lineOptions.lineWidth,
+            });
+          } else if (state.kind === "bar") {
+            const barItems = rows.map((row): BarItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              openY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+              highY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
+              lowY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
+              closeY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+              isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+            }));
+
+            this.barRenderer.draw(context, {
+              items: barItems,
+              barWidth,
+              upColor: this.barOptions.upColor,
+              downColor: this.barOptions.downColor,
+            });
+          } else {
+            const rangeMin = range?.minValue() ?? 0;
+            const histogramItems = rows.map((row): HistogramItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              valueY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+              baseY: toCoordinate(state.priceScale.priceToCoordinate(rangeMin)),
+              isUp:
+                state.visuals.get(row.time)?.isUp ??
+                row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+              color: state.visuals.get(row.time)?.color,
+            }));
+
+            this.histogramRenderer.draw(context, {
+              items: histogramItems,
+              barWidth,
+              upColor: state.kind === "volume" ? this.volumeOptions.upColor : this.histogramOptions.upColor,
+              downColor: state.kind === "volume" ? this.volumeOptions.downColor : this.histogramOptions.downColor,
+            });
+          }
+        }
       }
 
       const paneCrosshair = resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair);
@@ -1241,25 +1465,35 @@ export class PhaseOneChartHarness {
       }
     }
 
-    if (volumeRows.length > 0) {
-      const volumePane = this.volumePaneId === null
-        ? undefined
-        : paneFrames.find((pane) => pane.id === this.volumePaneId);
-      if (volumePane !== undefined) {
+    for (const pane of paneFrames) {
+      if (pane.kind !== "secondary") {
+        continue;
+      }
+      const state = this.secondarySeries.get(pane.id);
+      const rows = state === undefined ? undefined : secondaryRows.get(pane.id);
+      if (state !== undefined && rows !== undefined && rows.length > 0) {
         drawPriceAxis(
           context,
           layout,
-          volumePane.top,
-          volumePane.height,
-          this.volumePriceScale,
-          resolveLocalPanePoint(activePane?.id === volumePane.id ? activePane : null, this.crosshair),
+          pane.top,
+          pane.height,
+          state.priceScale,
+          resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
           this.chartOptions,
-          "volume",
+          state.kind === "volume" ? "volume" : "primary",
         );
       }
     }
 
-    drawTimeAxis(context, layout, primaryRows.length > 0 ? primaryRows : volumeRows, this.timeScale, this.crosshair, this.chartOptions);
+    const firstSecondaryRows = secondaryRows.values().next().value;
+    drawTimeAxis(
+      context,
+      layout,
+      primaryRows.length > 0 ? primaryRows : (firstSecondaryRows ?? []),
+      this.timeScale,
+      this.crosshair,
+      this.chartOptions,
+    );
     const readout = this.buildReadout(this.crosshair, layout);
     emitReadout(canvas, readout);
     this.emitCrosshairMove(readout);
@@ -1273,7 +1507,10 @@ export class PhaseOneChartHarness {
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
-    if (this.currentPrimarySeriesApi !== series && this.currentVolumeSeriesApi !== series) {
+    if (
+      this.currentPrimarySeriesApi !== series &&
+      !Array.from(this.secondarySeries.values()).some((entry) => entry.api === series)
+    ) {
       throw new Error("chartx phase-one series has been removed");
     }
   }
@@ -1306,14 +1543,14 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     addCandlestickSeries() {
       return harness.addCandlestickSeries();
     },
-    addBarSeries() {
-      return harness.addBarSeries();
+    addBarSeries(target) {
+      return harness.addBarSeries(target);
     },
-    addLineSeries() {
-      return harness.addLineSeries();
+    addLineSeries(target) {
+      return harness.addLineSeries(target);
     },
-    addHistogramSeries() {
-      return harness.addHistogramSeries();
+    addHistogramSeries(target) {
+      return harness.addHistogramSeries(target);
     },
     addVolumeSeries(target) {
       return harness.addVolumeSeries(target);

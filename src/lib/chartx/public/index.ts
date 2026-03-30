@@ -8,6 +8,7 @@ import {
   type PhaseOneCandlestickData,
   type PhaseOneCandlestickSeriesApi,
   type PhaseOneChartApi,
+  type PhaseOneReadoutDetail,
 } from "../internal/views";
 
 export type {
@@ -15,6 +16,7 @@ export type {
   PhaseOneCandlestickData,
   PhaseOneCandlestickSeriesApi,
   PhaseOneChartApi,
+  PhaseOneReadoutDetail,
 };
 
 export function getChartxFoundation(): EngineBoundarySummary {

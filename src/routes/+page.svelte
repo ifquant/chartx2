@@ -3,24 +3,49 @@
   import {
     getChartxFoundation,
     mountChartxPhaseOneHarness,
+    type PhaseOneReadoutDetail,
   } from "$lib/chartx/public";
 
   const foundation = getChartxFoundation();
   let canvas: HTMLCanvasElement | undefined;
   let harnessError = "";
+  let readout: PhaseOneReadoutDetail = {
+    active: false,
+    time: null,
+    open: null,
+    high: null,
+    low: null,
+    close: null,
+    price: null,
+  };
 
   onMount(() => {
     if (!canvas) {
       return;
     }
 
+    const handleReadout = (event: Event) => {
+      const detail = (event as CustomEvent<PhaseOneReadoutDetail>).detail;
+      readout = detail;
+    };
+    canvas.addEventListener("chartx:readout", handleReadout);
+
     try {
-      return mountChartxPhaseOneHarness(canvas);
+      const destroy = mountChartxPhaseOneHarness(canvas);
+      return () => {
+        canvas?.removeEventListener("chartx:readout", handleReadout);
+        destroy();
+      };
     } catch (error) {
       harnessError = error instanceof Error ? error.message : "Unknown chart init failure";
+      canvas.removeEventListener("chartx:readout", handleReadout);
       return;
     }
   });
+
+  function formatValue(value: number | null, digits = 2): string {
+    return value === null ? "--" : value.toFixed(digits);
+  }
 </script>
 
 <svelte:head>
@@ -46,6 +71,14 @@
           <p>{harnessError}</p>
         </div>
       {:else}
+        <div class="readout-bar" aria-live="polite">
+          <span class:inactive={!readout.active}>T {readout.time ?? "--"}</span>
+          <span class:inactive={!readout.active}>O {formatValue(readout.open)}</span>
+          <span class:inactive={!readout.active}>H {formatValue(readout.high)}</span>
+          <span class:inactive={!readout.active}>L {formatValue(readout.low)}</span>
+          <span class:inactive={!readout.active}>C {formatValue(readout.close)}</span>
+          <span class:inactive={!readout.active}>P {formatValue(readout.price)}</span>
+        </div>
         <canvas bind:this={canvas} aria-label="chartx2 phase-one chart harness"></canvas>
       {/if}
     </div>
@@ -61,7 +94,7 @@
         <li>Internal time and price scales</li>
         <li>Canvas-based candle and grid renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
-        <li>Minimal crosshair time / price readout</li>
+        <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>
         <li>Visible host error state if chart initialization fails</li>
@@ -185,6 +218,24 @@ h1 {
 
 .chart-frame {
   overflow-x: auto;
+}
+
+.readout-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(16, 16, 16, 0.12);
+  background: rgba(16, 16, 16, 0.9);
+  color: #f7f6f1;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.readout-bar span.inactive {
+  opacity: 0.62;
 }
 
 canvas {

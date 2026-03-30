@@ -20,6 +20,7 @@ test("phase-one harness renders a deterministic crosshair snapshot", async ({ pa
   await page.goto("/");
   const frame = page.locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  const readout = page.locator(".readout-bar");
   await expect(canvas).toBeVisible();
 
   const box = await canvas.boundingBox();
@@ -28,6 +29,10 @@ test("phase-one harness renders a deterministic crosshair snapshot", async ({ pa
   }
 
   await page.mouse.move(box.x + box.width * 0.42, box.y + box.height * 0.33);
+  await expect(readout).not.toContainText("O --");
+  await expect(readout).not.toContainText("H --");
+  await expect(readout).not.toContainText("L --");
+  await expect(readout).not.toContainText("C --");
   await expect(frame).toHaveScreenshot("phase-one-harness-crosshair.png");
 });
 

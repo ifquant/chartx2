@@ -50,6 +50,12 @@ export type PhaseOneReadoutDetail = {
   price: number | null;
 };
 
+export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
+  point: PanePoint | null;
+};
+
+export type PhaseOneCrosshairMoveHandler = (event: PhaseOneCrosshairMoveEvent) => void;
+
 export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
@@ -69,6 +75,12 @@ export type PhaseOneChartApi = {
   addCandlestickSeries(): PhaseOneCandlestickSeriesApi;
   addBarSeries(): PhaseOneBarSeriesApi;
   addLineSeries(): PhaseOneLineSeriesApi;
+  removeSeries(
+    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+  ): void;
+  resize(width: number, height: number): void;
+  subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
+  unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
   destroy(): void;
 };
 
@@ -118,13 +130,20 @@ export class PhaseOneChartHarness {
   private data: readonly PhaseOneCandlestickData[] = [];
   private seriesType: "candlestick" | "bar" | "line" | null = null;
   private seriesAttached = false;
+  private currentSeriesApi:
+    | PhaseOneCandlestickSeriesApi
+    | PhaseOneBarSeriesApi
+    | PhaseOneLineSeriesApi
+    | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
   private rightOffset = DEFAULT_RIGHT_OFFSET;
+  private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
+  private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
   private readonly handleResize = () => {
-    if (this.canvas !== null) {
+    if (this.canvas !== null && this.manualLayout === null) {
       this.render(this.canvas);
     }
   };
@@ -214,6 +233,7 @@ export class PhaseOneChartHarness {
     this.canvas = null;
     this.crosshair = null;
     this.dragState = null;
+    this.crosshairMoveHandlers.clear();
   }
 
   public addCandlestickSeries(): PhaseOneCandlestickSeriesApi {
@@ -223,14 +243,18 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "candlestick";
-    return {
+    const api: PhaseOneCandlestickSeriesApi = {
       setData: (data) => {
+        this.assertSeriesActive(api);
         this.setData(data);
       },
       update: (bar) => {
+        this.assertSeriesActive(api);
         this.update(bar);
       },
     };
+    this.currentSeriesApi = api;
+    return api;
   }
 
   public addLineSeries(): PhaseOneLineSeriesApi {
@@ -240,14 +264,18 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "line";
-    return {
+    const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
+        this.assertSeriesActive(api);
         this.setData(normalizeLineData(data));
       },
       update: (bar) => {
+        this.assertSeriesActive(api);
         this.update(normalizeLineBar(bar));
       },
     };
+    this.currentSeriesApi = api;
+    return api;
   }
 
   public addBarSeries(): PhaseOneBarSeriesApi {
@@ -257,14 +285,60 @@ export class PhaseOneChartHarness {
 
     this.seriesAttached = true;
     this.seriesType = "bar";
-    return {
+    const api: PhaseOneBarSeriesApi = {
       setData: (data) => {
+        this.assertSeriesActive(api);
         this.setData(data);
       },
       update: (bar) => {
+        this.assertSeriesActive(api);
         this.update(bar);
       },
     };
+    this.currentSeriesApi = api;
+    return api;
+  }
+
+  public removeSeries(
+    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+  ): void {
+    if (this.currentSeriesApi !== series) {
+      throw new Error("chartx phase-one chart can remove only the currently attached series");
+    }
+
+    this.currentSeriesApi = null;
+    this.seriesAttached = false;
+    this.seriesType = null;
+    this.data = [];
+    this.crosshair = null;
+    this.barSpacing = null;
+    this.rightOffset = DEFAULT_RIGHT_OFFSET;
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  public resize(width: number, height: number): void {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      throw new Error("chartx phase-one chart resize requires positive finite width and height");
+    }
+
+    this.manualLayout = {
+      width: Math.round(width),
+      height: Math.round(height),
+    };
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
+    this.crosshairMoveHandlers.add(handler);
+  }
+
+  public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
+    this.crosshairMoveHandlers.delete(handler);
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {
@@ -299,7 +373,7 @@ export class PhaseOneChartHarness {
 
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
-    const layout = measureLayout(canvas);
+    const layout = measureLayout(canvas, this.manualLayout);
     canvas.width = Math.round(layout.width * dpr);
     canvas.height = Math.round(layout.height * dpr);
     canvas.style.width = `${layout.width}px`;
@@ -425,7 +499,34 @@ export class PhaseOneChartHarness {
     context.restore();
     drawPriceAxis(context, layout, this.priceScale, this.crosshair);
     drawTimeAxis(context, layout, rows, this.timeScale, this.crosshair);
-    emitReadout(canvas, rows, this.crosshair, this.timeScale, this.priceScale);
+    const readout = buildCrosshairReadout(rows, this.crosshair, this.timeScale, this.priceScale);
+    emitReadout(canvas, readout);
+    this.emitCrosshairMove(readout);
+  }
+
+  private assertSeriesActive(
+    series: PhaseOneCandlestickSeriesApi | PhaseOneBarSeriesApi | PhaseOneLineSeriesApi,
+  ): void {
+    if (this.currentSeriesApi !== series) {
+      throw new Error("chartx phase-one series has been removed");
+    }
+  }
+
+  private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
+    const event: PhaseOneCrosshairMoveEvent = {
+      ...readout,
+      point:
+        this.crosshair === null
+          ? null
+          : {
+              x: this.crosshair.x,
+              y: this.crosshair.y,
+            },
+    };
+
+    for (const handler of this.crosshairMoveHandlers) {
+      handler(event);
+    }
   }
 }
 
@@ -444,6 +545,18 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addLineSeries() {
       return harness.addLineSeries();
+    },
+    removeSeries(series) {
+      harness.removeSeries(series);
+    },
+    resize(width, height) {
+      harness.resize(width, height);
+    },
+    subscribeCrosshairMove(handler) {
+      harness.subscribeCrosshairMove(handler);
+    },
+    unsubscribeCrosshairMove(handler) {
+      harness.unsubscribeCrosshairMove(handler);
     },
     destroy() {
       harness.detach();
@@ -501,7 +614,18 @@ function toCoordinate(value: Coordinate | null): Coordinate {
   return (value ?? 0) as Coordinate;
 }
 
-function measureLayout(canvas: HTMLCanvasElement): Layout {
+function measureLayout(
+  canvas: HTMLCanvasElement,
+  manualLayout: Pick<Layout, "width" | "height"> | null = null,
+): Layout {
+  if (manualLayout !== null) {
+    return {
+      ...DEFAULT_LAYOUT,
+      width: manualLayout.width,
+      height: manualLayout.height,
+    };
+  }
+
   const container = canvas.parentElement;
   if (container === null) {
     return DEFAULT_LAYOUT;
@@ -758,16 +882,10 @@ function formatTimeAxisLabel(value: number): string {
   }).format(new Date(value));
 }
 
-function emitReadout(
-  canvas: HTMLCanvasElement,
-  rows: readonly { time: number; value: [number, number, number, number] }[],
-  crosshair: PanePoint | null,
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-): void {
+function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {
   canvas.dispatchEvent(
     new CustomEvent<PhaseOneReadoutDetail>("chartx:readout", {
-      detail: buildCrosshairReadout(rows, crosshair, timeScale, priceScale),
+      detail,
     }),
   );
 }

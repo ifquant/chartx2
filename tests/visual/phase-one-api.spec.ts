@@ -162,3 +162,126 @@ test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
 
   expect(message).toContain("HTMLCanvasElement");
 });
+
+test("phase-one public api supports resize, crosshair subscriptions, and series removal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-control-fixture" style="width: 900px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-control-canvas" aria-label="phase-one api control chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-control-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API control fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const events: Array<{ active: boolean; time: number | null; hasPoint: boolean }> = [];
+    const handler = (event: { active: boolean; time: number | null; point: { x: number; y: number } | null }) => {
+      events.push({
+        active: event.active,
+        time: event.time,
+        hasPoint: event.point !== null,
+      });
+    };
+
+    chart.subscribeCrosshairMove(handler);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    chart.resize(640, 360);
+
+    (window as Window & {
+      __chartxControl?: {
+        series: unknown;
+        chart: {
+          removeSeries(series: unknown): void;
+          unsubscribeCrosshairMove(handler: unknown): void;
+        };
+        handler: typeof handler;
+        events: typeof events;
+      };
+    }).__chartxControl = {
+      series,
+      chart,
+      handler,
+      events,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const canvas = page.getByLabel("phase-one api control chart");
+  await expect(canvas).toBeVisible();
+
+  const metrics = await canvas.evaluate((element) => {
+    if (!(element instanceof HTMLCanvasElement)) {
+      throw new Error("API control fixture canvas is missing");
+    }
+
+    return {
+      width: element.width,
+      height: element.height,
+      cssWidth: parseFloat(getComputedStyle(element).width),
+      cssHeight: parseFloat(getComputedStyle(element).height),
+    };
+  });
+  expect(metrics.cssWidth).toBe(640);
+  expect(metrics.cssHeight).toBe(360);
+  expect(metrics.width).toBeGreaterThan(0);
+  expect(metrics.height).toBeGreaterThan(0);
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API control fixture canvas is missing");
+  }
+
+  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.37);
+
+  const activeEvent = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxControl?: {
+        events: Array<{ active: boolean; time: number | null; hasPoint: boolean }>;
+      };
+    }).__chartxControl;
+
+    return state?.events.at(-1) ?? null;
+  });
+  expect(activeEvent).toEqual({
+    active: true,
+    time: expect.any(Number),
+    hasPoint: true,
+  });
+
+  const removalResult = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxControl?: {
+        series: { update(bar: unknown): void };
+        chart: {
+          removeSeries(series: unknown): void;
+          unsubscribeCrosshairMove(handler: unknown): void;
+        };
+        handler: unknown;
+      };
+    }).__chartxControl;
+
+    if (!state) {
+      throw new Error("API control state is missing");
+    }
+
+    state.chart.removeSeries(state.series);
+    state.chart.unsubscribeCrosshairMove(state.handler);
+
+    try {
+      state.series.update({ time: 5, open: 1, high: 1, low: 1, close: 1 });
+      return "no-error";
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  });
+
+  expect(removalResult).toContain("series has been removed");
+});

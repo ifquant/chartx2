@@ -52,6 +52,10 @@ Current state:
 - `addCandlestickSeries()`
 - `addBarSeries()`
 - `addLineSeries()`
+- `removeSeries()`
+- `resize()`
+- `subscribeCrosshairMove()`
+- `unsubscribeCrosshairMove()`
 - `setData()`
 - `update()`
 - `destroy()`
@@ -64,9 +68,7 @@ Current references:
 Why this is still simplified:
 
 - no chart-level `applyOptions`
-- no public `resize`
-- no `removeSeries`
-- no chart event subscription API
+- crosshair move is the only public chart event subscription so far
 - no public `timeScale()` or `priceScale()` objects
 
 ### Time and price scales

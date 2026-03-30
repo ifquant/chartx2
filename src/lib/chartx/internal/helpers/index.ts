@@ -1,3 +1,4 @@
+export * from "./algorithms";
 export * from "./assertions";
 export * from "./delegate";
 export * from "./idestroyable";

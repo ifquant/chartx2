@@ -49,12 +49,18 @@ const boundarySummary: EngineBoundarySummary = {
     },
     {
       id: "04",
+      title: "Model Core Scales Data",
+      status: "active",
+      note: "Land the smallest range, scale, and data-store layer needed for later rendering work.",
+    },
+    {
+      id: "05",
       title: "Parity Definition",
       status: "queued",
       note: "Write the pass/fail checklist for lightweight-charts phase-one parity.",
     },
     {
-      id: "05",
+      id: "06",
       title: "Layered Migration",
       status: "queued",
       note: "Migrate upstream in dependency order, validating each layer before the next one.",

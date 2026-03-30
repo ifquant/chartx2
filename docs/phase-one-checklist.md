@@ -166,12 +166,25 @@ Goal:
 
 Checklist:
 
-- [ ] migrate the minimal model state required for a single chart and single pane
-- [ ] migrate visible-range logic
-- [ ] migrate time-scale transform logic
-- [ ] migrate price-scale transform logic
-- [ ] migrate baseline data ingestion and replacement/update flow
+- [x] migrate the minimal model state required for a single chart and single pane
+- [x] migrate visible-range logic
+- [x] migrate time-scale transform logic
+- [x] migrate price-scale transform logic
+- [x] migrate baseline data ingestion and replacement/update flow
 - [ ] document any intentional differences from upstream
+
+Current migrated subset:
+
+- [x] `range-impl`
+- [x] `coordinate`
+- [x] `time-data`
+- [x] `time-scale-visible-range`
+- [x] `time-scale`
+- [x] `price-range-impl`
+- [x] `price-scale`
+- [x] `plot-data`
+- [x] `plot-list`
+- [x] `series-data`
 
 Exit criteria:
 

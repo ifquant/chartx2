@@ -446,6 +446,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         isPrimary: boolean;
         resizable: boolean;
         hasSeries: boolean;
+        seriesCount: number;
+        seriesKinds: string[];
       };
       panes: Array<{
         paneIndex: number;
@@ -453,6 +455,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         isPrimary: boolean;
         resizable: boolean;
         hasSeries: boolean;
+        seriesCount: number;
+        seriesKinds: string[];
       }>;
     }> = [];
     const handler = (event: {
@@ -463,6 +467,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         isPrimary: boolean;
         resizable: boolean;
         hasSeries: boolean;
+        seriesCount: number;
+        seriesKinds: string[];
       };
       panes: Array<{
         paneIndex: number;
@@ -470,6 +476,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         isPrimary: boolean;
         resizable: boolean;
         hasSeries: boolean;
+        seriesCount: number;
+        seriesKinds: string[];
       }>;
     }) => {
       events.push(event);
@@ -497,11 +505,16 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
   expect(result.events[0]?.pane.paneIndex).toBe(1);
   expect(result.events[0]?.pane.isPrimary).toBe(false);
   expect(result.events[0]?.pane.hasSeries).toBe(false);
+  expect(result.events[0]?.pane.seriesCount).toBe(0);
+  expect(result.events[0]?.pane.seriesKinds).toEqual([]);
   expect(result.events[0]?.panes).toHaveLength(2);
   expect(result.events[1]?.pane.resizable).toBe(false);
   expect(result.events[1]?.panes[1]?.resizable).toBe(false);
   expect(result.events[2]?.pane.height).toBeGreaterThanOrEqual(140);
+  expect(result.events[2]?.pane.seriesCount).toBe(1);
+  expect(result.events[2]?.pane.seriesKinds).toEqual(["volume"]);
   expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
+  expect(result.events[2]?.panes[0]?.seriesKinds).toEqual(["candlestick"]);
   expect(result.events[4]?.pane.paneIndex).toBe(2);
   expect(result.events[4]?.panes).toHaveLength(2);
   expect(result.finalHeight).toBeGreaterThan(result.events[2]?.pane.height ?? 0);

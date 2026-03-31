@@ -117,7 +117,7 @@
         <li>Deterministic sample OHLC data</li>
         <li>Primary price pane plus managed secondary study panes</li>
         <li>Shared time scale with pane-local price scales</li>
-        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with snapshots, resizable options, and explicit series-to-pane targeting</li>
+        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with pane/series snapshots, resizable options, and explicit series-to-pane targeting</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Pointer-driven secondary pane resize baseline</li>

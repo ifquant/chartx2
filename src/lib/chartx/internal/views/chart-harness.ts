@@ -166,6 +166,8 @@ export type PhaseOnePaneState = {
 };
 
 export type PhaseOnePaneSeriesState = {
+  id: string;
+  label: string;
   kind: string;
   pointCount: number;
 };
@@ -291,6 +293,8 @@ type SecondarySeriesKind = "candlestick" | "line" | "bar" | "histogram" | "volum
 type SecondarySeriesState = {
   paneId: string;
   kind: SecondarySeriesKind;
+  id: string;
+  label: string;
   api:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
@@ -346,8 +350,10 @@ export class PhaseOneChartHarness {
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
+  private primarySeriesMeta: { id: string; label: string } | null = null;
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
+  private nextSeriesId = 1;
   private primarySeriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
   private currentPrimarySeriesApi:
     | PhaseOneCandlestickSeriesApi
@@ -568,6 +574,7 @@ export class PhaseOneChartHarness {
     }
 
     this.primarySeriesType = "candlestick";
+    this.primarySeriesMeta = this.createSeriesMeta("candlestick");
     this.primaryHistogramVisuals.clear();
     const api: PhaseOneCandlestickSeriesApi = {
       setData: (data) => {
@@ -641,6 +648,7 @@ export class PhaseOneChartHarness {
     if (this.currentPrimarySeriesApi === series) {
       this.currentPrimarySeriesApi = null;
       this.primarySeriesType = null;
+      this.primarySeriesMeta = null;
       this.primaryData = [];
       this.primaryHistogramVisuals.clear();
     } else {
@@ -876,6 +884,7 @@ export class PhaseOneChartHarness {
     }
 
     this.primarySeriesType = "line";
+    this.primarySeriesMeta = this.createSeriesMeta("line");
     this.primaryHistogramVisuals.clear();
     const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
@@ -909,6 +918,7 @@ export class PhaseOneChartHarness {
     }
 
     this.primarySeriesType = "bar";
+    this.primarySeriesMeta = this.createSeriesMeta("bar");
     this.primaryHistogramVisuals.clear();
     const api: PhaseOneBarSeriesApi = {
       setData: (data) => {
@@ -942,6 +952,7 @@ export class PhaseOneChartHarness {
     }
 
     this.primarySeriesType = "histogram";
+    this.primarySeriesMeta = this.createSeriesMeta("histogram");
     const api: PhaseOneHistogramSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -969,6 +980,7 @@ export class PhaseOneChartHarness {
   }
 
   private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
+    const meta = this.createSeriesMeta("candlestick");
     const api: PhaseOneCandlestickSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -994,11 +1006,12 @@ export class PhaseOneChartHarness {
         }
       },
     };
-    this.attachSecondarySeries(target, "candlestick", api);
+    this.attachSecondarySeries(target, "candlestick", api, meta);
     return api;
   }
 
   private addSecondaryLineSeries(paneId: string): PhaseOneLineSeriesApi {
+    const meta = this.createSeriesMeta("line");
     const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1021,11 +1034,12 @@ export class PhaseOneChartHarness {
         }
       },
     };
-    this.attachSecondarySeries(paneId, "line", api);
+    this.attachSecondarySeries(paneId, "line", api, meta);
     return api;
   }
 
   private addSecondaryBarSeries(paneId: string): PhaseOneBarSeriesApi {
+    const meta = this.createSeriesMeta("bar");
     const api: PhaseOneBarSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1048,11 +1062,12 @@ export class PhaseOneChartHarness {
         }
       },
     };
-    this.attachSecondarySeries(paneId, "bar", api);
+    this.attachSecondarySeries(paneId, "bar", api, meta);
     return api;
   }
 
   private addSecondaryHistogramSeries(paneId: string): PhaseOneHistogramSeriesApi {
+    const meta = this.createSeriesMeta("histogram");
     const api: PhaseOneHistogramSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1075,11 +1090,12 @@ export class PhaseOneChartHarness {
         }
       },
     };
-    this.attachSecondarySeries(paneId, "histogram", api);
+    this.attachSecondarySeries(paneId, "histogram", api, meta);
     return api;
   }
 
   private addSecondaryVolumeSeries(paneId: string): PhaseOneVolumeSeriesApi {
+    const meta = this.createSeriesMeta("volume");
     const api: PhaseOneVolumeSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1102,7 +1118,7 @@ export class PhaseOneChartHarness {
         }
       },
     };
-    this.attachSecondarySeries(paneId, "volume", api);
+    this.attachSecondarySeries(paneId, "volume", api, meta);
     return api;
   }
 
@@ -1110,6 +1126,7 @@ export class PhaseOneChartHarness {
     paneId: string,
     kind: SecondarySeriesKind,
     api: SecondarySeriesState["api"],
+    meta: { id: string; label: string },
   ): void {
     const existing = this.secondarySeries.get(paneId);
     if (existing !== undefined) {
@@ -1119,6 +1136,8 @@ export class PhaseOneChartHarness {
     this.secondarySeries.set(paneId, {
       paneId,
       kind,
+      id: meta.id,
+      label: meta.label,
       api,
       data: [],
       store: new SeriesDataStore<number>(),
@@ -1554,13 +1573,34 @@ export class PhaseOneChartHarness {
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
     if (paneId === "primary") {
-      return this.primarySeriesType === null
+      return this.primarySeriesType === null || this.primarySeriesMeta === null
         ? []
-        : [{ kind: this.primarySeriesType, pointCount: this.primaryData.length }];
+        : [{
+            id: this.primarySeriesMeta.id,
+            label: this.primarySeriesMeta.label,
+            kind: this.primarySeriesType,
+            pointCount: this.primaryData.length,
+          }];
     }
 
     const secondary = this.secondarySeries.get(paneId);
-    return secondary === undefined ? [] : [{ kind: secondary.kind, pointCount: secondary.data.length }];
+    return secondary === undefined
+      ? []
+      : [{
+          id: secondary.id,
+          label: secondary.label,
+          kind: secondary.kind,
+          pointCount: secondary.data.length,
+        }];
+  }
+
+  private createSeriesMeta(kind: string): { id: string; label: string } {
+    const ordinal = this.nextSeriesId;
+    this.nextSeriesId += 1;
+    return {
+      id: `series-${ordinal}`,
+      label: `${formatSeriesKindLabel(kind)} ${ordinal}`,
+    };
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
@@ -2081,6 +2121,23 @@ function normalizeHistogramBar(
     low: Math.min(0, bar.value),
     close: bar.value,
   };
+}
+
+function formatSeriesKindLabel(kind: string): string {
+  switch (kind) {
+    case "candlestick":
+      return "Candlestick";
+    case "line":
+      return "Line";
+    case "bar":
+      return "Bar";
+    case "histogram":
+      return "Histogram";
+    case "volume":
+      return "Volume";
+    default:
+      return "Series";
+  }
 }
 
 function buildHistogramVisuals(

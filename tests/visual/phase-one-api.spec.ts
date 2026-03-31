@@ -448,7 +448,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -458,7 +458,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -471,7 +471,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -481,7 +481,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -518,10 +518,22 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
   expect(result.events[2]?.pane.height).toBeGreaterThanOrEqual(140);
   expect(result.events[2]?.pane.seriesCount).toBe(1);
   expect(result.events[2]?.pane.seriesKinds).toEqual(["volume"]);
-  expect(result.events[2]?.pane.series).toEqual([{ kind: "volume", pointCount: 5 }]);
+  expect(result.events[2]?.pane.series).toEqual([{
+    id: "series-2",
+    label: "Volume 2",
+    kind: "volume",
+    pointCount: 5,
+  }]);
   expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
   expect(result.events[2]?.panes[0]?.seriesKinds).toEqual(["candlestick"]);
-  expect(result.events[2]?.panes[0]?.series).toEqual([{ kind: "candlestick", pointCount: 4 }]);
+  expect(result.events[2]?.panes[0]?.series).toEqual([{
+    id: "series-1",
+    label: "Candlestick 1",
+    kind: "candlestick",
+    pointCount: 4,
+  }]);
+  expect(result.events[1]?.panes[1]?.series[0]?.id).toBe(result.events[2]?.pane.series[0]?.id);
+  expect(result.events[1]?.panes[1]?.series[0]?.label).toBe(result.events[2]?.pane.series[0]?.label);
   expect(result.events[4]?.pane.paneIndex).toBe(2);
   expect(result.events[4]?.panes).toHaveLength(2);
   expect(result.finalHeight).toBeGreaterThan(result.events[2]?.pane.height ?? 0);

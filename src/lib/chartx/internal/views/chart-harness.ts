@@ -154,13 +154,18 @@ export type PhaseOnePaneResizeHandler = (event: PhaseOnePaneResizeEvent) => void
 
 export type PhaseOnePaneEventType = "added" | "options" | "resized" | "removed";
 
-export type PhaseOnePaneEvent = {
-  type: PhaseOnePaneEventType;
+export type PhaseOnePaneState = {
   paneIndex: number;
   height: number;
   isPrimary: boolean;
   resizable: boolean;
   hasSeries: boolean;
+};
+
+export type PhaseOnePaneEvent = {
+  type: PhaseOnePaneEventType;
+  pane: PhaseOnePaneState;
+  panes: readonly PhaseOnePaneState[];
 };
 
 export type PhaseOnePaneEventHandler = (event: PhaseOnePaneEvent) => void;
@@ -1462,10 +1467,11 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
     }
 
-    this.emitPaneEvent("removed", paneId);
+    const removedPaneState = this.buildPaneState(paneId);
     const index = this.getPaneIndex(paneId);
     this.panes.splice(index, 1);
     this.paneResizeHandlers.delete(paneId);
+    this.emitPaneEvent("removed", paneId, removedPaneState, this.buildPaneStateSnapshot());
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -1490,25 +1496,47 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private emitPaneEvent(type: PhaseOnePaneEventType, paneId: string): void {
+  private emitPaneEvent(
+    type: PhaseOnePaneEventType,
+    paneId: string,
+    explicitPaneState?: PhaseOnePaneState | null,
+    explicitSnapshot?: readonly PhaseOnePaneState[],
+  ): void {
     if (this.paneEventHandlers.size === 0) {
       return;
     }
-    const pane = this.getPaneById(paneId);
-    if (pane === undefined) {
+    const paneState = explicitPaneState ?? this.buildPaneState(paneId);
+    if (paneState === null) {
       return;
     }
     const event: PhaseOnePaneEvent = {
       type,
+      pane: paneState,
+      panes: explicitSnapshot ?? this.buildPaneStateSnapshot(),
+    };
+    for (const handler of this.paneEventHandlers) {
+      handler(event);
+    }
+  }
+
+  private buildPaneState(paneId: string): PhaseOnePaneState | null {
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      return null;
+    }
+    return {
       paneIndex: this.getPaneIndex(paneId),
       height: this.getPaneHeight(paneId),
       isPrimary: pane.kind === "primary",
       resizable: pane.resizable,
       hasSeries: this.paneHasSeries(paneId),
     };
-    for (const handler of this.paneEventHandlers) {
-      handler(event);
-    }
+  }
+
+  private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
+    return this.panes
+      .map((pane) => this.buildPaneState(pane.id))
+      .filter((pane): pane is PhaseOnePaneState => pane !== null);
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {

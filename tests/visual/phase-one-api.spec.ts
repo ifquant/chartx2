@@ -440,19 +440,37 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     const chart = createChartxPhaseOneChart(canvas);
     const events: Array<{
       type: string;
-      paneIndex: number;
-      height: number;
-      isPrimary: boolean;
-      resizable: boolean;
-      hasSeries: boolean;
+      pane: {
+        paneIndex: number;
+        height: number;
+        isPrimary: boolean;
+        resizable: boolean;
+        hasSeries: boolean;
+      };
+      panes: Array<{
+        paneIndex: number;
+        height: number;
+        isPrimary: boolean;
+        resizable: boolean;
+        hasSeries: boolean;
+      }>;
     }> = [];
     const handler = (event: {
       type: string;
-      paneIndex: number;
-      height: number;
-      isPrimary: boolean;
-      resizable: boolean;
-      hasSeries: boolean;
+      pane: {
+        paneIndex: number;
+        height: number;
+        isPrimary: boolean;
+        resizable: boolean;
+        hasSeries: boolean;
+      };
+      panes: Array<{
+        paneIndex: number;
+        height: number;
+        isPrimary: boolean;
+        resizable: boolean;
+        hasSeries: boolean;
+      }>;
     }) => {
       events.push(event);
     };
@@ -476,13 +494,17 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
   }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
 
   expect(result.events.map((event) => event.type)).toEqual(["added", "options", "resized", "added", "removed"]);
-  expect(result.events[0]?.paneIndex).toBe(1);
-  expect(result.events[0]?.isPrimary).toBe(false);
-  expect(result.events[0]?.hasSeries).toBe(false);
-  expect(result.events[1]?.resizable).toBe(false);
-  expect(result.events[2]?.height).toBeGreaterThanOrEqual(140);
-  expect(result.events[4]?.paneIndex).toBe(2);
-  expect(result.finalHeight).toBeGreaterThan(result.events[2]?.height ?? 0);
+  expect(result.events[0]?.pane.paneIndex).toBe(1);
+  expect(result.events[0]?.pane.isPrimary).toBe(false);
+  expect(result.events[0]?.pane.hasSeries).toBe(false);
+  expect(result.events[0]?.panes).toHaveLength(2);
+  expect(result.events[1]?.pane.resizable).toBe(false);
+  expect(result.events[1]?.panes[1]?.resizable).toBe(false);
+  expect(result.events[2]?.pane.height).toBeGreaterThanOrEqual(140);
+  expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
+  expect(result.events[4]?.pane.paneIndex).toBe(2);
+  expect(result.events[4]?.panes).toHaveLength(2);
+  expect(result.finalHeight).toBeGreaterThan(result.events[2]?.pane.height ?? 0);
 
   const fixture = page.locator("#api-pane-bus-fixture");
   await expect(fixture).toBeVisible();

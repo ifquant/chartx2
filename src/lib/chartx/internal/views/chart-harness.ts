@@ -152,6 +152,19 @@ export type PhaseOnePaneResizeEvent = {
 
 export type PhaseOnePaneResizeHandler = (event: PhaseOnePaneResizeEvent) => void;
 
+export type PhaseOnePaneEventType = "added" | "options" | "resized" | "removed";
+
+export type PhaseOnePaneEvent = {
+  type: PhaseOnePaneEventType;
+  paneIndex: number;
+  height: number;
+  isPrimary: boolean;
+  resizable: boolean;
+  hasSeries: boolean;
+};
+
+export type PhaseOnePaneEventHandler = (event: PhaseOnePaneEvent) => void;
+
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
   applyOptions(options: { barSpacing?: number; rightOffset?: number }): void;
@@ -216,6 +229,8 @@ export type PhaseOneChartApi = {
   unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;
   subscribeClick(handler: PhaseOneClickHandler): void;
   unsubscribeClick(handler: PhaseOneClickHandler): void;
+  subscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
+  unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
   destroy(): void;
 };
 
@@ -308,6 +323,7 @@ const PANE_DIVIDER_HIT_SLOP = 6;
 export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
   private readonly paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
+  private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   private readonly primaryStore = new SeriesDataStore<number>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
@@ -521,6 +537,7 @@ export class PhaseOneChartHarness {
     this.crosshairMoveHandlers.clear();
     this.clickHandlers.clear();
     this.paneResizeHandlers.clear();
+    this.paneEventHandlers.clear();
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
@@ -642,6 +659,7 @@ export class PhaseOneChartHarness {
     };
     this.nextPaneId += 1;
     this.panes.push(pane);
+    this.emitPaneEvent("added", pane.id);
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -762,6 +780,14 @@ export class PhaseOneChartHarness {
 
   public unsubscribeClick(handler: PhaseOneClickHandler): void {
     this.clickHandlers.delete(handler);
+  }
+
+  public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
+    this.paneEventHandlers.add(handler);
+  }
+
+  public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
+    this.paneEventHandlers.delete(handler);
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {
@@ -1261,18 +1287,28 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one pane has been removed");
     }
 
+    let optionsChanged = false;
     if (options.resizable !== undefined) {
       if (pane.kind === "primary") {
         throw new Error("chartx phase-one chart does not support changing primary pane resizability");
       }
-      pane.resizable = options.resizable;
+      if (pane.resizable !== options.resizable) {
+        pane.resizable = options.resizable;
+        optionsChanged = true;
+      }
     }
 
     if (options.height !== undefined) {
       this.setPaneHeight(paneId, options.height);
+      if (optionsChanged) {
+        this.emitPaneEvent("options", paneId);
+      }
       return;
     }
 
+    if (optionsChanged) {
+      this.emitPaneEvent("options", paneId);
+    }
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -1292,6 +1328,7 @@ export class PhaseOneChartHarness {
     pane.preferredHeight = nextHeight;
     if (previousHeight !== nextHeight) {
       this.emitPaneResize(paneId);
+      this.emitPaneEvent("resized", paneId);
     }
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -1332,6 +1369,7 @@ export class PhaseOneChartHarness {
     controlledPane.preferredHeight = normalizePaneHeight(nextControlled);
     if (previousHeight !== controlledPane.preferredHeight) {
       this.emitPaneResize(controlledPane.id);
+      this.emitPaneEvent("resized", controlledPane.id);
     }
 
     if (this.canvas !== null) {
@@ -1424,6 +1462,7 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
     }
 
+    this.emitPaneEvent("removed", paneId);
     const index = this.getPaneIndex(paneId);
     this.panes.splice(index, 1);
     this.paneResizeHandlers.delete(paneId);
@@ -1447,6 +1486,27 @@ export class PhaseOneChartHarness {
       isPrimary: pane.kind === "primary",
     };
     for (const handler of handlers) {
+      handler(event);
+    }
+  }
+
+  private emitPaneEvent(type: PhaseOnePaneEventType, paneId: string): void {
+    if (this.paneEventHandlers.size === 0) {
+      return;
+    }
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      return;
+    }
+    const event: PhaseOnePaneEvent = {
+      type,
+      paneIndex: this.getPaneIndex(paneId),
+      height: this.getPaneHeight(paneId),
+      isPrimary: pane.kind === "primary",
+      resizable: pane.resizable,
+      hasSeries: this.paneHasSeries(paneId),
+    };
+    for (const handler of this.paneEventHandlers) {
       handler(event);
     }
   }
@@ -1880,6 +1940,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     unsubscribeClick(handler) {
       harness.unsubscribeClick(handler);
+    },
+    subscribePaneEvents(handler) {
+      harness.subscribePaneEvents(handler);
+    },
+    unsubscribePaneEvents(handler) {
+      harness.unsubscribePaneEvents(handler);
     },
     destroy() {
       harness.detach();

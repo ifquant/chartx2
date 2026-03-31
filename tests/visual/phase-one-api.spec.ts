@@ -421,6 +421,74 @@ test("phase-one public api lets pane handles observe resize events", async ({ pa
   await expect(fixture).toHaveScreenshot("phase-one-api-pane-resize-events.png");
 });
 
+test("phase-one public api exposes a chart-level pane event bus", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-pane-bus-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-pane-bus-canvas" aria-label="phase-one api pane event bus chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-pane-bus-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API pane event bus fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const events: Array<{
+      type: string;
+      paneIndex: number;
+      height: number;
+      isPrimary: boolean;
+      resizable: boolean;
+      hasSeries: boolean;
+    }> = [];
+    const handler = (event: {
+      type: string;
+      paneIndex: number;
+      height: number;
+      isPrimary: boolean;
+      resizable: boolean;
+      hasSeries: boolean;
+    }) => {
+      events.push(event);
+    };
+
+    chart.subscribePaneEvents(handler);
+    const studyPane = chart.addPane({ height: 118, resizable: true });
+    const mainSeries = chart.addCandlestickSeries();
+    const volumeSeries = chart.addVolumeSeries({ pane: studyPane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+    studyPane.applyOptions({ resizable: false });
+    studyPane.setHeight(146);
+    chart.removePane(chart.addPane({ height: 96, resizable: false }));
+    chart.unsubscribePaneEvents(handler);
+    studyPane.applyOptions({ height: 162 });
+
+    return {
+      events,
+      finalHeight: studyPane.getHeight(),
+    };
+  }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.events.map((event) => event.type)).toEqual(["added", "options", "resized", "added", "removed"]);
+  expect(result.events[0]?.paneIndex).toBe(1);
+  expect(result.events[0]?.isPrimary).toBe(false);
+  expect(result.events[0]?.hasSeries).toBe(false);
+  expect(result.events[1]?.resizable).toBe(false);
+  expect(result.events[2]?.height).toBeGreaterThanOrEqual(140);
+  expect(result.events[4]?.paneIndex).toBe(2);
+  expect(result.finalHeight).toBeGreaterThan(result.events[2]?.height ?? 0);
+
+  const fixture = page.locator("#api-pane-bus-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-pane-event-bus.png");
+});
+
 test("phase-one public api lets a line series target a managed secondary pane", async ({
   page,
 }) => {

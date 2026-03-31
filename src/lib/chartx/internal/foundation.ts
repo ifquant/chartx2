@@ -16,7 +16,7 @@ const boundarySummary: EngineBoundarySummary = {
   publicSurface: [
     "src/lib/chartx/public",
     "host shell reads chartx only through public entrypoints",
-    "createChartxPhaseOneChart exposes a narrow chart API with pane handles, pane options, chart-level pane events with pane snapshots and series kinds, pane resize subscriptions, explicit pane targets, one primary slot, and basic secondary-pane series routing",
+    "createChartxPhaseOneChart exposes a narrow chart API with pane handles, pane options, chart-level pane events with pane snapshots and series metadata, pane resize subscriptions, explicit pane targets, one primary slot, and basic secondary-pane series routing",
   ],
   internalLayers: [
     "typings/helpers",

@@ -162,6 +162,12 @@ export type PhaseOnePaneState = {
   hasSeries: boolean;
   seriesCount: number;
   seriesKinds: readonly string[];
+  series: readonly PhaseOnePaneSeriesState[];
+};
+
+export type PhaseOnePaneSeriesState = {
+  kind: string;
+  pointCount: number;
 };
 
 export type PhaseOnePaneEvent = {
@@ -1526,7 +1532,8 @@ export class PhaseOneChartHarness {
     if (pane === undefined) {
       return null;
     }
-    const seriesKinds = this.getPaneSeriesKinds(paneId);
+    const series = this.getPaneSeriesStates(paneId);
+    const seriesKinds = series.map((item) => item.kind);
     return {
       paneIndex: this.getPaneIndex(paneId),
       height: this.getPaneHeight(paneId),
@@ -1535,6 +1542,7 @@ export class PhaseOneChartHarness {
       hasSeries: seriesKinds.length > 0,
       seriesCount: seriesKinds.length,
       seriesKinds,
+      series,
     };
   }
 
@@ -1544,13 +1552,15 @@ export class PhaseOneChartHarness {
       .filter((pane): pane is PhaseOnePaneState => pane !== null);
   }
 
-  private getPaneSeriesKinds(paneId: string): readonly string[] {
+  private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
     if (paneId === "primary") {
-      return this.primarySeriesType === null ? [] : [this.primarySeriesType];
+      return this.primarySeriesType === null
+        ? []
+        : [{ kind: this.primarySeriesType, pointCount: this.primaryData.length }];
     }
 
     const secondary = this.secondarySeries.get(paneId);
-    return secondary === undefined ? [] : [secondary.kind];
+    return secondary === undefined ? [] : [{ kind: secondary.kind, pointCount: secondary.data.length }];
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {

@@ -127,6 +127,8 @@ export type PhaseOnePaneApi = {
   setHeight(height: number): void;
   isPrimary(): boolean;
   isResizable(): boolean;
+  subscribeResize(handler: PhaseOnePaneResizeHandler): void;
+  unsubscribeResize(handler: PhaseOnePaneResizeHandler): void;
   hasSeries(): boolean;
   remove(): void;
 };
@@ -141,6 +143,14 @@ export type PhaseOneSeriesTarget = {
 };
 
 export type PhaseOneVolumeSeriesTarget = PhaseOneSeriesTarget;
+
+export type PhaseOnePaneResizeEvent = {
+  paneIndex: number;
+  height: number;
+  isPrimary: boolean;
+};
+
+export type PhaseOnePaneResizeHandler = (event: PhaseOnePaneResizeEvent) => void;
 
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
@@ -297,6 +307,7 @@ const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
+  private readonly paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
   private readonly primaryStore = new SeriesDataStore<number>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
@@ -509,6 +520,7 @@ export class PhaseOneChartHarness {
     this.paneResizeState = null;
     this.crosshairMoveHandlers.clear();
     this.clickHandlers.clear();
+    this.paneResizeHandlers.clear();
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
@@ -1164,6 +1176,12 @@ export class PhaseOneChartHarness {
       },
       isPrimary: () => this.getPaneById(paneId)?.kind === "primary",
       isResizable: () => this.getPaneById(paneId)?.resizable ?? false,
+      subscribeResize: (handler) => {
+        this.subscribePaneResize(paneId, handler);
+      },
+      unsubscribeResize: (handler) => {
+        this.unsubscribePaneResize(paneId, handler);
+      },
       hasSeries: () => this.paneHasSeries(paneId),
       remove: () => {
         this.removePaneById(paneId);
@@ -1171,6 +1189,26 @@ export class PhaseOneChartHarness {
     };
     this.paneHandleIds.set(pane, paneId);
     return pane;
+  }
+
+  private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
+    if (this.getPaneById(paneId) === undefined) {
+      throw new Error("chartx phase-one pane has been removed");
+    }
+    const handlers = this.paneResizeHandlers.get(paneId) ?? new Set<PhaseOnePaneResizeHandler>();
+    handlers.add(handler);
+    this.paneResizeHandlers.set(paneId, handlers);
+  }
+
+  private unsubscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
+    const handlers = this.paneResizeHandlers.get(paneId);
+    if (handlers === undefined) {
+      return;
+    }
+    handlers.delete(handler);
+    if (handlers.size === 0) {
+      this.paneResizeHandlers.delete(paneId);
+    }
   }
 
   private getPaneById(paneId: string): PaneSpec | undefined {
@@ -1249,7 +1287,12 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart does not support setting the primary pane height directly");
     }
 
-    pane.preferredHeight = normalizePaneHeight(height);
+    const nextHeight = normalizePaneHeight(height);
+    const previousHeight = pane.preferredHeight;
+    pane.preferredHeight = nextHeight;
+    if (previousHeight !== nextHeight) {
+      this.emitPaneResize(paneId);
+    }
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -1285,7 +1328,11 @@ export class PhaseOneChartHarness {
     const maxControlled = Math.max(minControlled, totalResizableSpan - minPrimaryHeight);
     const nextControlled = clamp(Math.round(requestedHeight), minControlled, maxControlled);
 
+    const previousHeight = controlledPane.preferredHeight;
     controlledPane.preferredHeight = normalizePaneHeight(nextControlled);
+    if (previousHeight !== controlledPane.preferredHeight) {
+      this.emitPaneResize(controlledPane.id);
+    }
 
     if (this.canvas !== null) {
       const updatedFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
@@ -1379,8 +1426,28 @@ export class PhaseOneChartHarness {
 
     const index = this.getPaneIndex(paneId);
     this.panes.splice(index, 1);
+    this.paneResizeHandlers.delete(paneId);
     if (this.canvas !== null) {
       this.render(this.canvas);
+    }
+  }
+
+  private emitPaneResize(paneId: string): void {
+    const handlers = this.paneResizeHandlers.get(paneId);
+    if (handlers === undefined || handlers.size === 0) {
+      return;
+    }
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      return;
+    }
+    const event: PhaseOnePaneResizeEvent = {
+      paneIndex: this.getPaneIndex(paneId),
+      height: this.getPaneHeight(paneId),
+      isPrimary: pane.kind === "primary",
+    };
+    for (const handler of handlers) {
+      handler(event);
     }
   }
 

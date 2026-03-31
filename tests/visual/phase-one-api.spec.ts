@@ -369,6 +369,58 @@ test("phase-one public api exposes pane options and resizable state", async ({ p
   await expect(fixture).toHaveScreenshot("phase-one-api-pane-options.png");
 });
 
+test("phase-one public api lets pane handles observe resize events", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-pane-resize-events-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-pane-resize-events-canvas" aria-label="phase-one api pane resize events chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-pane-resize-events-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API pane resize events fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const volumePane = chart.addPane({ height: 122, resizable: true });
+    const mainSeries = chart.addCandlestickSeries();
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+
+    const events: Array<{ paneIndex: number; height: number; isPrimary: boolean }> = [];
+    const handler = (event: { paneIndex: number; height: number; isPrimary: boolean }) => {
+      events.push(event);
+    };
+
+    volumePane.subscribeResize(handler);
+    volumePane.setHeight(146);
+    volumePane.applyOptions({ height: 158 });
+    volumePane.unsubscribeResize(handler);
+    volumePane.setHeight(170);
+
+    return {
+      events,
+      height: volumePane.getHeight(),
+    };
+  }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.events).toHaveLength(2);
+  expect(result.events[0]?.paneIndex).toBe(1);
+  expect(result.events[0]?.isPrimary).toBe(false);
+  expect(result.events[0]?.height).toBeGreaterThanOrEqual(140);
+  expect(result.events[1]?.height).toBeGreaterThan(result.events[0]?.height ?? 0);
+  expect(result.height).toBeGreaterThan(result.events[1]?.height ?? 0);
+
+  const fixture = page.locator("#api-pane-resize-events-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-pane-resize-events.png");
+});
+
 test("phase-one public api lets a line series target a managed secondary pane", async ({
   page,
 }) => {

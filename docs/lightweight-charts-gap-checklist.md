@@ -31,6 +31,7 @@ The categories below are intentionally practical:
   - `removePane()`
   - `setHeight()` on secondary panes
   - `getOptions() / applyOptions() / isResizable()` on pane handles
+  - `subscribeResize() / unsubscribeResize()` on pane handles
   - pointer-driven divider resize in the browser harness
 - secondary panes are no longer volume-only
   - `candlestick`
@@ -106,8 +107,8 @@ Why this is still simplified:
 - public scale objects exist but still expose only a small subset of useful behavior
 - pane lifecycle now exists, and the first study series can target secondary panes
 - pane targeting is now more explicit, but the primary slot is still special and volume still stays secondary-only
-- pane handles now expose a small options surface, but pane-local APIs are still much narrower than lightweight-charts
-- pane resize now obeys public pane options, but it still lacks subscriptions and richer pane interaction APIs
+- pane handles now expose a small options surface and a resize callback, but pane-local APIs are still much narrower than lightweight-charts
+- pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs
 
 ### Time and price scales
 

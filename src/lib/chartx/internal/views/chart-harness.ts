@@ -122,14 +122,18 @@ export type PhaseOnePaneKind = "primary" | "secondary";
 export type PhaseOnePaneApi = {
   paneIndex(): number;
   getHeight(): number;
+  getOptions(): Required<PhaseOnePaneOptions>;
+  applyOptions(options: PhaseOnePaneOptions): void;
   setHeight(height: number): void;
   isPrimary(): boolean;
+  isResizable(): boolean;
   hasSeries(): boolean;
   remove(): void;
 };
 
 export type PhaseOnePaneOptions = {
   height?: number;
+  resizable?: boolean;
 };
 
 export type PhaseOneSeriesTarget = {
@@ -272,6 +276,7 @@ type PaneSpec = {
   id: string;
   kind: PhaseOnePaneKind;
   preferredHeight: number | null;
+  resizable: boolean;
 };
 
 type ResolvedSeriesTarget =
@@ -301,7 +306,7 @@ export class PhaseOneChartHarness {
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
-  private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null }];
+  private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
   private primarySeriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
   private currentPrimarySeriesApi:
@@ -384,7 +389,7 @@ export class PhaseOneChartHarness {
       this.rightOffset = this.dragState.startRightOffset - deltaBars;
     }
 
-    const divider = resolvePaneDivider(paneFrames, resolvePanePoint(this.canvas, event, layout)?.y ?? null);
+    const divider = resolvePaneDivider(this.panes, paneFrames, resolvePanePoint(this.canvas, event, layout)?.y ?? null);
     this.canvas.style.cursor = divider === null ? (this.dragState === null ? "crosshair" : "grabbing") : "row-resize";
 
     this.crosshair = resolvePanePoint(this.canvas, event, layout);
@@ -407,7 +412,7 @@ export class PhaseOneChartHarness {
     const layout = measureLayout(this.canvas);
     const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
     const point = resolvePanePoint(this.canvas, event, layout);
-    const divider = resolvePaneDivider(paneFrames, point?.y ?? null);
+    const divider = resolvePaneDivider(this.panes, paneFrames, point?.y ?? null);
     if (divider !== null) {
       this.paneResizeState = {
         dividerAfterPaneId: divider.upperPaneId,
@@ -621,6 +626,7 @@ export class PhaseOneChartHarness {
       id: `pane-${this.nextPaneId}`,
       kind: "secondary",
       preferredHeight: normalizePaneHeight(options.height),
+      resizable: options.resizable ?? true,
     };
     this.nextPaneId += 1;
     this.panes.push(pane);
@@ -1149,10 +1155,15 @@ export class PhaseOneChartHarness {
     const pane: PhaseOnePaneApi = {
       paneIndex: () => this.getPaneIndex(paneId),
       getHeight: () => this.getPaneHeight(paneId),
+      getOptions: () => this.getPaneOptions(paneId),
+      applyOptions: (options) => {
+        this.applyPaneOptions(paneId, options);
+      },
       setHeight: (height) => {
         this.setPaneHeight(paneId, height);
       },
       isPrimary: () => this.getPaneById(paneId)?.kind === "primary",
+      isResizable: () => this.getPaneById(paneId)?.resizable ?? false,
       hasSeries: () => this.paneHasSeries(paneId),
       remove: () => {
         this.removePaneById(paneId);
@@ -1194,6 +1205,41 @@ export class PhaseOneChartHarness {
     return frame.height;
   }
 
+  private getPaneOptions(paneId: string): Required<PhaseOnePaneOptions> {
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      throw new Error("chartx phase-one pane has been removed");
+    }
+
+    return {
+      height: pane.preferredHeight ?? 0,
+      resizable: pane.resizable,
+    };
+  }
+
+  private applyPaneOptions(paneId: string, options: PhaseOnePaneOptions): void {
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      throw new Error("chartx phase-one pane has been removed");
+    }
+
+    if (options.resizable !== undefined) {
+      if (pane.kind === "primary") {
+        throw new Error("chartx phase-one chart does not support changing primary pane resizability");
+      }
+      pane.resizable = options.resizable;
+    }
+
+    if (options.height !== undefined) {
+      this.setPaneHeight(paneId, options.height);
+      return;
+    }
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
   private setPaneHeight(paneId: string, height: number): void {
     const pane = this.getPaneById(paneId);
     if (pane === undefined) {
@@ -1221,18 +1267,25 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    const minUpper = upperPane.kind === "primary" ? 160 : normalizePaneHeight(72);
-    const minLower = lowerPane.kind === "primary" ? 160 : normalizePaneHeight(72);
-    const maxDeltaDown = this.paneResizeState.startLowerHeight - minLower;
-    const maxDeltaUp = this.paneResizeState.startUpperHeight - minUpper;
-    const clampedDelta = clamp(delta, -maxDeltaUp, maxDeltaDown);
+    const controlsUpperPane = upperPane.kind === "secondary";
+    const controlledPane = controlsUpperPane ? upperPane : lowerPane;
+    if (!controlledPane.resizable) {
+      return;
+    }
 
-    if (upperPane.kind === "secondary") {
-      upperPane.preferredHeight = normalizePaneHeight(this.paneResizeState.startUpperHeight + clampedDelta);
-    }
-    if (lowerPane.kind === "secondary") {
-      lowerPane.preferredHeight = normalizePaneHeight(this.paneResizeState.startLowerHeight - clampedDelta);
-    }
+    const minControlled = normalizePaneHeight(72);
+    const startControlled = controlsUpperPane
+      ? this.paneResizeState.startUpperHeight
+      : this.paneResizeState.startLowerHeight;
+    const requestedHeight = controlsUpperPane
+      ? startControlled + delta
+      : startControlled - delta;
+    const minPrimaryHeight = 160;
+    const totalResizableSpan = this.paneResizeState.startUpperHeight + this.paneResizeState.startLowerHeight;
+    const maxControlled = Math.max(minControlled, totalResizableSpan - minPrimaryHeight);
+    const nextControlled = clamp(Math.round(requestedHeight), minControlled, maxControlled);
+
+    controlledPane.preferredHeight = normalizePaneHeight(nextControlled);
 
     if (this.canvas !== null) {
       const updatedFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
@@ -1923,6 +1976,7 @@ function buildPaneFrames(
 }
 
 function resolvePaneDivider(
+  paneSpecs: readonly PaneSpec[],
   panes: readonly PaneFrame[],
   y: number | null,
 ): { upperPaneId: string; lowerPaneId: string; upperHeight: number; lowerHeight: number; position: number } | null {
@@ -1933,6 +1987,15 @@ function resolvePaneDivider(
   for (let index = 0; index < panes.length - 1; index += 1) {
     const upper = panes[index];
     const lower = panes[index + 1];
+    const upperSpec = paneSpecs.find((pane) => pane.id === upper.id);
+    const lowerSpec = paneSpecs.find((pane) => pane.id === lower.id);
+    const canResize =
+      upper.kind === "primary"
+        ? (lowerSpec?.resizable ?? false)
+        : (upperSpec?.resizable ?? false);
+    if (!canResize) {
+      continue;
+    }
     const dividerPosition = upper.top + upper.height + PANE_GAP / 2;
     if (Math.abs(y - dividerPosition) <= PANE_DIVIDER_HIT_SLOP) {
       return {

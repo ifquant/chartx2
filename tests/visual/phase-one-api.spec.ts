@@ -317,6 +317,58 @@ test("phase-one public api supports pane lifecycle operations around a dedicated
   await expect(fixture).toHaveScreenshot("phase-one-api-pane-lifecycle.png");
 });
 
+test("phase-one public api exposes pane options and resizable state", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-pane-options-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-pane-options-canvas" aria-label="phase-one api pane options chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-pane-options-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API pane options fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const volumePane = chart.addPane({ height: 124, resizable: false });
+    const mainSeries = chart.addCandlestickSeries();
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+
+    const before = {
+      options: volumePane.getOptions(),
+      resizable: volumePane.isResizable(),
+      height: volumePane.getHeight(),
+    };
+
+    volumePane.applyOptions({ resizable: true, height: 148 });
+
+    const after = {
+      options: volumePane.getOptions(),
+      resizable: volumePane.isResizable(),
+      height: volumePane.getHeight(),
+    };
+
+    return { before, after };
+  }, { bars: API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.before.resizable).toBe(false);
+  expect(result.before.options.resizable).toBe(false);
+  expect(result.after.resizable).toBe(true);
+  expect(result.after.options.resizable).toBe(true);
+  expect(result.after.options.height).toBe(148);
+  expect(result.after.height).toBeGreaterThanOrEqual(140);
+
+  const fixture = page.locator("#api-pane-options-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-pane-options.png");
+});
+
 test("phase-one public api lets a line series target a managed secondary pane", async ({
   page,
 }) => {

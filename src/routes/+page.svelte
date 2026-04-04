@@ -82,7 +82,8 @@
       single-pane floor into the first pane lifecycle: a primary price pane,
       removable secondary panes, a shared time scale, and pane-local price
       scales with explicit series-to-pane targeting on both the primary slot and
-      managed secondary panes.
+      managed secondary panes, including the first controlled multi-series study
+      composition path.
     </p>
   </section>
 
@@ -117,13 +118,13 @@
         <li>Deterministic sample OHLC data</li>
         <li>Primary price pane plus managed secondary study panes</li>
         <li>Shared time scale with pane-local price scales</li>
-        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with stable pane/series metadata snapshots, resizable options, and explicit series-to-pane targeting</li>
+        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with stable pane/series metadata snapshots, resizable options, explicit series-to-pane targeting, and controlled multi-series composition in secondary panes</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Pointer-driven secondary pane resize baseline</li>
         <li>Host-level OHLC readout bar fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
-        <li>Public API with one primary slot plus one basic series per managed secondary pane</li>
+        <li>Public API with one primary slot plus controlled multi-series composition in managed secondary panes</li>
         <li>Dynamic time and price axis labels with active crosshair tags</li>
         <li>Wheel-driven viewport zoom baseline</li>
         <li>Drag-driven viewport pan baseline</li>

@@ -1,5 +1,6 @@
 import {
   PlotRowValueIndex,
+  PriceRangeImpl,
   PriceScale,
   SeriesDataStore,
   TimeScale,
@@ -359,9 +360,10 @@ export class PhaseOneChartHarness {
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
-    | PhaseOneHistogramSeriesApi
-    | null = null;
+      | PhaseOneHistogramSeriesApi
+      | null = null;
   private readonly secondarySeries = new Map<string, SecondarySeriesState>();
+  private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
@@ -656,7 +658,7 @@ export class PhaseOneChartHarness {
       if (state === undefined) {
         throw new Error("chartx phase-one chart can remove only the currently attached series");
       }
-      this.secondarySeries.delete(state.paneId);
+      this.secondarySeries.delete(state.id);
     }
     this.crosshair = null;
     this.barSpacing = null;
@@ -782,7 +784,7 @@ export class PhaseOneChartHarness {
     return {
       getVisibleRange: () =>
         this.primaryPriceScale.getPriceRange()?.toRaw() ??
-        Array.from(this.secondarySeries.values())[0]?.priceScale.getPriceRange()?.toRaw() ??
+        Array.from(this.secondaryPanePriceScales.values())[0]?.getPriceRange()?.toRaw() ??
         null,
     };
   }
@@ -1128,12 +1130,7 @@ export class PhaseOneChartHarness {
     api: SecondarySeriesState["api"],
     meta: { id: string; label: string },
   ): void {
-    const existing = this.secondarySeries.get(paneId);
-    if (existing !== undefined) {
-      throw new Error("chartx phase-one chart supports only one series per secondary pane");
-    }
-
-    this.secondarySeries.set(paneId, {
+    this.secondarySeries.set(meta.id, {
       paneId,
       kind,
       id: meta.id,
@@ -1141,7 +1138,7 @@ export class PhaseOneChartHarness {
       api,
       data: [],
       store: new SeriesDataStore<number>(),
-      priceScale: new PriceScale(),
+      priceScale: this.getOrCreateSecondaryPanePriceScale(paneId),
       visuals: new Map<number, HistogramVisual>(),
     });
   }
@@ -1424,7 +1421,7 @@ export class PhaseOneChartHarness {
     if (paneId === "primary") {
       return this.currentPrimarySeriesApi !== null;
     }
-    return this.secondarySeries.has(paneId);
+    return this.getSecondarySeriesForPane(paneId).length > 0;
   }
 
   private resolveSeriesTarget(
@@ -1436,7 +1433,7 @@ export class PhaseOneChartHarness {
         return { kind: "primary" };
       }
 
-      const existing = this.panes.find((pane) => pane.kind === "secondary" && !this.secondarySeries.has(pane.id))?.id;
+      const existing = this.panes.find((pane) => pane.kind === "secondary")?.id;
       if (existing !== undefined) {
         return { kind: "secondary", paneId: existing };
       }
@@ -1463,10 +1460,6 @@ export class PhaseOneChartHarness {
       }
       return { kind: "primary" };
     }
-
-    if (this.secondarySeries.has(pane.id)) {
-      throw new Error("chartx phase-one chart supports only one series per secondary pane");
-    }
     return { kind: "secondary", paneId: pane.id };
   }
 
@@ -1490,7 +1483,7 @@ export class PhaseOneChartHarness {
     if (pane.kind === "primary") {
       throw new Error("chartx phase-one chart cannot remove the primary pane");
     }
-    if (this.secondarySeries.has(paneId)) {
+    if (this.getSecondarySeriesForPane(paneId).length > 0) {
       throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
     }
 
@@ -1498,6 +1491,7 @@ export class PhaseOneChartHarness {
     const index = this.getPaneIndex(paneId);
     this.panes.splice(index, 1);
     this.paneResizeHandlers.delete(paneId);
+    this.secondaryPanePriceScales.delete(paneId);
     this.emitPaneEvent("removed", paneId, removedPaneState, this.buildPaneStateSnapshot());
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -1583,15 +1577,12 @@ export class PhaseOneChartHarness {
           }];
     }
 
-    const secondary = this.secondarySeries.get(paneId);
-    return secondary === undefined
-      ? []
-      : [{
-          id: secondary.id,
-          label: secondary.label,
-          kind: secondary.kind,
-          pointCount: secondary.data.length,
-        }];
+    return this.getSecondarySeriesForPane(paneId).map((secondary) => ({
+      id: secondary.id,
+      label: secondary.label,
+      kind: secondary.kind,
+      pointCount: secondary.data.length,
+    }));
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {
@@ -1601,6 +1592,42 @@ export class PhaseOneChartHarness {
       id: `series-${ordinal}`,
       label: `${formatSeriesKindLabel(kind)} ${ordinal}`,
     };
+  }
+
+  private getSecondarySeriesForPane(paneId: string): SecondarySeriesState[] {
+    return Array.from(this.secondarySeries.values()).filter((entry) => entry.paneId === paneId);
+  }
+
+  private getOrCreateSecondaryPanePriceScale(paneId: string): PriceScale {
+    const existing = this.secondaryPanePriceScales.get(paneId);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const scale = new PriceScale();
+    this.secondaryPanePriceScales.set(paneId, scale);
+    return scale;
+  }
+
+  private resolveSecondaryPanePriceRange(
+    paneSeries: readonly SecondarySeriesState[],
+    secondaryRows: ReadonlyMap<string, ReturnType<SeriesDataStore<number>["setData"]>>,
+  ): PriceRangeImpl | null {
+    let merged: PriceRangeImpl | null = null;
+
+    for (const state of paneSeries) {
+      const rows = secondaryRows.get(state.id);
+      if (rows === undefined || rows.length === 0) {
+        continue;
+      }
+
+      const nextRange = state.store.priceRange(rows[0].index, rows[rows.length - 1].index);
+      if (nextRange !== null) {
+        merged = merged === null ? nextRange : merged.merge(nextRange);
+      }
+    }
+
+    return merged;
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
@@ -1618,7 +1645,7 @@ export class PhaseOneChartHarness {
       );
 
       if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
-        const state = this.secondarySeries.get(activePane.id);
+        const state = this.getSecondarySeriesForPane(activePane.id)[0];
         if (state !== undefined) {
           if (state.kind === "candlestick" || state.kind === "bar") {
             const rows = state.store.setData(state.data);
@@ -1640,7 +1667,7 @@ export class PhaseOneChartHarness {
     }
 
     if (activePane !== null && activePane.kind === "secondary") {
-      const state = this.secondarySeries.get(activePane.id);
+      const state = this.getSecondarySeriesForPane(activePane.id)[0];
       if (state !== undefined) {
         const rows = state.store.setData(state.data);
         return {
@@ -1689,9 +1716,9 @@ export class PhaseOneChartHarness {
     const primaryRows = this.primaryStore.setData(this.primaryData);
     const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
     let pointCount = primaryRows.length;
-    for (const [paneId, state] of this.secondarySeries.entries()) {
+    for (const [seriesId, state] of this.secondarySeries.entries()) {
       const rows = state.store.setData(state.data);
-      secondaryRows.set(paneId, rows);
+      secondaryRows.set(seriesId, rows);
       pointCount = Math.max(pointCount, rows.length);
     }
 
@@ -1806,17 +1833,21 @@ export class PhaseOneChartHarness {
       }
 
       if (pane.kind === "secondary") {
-        const state = this.secondarySeries.get(pane.id);
-        const rows = state === undefined ? undefined : secondaryRows.get(pane.id);
-        if (state !== undefined && rows !== undefined && rows.length > 0) {
-          const range = state.store.priceRange(
-            rows[0].index,
-            rows[rows.length - 1].index,
-          );
-          state.priceScale.applyOptions({
+        const paneSeries = this.getSecondarySeriesForPane(pane.id);
+        const panePriceScale = this.secondaryPanePriceScales.get(pane.id);
+        const range = this.resolveSecondaryPanePriceRange(paneSeries, secondaryRows);
+        if (panePriceScale !== undefined && range !== null) {
+          panePriceScale.applyOptions({
             height: pane.height,
             priceRange: range,
           });
+        }
+
+        for (const state of paneSeries) {
+          const rows = secondaryRows.get(state.id);
+          if (rows === undefined || rows.length === 0) {
+            continue;
+          }
 
           if (state.kind === "line") {
             const lineItems = rows.map((row): LineItem => ({
@@ -1911,9 +1942,11 @@ export class PhaseOneChartHarness {
       if (pane.kind !== "secondary") {
         continue;
       }
-      const state = this.secondarySeries.get(pane.id);
-      const rows = state === undefined ? undefined : secondaryRows.get(pane.id);
-      if (state !== undefined && rows !== undefined && rows.length > 0) {
+      const state = this.getSecondarySeriesForPane(pane.id)[0];
+      const hasRows = this.getSecondarySeriesForPane(pane.id).some(
+        (entry) => (secondaryRows.get(entry.id)?.length ?? 0) > 0,
+      );
+      if (state !== undefined && hasRows) {
         drawPriceAxis(
           context,
           layout,

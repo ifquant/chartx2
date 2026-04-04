@@ -35,6 +35,23 @@ const VOLUME_API_DATA = [
   { time: 5, value: 1_180_000, up: false },
 ] as const;
 
+type PaneSeriesSnapshot = {
+  id: string;
+  label: string;
+  kind: string;
+  pointCount: number;
+};
+
+type PaneEventSnapshot = {
+  type: string;
+  pane: {
+    paneIndex: number;
+    seriesCount: number;
+    seriesKinds: readonly string[];
+    series: readonly PaneSeriesSnapshot[];
+  };
+};
+
 test("phase-one public api mounts a single candlestick chart and renders the first frame", async ({
   page,
 }) => {
@@ -603,6 +620,66 @@ test("phase-one public api lets a candlestick series target a managed secondary 
   const fixture = page.locator("#api-secondary-candles-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-secondary-candles-pane.png");
+});
+
+test("phase-one public api supports controlled multi-series composition in one managed secondary pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, line, histogram, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-secondary-multi-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-secondary-multi-canvas" aria-label="phase-one api multi-series secondary pane chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-secondary-multi-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API secondary multi-series fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+    const studyPane = chart.addPane({ height: 132 });
+    const mainSeries = chart.addCandlestickSeries();
+    const lineSeries = chart.addLineSeries({ pane: studyPane });
+    const histogramSeries = chart.addHistogramSeries({ pane: studyPane });
+    mainSeries.setData(bars);
+    lineSeries.setData(line);
+    histogramSeries.setData(histogram);
+    studyPane.setHeight(148);
+
+    return {
+      panes: chart.panes().map((pane: { paneIndex(): number; getHeight(): number; hasSeries(): boolean }) => ({
+        paneIndex: pane.paneIndex(),
+        height: pane.getHeight(),
+        hasSeries: pane.hasSeries(),
+      })),
+      paneEvents,
+    };
+  }, {
+    bars: API_DATA,
+    line: LINE_API_DATA,
+    histogram: HISTOGRAM_API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.panes).toHaveLength(2);
+  expect(result.panes[1]?.hasSeries).toBe(true);
+  expect(result.panes[1]?.height).toBeGreaterThanOrEqual(140);
+  expect(result.paneEvents.map((event) => event.type)).toEqual(["added", "resized"]);
+  expect(result.paneEvents[1]?.pane.seriesCount).toBe(2);
+  expect(result.paneEvents[1]?.pane.seriesKinds).toEqual(["line", "histogram"]);
+  expect(result.paneEvents[1]?.pane.series.map((series) => series.label)).toEqual(["Line 2", "Histogram 3"]);
+
+  const fixture = page.locator("#api-secondary-multi-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-secondary-multi-series-pane.png");
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

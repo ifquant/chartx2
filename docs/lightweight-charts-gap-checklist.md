@@ -34,6 +34,7 @@ The categories below are intentionally practical:
   - `subscribeResize() / unsubscribeResize()` on pane handles
   - `subscribePaneEvents() / unsubscribePaneEvents()` on the chart API, with pane-state snapshots that also describe attached series metadata, identity, and labels
   - pointer-driven divider resize in the browser harness
+  - controlled multi-series composition in managed secondary panes
 - secondary panes are no longer volume-only
   - `candlestick`
   - `line`
@@ -247,7 +248,7 @@ Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
 - `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
-- `chartx2` now has a first pane lifecycle surface and explicit pane targeting for candlestick, line, bar, and histogram, but generalized multi-series composition is still constrained
+- `chartx2` now has a first pane lifecycle surface, explicit pane targeting for candlestick, line, bar, and histogram, and a controlled multi-series path for managed secondary panes, but generalized composition rules are still intentionally narrow
 
 ## Deferred Beyond Lightweight-Charts
 

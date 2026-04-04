@@ -11,12 +11,14 @@
   let harnessError = "";
   let readout: PhaseOneReadoutDetail = {
     active: false,
+    paneIndex: null,
     time: null,
     open: null,
     high: null,
     low: null,
     close: null,
     price: null,
+    series: [],
   };
 
   onMount(() => {
@@ -102,6 +104,12 @@
           <span class:inactive={!readout.active}>L {formatValue(readout.low)}</span>
           <span class:inactive={!readout.active}>C {formatValue(readout.close)}</span>
           <span class:inactive={!readout.active}>P {formatValue(readout.price)}</span>
+          <span class:inactive={readout.paneIndex === null}>Pane {readout.paneIndex === null ? "--" : readout.paneIndex + 1}</span>
+          {#each readout.series as series}
+            <span class="series-pill" style={`--series-color: ${series.color};`}>
+              {series.label} {formatValue(series.value)}
+            </span>
+          {/each}
         </div>
         <canvas bind:this={canvas} aria-label="chartx2 phase-one chart harness"></canvas>
       {/if}
@@ -118,11 +126,11 @@
         <li>Deterministic sample OHLC data</li>
         <li>Primary price pane plus managed secondary study panes</li>
         <li>Shared time scale with pane-local price scales</li>
-        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with stable pane/series metadata snapshots, resizable options, explicit series-to-pane targeting, and controlled multi-series composition in secondary panes</li>
+        <li>Public pane handles with add/remove, pane sizing, resize subscriptions, chart-level pane events with stable pane/series metadata snapshots, pane-aware readout payloads, resizable options, explicit series-to-pane targeting, and controlled multi-series composition in secondary panes</li>
         <li>Canvas-based candle, bar, line, histogram, and volume renderers</li>
         <li>Baseline pointer-driven crosshair rendering</li>
         <li>Pointer-driven secondary pane resize baseline</li>
-        <li>Host-level OHLC readout bar fed by crosshair state</li>
+        <li>Host-level OHLC readout bar with pane-aware series summaries fed by crosshair state</li>
         <li>Minimal append / replace-last update flow</li>
         <li>Public API with one primary slot plus controlled multi-series composition in managed secondary panes</li>
         <li>Dynamic time and price axis labels with active crosshair tags</li>
@@ -264,6 +272,21 @@ h1 {
   font-size: 0.82rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.series-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.series-pill::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--series-color, rgba(16, 16, 16, 0.4));
+  flex: 0 0 auto;
 }
 
 .readout-bar span.inactive {

@@ -55,14 +55,23 @@ export type PhaseOneVolumeData = {
   color?: string;
   up?: boolean;
 };
+export type PhaseOneReadoutSeriesDetail = {
+  id: string;
+  label: string;
+  kind: string;
+  value: number | null;
+  color: string;
+};
 export type PhaseOneReadoutDetail = {
   active: boolean;
+  paneIndex: number | null;
   time: number | null;
   open: number | null;
   high: number | null;
   low: number | null;
   close: number | null;
   price: number | null;
+  series: readonly PhaseOneReadoutSeriesDetail[];
 };
 
 export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
@@ -306,6 +315,12 @@ type SecondarySeriesState = {
   store: SeriesDataStore<number>;
   priceScale: PriceScale;
   visuals: Map<number, HistogramVisual>;
+  options:
+    | Required<PhaseOneCandlestickSeriesOptions>
+    | Required<PhaseOneBarSeriesOptions>
+    | Required<PhaseOneLineSeriesOptions>
+    | Required<PhaseOneHistogramSeriesOptions>
+    | Required<PhaseOneVolumeSeriesOptions>;
 };
 
 type PaneFrame = {
@@ -994,14 +1009,16 @@ export class PhaseOneChartHarness {
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "candlestick");
+        const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
         if (options.upColor !== undefined) {
-          this.candlestickOptions.upColor = options.upColor;
+          seriesOptions.upColor = options.upColor;
         }
         if (options.downColor !== undefined) {
-          this.candlestickOptions.downColor = options.downColor;
+          seriesOptions.downColor = options.downColor;
         }
         if (options.wickColor !== undefined) {
-          this.candlestickOptions.wickColor = options.wickColor;
+          seriesOptions.wickColor = options.wickColor;
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1025,11 +1042,13 @@ export class PhaseOneChartHarness {
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "line");
+        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
         if (options.color !== undefined) {
-          this.lineOptions.color = options.color;
+          seriesOptions.color = options.color;
         }
         if (options.lineWidth !== undefined) {
-          this.lineOptions.lineWidth = Math.max(1, options.lineWidth);
+          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1053,11 +1072,13 @@ export class PhaseOneChartHarness {
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "bar");
+        const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
         if (options.upColor !== undefined) {
-          this.barOptions.upColor = options.upColor;
+          seriesOptions.upColor = options.upColor;
         }
         if (options.downColor !== undefined) {
-          this.barOptions.downColor = options.downColor;
+          seriesOptions.downColor = options.downColor;
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1081,11 +1102,13 @@ export class PhaseOneChartHarness {
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "histogram");
+        const seriesOptions = state.options as Required<PhaseOneHistogramSeriesOptions>;
         if (options.upColor !== undefined) {
-          this.histogramOptions.upColor = options.upColor;
+          seriesOptions.upColor = options.upColor;
         }
         if (options.downColor !== undefined) {
-          this.histogramOptions.downColor = options.downColor;
+          seriesOptions.downColor = options.downColor;
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1109,11 +1132,13 @@ export class PhaseOneChartHarness {
       },
       applyOptions: (options) => {
         this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "volume");
+        const seriesOptions = state.options as Required<PhaseOneVolumeSeriesOptions>;
         if (options.upColor !== undefined) {
-          this.volumeOptions.upColor = options.upColor;
+          seriesOptions.upColor = options.upColor;
         }
         if (options.downColor !== undefined) {
-          this.volumeOptions.downColor = options.downColor;
+          seriesOptions.downColor = options.downColor;
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1140,6 +1165,7 @@ export class PhaseOneChartHarness {
       store: new SeriesDataStore<number>(),
       priceScale: this.getOrCreateSecondaryPanePriceScale(paneId),
       visuals: new Map<number, HistogramVisual>(),
+      options: this.createSecondarySeriesOptions(kind),
     });
   }
 
@@ -1594,6 +1620,28 @@ export class PhaseOneChartHarness {
     };
   }
 
+  private createSecondarySeriesOptions(
+    kind: SecondarySeriesKind,
+  ):
+    | Required<PhaseOneCandlestickSeriesOptions>
+    | Required<PhaseOneBarSeriesOptions>
+    | Required<PhaseOneLineSeriesOptions>
+    | Required<PhaseOneHistogramSeriesOptions>
+    | Required<PhaseOneVolumeSeriesOptions> {
+    switch (kind) {
+      case "candlestick":
+        return { ...this.candlestickOptions };
+      case "bar":
+        return { ...this.barOptions };
+      case "line":
+        return { ...this.lineOptions };
+      case "histogram":
+        return { ...this.histogramOptions };
+      case "volume":
+        return { ...this.volumeOptions };
+    }
+  }
+
   private getSecondarySeriesForPane(paneId: string): SecondarySeriesState[] {
     return Array.from(this.secondarySeries.values()).filter((entry) => entry.paneId === paneId);
   }
@@ -1630,11 +1678,53 @@ export class PhaseOneChartHarness {
     return merged;
   }
 
+  private buildReadoutSeriesForPrimary(
+    rows: readonly { time: number; value: [number, number, number, number] }[],
+    crosshair: PanePoint | null,
+  ): readonly PhaseOneReadoutSeriesDetail[] {
+    if (this.primarySeriesType === null || this.primarySeriesMeta === null) {
+      return [];
+    }
+
+    return [{
+      id: this.primarySeriesMeta.id,
+      label: this.primarySeriesMeta.label,
+      kind: this.primarySeriesType,
+      value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
+      color: resolvePrimarySeriesColor(
+        this.primarySeriesType,
+        this.primaryData,
+        this.candlestickOptions,
+        this.barOptions,
+        this.lineOptions,
+        this.histogramOptions,
+        this.primaryHistogramVisuals,
+      ),
+    }];
+  }
+
+  private buildReadoutSeriesForPane(
+    paneSeries: readonly SecondarySeriesState[],
+    crosshair: PanePoint | null,
+  ): readonly PhaseOneReadoutSeriesDetail[] {
+    return paneSeries.map((state) => {
+      const rows = state.store.setData(state.data);
+      return {
+        id: state.id,
+        label: state.label,
+        kind: state.kind,
+        value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
+        color: resolveSecondarySeriesColor(state),
+      };
+    });
+  }
+
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
     const primaryRows = this.primaryStore.setData(this.primaryData);
     const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
     const activePane = point === null ? null : resolveActivePane(paneFrames, point.y);
     const logicalPoint = point === null ? null : resolveLocalPanePoint(activePane, point);
+    const activePaneIndex = activePane === null ? null : this.getPaneIndex(activePane.id);
 
     if (primaryRows.length > 0) {
       const baseReadout = buildCrosshairReadout(
@@ -1643,31 +1733,48 @@ export class PhaseOneChartHarness {
         this.timeScale,
         this.primaryPriceScale,
       );
+      const baseSeries = this.buildReadoutSeriesForPrimary(primaryRows, logicalPoint);
 
       if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
-        const state = this.getSecondarySeriesForPane(activePane.id)[0];
+        const paneSeries = this.getSecondarySeriesForPane(activePane.id);
+        const state = paneSeries[0];
         if (state !== undefined) {
+          const paneSeriesReadout = this.buildReadoutSeriesForPane(
+            paneSeries,
+            logicalPoint,
+          );
           if (state.kind === "candlestick" || state.kind === "bar") {
             const rows = state.store.setData(state.data);
-            return buildCrosshairReadout(
-              rows,
-              { x: logicalPoint.x, y: logicalPoint.y },
-              this.timeScale,
-              state.priceScale,
-            );
+            return {
+              ...buildCrosshairReadout(
+                rows,
+                { x: logicalPoint.x, y: logicalPoint.y },
+                this.timeScale,
+                state.priceScale,
+              ),
+              paneIndex: activePaneIndex,
+              series: paneSeriesReadout,
+            };
           }
           return {
             ...baseReadout,
+            paneIndex: activePaneIndex,
             price: state.priceScale.coordinateToPrice(logicalPoint.y),
+            series: paneSeriesReadout,
           };
         }
       }
 
-      return baseReadout;
+      return {
+        ...baseReadout,
+        paneIndex: activePaneIndex ?? 0,
+        series: baseSeries,
+      };
     }
 
     if (activePane !== null && activePane.kind === "secondary") {
-      const state = this.getSecondarySeriesForPane(activePane.id)[0];
+      const paneSeries = this.getSecondarySeriesForPane(activePane.id);
+      const state = paneSeries[0];
       if (state !== undefined) {
         const rows = state.store.setData(state.data);
         return {
@@ -1677,18 +1784,22 @@ export class PhaseOneChartHarness {
             this.timeScale,
             state.priceScale,
           ),
+          paneIndex: activePaneIndex,
+          series: this.buildReadoutSeriesForPane(paneSeries, logicalPoint),
         };
       }
     }
 
     return {
       active: false,
+      paneIndex: activePaneIndex,
       time: null,
       open: null,
       high: null,
       low: null,
       close: null,
       price: null,
+      series: [],
     };
   }
 
@@ -1850,6 +1961,7 @@ export class PhaseOneChartHarness {
           }
 
           if (state.kind === "line") {
+            const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
             const lineItems = rows.map((row): LineItem => ({
               x: this.timeScale.indexToCoordinate(row.index),
               y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
@@ -1857,10 +1969,11 @@ export class PhaseOneChartHarness {
 
             this.lineRenderer.draw(context, {
               items: lineItems,
-              lineColor: this.lineOptions.color,
-              lineWidth: this.lineOptions.lineWidth,
+              lineColor: seriesOptions.color,
+              lineWidth: seriesOptions.lineWidth,
             });
           } else if (state.kind === "bar") {
+            const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
             const barItems = rows.map((row): BarItem => ({
               x: this.timeScale.indexToCoordinate(row.index),
               openY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
@@ -1873,10 +1986,11 @@ export class PhaseOneChartHarness {
             this.barRenderer.draw(context, {
               items: barItems,
               barWidth,
-              upColor: this.barOptions.upColor,
-              downColor: this.barOptions.downColor,
+              upColor: seriesOptions.upColor,
+              downColor: seriesOptions.downColor,
             });
           } else if (state.kind === "candlestick") {
+            const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
             const candleItems = rows.map((row): CandlestickItem => ({
               x: this.timeScale.indexToCoordinate(row.index),
               openY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
@@ -1889,11 +2003,13 @@ export class PhaseOneChartHarness {
             this.candlesRenderer.draw(context, {
               items: candleItems,
               barWidth,
-              upColor: this.candlestickOptions.upColor,
-              downColor: this.candlestickOptions.downColor,
-              wickColor: this.candlestickOptions.wickColor,
+              upColor: seriesOptions.upColor,
+              downColor: seriesOptions.downColor,
+              wickColor: seriesOptions.wickColor,
             });
           } else {
+            const seriesOptions =
+              (state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>);
             const rangeMin = range?.minValue() ?? 0;
             const histogramItems = rows.map((row): HistogramItem => ({
               x: this.timeScale.indexToCoordinate(row.index),
@@ -1908,12 +2024,21 @@ export class PhaseOneChartHarness {
             this.histogramRenderer.draw(context, {
               items: histogramItems,
               barWidth,
-              upColor: state.kind === "volume" ? this.volumeOptions.upColor : this.histogramOptions.upColor,
-              downColor: state.kind === "volume" ? this.volumeOptions.downColor : this.histogramOptions.downColor,
+              upColor: seriesOptions.upColor,
+              downColor: seriesOptions.downColor,
             });
           }
         }
       }
+
+      const legendEntries =
+        pane.kind === "primary"
+          ? this.buildReadoutSeriesForPrimary(primaryRows, resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair))
+          : this.buildReadoutSeriesForPane(
+              this.getSecondarySeriesForPane(pane.id),
+              resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
+            );
+      drawPaneLegend(context, legendEntries);
 
       const paneCrosshair = resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair);
       drawCrosshair(context, paneWidth, pane.height, paneCrosshair, this.crosshairOptions);
@@ -2437,6 +2562,43 @@ function drawCrosshair(
   context.restore();
 }
 
+function drawPaneLegend(
+  context: CanvasRenderingContext2D,
+  entries: readonly PhaseOneReadoutSeriesDetail[],
+): void {
+  if (entries.length === 0) {
+    return;
+  }
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textBaseline = "top";
+
+  let x = 10;
+  for (const entry of entries) {
+    const value = entry.value === null ? "--" : formatLegendValue(entry.kind, entry.value);
+    const text = `${entry.label} ${value}`;
+    const textWidth = context.measureText(text).width;
+
+    context.fillStyle = "rgba(255, 253, 247, 0.92)";
+    context.strokeStyle = "rgba(16, 16, 16, 0.12)";
+    context.lineWidth = 1;
+    context.fillRect(x, 8, textWidth + 22, 18);
+    context.strokeRect(x + 0.5, 8.5, textWidth + 21, 17);
+
+    context.fillStyle = entry.color;
+    context.beginPath();
+    context.arc(x + 7, 17, 3, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = "rgba(16, 16, 16, 0.78)";
+    context.fillText(text, x + 13, 12);
+    x += textWidth + 30;
+  }
+
+  context.restore();
+}
+
 function drawPriceAxis(
   context: CanvasRenderingContext2D,
   layout: Layout,
@@ -2628,6 +2790,10 @@ function formatTimeAxisLabel(value: number): string {
   }).format(new Date(value));
 }
 
+function formatLegendValue(kind: string, value: number): string {
+  return kind === "volume" ? formatVolumeAxisLabel(value) : formatPriceAxisLabel(value);
+}
+
 function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {
   canvas.dispatchEvent(
     new CustomEvent<PhaseOneReadoutDetail>("chartx:readout", {
@@ -2645,12 +2811,14 @@ function buildCrosshairReadout(
   if (crosshair === null || rows.length === 0) {
     return {
       active: false,
+      paneIndex: null,
       time: null,
       open: null,
       high: null,
       low: null,
       close: null,
       price: null,
+      series: [],
     };
   }
 
@@ -2659,13 +2827,90 @@ function buildCrosshairReadout(
 
   return {
     active: true,
+    paneIndex: null,
     time: row.time,
     open: row.value[PlotRowValueIndex.Open],
     high: row.value[PlotRowValueIndex.High],
     low: row.value[PlotRowValueIndex.Low],
     close: row.value[PlotRowValueIndex.Close],
     price: priceScale.coordinateToPrice(crosshair.y),
+    series: [],
   };
+}
+
+function resolveSeriesReadoutValue(
+  rows: readonly { time: number; value: [number, number, number, number] }[],
+  crosshair: PanePoint | null,
+  timeScale: TimeScale,
+): number | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  if (crosshair === null) {
+    return rows[rows.length - 1]?.value[PlotRowValueIndex.Close] ?? null;
+  }
+
+  const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
+  const row = rows[clamp(logical, 0, rows.length - 1)];
+  return row?.value[PlotRowValueIndex.Close] ?? null;
+}
+
+function resolvePrimarySeriesColor(
+  kind: "candlestick" | "bar" | "line" | "histogram",
+  data: readonly PhaseOneCandlestickData[],
+  candlestickOptions: Required<PhaseOneCandlestickSeriesOptions>,
+  barOptions: Required<PhaseOneBarSeriesOptions>,
+  lineOptions: Required<PhaseOneLineSeriesOptions>,
+  histogramOptions: Required<PhaseOneHistogramSeriesOptions>,
+  visuals: ReadonlyMap<number, HistogramVisual>,
+): string {
+  const last = data[data.length - 1];
+  switch (kind) {
+    case "line":
+      return lineOptions.color;
+    case "bar":
+      return last !== undefined && last.close >= last.open ? barOptions.upColor : barOptions.downColor;
+    case "histogram": {
+      if (last === undefined) {
+        return histogramOptions.upColor;
+      }
+      const visual = visuals.get(last.time);
+      return visual?.color ?? (visual?.isUp ?? (last.close >= last.open) ? histogramOptions.upColor : histogramOptions.downColor);
+    }
+    case "candlestick":
+    default:
+      return last !== undefined && last.close >= last.open
+        ? candlestickOptions.upColor
+        : candlestickOptions.downColor;
+  }
+}
+
+function resolveSecondarySeriesColor(state: SecondarySeriesState): string {
+  const last = state.data[state.data.length - 1];
+  switch (state.kind) {
+    case "line": {
+      const options = state.options as Required<PhaseOneLineSeriesOptions>;
+      return options.color;
+    }
+    case "bar": {
+      const options = state.options as Required<PhaseOneBarSeriesOptions>;
+      return last !== undefined && last.close >= last.open ? options.upColor : options.downColor;
+    }
+    case "candlestick": {
+      const options = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+      return last !== undefined && last.close >= last.open ? options.upColor : options.downColor;
+    }
+    case "histogram":
+    case "volume": {
+      const options = state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>;
+      if (last === undefined) {
+        return options.upColor;
+      }
+      const visual = state.visuals.get(last.time);
+      return visual?.color ?? (visual?.isUp ?? (last.close >= last.open) ? options.upColor : options.downColor);
+    }
+  }
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

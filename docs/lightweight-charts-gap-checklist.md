@@ -35,6 +35,7 @@ The categories below are intentionally practical:
   - `subscribePaneEvents() / unsubscribePaneEvents()` on the chart API, with pane-state snapshots that also describe attached series metadata, identity, and labels
   - pointer-driven divider resize in the browser harness
   - controlled multi-series composition in managed secondary panes
+  - pane-aware readout payloads and in-pane legend summaries for managed multi-series panes
 - secondary panes are no longer volume-only
   - `candlestick`
   - `line`
@@ -109,7 +110,7 @@ Why this is still simplified:
 - public scale objects exist but still expose only a small subset of useful behavior
 - pane lifecycle now exists, and the first study series can target secondary panes
 - pane targeting is now more explicit, but the primary slot is still special and volume still stays secondary-only
-- pane handles now expose a small options surface, a resize callback, and a chart-level pane event bus with stable pane/series metadata snapshots, but pane-local APIs are still much narrower than lightweight-charts
+- pane handles now expose a small options surface, a resize callback, a chart-level pane event bus with stable pane/series metadata snapshots, and pane-aware readout payloads, but pane-local APIs are still much narrower than lightweight-charts
 - pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs and full pane management breadth
 
 ### Time and price scales

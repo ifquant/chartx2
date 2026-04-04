@@ -52,6 +52,11 @@ type PaneEventSnapshot = {
   };
 };
 
+type ReadoutSnapshot = {
+  paneIndex: number | null;
+  series: Array<{ label: string; color: string; value: number | null }>;
+};
+
 test("phase-one public api mounts a single candlestick chart and renders the first frame", async ({
   page,
 }) => {
@@ -652,7 +657,32 @@ test("phase-one public api supports controlled multi-series composition in one m
     mainSeries.setData(bars);
     lineSeries.setData(line);
     histogramSeries.setData(histogram);
+    lineSeries.applyOptions({ color: "#7c3aed", lineWidth: 3 });
+    histogramSeries.applyOptions({ upColor: "#f59e0b", downColor: "#f59e0b" });
     studyPane.setHeight(148);
+
+    let lastReadout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      lastReadout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.58,
+      clientY: rect.top + rect.height * 0.77,
+      bubbles: true,
+    }));
 
     return {
       panes: chart.panes().map((pane: { paneIndex(): number; getHeight(): number; hasSeries(): boolean }) => ({
@@ -661,6 +691,7 @@ test("phase-one public api supports controlled multi-series composition in one m
         hasSeries: pane.hasSeries(),
       })),
       paneEvents,
+      readout: lastReadout,
     };
   }, {
     bars: API_DATA,
@@ -676,6 +707,10 @@ test("phase-one public api supports controlled multi-series composition in one m
   expect(result.paneEvents[1]?.pane.seriesCount).toBe(2);
   expect(result.paneEvents[1]?.pane.seriesKinds).toEqual(["line", "histogram"]);
   expect(result.paneEvents[1]?.pane.series.map((series) => series.label)).toEqual(["Line 2", "Histogram 3"]);
+  const readout = result.readout as ReadoutSnapshot | null;
+  expect(readout?.paneIndex).toBe(1);
+  expect(readout?.series.map((series) => series.label)).toEqual(["Line 2", "Histogram 3"]);
+  expect(readout?.series.map((series) => series.color)).toEqual(["#7c3aed", "#f59e0b"]);
 
   const fixture = page.locator("#api-secondary-multi-fixture");
   await expect(fixture).toBeVisible();

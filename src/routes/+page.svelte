@@ -1,15 +1,26 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import { getChartxFoundation, type PhaseOneReadoutDetail } from "$lib/chartx/public";
   import {
-    getChartxFoundation,
-    mountChartxPhaseOneHarness,
-    type PhaseOneReadoutDetail,
-  } from "$lib/chartx/public";
+    FEATURE_TABS,
+    mountFeatureDemo,
+    mountWorkbenchDemo,
+    type DemoAction,
+    type DemoController,
+    type DemoSnapshot,
+    type DemoTabId,
+    type FeatureExampleDescriptor,
+    type FeatureTabId,
+  } from "$lib/demo/chartx-demo";
 
   const foundation = getChartxFoundation();
-  let canvas: HTMLCanvasElement | undefined;
-  let harnessError = "";
-  let readout: PhaseOneReadoutDetail = {
+  const topTabs: Array<{ id: DemoTabId; label: string }> = [
+    { id: "workbench", label: "Workbench" },
+    { id: "features", label: "Features" },
+  ];
+
+  const demoFeatureTabs = FEATURE_TABS;
+  const emptyReadout = (): PhaseOneReadoutDetail => ({
     active: false,
     paneIndex: null,
     time: null,
@@ -19,50 +30,173 @@
     close: null,
     price: null,
     series: [],
-  };
+  });
+  const emptySnapshot = (title: string, summary: string): DemoSnapshot => ({
+    title,
+    summary,
+    metrics: [],
+    eventLog: [],
+  });
 
-  const leftTools = ["+", "⌖", "╱", "⌗", "T", "☺", "⊕", "⌂", "🗑"];
-  const topTools = ["Indicators", "Alert", "Replay"];
-  const timeframes = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"];
-  const watchlist = [
-    { symbol: "SPX", last: "6,368.86", change: "-108.31", percent: "-1.67%" },
-    { symbol: "NDQ", last: "23,132.77", change: "-454.22", percent: "-1.93%" },
-    { symbol: "DJI", last: "45,166.64", change: "-793.47", percent: "-1.73%" },
-    { symbol: "VIX", last: "30.73", change: "-0.32", percent: "-1.03%" },
-    { symbol: "DXY", last: "100.257", change: "0.064", percent: "0.06%" },
-  ];
-  const performance = [
-    { label: "1W", value: "-4.64%" },
-    { label: "1M", value: "-7.98%" },
-    { label: "3M", value: "-9.96%" },
-    { label: "6M", value: "-5.24%" },
-    { label: "YTD", value: "-9.37%" },
-    { label: "1Y", value: "16.75%" },
-  ];
+  let activeDemoTab: DemoTabId = "workbench";
+  let activeFeatureTab: FeatureTabId = "panes";
+
+  let workbenchCanvas: HTMLCanvasElement | undefined;
+  let featureCanvas: HTMLCanvasElement | undefined;
+
+  let workbenchController: DemoController | null = null;
+  let featureController: DemoController | null = null;
+
+  let workbenchReadout = emptyReadout();
+  let featureReadout = emptyReadout();
+
+  let workbenchSnapshot = emptySnapshot(
+    "Workbench",
+    "Mounting the default workstation example.",
+  );
+  let featureSnapshot = emptySnapshot(
+    "Features",
+    "Select a focused chart capability tab to mount its example.",
+  );
+
+  let workbenchActions: readonly DemoAction[] = [];
+  let featureActions: readonly DemoAction[] = [];
+
+  let workbenchError = "";
+  let featureError = "";
+  let teardownWorkbenchReadout: (() => void) | null = null;
+  let teardownFeatureReadout: (() => void) | null = null;
 
   onMount(() => {
-    if (!canvas) {
+    void tick().then(() => {
+      mountWorkbench();
+    });
+
+    return () => {
+      teardownWorkbench();
+      teardownFeature();
+    };
+  });
+
+  function bindReadout(
+    canvas: HTMLCanvasElement,
+    assign: (detail: PhaseOneReadoutDetail) => void,
+  ): () => void {
+    const handleReadout = (event: Event) => {
+      assign((event as CustomEvent<PhaseOneReadoutDetail>).detail);
+    };
+
+    canvas.addEventListener("chartx:readout", handleReadout);
+    return () => canvas.removeEventListener("chartx:readout", handleReadout);
+  }
+
+  async function showDemoTab(tabId: DemoTabId): Promise<void> {
+    if (activeDemoTab === tabId) {
       return;
     }
 
-    const handleReadout = (event: Event) => {
-      const detail = (event as CustomEvent<PhaseOneReadoutDetail>).detail;
-      readout = detail;
-    };
-    canvas.addEventListener("chartx:readout", handleReadout);
+    if (tabId === "workbench") {
+      teardownFeature();
+      activeDemoTab = "workbench";
+      await tick();
+      mountWorkbench();
+      return;
+    }
+
+    teardownWorkbench();
+    activeDemoTab = "features";
+    await tick();
+    mountFeature(activeFeatureTab);
+  }
+
+  async function showFeatureTab(tab: FeatureExampleDescriptor): Promise<void> {
+    if (!tab.available || tab.id === activeFeatureTab) {
+      return;
+    }
+
+    activeFeatureTab = tab.id;
+    await tick();
+
+    if (activeDemoTab === "features") {
+      mountFeature(activeFeatureTab);
+    }
+  }
+
+  function teardownWorkbench(): void {
+    teardownWorkbenchReadout?.();
+    teardownWorkbenchReadout = null;
+    workbenchController?.destroy();
+    workbenchController = null;
+  }
+
+  function teardownFeature(): void {
+    teardownFeatureReadout?.();
+    teardownFeatureReadout = null;
+    featureController?.destroy();
+    featureController = null;
+  }
+
+  function mountWorkbench(): void {
+    teardownWorkbench();
+    workbenchError = "";
+    workbenchReadout = emptyReadout();
+
+    if (!workbenchCanvas) {
+      return;
+    }
+
+    teardownWorkbenchReadout = bindReadout(workbenchCanvas, (detail) => {
+      workbenchReadout = detail;
+    });
 
     try {
-      const destroy = mountChartxPhaseOneHarness(canvas);
-      return () => {
-        canvas?.removeEventListener("chartx:readout", handleReadout);
-        destroy();
-      };
+      workbenchController = mountWorkbenchDemo(workbenchCanvas, (snapshot) => {
+        workbenchSnapshot = snapshot;
+      });
+      workbenchActions = workbenchController.actions();
     } catch (error) {
-      harnessError = error instanceof Error ? error.message : "Unknown chart init failure";
-      canvas.removeEventListener("chartx:readout", handleReadout);
+      workbenchError =
+        error instanceof Error ? error.message : "Unknown workbench init failure";
+      teardownWorkbenchReadout?.();
+      teardownWorkbenchReadout = null;
+    }
+  }
+
+  function mountFeature(featureId: FeatureTabId): void {
+    teardownFeature();
+    featureError = "";
+    featureReadout = emptyReadout();
+
+    if (!featureCanvas) {
       return;
     }
-  });
+
+    teardownFeatureReadout = bindReadout(featureCanvas, (detail) => {
+      featureReadout = detail;
+    });
+
+    try {
+      featureController = mountFeatureDemo(featureCanvas, featureId, (snapshot) => {
+        featureSnapshot = snapshot;
+      });
+      featureActions = featureController.actions();
+    } catch (error) {
+      featureError =
+        error instanceof Error ? error.message : "Unknown feature demo init failure";
+      teardownFeatureReadout?.();
+      teardownFeatureReadout = null;
+    }
+  }
+
+  function runWorkbenchAction(actionId: string): void {
+    workbenchController?.runAction(actionId);
+    workbenchActions = workbenchController?.actions() ?? [];
+  }
+
+  function runFeatureAction(actionId: string): void {
+    featureController?.runAction(actionId);
+    featureActions = featureController?.actions() ?? [];
+  }
 
   function formatValue(value: number | null, digits = 2): string {
     return value === null
@@ -78,10 +212,6 @@
       return "--";
     }
 
-    if (Math.abs(value) < 100_000_000_000) {
-      return String(value);
-    }
-
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
       day: "2-digit",
@@ -91,707 +221,764 @@
     }).format(new Date(value));
   }
 
-  function formatSigned(value: string): string {
-    return value.startsWith("-") ? value : `+${value}`;
+  function actionClass(tone: DemoAction["tone"]): string {
+    if (tone === "accent") {
+      return "action-btn accent";
+    }
+    if (tone === "danger") {
+      return "action-btn danger";
+    }
+    return "action-btn";
   }
+
+  function featureTabClass(tab: FeatureExampleDescriptor): string {
+    if (!tab.available) {
+      return "feature-tab disabled";
+    }
+    return tab.id === activeFeatureTab ? "feature-tab active" : "feature-tab";
+  }
+
+  $: activeSnapshot = activeDemoTab === "workbench" ? workbenchSnapshot : featureSnapshot;
+  $: activeReadout = activeDemoTab === "workbench" ? workbenchReadout : featureReadout;
+  $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
+    (step) => step.status === "complete",
+  ).length;
 </script>
 
 <svelte:head>
-  <title>chartx2 | Demo Workstation</title>
+  <title>chartx2 | Demo Shell</title>
 </svelte:head>
 
-<main class="workspace">
+<main class="app-shell">
   <header class="topbar">
-    <div class="brand-strip">
-      <div class="notif">11</div>
-      <button class="symbol-chip">NDX</button>
-      <button class="ghost-btn">⌕</button>
-      <button class="ghost-btn">◎</button>
-      <div class="divider"></div>
-      <button class="ghost-btn">D</button>
-      <button class="ghost-btn">⇅</button>
-      {#each topTools as item}
-        <button class="tool-btn">{item}</button>
-      {/each}
+    <div class="brand-block">
+      <p class="eyebrow">chartx2</p>
+      <h1>Workbench + Feature Tabs</h1>
     </div>
 
-    <div class="topbar-meta">
-      <h2 class="workspace-heading">Phase-one floor is now carrying the first real pane architecture.</h2>
-      <button class="ghost-btn">↶</button>
-      <button class="ghost-btn">↷</button>
-      <button class="layout-chip">Unnamed</button>
-      <button class="trade-btn">Trade</button>
+    <nav class="top-tabs" aria-label="chartx2 demo modes">
+      {#each topTabs as tab}
+        <button
+          class:active={tab.id === activeDemoTab}
+          on:click={() => showDemoTab(tab.id)}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </nav>
+
+    <div class="status-chip">
+      <strong>{completedPhaseOneSteps}/{foundation.phaseOneSteps.length}</strong>
+      <span>phase-one steps complete</span>
     </div>
   </header>
 
-  <section class="shell">
-    <aside class="left-rail">
-      {#each leftTools as item}
-        <button class="rail-btn">{item}</button>
-      {/each}
-    </aside>
+  <section class="hero-strip">
+    <div>
+      <p class="hero-kicker">Example Program Role</p>
+      <h2 class="workspace-heading">
+        Phase-one floor is now carrying the first real pane architecture.
+      </h2>
+    </div>
+    <p class="hero-copy">
+      `Workbench` communicates the chart workstation direction. `Features` makes the
+      current public API breadth legible tab by tab.
+    </p>
+  </section>
 
-    <section class="chart-shell">
-      <div class="chart-header">
-        <div class="market-line">
-          <strong>Nasdaq 100 Index</strong>
-          <span>1D</span>
-          <span>NASDAQ</span>
-          <span class="ohlc o">O {formatValue(readout.open)}</span>
-          <span class="ohlc h">H {formatValue(readout.high)}</span>
-          <span class="ohlc l">L {formatValue(readout.low)}</span>
-          <span class="ohlc c">C {formatValue(readout.close)}</span>
-        </div>
-        <div class="market-side">
-          <span>USD</span>
-          <span>{formatTime(readout.time)}</span>
-        </div>
-      </div>
-
-      <div class="chart-board chart-frame">
-        <div class="chart-overlays">
-          <div class="quote-cards">
-            <article class="quote-card sell">
-              <span>23,132.77</span>
-              <small>SELL</small>
-            </article>
-            <article class="quote-card buy">
-              <span>23,132.77</span>
-              <small>BUY</small>
-            </article>
-          </div>
-
-          <div class="study-strip">
-            <div class="study-meta readout-bar">
-              <span class="study-name">Pane {readout.paneIndex === null ? "--" : readout.paneIndex + 1}</span>
-              {#each readout.series as series}
-                <span class="study-pill" style={`--series-color: ${series.color};`}>
-                  {series.label} {formatValue(series.value)}
-                </span>
-              {/each}
+  <section class="layout-grid">
+    <section class="main-column">
+      {#if activeDemoTab === "workbench"}
+        <article class="demo-card" data-demo-tab="workbench">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Complete Example</p>
+              <h3>Compact Workbench</h3>
+            </div>
+            <div class="toolbar-strip">
+              <button>NDX</button>
+              <button>1D</button>
+              <button>Indicators</button>
+              <button>Layout</button>
             </div>
           </div>
-        </div>
 
-        {#if harnessError}
-          <div class="error-state">
-            <p class="error-label">chart init failure</p>
-            <p>{harnessError}</p>
+          <div class="chart-meta">
+            <div class="market-line">
+              <strong>Nasdaq 100 Index</strong>
+              <span>NASDAQ</span>
+              <span>O {formatValue(workbenchReadout.open)}</span>
+              <span>H {formatValue(workbenchReadout.high)}</span>
+              <span>L {formatValue(workbenchReadout.low)}</span>
+              <span>C {formatValue(workbenchReadout.close)}</span>
+            </div>
+            <div class="market-line">
+              <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
+              <span>{formatTime(workbenchReadout.time)}</span>
+            </div>
           </div>
-        {:else}
-          <canvas bind:this={canvas} aria-label="chartx2 phase-one chart harness"></canvas>
-        {/if}
-      </div>
 
-      <footer class="statusbar">
-        <div class="tf-strip">
-          {#each timeframes as timeframe}
-            <button class:active={timeframe === "1D"}>{timeframe}</button>
-          {/each}
-        </div>
-        <div class="status-meta">
-          <span>{formatTime(readout.time)}</span>
-          <span>Phase-one floor</span>
-        </div>
-      </footer>
+          <div class="chart-frame-shell">
+            <div class="quote-cards">
+              <article class="quote-card sell">
+                <strong>{formatValue(workbenchReadout.close)}</strong>
+                <small>SELL</small>
+              </article>
+              <article class="quote-card buy">
+                <strong>{formatValue(workbenchReadout.close)}</strong>
+                <small>BUY</small>
+              </article>
+            </div>
+
+            <div class="chart-frame">
+              {#if workbenchError}
+                <div class="error-state">
+                  <p class="error-label">chart init failure</p>
+                  <p>{workbenchError}</p>
+                </div>
+              {:else}
+                <canvas
+                  bind:this={workbenchCanvas}
+                  aria-label="chartx2 phase-one chart harness"
+                ></canvas>
+              {/if}
+            </div>
+          </div>
+
+          <div class="readout-bar">
+            <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
+            <span>O {formatValue(workbenchReadout.open)}</span>
+            <span>H {formatValue(workbenchReadout.high)}</span>
+            <span>L {formatValue(workbenchReadout.low)}</span>
+            <span>C {formatValue(workbenchReadout.close)}</span>
+            {#each workbenchReadout.series as series}
+              <span class="series-pill" style={`--series-color: ${series.color};`}>
+                {series.label} {formatValue(series.value)}
+              </span>
+            {/each}
+          </div>
+
+          <div class="action-strip">
+            {#each workbenchActions as action}
+              <button
+                class={actionClass(action.tone)}
+                on:click={() => runWorkbenchAction(action.id)}
+              >
+                {action.label}
+              </button>
+            {/each}
+          </div>
+        </article>
+      {:else}
+        <article class="demo-card" data-demo-tab="features">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Grouped Examples</p>
+              <h3>Feature Matrix</h3>
+            </div>
+            <p class="head-copy">
+              Each tab keeps one chart capability focused instead of pretending the
+              workstation itself is the whole product.
+            </p>
+          </div>
+
+          <div class="feature-tabs" role="tablist" aria-label="chartx2 feature examples">
+            {#each demoFeatureTabs as tab}
+              <button
+                class={featureTabClass(tab)}
+                aria-disabled={!tab.available}
+                on:click={() => showFeatureTab(tab)}
+              >
+                {tab.label}
+              </button>
+            {/each}
+          </div>
+
+          <div class="feature-summary">
+            <strong>{demoFeatureTabs.find((tab) => tab.id === activeFeatureTab)?.label}</strong>
+            <span>{demoFeatureTabs.find((tab) => tab.id === activeFeatureTab)?.summary}</span>
+          </div>
+
+          <div class="chart-frame feature-frame">
+            {#if featureError}
+              <div class="error-state">
+                <p class="error-label">chart init failure</p>
+                <p>{featureError}</p>
+              </div>
+            {:else}
+              <canvas
+                bind:this={featureCanvas}
+                aria-label="chartx2 feature demo chart"
+              ></canvas>
+            {/if}
+          </div>
+
+          <div class="readout-bar feature-readout">
+            <span>Pane {featureReadout.paneIndex === null ? "--" : featureReadout.paneIndex + 1}</span>
+            <span>O {formatValue(featureReadout.open)}</span>
+            <span>H {formatValue(featureReadout.high)}</span>
+            <span>L {formatValue(featureReadout.low)}</span>
+            <span>C {formatValue(featureReadout.close)}</span>
+            {#each featureReadout.series as series}
+              <span class="series-pill" style={`--series-color: ${series.color};`}>
+                {series.label} {formatValue(series.value)}
+              </span>
+            {/each}
+          </div>
+
+          <div class="action-strip">
+            {#each featureActions as action}
+              <button
+                class={actionClass(action.tone)}
+                on:click={() => runFeatureAction(action.id)}
+              >
+                {action.label}
+              </button>
+            {/each}
+          </div>
+        </article>
+      {/if}
     </section>
 
-    <aside class="rightbar">
-      <section class="watchlist-card">
-        <div class="card-head">
-          <h2>Watchlist</h2>
-          <button class="ghost-btn">＋</button>
+    <aside class="context-rail">
+      <section class="context-card">
+        <p class="eyebrow">Context Panel</p>
+        <h3>{activeSnapshot.title}</h3>
+        <p>{activeSnapshot.summary}</p>
+      </section>
+
+      <section class="context-card">
+        <div class="card-label-row">
+          <span class="eyebrow">Current Readout</span>
+          <span>{formatTime(activeReadout.time)}</span>
         </div>
-        <div class="watchlist-head">
-          <span>Symbol</span>
-          <span>Last</span>
-          <span>Chg</span>
-        </div>
-        <div class="watchlist-body">
-          {#each watchlist as item}
-            <div class="watch-item">
-              <strong>{item.symbol}</strong>
-              <span>{item.last}</span>
-              <span class:down={item.change.startsWith("-")} class:up={!item.change.startsWith("-")}>
-                {formatSigned(item.change)} {item.percent}
-              </span>
-            </div>
-          {/each}
+        <div class="readout-grid">
+          <article>
+            <small>Open</small>
+            <strong>{formatValue(activeReadout.open)}</strong>
+          </article>
+          <article>
+            <small>High</small>
+            <strong>{formatValue(activeReadout.high)}</strong>
+          </article>
+          <article>
+            <small>Low</small>
+            <strong>{formatValue(activeReadout.low)}</strong>
+          </article>
+          <article>
+            <small>Close</small>
+            <strong>{formatValue(activeReadout.close)}</strong>
+          </article>
         </div>
       </section>
 
-      <section class="detail-card">
-        <div class="card-head">
-          <h2>NDX</h2>
-          <span class="mini-meta">NASDAQ</span>
+      <section class="context-card">
+        <div class="card-label-row">
+          <span class="eyebrow">Metrics</span>
+          <span>{activeSnapshot.metrics.length}</span>
         </div>
-        <div class="headline-price">{formatValue(readout.close)}</div>
-        <div class="headline-change down">-454.22 -1.93%</div>
-        <p class="detail-copy">让首页先收敛成 demo 风格工作台，而不是继续像文档页。</p>
-        <div class="detail-status">
-          <span>Phase-one</span>
-          <strong>{foundation.phaseOneSteps.filter((step) => step.status === "complete").length}/10 complete</strong>
-        </div>
-      </section>
-
-      <section class="performance-card">
-        <h2>Performance</h2>
-        <div class="perf-grid">
-          {#each performance as item}
-            <article class:positive={!item.value.startsWith("-")}>
-              <strong>{item.value}</strong>
-              <small>{item.label}</small>
+        <div class="metric-list">
+          {#each activeSnapshot.metrics as metric}
+            <article>
+              <small>{metric.label}</small>
+              <strong>{metric.value}</strong>
             </article>
           {/each}
         </div>
       </section>
+
+      <section class="context-card">
+        <div class="card-label-row">
+          <span class="eyebrow">Event Log</span>
+          <span>{activeSnapshot.eventLog.length}</span>
+        </div>
+        <ul class="event-log">
+          {#if activeSnapshot.eventLog.length === 0}
+            <li>Waiting for the first chart event.</li>
+          {:else}
+            {#each activeSnapshot.eventLog as entry}
+              <li>{entry}</li>
+            {/each}
+          {/if}
+        </ul>
+      </section>
+
+      {#if activeSnapshot.note}
+        <section class="context-card note-card">
+          <p class="eyebrow">Note</p>
+          <p>{activeSnapshot.note}</p>
+        </section>
+      {/if}
+
+      {#if activeSnapshot.featureGap}
+        <section class="context-card gap-card">
+          <p class="eyebrow">Current Gap</p>
+          <p>{activeSnapshot.featureGap}</p>
+        </section>
+      {/if}
     </aside>
   </section>
 </main>
 
 <style>
-:root {
-  color: #1d1d1f;
-  background: #f7f6f3;
-  font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
-}
-
-:global(body) {
-  margin: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 240, 234, 0.98) 100%);
-}
-
-.workspace {
-  height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  overflow: hidden;
-}
-
-.topbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.7rem 1rem;
-  border-bottom: 1px solid rgba(28, 28, 30, 0.08);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.brand-strip,
-.topbar-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-width: 0;
-}
-
-.brand-strip {
-  overflow: hidden;
-}
-
-.topbar-meta {
-  justify-content: flex-end;
-}
-
-.workspace-heading {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 26rem;
-  margin: 0 0.45rem 0 0;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: rgba(29, 29, 31, 0.56);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.notif,
-.rail-btn,
-.ghost-btn,
-.tool-btn,
-.symbol-chip,
-.layout-chip,
-.trade-btn,
-.tf-strip button {
-  border: 1px solid rgba(28, 28, 30, 0.1);
-  background: rgba(255, 255, 255, 0.92);
-  color: inherit;
-}
-
-.notif {
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 0.68rem;
-  color: #fff;
-  background: #e15353;
-  border: none;
-}
-
-.symbol-chip,
-.layout-chip,
-.trade-btn,
-.tool-btn,
-.ghost-btn {
-  border-radius: 0.7rem;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.82rem;
-}
-
-.symbol-chip {
-  font-weight: 700;
-}
-
-.trade-btn {
-  background: #f1ede4;
-}
-
-.divider {
-  width: 1px;
-  height: 1.35rem;
-  background: rgba(28, 28, 30, 0.1);
-}
-
-.shell {
-  display: grid;
-  grid-template-columns: 3.4rem minmax(0, 1fr) clamp(15.5rem, 18vw, 19rem);
-  gap: 0;
-  min-height: 0;
-  height: 100%;
-}
-
-.left-rail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.8rem 0.55rem;
-  border-right: 1px solid rgba(28, 28, 30, 0.08);
-  background: rgba(249, 248, 245, 0.96);
-}
-
-.rail-btn {
-  width: 2.3rem;
-  height: 2.3rem;
-  border-radius: 0.8rem;
-  display: grid;
-  place-items: center;
-  font-size: 0.95rem;
-}
-
-.chart-shell {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-width: 0;
-  min-height: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(246, 243, 236, 0.86) 100%);
-}
-
-.chart-header,
-.statusbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.55rem 0.9rem;
-  border-bottom: 1px solid rgba(28, 28, 30, 0.07);
-}
-
-.statusbar {
-  border-top: 1px solid rgba(28, 28, 30, 0.07);
-  border-bottom: none;
-}
-
-.market-line,
-.market-side,
-.tf-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-}
-
-.market-line {
-  font-size: 0.82rem;
-}
-
-.market-line strong {
-  font-size: 1rem;
-  margin-right: 0.3rem;
-}
-
-.ohlc.o,
-.ohlc.h {
-  color: #b87426;
-}
-
-.ohlc.l,
-.ohlc.c {
-  color: #bc4a4a;
-}
-
-.chart-board {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(250, 247, 241, 0.85) 100%);
-}
-
-.chart-overlays {
-  position: absolute;
-  inset: 0 0 auto 0;
-  z-index: 2;
-  pointer-events: none;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.8rem;
-}
-
-.quote-cards {
-  display: flex;
-  gap: 0.6rem;
-}
-
-.quote-card {
-  display: grid;
-  gap: 0.15rem;
-  min-width: 5.5rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(28, 28, 30, 0.08);
-  box-shadow: 0 10px 24px rgba(28, 28, 30, 0.08);
-  font-size: 0.78rem;
-}
-
-.quote-card span {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.quote-card.sell {
-  color: #bf4444;
-}
-
-.quote-card.buy {
-  color: #316bd5;
-}
-
-.study-strip {
-  display: flex;
-  justify-content: flex-end;
-  width: min(46rem, 100%);
-}
-
-.study-meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.45rem;
-  max-width: 100%;
-}
-
-.study-name,
-.study-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.38rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(28, 28, 30, 0.08);
-  font-size: 0.72rem;
-  box-shadow: 0 8px 20px rgba(28, 28, 30, 0.05);
-}
-
-.study-pill::before {
-  content: "";
-  width: 0.48rem;
-  height: 0.48rem;
-  border-radius: 999px;
-  background: var(--series-color, rgba(28, 28, 30, 0.4));
-}
-
-canvas {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-}
-
-.tf-strip button {
-  border-radius: 999px;
-  padding: 0.35rem 0.62rem;
-  font-size: 0.76rem;
-}
-
-.tf-strip button.active {
-  background: #1d1d1f;
-  color: #fff;
-}
-
-.status-meta {
-  display: flex;
-  gap: 0.7rem;
-  font-size: 0.76rem;
-  color: rgba(29, 29, 31, 0.62);
-}
-
-.rightbar {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  align-content: start;
-  gap: 0.8rem;
-  padding: 0.85rem;
-  border-left: 1px solid rgba(28, 28, 30, 0.08);
-  background: rgba(250, 249, 246, 0.96);
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.watchlist-card,
-.detail-card,
-.performance-card {
-  border: 1px solid rgba(28, 28, 30, 0.08);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 10px 22px rgba(28, 28, 30, 0.05);
-  padding: 0.85rem;
-}
-
-.watchlist-card {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  min-height: 0;
-}
-
-.card-head,
-.watchlist-head,
-.watch-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.65rem;
-  align-items: center;
-}
-
-.card-head {
-  grid-template-columns: minmax(0, 1fr) auto;
-  margin-bottom: 0.7rem;
-}
-
-.card-head h2,
-.performance-card h2 {
-  margin: 0;
-  font-size: 0.86rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.mini-meta,
-.watchlist-head,
-.detail-copy {
-  font-size: 0.74rem;
-  color: rgba(29, 29, 31, 0.62);
-}
-
-.watchlist-head {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(28, 28, 30, 0.07);
-}
-
-.watchlist-body {
-  display: grid;
-  align-content: start;
-  gap: 0.45rem;
-  padding-top: 0.55rem;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.watch-item strong {
-  font-size: 0.84rem;
-}
-
-.watch-item span:last-child,
-.headline-change.down,
-.down {
-  color: #c7543e;
-}
-
-.up,
-.positive strong {
-  color: #1a8f62;
-}
-
-.headline-price {
-  font-size: 2.25rem;
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 0.45rem;
-}
-
-.headline-change {
-  font-size: 1rem;
-  margin-bottom: 0.65rem;
-}
-
-.detail-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.9rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid rgba(28, 28, 30, 0.08);
-  font-size: 0.74rem;
-  color: rgba(29, 29, 31, 0.62);
-}
-
-.detail-status strong {
-  color: #1d1d1f;
-  font-size: 0.76rem;
-}
-
-.perf-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-}
-
-.perf-grid article {
-  padding: 0.7rem 0.55rem;
-  border-radius: 0.8rem;
-  background: rgba(243, 115, 115, 0.1);
-  display: grid;
-  gap: 0.15rem;
-  text-align: center;
-}
-
-.perf-grid article.positive {
-  background: rgba(37, 167, 110, 0.14);
-}
-
-.perf-grid strong {
-  font-size: 0.86rem;
-}
-
-.perf-grid small {
-  color: rgba(29, 29, 31, 0.62);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-}
-
-.error-state {
-  min-height: 26rem;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  color: #c7543e;
-}
-
-.error-label {
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.72rem;
-}
-
-@media (max-width: 1200px) {
-  .topbar {
-    gap: 0.7rem;
-    padding-inline: 0.7rem;
+  :global(body) {
+    margin: 0;
+    background: #f5f2eb;
+    color: #18181b;
+    font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
   }
 
-  .symbol-chip,
-  .layout-chip,
-  .trade-btn,
-  .tool-btn,
-  .ghost-btn {
-    padding: 0.42rem 0.6rem;
-    font-size: 0.78rem;
-  }
-
-  .workspace-heading {
-    max-width: 18rem;
-  }
-
-  .quote-card {
-    min-width: 4.8rem;
-    padding-inline: 0.6rem;
-  }
-}
-
-@media (max-width: 1040px) {
-  .shell {
-    grid-template-columns: 3.4rem minmax(0, 1fr);
-  }
-
-  .rightbar {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: none;
-    border-left: none;
-    border-top: 1px solid rgba(28, 28, 30, 0.08);
-    overflow: visible;
-  }
-}
-
-@media (max-width: 900px) {
-  .workspace {
-    height: auto;
+  .app-shell {
     min-height: 100vh;
-    overflow: visible;
+    padding: 24px;
+    box-sizing: border-box;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 28%),
+      linear-gradient(180deg, #f7f3eb 0%, #f1ede5 100%);
   }
 
   .topbar,
-  .chart-header,
-  .statusbar {
-    flex-direction: column;
-    align-items: flex-start;
+  .hero-strip,
+  .layout-grid,
+  .demo-card,
+  .context-card {
+    box-sizing: border-box;
   }
 
-  .shell {
-    grid-template-columns: 1fr;
+  .topbar {
+    display: grid;
+    grid-template-columns: 1.2fr auto auto;
+    gap: 18px;
+    align-items: center;
+    padding: 18px 20px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    border-radius: 24px;
+    background: rgba(255, 252, 246, 0.9);
+    box-shadow: 0 14px 40px rgba(34, 32, 28, 0.06);
+  }
+
+  .brand-block h1,
+  .hero-strip h2,
+  .card-head h3,
+  .context-card h3 {
+    margin: 0;
+  }
+
+  .eyebrow {
+    margin: 0 0 6px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(24, 24, 27, 0.48);
+  }
+
+  .top-tabs {
+    display: inline-flex;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 18px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .top-tabs button,
+  .toolbar-strip button,
+  .feature-tab,
+  .action-btn {
+    border: 0;
+    cursor: pointer;
+    transition:
+      transform 120ms ease,
+      background 120ms ease,
+      color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .top-tabs button {
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: transparent;
+    color: rgba(24, 24, 27, 0.64);
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .top-tabs button.active {
+    background: #18181b;
+    color: #fffdf8;
+    box-shadow: 0 10px 24px rgba(24, 24, 27, 0.16);
+  }
+
+  .status-chip {
+    display: grid;
+    gap: 2px;
+    justify-items: end;
+    padding: 10px 14px;
+    border-radius: 16px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .status-chip strong {
+    font-size: 1.15rem;
+  }
+
+  .status-chip span {
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.88rem;
+  }
+
+  .hero-strip {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 18px;
+    align-items: end;
+    margin: 18px 0;
+    padding: 20px 24px;
+    border-radius: 28px;
+    background: rgba(255, 252, 246, 0.84);
+    border: 1px solid rgba(24, 24, 27, 0.08);
   }
 
   .workspace-heading {
+    font-size: clamp(1.45rem, 1.2rem + 1vw, 2rem);
+    line-height: 1.08;
+  }
+
+  .hero-kicker,
+  .hero-copy {
+    margin: 0;
+  }
+
+  .hero-kicker {
+    color: rgba(24, 24, 27, 0.52);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+
+  .hero-copy {
+    color: rgba(24, 24, 27, 0.72);
+    line-height: 1.55;
+  }
+
+  .layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .main-column {
+    min-width: 0;
+  }
+
+  .demo-card {
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 28px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(255, 252, 246, 0.9);
+    box-shadow: 0 18px 48px rgba(38, 33, 24, 0.07);
+  }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .toolbar-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .toolbar-strip button {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(24, 24, 27, 0.05);
+    font: inherit;
+    font-weight: 600;
+    color: rgba(24, 24, 27, 0.75);
+  }
+
+  .chart-meta,
+  .market-line,
+  .card-label-row,
+  .feature-summary,
+  .action-strip,
+  .readout-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .market-line,
+  .feature-summary {
+    color: rgba(24, 24, 27, 0.66);
+    font-size: 0.95rem;
+  }
+
+  .market-line strong,
+  .feature-summary strong {
+    color: #18181b;
+  }
+
+  .chart-frame-shell {
+    position: relative;
+  }
+
+  .quote-cards {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 2;
+    display: flex;
+    gap: 12px;
+  }
+
+  .quote-card {
+    min-width: 112px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    box-shadow: 0 14px 28px rgba(26, 25, 21, 0.08);
+  }
+
+  .quote-card strong,
+  .quote-card small {
+    display: block;
+  }
+
+  .quote-card.sell strong {
+    color: #c7543e;
+  }
+
+  .quote-card.buy strong {
+    color: #365cb7;
+  }
+
+  .chart-frame {
+    min-height: 620px;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid rgba(24, 24, 27, 0.09);
+    background: #fffdf7;
+  }
+
+  .feature-frame {
+    min-height: 520px;
+  }
+
+  canvas {
+    display: block;
     width: 100%;
-    margin: 0 0 0.3rem;
+    height: 100%;
   }
 
-  .left-rail {
-    flex-direction: row;
-    overflow-x: auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(28, 28, 30, 0.08);
+  .readout-bar {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(24, 24, 27, 0.04);
+    color: rgba(24, 24, 27, 0.72);
+    font-size: 0.95rem;
   }
 
-  .rightbar {
-    grid-template-columns: 1fr;
+  .feature-readout {
+    min-height: 52px;
   }
 
-  .chart-overlays {
-    position: static;
-    padding: 0.8rem 0.8rem 0;
-    flex-direction: column;
+  .series-pill {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--series-color) 12%, white);
+    color: rgba(24, 24, 27, 0.8);
   }
 
-  .quote-cards,
-  .study-strip,
-  .study-meta {
-    justify-content: flex-start;
+  .series-pill::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--series-color);
   }
-}
+
+  .action-strip {
+    padding-top: 4px;
+  }
+
+  .action-btn {
+    padding: 11px 16px;
+    border-radius: 14px;
+    background: rgba(24, 24, 27, 0.05);
+    color: rgba(24, 24, 27, 0.86);
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .action-btn.accent {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .action-btn.danger {
+    background: rgba(199, 84, 62, 0.12);
+    color: #9f2f1c;
+  }
+
+  .feature-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .feature-tab {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.05);
+    color: rgba(24, 24, 27, 0.78);
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .feature-tab.active {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .feature-tab.disabled {
+    opacity: 0.46;
+    cursor: not-allowed;
+  }
+
+  .head-copy {
+    max-width: 440px;
+    margin: 0;
+    color: rgba(24, 24, 27, 0.68);
+    line-height: 1.55;
+  }
+
+  .context-rail {
+    display: grid;
+    gap: 14px;
+    align-self: start;
+  }
+
+  .context-card {
+    padding: 18px;
+    border-radius: 24px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(255, 252, 246, 0.9);
+    box-shadow: 0 14px 34px rgba(38, 33, 24, 0.06);
+  }
+
+  .context-card p {
+    margin: 0;
+    line-height: 1.55;
+    color: rgba(24, 24, 27, 0.7);
+  }
+
+  .readout-grid,
+  .metric-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .readout-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .readout-grid article,
+  .metric-list article {
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .readout-grid small,
+  .metric-list small {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(24, 24, 27, 0.5);
+  }
+
+  .event-log {
+    margin: 12px 0 0;
+    padding-left: 18px;
+    color: rgba(24, 24, 27, 0.72);
+  }
+
+  .event-log li + li {
+    margin-top: 8px;
+  }
+
+  .note-card {
+    background: rgba(255, 250, 237, 0.92);
+  }
+
+  .gap-card {
+    background: rgba(248, 245, 255, 0.88);
+  }
+
+  .error-state {
+    display: grid;
+    place-items: center;
+    min-height: 320px;
+    padding: 24px;
+    text-align: center;
+    color: #9f2f1c;
+    background: rgba(199, 84, 62, 0.08);
+  }
+
+  .error-label {
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 1220px) {
+    .layout-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .context-rail {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .app-shell {
+      padding: 16px;
+    }
+
+    .topbar,
+    .hero-strip,
+    .card-head {
+      grid-template-columns: 1fr;
+      flex-direction: column;
+      align-items: start;
+    }
+
+    .context-rail {
+      grid-template-columns: 1fr;
+    }
+
+    .chart-frame {
+      min-height: 480px;
+    }
+
+    .feature-frame {
+      min-height: 420px;
+    }
+  }
 </style>

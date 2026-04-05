@@ -2,13 +2,26 @@
 
 This document records the current gap between `chartx2` and TradingView `lightweight-charts` after phase one.
 
-It is not a product roadmap for the full TradingView-style workstation.
+It is also now paired with a demo-shell question:
+
+`Can chartx2 show its current engine breadth clearly, or does the example program still hide too much of the chart surface?`
+
+This is still not a product roadmap for the full TradingView-style workstation.
 
 It answers a narrower question:
 
 `How far is chartx2 from lightweight-charts itself, and what should be closed next?`
 
-The categories below are intentionally practical:
+The categories below are intentionally practical and now split into three lenses:
+
+- `Engine Gap`
+  - what is still missing versus `lightweight-charts`
+- `Demo / Showcase Gap`
+  - what the example program still fails to expose clearly even when the engine support already exists
+- `Deferred TradingView Workstation Gap`
+  - what matters for the long-term terminal shape but sits beyond the current library-comparison line
+
+The capability categories below are intentionally practical:
 
 - `Done` means `chartx2` already covers the capability at the current phase-one floor.
 - `Done But Simplified` means `chartx2` covers the shape, but still in a narrower or harder-coded way than `lightweight-charts`.
@@ -258,6 +271,42 @@ These matter for `chartx2` long term, but they are not required just to close th
 - full TradingView-style top toolbar
 - left drawing-tools rail
 - right watchlist / symbol detail panels
+- full workstation routing and layout persistence
+- multi-chart page management
+- alert / replay / indicator-management workflows
+
+## Demo / Showcase Gap
+
+Even after phase one, `chartx2` can still look thinner than it really is if the example program exposes only one evolving homepage.
+
+The current demo-shell priorities are:
+
+- keep `Workbench` as the default complete example
+  - this should communicate the long-term direction in one coherent chart workstation
+- keep `Features` as a grouped example matrix
+  - this should expose current chart breadth tab by tab without requiring users to read code
+- avoid fake placeholders
+  - if `area`, `baseline`, `markers`, or `price lines` are still missing, the demo should say so directly
+- keep all example tabs on the public API
+  - the route shell and demo composition layer should not import chart internals directly
+
+The main demo/showcase gaps still open after the shell reframe are:
+
+- `Annotations` is still deferred because markers and price lines are not on the public API yet
+- the workbench still shows only one coherent workstation slice, not a broader set of terminal workflows
+- the feature tabs still need to grow alongside future engine work so the showcase stays honest
+
+## Deferred TradingView Workstation Gap
+
+This section is intentionally broader than `lightweight-charts`.
+
+It tracks the long-term direction that `chartx2` is supposed to grow toward once the library-class floor keeps rising:
+
+- richer top toolbar flows for symbol, timeframe, compare, and replay
+- left-side drawing and annotation tools
+- watchlist, symbol detail, and market context panels that react to real chart state
+- multi-pane indicator workflows closer to the TradingView page shape
+- eventually, multi-chart layouts, alert surfaces, and richer workstation state management
 - alerts
 - replay
 - multi-chart layout workspace

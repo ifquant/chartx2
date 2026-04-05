@@ -1,24 +1,34 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("phase-one harness renders the baseline chart", async ({ page }) => {
+function featureTab(page: Page, name: string) {
+  return page
+    .locator('[data-demo-tab="features"] .feature-tabs')
+    .getByRole("button", { name, exact: true });
+}
+
+test("workbench opens by default and renders the baseline chart", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: /phase-one floor is now carrying the first real pane architecture/i }).first(),
+    page.getByRole("heading", {
+      name: /phase-one floor is now carrying the first real pane architecture/i,
+    }),
   ).toBeVisible();
-  const frame = page.locator(".chart-frame");
+  await expect(page.getByRole("button", { name: "Workbench" })).toHaveClass(/active/);
+
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness.png");
 });
 
-test("phase-one harness keeps a deterministic smaller-layout baseline", async ({ page }) => {
+test("workbench keeps a deterministic smaller-layout baseline", async ({ page }) => {
   await page.setViewportSize({ width: 840, height: 1100 });
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-narrow.png");
 });
 
-test("phase-one harness keeps a deterministic high-dpi baseline", async ({ page }) => {
+test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "devicePixelRatio", {
       configurable: true,
@@ -27,7 +37,7 @@ test("phase-one harness keeps a deterministic high-dpi baseline", async ({ page 
   });
 
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-hidpi.png");
@@ -49,11 +59,11 @@ test("phase-one harness keeps a deterministic high-dpi baseline", async ({ page 
   expect(Math.abs(metrics.height - metrics.cssHeight * 2)).toBeLessThanOrEqual(1);
 });
 
-test("phase-one harness renders a deterministic crosshair snapshot", async ({ page }) => {
+test("workbench renders a deterministic crosshair snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
-  const readout = page.locator(".readout-bar").first();
+  const readout = page.locator('[data-demo-tab="workbench"] .readout-bar').first();
   await expect(canvas).toBeVisible();
 
   const box = await canvas.boundingBox();
@@ -69,9 +79,9 @@ test("phase-one harness renders a deterministic crosshair snapshot", async ({ pa
   await expect(frame).toHaveScreenshot("phase-one-harness-crosshair.png");
 });
 
-test("phase-one harness renders a deterministic zoomed viewport snapshot", async ({ page }) => {
+test("workbench renders a deterministic zoomed viewport snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -83,9 +93,9 @@ test("phase-one harness renders a deterministic zoomed viewport snapshot", async
   await expect(frame).toHaveScreenshot("phase-one-harness-zoomed.png");
 });
 
-test("phase-one harness renders a deterministic dragged viewport snapshot", async ({ page }) => {
+test("workbench renders a deterministic dragged viewport snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -104,9 +114,9 @@ test("phase-one harness renders a deterministic dragged viewport snapshot", asyn
   await expect(frame).toHaveScreenshot("phase-one-harness-panned.png");
 });
 
-test("phase-one harness renders a deterministic pane-resized snapshot", async ({ page }) => {
+test("workbench renders a deterministic pane-resized snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator(".chart-frame");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -125,7 +135,7 @@ test("phase-one harness renders a deterministic pane-resized snapshot", async ({
   await expect(frame).toHaveScreenshot("phase-one-harness-pane-resized.png");
 });
 
-test("phase-one harness shows a visible error state when chart init fails", async ({ page }) => {
+test("workbench shows a visible error state when chart init fails", async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     const patchedGetContext = function (
@@ -143,8 +153,58 @@ test("phase-one harness shows a visible error state when chart init fails", asyn
   });
 
   await page.goto("/");
-  const errorState = page.locator(".error-state");
+  const errorState = page.locator('[data-demo-tab="workbench"] .error-state');
   await expect(errorState).toBeVisible();
   await expect(errorState).toContainText("chart init failure");
   await expect(errorState).toContainText("Canvas 2D context is unavailable");
+});
+
+test("features renders the panes tab as a deterministic grouped example baseline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Features" }).click();
+  const card = page.locator('[data-demo-tab="features"]');
+  await expect(card).toBeVisible();
+  await expect(featureTab(page, "Panes")).toHaveClass(/active/);
+  await expect(card).toHaveScreenshot("demo-features-panes.png");
+});
+
+test("features renders the interactions tab as a deterministic grouped example baseline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Features" }).click();
+  await featureTab(page, "Interactions").click();
+  const card = page.locator('[data-demo-tab="features"]');
+  await expect(card).toContainText("crosshair, click, pan, and zoom");
+  await expect(card).toHaveScreenshot("demo-features-interactions.png");
+});
+
+test("features renders the series tab as a deterministic grouped example baseline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Features" }).click();
+  await featureTab(page, "Series").click();
+  const card = page.locator('[data-demo-tab="features"]');
+  await expect(card).toContainText("candlestick, bar, line, histogram, and volume");
+  await expect(card).toHaveScreenshot("demo-features-series.png");
+});
+
+test("tab switching keeps chart mount deterministic without stale content", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByLabel("chartx2 phase-one chart harness")).toBeVisible();
+
+  await page.getByRole("button", { name: "Features" }).click();
+  await expect(page.getByLabel("chartx2 feature demo chart")).toBeVisible();
+  await expect(page.getByText("Grouped Examples")).toBeVisible();
+  await expect(page.locator('[data-demo-tab="workbench"]')).toHaveCount(0);
+
+  await featureTab(page, "Series").click();
+  await expect(page.getByText("render candlestick")).toBeVisible();
+
+  await page.getByRole("button", { name: "Workbench" }).click();
+  await expect(page.getByLabel("chartx2 phase-one chart harness")).toBeVisible();
+  await expect(page.locator('[data-demo-tab="features"]')).toHaveCount(0);
 });

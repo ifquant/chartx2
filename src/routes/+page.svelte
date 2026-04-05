@@ -269,14 +269,15 @@
 }
 
 .workspace {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
+  overflow: hidden;
 }
 
 .topbar {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
   padding: 0.7rem 1rem;
@@ -293,13 +294,28 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  min-width: 0;
+}
+
+.brand-strip {
+  overflow: hidden;
+}
+
+.topbar-meta {
+  justify-content: flex-end;
 }
 
 .workspace-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 26rem;
   margin: 0 0.45rem 0 0;
   font-size: 0.78rem;
   font-weight: 600;
   color: rgba(29, 29, 31, 0.56);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .notif,
@@ -353,9 +369,10 @@
 
 .shell {
   display: grid;
-  grid-template-columns: 3.4rem minmax(0, 1fr) 19rem;
+  grid-template-columns: 3.4rem minmax(0, 1fr) clamp(15.5rem, 18vw, 19rem);
   gap: 0;
   min-height: 0;
+  height: 100%;
 }
 
 .left-rail {
@@ -380,6 +397,7 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-width: 0;
+  min-height: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(246, 243, 236, 0.86) 100%);
 }
@@ -430,6 +448,7 @@
 .chart-board {
   position: relative;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(250, 247, 241, 0.85) 100%);
@@ -539,10 +558,14 @@ canvas {
 .rightbar {
   display: grid;
   grid-template-rows: auto auto auto auto;
+  align-content: start;
   gap: 0.8rem;
   padding: 0.85rem;
   border-left: 1px solid rgba(28, 28, 30, 0.08);
   background: rgba(250, 249, 246, 0.96);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 
 .watchlist-card,
@@ -674,6 +697,31 @@ canvas {
 }
 
 @media (max-width: 1200px) {
+  .topbar {
+    gap: 0.7rem;
+    padding-inline: 0.7rem;
+  }
+
+  .symbol-chip,
+  .layout-chip,
+  .trade-btn,
+  .tool-btn,
+  .ghost-btn {
+    padding: 0.42rem 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .workspace-heading {
+    max-width: 18rem;
+  }
+
+  .quote-card {
+    min-width: 4.8rem;
+    padding-inline: 0.6rem;
+  }
+}
+
+@media (max-width: 1040px) {
   .shell {
     grid-template-columns: 3.4rem minmax(0, 1fr);
   }
@@ -683,10 +731,17 @@ canvas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     border-left: none;
     border-top: 1px solid rgba(28, 28, 30, 0.08);
+    overflow: visible;
   }
 }
 
 @media (max-width: 900px) {
+  .workspace {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .topbar,
   .chart-header,
   .statusbar {

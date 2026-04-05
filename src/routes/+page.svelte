@@ -263,7 +263,7 @@
     </div>
   </header>
 
-  <section class="layout-grid">
+  <section class:feature-layout={activeTopTab !== "workbench"} class="layout-grid">
     <section class="main-column">
       {#if activeTopTab === "workbench"}
         <article class="demo-card" data-demo-tab="workbench">
@@ -474,10 +474,44 @@
               </button>
             {/each}
           </div>
+
+          <section class="feature-console">
+            <article class="feature-console-card">
+              <small>Summary</small>
+              <strong>{activeSnapshot.title}</strong>
+              <p>{activeSnapshot.summary}</p>
+            </article>
+
+            <article class="feature-console-card">
+              <small>Metrics</small>
+              <div class="feature-metric-grid">
+                {#each activeSnapshot.metrics as metric}
+                  <div>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value}</strong>
+                  </div>
+                {/each}
+              </div>
+            </article>
+
+            <article class="feature-console-card">
+              <small>Activity</small>
+              <ul class="feature-activity">
+                {#if activeSnapshot.eventLog.length === 0}
+                  <li>Waiting for the first chart event.</li>
+                {:else}
+                  {#each activeSnapshot.eventLog as entry}
+                    <li>{entry}</li>
+                  {/each}
+                {/if}
+              </ul>
+            </article>
+          </section>
         </article>
       {/if}
     </section>
 
+    {#if activeTopTab === "workbench"}
     <aside class="context-rail">
       <section class="context-card summary-card">
         <p class="eyebrow">{activeTopTab === "workbench" ? "Workbench" : "Feature Demo"}</p>
@@ -553,6 +587,7 @@
         {/if}
       </section>
     </aside>
+    {/if}
   </section>
 </main>
 
@@ -589,7 +624,7 @@
 
   .topbar {
     display: grid;
-    grid-template-columns: 1.1fr minmax(0, 1.8fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 18px;
     align-items: center;
     padding: 18px 20px;
@@ -688,6 +723,10 @@
     min-height: 0;
   }
 
+  .feature-layout {
+    grid-template-columns: 1fr;
+  }
+
   .demo-card {
     display: grid;
     gap: 16px;
@@ -704,7 +743,6 @@
   .chart-meta,
   .market-line,
   .card-label-row,
-  .action-strip,
   .readout-bar,
   .sidebar-head,
   .watch-head,
@@ -721,6 +759,14 @@
     margin: 0;
     color: rgba(24, 24, 27, 0.68);
     line-height: 1.55;
+  }
+
+  .action-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
   }
 
   .toolbar-strip {
@@ -826,6 +872,56 @@
 
   .feature-frame {
     min-height: 0;
+  }
+
+  .feature-console {
+    display: grid;
+    grid-template-columns: 1.1fr 1.5fr 1fr;
+    gap: 12px;
+  }
+
+  .feature-console-card {
+    min-height: 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .feature-console-card small {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(24, 24, 27, 0.48);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    font-size: 0.72rem;
+  }
+
+  .feature-console-card p {
+    margin: 8px 0 0;
+    color: rgba(24, 24, 27, 0.7);
+    line-height: 1.45;
+  }
+
+  .feature-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .feature-metric-grid span {
+    display: block;
+    color: rgba(24, 24, 27, 0.52);
+    font-size: 0.82rem;
+    margin-bottom: 2px;
+  }
+
+  .feature-activity {
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(24, 24, 27, 0.72);
+    display: grid;
+    gap: 8px;
   }
 
   canvas {
@@ -1070,6 +1166,10 @@
     .context-rail {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-template-rows: none;
+    }
+
+    .feature-console {
+      grid-template-columns: 1fr;
     }
   }
 

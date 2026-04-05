@@ -8,18 +8,18 @@
     type DemoAction,
     type DemoController,
     type DemoSnapshot,
-    type DemoTabId,
     type FeatureExampleDescriptor,
     type FeatureTabId,
   } from "$lib/demo/chartx-demo";
 
+  type TopTabId = "workbench" | FeatureTabId;
+
   const foundation = getChartxFoundation();
-  const topTabs: Array<{ id: DemoTabId; label: string }> = [
-    { id: "workbench", label: "Workbench" },
-    { id: "features", label: "Features" },
+  const topTabs: Array<{ id: TopTabId; label: string; available: boolean }> = [
+    { id: "workbench", label: "Workbench", available: true },
+    ...FEATURE_TABS.map((tab) => ({ id: tab.id, label: tab.label, available: tab.available })),
   ];
 
-  const demoFeatureTabs = FEATURE_TABS;
   const emptyReadout = (): PhaseOneReadoutDetail => ({
     active: false,
     paneIndex: null,
@@ -31,6 +31,7 @@
     price: null,
     series: [],
   });
+
   const emptySnapshot = (title: string, summary: string): DemoSnapshot => ({
     title,
     summary,
@@ -38,8 +39,7 @@
     eventLog: [],
   });
 
-  let activeDemoTab: DemoTabId = "workbench";
-  let activeFeatureTab: FeatureTabId = "panes";
+  let activeTopTab: TopTabId = "workbench";
 
   let workbenchCanvas: HTMLCanvasElement | undefined;
   let featureCanvas: HTMLCanvasElement | undefined;
@@ -54,10 +54,7 @@
     "Workbench",
     "Mounting the default workstation example.",
   );
-  let featureSnapshot = emptySnapshot(
-    "Features",
-    "Select a focused chart capability tab to mount its example.",
-  );
+  let featureSnapshot = emptySnapshot("Feature", "Mounting the focused example.");
 
   let workbenchActions: readonly DemoAction[] = [];
   let featureActions: readonly DemoAction[] = [];
@@ -78,6 +75,10 @@
     };
   });
 
+  function featureDescriptor(tabId: FeatureTabId): FeatureExampleDescriptor | undefined {
+    return FEATURE_TABS.find((tab) => tab.id === tabId);
+  }
+
   function bindReadout(
     canvas: HTMLCanvasElement,
     assign: (detail: PhaseOneReadoutDetail) => void,
@@ -90,36 +91,28 @@
     return () => canvas.removeEventListener("chartx:readout", handleReadout);
   }
 
-  async function showDemoTab(tabId: DemoTabId): Promise<void> {
-    if (activeDemoTab === tabId) {
+  async function showTopTab(tabId: TopTabId): Promise<void> {
+    if (activeTopTab === tabId) {
       return;
     }
 
     if (tabId === "workbench") {
       teardownFeature();
-      activeDemoTab = "workbench";
+      activeTopTab = "workbench";
       await tick();
       mountWorkbench();
       return;
     }
 
-    teardownWorkbench();
-    activeDemoTab = "features";
-    await tick();
-    mountFeature(activeFeatureTab);
-  }
-
-  async function showFeatureTab(tab: FeatureExampleDescriptor): Promise<void> {
-    if (!tab.available || tab.id === activeFeatureTab) {
+    const descriptor = featureDescriptor(tabId);
+    if (!descriptor?.available) {
       return;
     }
 
-    activeFeatureTab = tab.id;
+    teardownWorkbench();
+    activeTopTab = tabId;
     await tick();
-
-    if (activeDemoTab === "features") {
-      mountFeature(activeFeatureTab);
-    }
+    mountFeature(tabId);
   }
 
   function teardownWorkbench(): void {
@@ -231,15 +224,10 @@
     return "action-btn";
   }
 
-  function featureTabClass(tab: FeatureExampleDescriptor): string {
-    if (!tab.available) {
-      return "feature-tab disabled";
-    }
-    return tab.id === activeFeatureTab ? "feature-tab active" : "feature-tab";
-  }
-
-  $: activeSnapshot = activeDemoTab === "workbench" ? workbenchSnapshot : featureSnapshot;
-  $: activeReadout = activeDemoTab === "workbench" ? workbenchReadout : featureReadout;
+  $: activeSnapshot = activeTopTab === "workbench" ? workbenchSnapshot : featureSnapshot;
+  $: activeReadout = activeTopTab === "workbench" ? workbenchReadout : featureReadout;
+  $: activeFeatureSummary =
+    activeTopTab === "workbench" ? null : featureDescriptor(activeTopTab);
   $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
     (step) => step.status === "complete",
   ).length;
@@ -253,14 +241,16 @@
   <header class="topbar">
     <div class="brand-block">
       <p class="eyebrow">chartx2</p>
-      <h1>Workbench + Feature Tabs</h1>
+      <h1>Chart Workbench + Feature Tabs</h1>
     </div>
 
-    <nav class="top-tabs" aria-label="chartx2 demo modes">
+    <nav class="top-tabs" aria-label="chartx2 demo tabs">
       {#each topTabs as tab}
         <button
-          class:active={tab.id === activeDemoTab}
-          on:click={() => showDemoTab(tab.id)}
+          class:active={tab.id === activeTopTab}
+          class:disabled={!tab.available}
+          aria-disabled={!tab.available}
+          on:click={() => showTopTab(tab.id)}
         >
           {tab.label}
         </button>
@@ -281,122 +271,183 @@
       </h2>
     </div>
     <p class="hero-copy">
-      `Workbench` communicates the chart workstation direction. `Features` makes the
-      current public API breadth legible tab by tab.
+      Workbench is the complete chart example. The other tabs sit beside it as direct
+      K-line feature demos instead of hiding behind a second navigation layer.
     </p>
   </section>
 
   <section class="layout-grid">
     <section class="main-column">
-      {#if activeDemoTab === "workbench"}
+      {#if activeTopTab === "workbench"}
         <article class="demo-card" data-demo-tab="workbench">
           <div class="card-head">
             <div>
               <p class="eyebrow">Complete Example</p>
-              <h3>Compact Workbench</h3>
+              <h3>Workbench</h3>
             </div>
-            <div class="toolbar-strip">
+            <div class="toolbar-strip workstation-toolbar">
               <button>NDX</button>
               <button>1D</button>
               <button>Indicators</button>
-              <button>Layout</button>
+              <button>Alert</button>
+              <button>Replay</button>
             </div>
           </div>
 
-          <div class="chart-meta">
-            <div class="market-line">
-              <strong>Nasdaq 100 Index</strong>
-              <span>NASDAQ</span>
-              <span>O {formatValue(workbenchReadout.open)}</span>
-              <span>H {formatValue(workbenchReadout.high)}</span>
-              <span>L {formatValue(workbenchReadout.low)}</span>
-              <span>C {formatValue(workbenchReadout.close)}</span>
-            </div>
-            <div class="market-line">
-              <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
-              <span>{formatTime(workbenchReadout.time)}</span>
-            </div>
-          </div>
+          <div class="workbench-shell">
+            <aside class="tool-rail">
+              <button>＋</button>
+              <button>⌖</button>
+              <button>／</button>
+              <button>⌗</button>
+              <button>T</button>
+              <button>☺</button>
+              <button>⊕</button>
+              <button>⌂</button>
+            </aside>
 
-          <div class="chart-frame-shell">
-            <div class="quote-cards">
-              <article class="quote-card sell">
-                <strong>{formatValue(workbenchReadout.close)}</strong>
-                <small>SELL</small>
-              </article>
-              <article class="quote-card buy">
-                <strong>{formatValue(workbenchReadout.close)}</strong>
-                <small>BUY</small>
-              </article>
-            </div>
-
-            <div class="chart-frame">
-              {#if workbenchError}
-                <div class="error-state">
-                  <p class="error-label">chart init failure</p>
-                  <p>{workbenchError}</p>
+            <div class="workbench-main">
+              <div class="chart-meta">
+                <div class="market-line">
+                  <strong>Nasdaq 100 Index</strong>
+                  <span>1D</span>
+                  <span>NASDAQ</span>
+                  <span>O {formatValue(workbenchReadout.open)}</span>
+                  <span>H {formatValue(workbenchReadout.high)}</span>
+                  <span>L {formatValue(workbenchReadout.low)}</span>
+                  <span>C {formatValue(workbenchReadout.close)}</span>
                 </div>
-              {:else}
-                <canvas
-                  bind:this={workbenchCanvas}
-                  aria-label="chartx2 phase-one chart harness"
-                ></canvas>
-              {/if}
+                <div class="market-line">
+                  <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
+                  <span>{formatTime(workbenchReadout.time)}</span>
+                </div>
+              </div>
+
+              <div class="chart-frame-shell">
+                <div class="quote-cards">
+                  <article class="quote-card sell">
+                    <strong>{formatValue(workbenchReadout.close)}</strong>
+                    <small>SELL</small>
+                  </article>
+                  <article class="quote-card buy">
+                    <strong>{formatValue(workbenchReadout.close)}</strong>
+                    <small>BUY</small>
+                  </article>
+                </div>
+
+                <div class="chart-frame">
+                  {#if workbenchError}
+                    <div class="error-state">
+                      <p class="error-label">chart init failure</p>
+                      <p>{workbenchError}</p>
+                    </div>
+                  {:else}
+                    <canvas
+                      bind:this={workbenchCanvas}
+                      aria-label="chartx2 phase-one chart harness"
+                    ></canvas>
+                  {/if}
+                </div>
+              </div>
+
+              <div class="readout-bar">
+                <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
+                <span>O {formatValue(workbenchReadout.open)}</span>
+                <span>H {formatValue(workbenchReadout.high)}</span>
+                <span>L {formatValue(workbenchReadout.low)}</span>
+                <span>C {formatValue(workbenchReadout.close)}</span>
+                {#each workbenchReadout.series as series}
+                  <span class="series-pill" style={`--series-color: ${series.color};`}>
+                    {series.label} {formatValue(series.value)}
+                  </span>
+                {/each}
+              </div>
+
+              <div class="workbench-footer">
+                <div class="time-strip">
+                  <button class="active">1D</button>
+                  <button>5D</button>
+                  <button>1M</button>
+                  <button>3M</button>
+                  <button>6M</button>
+                  <button>YTD</button>
+                  <button>1Y</button>
+                  <button>5Y</button>
+                  <button>All</button>
+                </div>
+                <div class="action-strip">
+                  {#each workbenchActions as action}
+                    <button
+                      class={actionClass(action.tone)}
+                      on:click={() => runWorkbenchAction(action.id)}
+                    >
+                      {action.label}
+                    </button>
+                  {/each}
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div class="readout-bar">
-            <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
-            <span>O {formatValue(workbenchReadout.open)}</span>
-            <span>H {formatValue(workbenchReadout.high)}</span>
-            <span>L {formatValue(workbenchReadout.low)}</span>
-            <span>C {formatValue(workbenchReadout.close)}</span>
-            {#each workbenchReadout.series as series}
-              <span class="series-pill" style={`--series-color: ${series.color};`}>
-                {series.label} {formatValue(series.value)}
-              </span>
-            {/each}
-          </div>
+            <aside class="workbench-sidebar">
+              <section class="mini-card watch-card">
+                <div class="sidebar-head">
+                  <h4>Watchlist</h4>
+                  <button>＋</button>
+                </div>
+                <div class="watch-head">
+                  <span>Symbol</span>
+                  <span>Last</span>
+                  <span>Chg</span>
+                </div>
+                <div class="watch-body">
+                  <article><strong>SPX</strong><span>6,368.86</span><span>-1.67%</span></article>
+                  <article><strong>NDQ</strong><span>23,132.77</span><span>-1.93%</span></article>
+                  <article><strong>DJI</strong><span>45,166.64</span><span>-1.73%</span></article>
+                  <article><strong>VIX</strong><span>30.73</span><span>-1.03%</span></article>
+                </div>
+              </section>
 
-          <div class="action-strip">
-            {#each workbenchActions as action}
-              <button
-                class={actionClass(action.tone)}
-                on:click={() => runWorkbenchAction(action.id)}
-              >
-                {action.label}
-              </button>
-            {/each}
+              <section class="mini-card symbol-card">
+                <div class="sidebar-head">
+                  <h4>NDX</h4>
+                  <span>NASDAQ</span>
+                </div>
+                <strong class="big-price">{formatValue(workbenchReadout.close)}</strong>
+                <p class="price-meta">{workbenchSnapshot.featureGap}</p>
+                <div class="metric-list compact">
+                  {#each workbenchSnapshot.metrics.slice(0, 3) as metric}
+                    <article>
+                      <small>{metric.label}</small>
+                      <strong>{metric.value}</strong>
+                    </article>
+                  {/each}
+                </div>
+              </section>
+
+              <section class="mini-card action-card">
+                <h4>Workbench Notes</h4>
+                <p>{workbenchSnapshot.note}</p>
+                <ul class="event-log">
+                  {#if workbenchSnapshot.eventLog.length === 0}
+                    <li>Waiting for the first chart event.</li>
+                  {:else}
+                    {#each workbenchSnapshot.eventLog as entry}
+                      <li>{entry}</li>
+                    {/each}
+                  {/if}
+                </ul>
+              </section>
+            </aside>
           </div>
         </article>
       {:else}
-        <article class="demo-card" data-demo-tab="features">
+        <article class="demo-card" data-demo-tab="feature">
           <div class="card-head">
             <div>
-              <p class="eyebrow">Grouped Examples</p>
-              <h3>Feature Matrix</h3>
+              <p class="eyebrow">Focused Example</p>
+              <h3>{activeFeatureSummary?.label}</h3>
             </div>
-            <p class="head-copy">
-              Each tab keeps one chart capability focused instead of pretending the
-              workstation itself is the whole product.
-            </p>
-          </div>
-
-          <div class="feature-tabs" role="tablist" aria-label="chartx2 feature examples">
-            {#each demoFeatureTabs as tab}
-              <button
-                class={featureTabClass(tab)}
-                aria-disabled={!tab.available}
-                on:click={() => showFeatureTab(tab)}
-              >
-                {tab.label}
-              </button>
-            {/each}
-          </div>
-
-          <div class="feature-summary">
-            <strong>{demoFeatureTabs.find((tab) => tab.id === activeFeatureTab)?.label}</strong>
-            <span>{demoFeatureTabs.find((tab) => tab.id === activeFeatureTab)?.summary}</span>
+            <p class="head-copy">{activeFeatureSummary?.summary}</p>
           </div>
 
           <div class="chart-frame feature-frame">
@@ -442,7 +493,7 @@
 
     <aside class="context-rail">
       <section class="context-card">
-        <p class="eyebrow">Context Panel</p>
+        <p class="eyebrow">{activeTopTab === "workbench" ? "Workbench" : "Feature Demo"}</p>
         <h3>{activeSnapshot.title}</h3>
         <p>{activeSnapshot.summary}</p>
       </section>
@@ -547,7 +598,7 @@
 
   .topbar {
     display: grid;
-    grid-template-columns: 1.2fr auto auto;
+    grid-template-columns: 1.1fr minmax(0, 1.8fr) auto;
     gap: 18px;
     align-items: center;
     padding: 18px 20px;
@@ -560,7 +611,8 @@
   .brand-block h1,
   .hero-strip h2,
   .card-head h3,
-  .context-card h3 {
+  .context-card h3,
+  .sidebar-head h4 {
     margin: 0;
   }
 
@@ -574,7 +626,8 @@
   }
 
   .top-tabs {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     padding: 8px;
     border-radius: 18px;
@@ -583,20 +636,21 @@
 
   .top-tabs button,
   .toolbar-strip button,
-  .feature-tab,
-  .action-btn {
+  .action-btn,
+  .tool-rail button,
+  .time-strip button,
+  .sidebar-head button {
     border: 0;
     cursor: pointer;
     transition:
       transform 120ms ease,
       background 120ms ease,
-      color 120ms ease,
-      box-shadow 120ms ease;
+      color 120ms ease;
   }
 
   .top-tabs button {
-    padding: 10px 16px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    border-radius: 999px;
     background: transparent;
     color: rgba(24, 24, 27, 0.64);
     font: inherit;
@@ -606,7 +660,11 @@
   .top-tabs button.active {
     background: #18181b;
     color: #fffdf8;
-    box-shadow: 0 10px 24px rgba(24, 24, 27, 0.16);
+  }
+
+  .top-tabs button.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .status-chip {
@@ -629,7 +687,7 @@
 
   .hero-strip {
     display: grid;
-    grid-template-columns: 1.6fr 1fr;
+    grid-template-columns: 1.5fr 1fr;
     gap: 18px;
     align-items: end;
     margin: 18px 0;
@@ -681,11 +739,27 @@
     box-shadow: 0 18px 48px rgba(38, 33, 24, 0.07);
   }
 
-  .card-head {
+  .card-head,
+  .chart-meta,
+  .market-line,
+  .card-label-row,
+  .action-strip,
+  .readout-bar,
+  .sidebar-head,
+  .watch-head,
+  .watch-body article {
     display: flex;
     justify-content: space-between;
-    gap: 18px;
-    align-items: start;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .head-copy {
+    max-width: 460px;
+    margin: 0;
+    color: rgba(24, 24, 27, 0.68);
+    line-height: 1.55;
   }
 
   .toolbar-strip {
@@ -694,7 +768,9 @@
     gap: 10px;
   }
 
-  .toolbar-strip button {
+  .toolbar-strip button,
+  .time-strip button,
+  .sidebar-head button {
     padding: 10px 14px;
     border-radius: 12px;
     background: rgba(24, 24, 27, 0.05);
@@ -703,27 +779,39 @@
     color: rgba(24, 24, 27, 0.75);
   }
 
-  .chart-meta,
-  .market-line,
-  .card-label-row,
-  .feature-summary,
-  .action-strip,
-  .readout-bar {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
+  .workbench-shell {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) 280px;
+    gap: 16px;
+    align-items: start;
   }
 
-  .market-line,
-  .feature-summary {
+  .tool-rail {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+
+  .tool-rail button {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    background: rgba(24, 24, 27, 0.04);
+    color: rgba(24, 24, 27, 0.84);
+    font: inherit;
+  }
+
+  .workbench-main {
+    display: grid;
+    gap: 14px;
+  }
+
+  .market-line {
     color: rgba(24, 24, 27, 0.66);
     font-size: 0.95rem;
   }
 
-  .market-line strong,
-  .feature-summary strong {
+  .market-line strong {
     color: #18181b;
   }
 
@@ -771,7 +859,7 @@
   }
 
   .feature-frame {
-    min-height: 520px;
+    min-height: 540px;
   }
 
   canvas {
@@ -810,8 +898,20 @@
     background: var(--series-color);
   }
 
-  .action-strip {
-    padding-top: 4px;
+  .workbench-footer {
+    display: grid;
+    gap: 12px;
+  }
+
+  .time-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .time-strip button.active {
+    background: #18181b;
+    color: #fffdf8;
   }
 
   .action-btn {
@@ -833,36 +933,47 @@
     color: #9f2f1c;
   }
 
-  .feature-tabs {
-    display: flex;
-    flex-wrap: wrap;
+  .workbench-sidebar {
+    display: grid;
+    gap: 14px;
+  }
+
+  .mini-card,
+  .context-card {
+    padding: 16px;
+    border-radius: 22px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(255, 252, 246, 0.9);
+    box-shadow: 0 14px 34px rgba(38, 33, 24, 0.06);
+  }
+
+  .watch-head,
+  .watch-body {
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.88rem;
+  }
+
+  .watch-body {
+    display: grid;
     gap: 10px;
+    margin-top: 12px;
   }
 
-  .feature-tab {
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: rgba(24, 24, 27, 0.05);
-    color: rgba(24, 24, 27, 0.78);
-    font: inherit;
-    font-weight: 600;
+  .watch-body strong {
+    color: #18181b;
   }
 
-  .feature-tab.active {
-    background: #18181b;
-    color: #fffdf8;
+  .big-price {
+    display: block;
+    margin-top: 8px;
+    font-size: 2rem;
   }
 
-  .feature-tab.disabled {
-    opacity: 0.46;
-    cursor: not-allowed;
-  }
-
-  .head-copy {
-    max-width: 440px;
-    margin: 0;
-    color: rgba(24, 24, 27, 0.68);
+  .price-meta,
+  .context-card p {
+    margin: 8px 0 0;
     line-height: 1.55;
+    color: rgba(24, 24, 27, 0.7);
   }
 
   .context-rail {
@@ -871,25 +982,15 @@
     align-self: start;
   }
 
-  .context-card {
-    padding: 18px;
-    border-radius: 24px;
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    background: rgba(255, 252, 246, 0.9);
-    box-shadow: 0 14px 34px rgba(38, 33, 24, 0.06);
-  }
-
-  .context-card p {
-    margin: 0;
-    line-height: 1.55;
-    color: rgba(24, 24, 27, 0.7);
-  }
-
   .readout-grid,
   .metric-list {
     display: grid;
     gap: 10px;
     margin-top: 12px;
+  }
+
+  .metric-list.compact {
+    margin-top: 16px;
   }
 
   .readout-grid {
@@ -946,6 +1047,17 @@
     text-transform: uppercase;
   }
 
+  @media (max-width: 1340px) {
+    .workbench-shell {
+      grid-template-columns: 54px minmax(0, 1fr);
+    }
+
+    .workbench-sidebar {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
   @media (max-width: 1220px) {
     .layout-grid {
       grid-template-columns: 1fr;
@@ -962,23 +1074,27 @@
     }
 
     .topbar,
-    .hero-strip,
-    .card-head {
+    .hero-strip {
       grid-template-columns: 1fr;
-      flex-direction: column;
-      align-items: start;
     }
 
+    .workbench-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .tool-rail {
+      grid-auto-flow: column;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      overflow-x: auto;
+    }
+
+    .workbench-sidebar,
     .context-rail {
       grid-template-columns: 1fr;
     }
 
     .chart-frame {
       min-height: 480px;
-    }
-
-    .feature-frame {
-      min-height: 420px;
     }
   }
 </style>

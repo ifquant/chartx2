@@ -283,8 +283,15 @@ The current demo-shell priorities are:
 
 - keep `Workbench` as the default complete example
   - this should communicate the long-term direction in one coherent chart workstation
-- keep `Features` as a grouped example matrix
-  - this should expose current chart breadth tab by tab without requiring users to read code
+- keep the chart capability examples as first-class sibling tabs
+  - `Series`
+  - `Panes`
+  - `Interactions`
+  - `Scales`
+  - `Data`
+  - `Styling`
+  - `Events`
+  - `Annotations` when it becomes real
 - avoid fake placeholders
   - if `area`, `baseline`, `markers`, or `price lines` are still missing, the demo should say so directly
 - keep all example tabs on the public API
@@ -294,7 +301,7 @@ The main demo/showcase gaps still open after the shell reframe are:
 
 - `Annotations` is still deferred because markers and price lines are not on the public API yet
 - the workbench still shows only one coherent workstation slice, not a broader set of terminal workflows
-- the feature tabs still need to grow alongside future engine work so the showcase stays honest
+- the sibling demo tabs still need to grow alongside future engine work so the showcase stays honest
 
 ## Deferred TradingView Workstation Gap
 

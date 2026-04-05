@@ -1,9 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 function featureTab(page: Page, name: string) {
-  return page
-    .locator('[data-demo-tab="features"] .feature-tabs')
-    .getByRole("button", { name, exact: true });
+  return page.locator(".top-tabs").getByRole("button", { name, exact: true });
 }
 
 test("workbench opens by default and renders the baseline chart", async ({ page }) => {
@@ -163,8 +161,8 @@ test("features renders the panes tab as a deterministic grouped example baseline
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Features" }).click();
-  const card = page.locator('[data-demo-tab="features"]');
+  await featureTab(page, "Panes").click();
+  const card = page.locator('[data-demo-tab="feature"]');
   await expect(card).toBeVisible();
   await expect(featureTab(page, "Panes")).toHaveClass(/active/);
   await expect(card).toHaveScreenshot("demo-features-panes.png");
@@ -174,9 +172,8 @@ test("features renders the interactions tab as a deterministic grouped example b
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Features" }).click();
   await featureTab(page, "Interactions").click();
-  const card = page.locator('[data-demo-tab="features"]');
+  const card = page.locator('[data-demo-tab="feature"]');
   await expect(card).toContainText("crosshair, click, pan, and zoom");
   await expect(card).toHaveScreenshot("demo-features-interactions.png");
 });
@@ -185,9 +182,8 @@ test("features renders the series tab as a deterministic grouped example baselin
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Features" }).click();
   await featureTab(page, "Series").click();
-  const card = page.locator('[data-demo-tab="features"]');
+  const card = page.locator('[data-demo-tab="feature"]');
   await expect(card).toContainText("candlestick, bar, line, histogram, and volume");
   await expect(card).toHaveScreenshot("demo-features-series.png");
 });
@@ -196,15 +192,15 @@ test("tab switching keeps chart mount deterministic without stale content", asyn
   await page.goto("/");
   await expect(page.getByLabel("chartx2 phase-one chart harness")).toBeVisible();
 
-  await page.getByRole("button", { name: "Features" }).click();
+  await featureTab(page, "Panes").click();
   await expect(page.getByLabel("chartx2 feature demo chart")).toBeVisible();
-  await expect(page.getByText("Grouped Examples")).toBeVisible();
+  await expect(page.getByText("Focused Example")).toBeVisible();
   await expect(page.locator('[data-demo-tab="workbench"]')).toHaveCount(0);
 
   await featureTab(page, "Series").click();
   await expect(page.getByText("render candlestick")).toBeVisible();
 
-  await page.getByRole("button", { name: "Workbench" }).click();
+  await featureTab(page, "Workbench").click();
   await expect(page.getByLabel("chartx2 phase-one chart harness")).toBeVisible();
-  await expect(page.locator('[data-demo-tab="features"]')).toHaveCount(0);
+  await expect(page.locator('[data-demo-tab="feature"]')).toHaveCount(0);
 });

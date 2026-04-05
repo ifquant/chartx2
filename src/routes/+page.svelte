@@ -228,6 +228,10 @@
         <div class="headline-price">{formatValue(readout.close)}</div>
         <div class="headline-change down">-454.22 -1.93%</div>
         <p class="detail-copy">让首页先收敛成 demo 风格工作台，而不是继续像文档页。</p>
+        <div class="detail-status">
+          <span>Phase-one</span>
+          <strong>{foundation.phaseOneSteps.filter((step) => step.status === "complete").length}/10 complete</strong>
+        </div>
       </section>
 
       <section class="performance-card">
@@ -240,16 +244,6 @@
             </article>
           {/each}
         </div>
-      </section>
-
-      <section class="engine-card">
-        <h2>Engine Status</h2>
-        <ul>
-          {#each foundation.publicSurface.slice(0, 2) as item}
-            <li>{item}</li>
-          {/each}
-          <li>{foundation.phaseOneSteps.filter((step) => step.status === "complete").length}/10 phase-one steps complete</li>
-        </ul>
       </section>
     </aside>
   </section>
@@ -557,7 +551,7 @@ canvas {
 
 .rightbar {
   display: grid;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   align-content: start;
   gap: 0.8rem;
   padding: 0.85rem;
@@ -565,18 +559,23 @@ canvas {
   background: rgba(250, 249, 246, 0.96);
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .watchlist-card,
 .detail-card,
-.performance-card,
-.engine-card {
+.performance-card {
   border: 1px solid rgba(28, 28, 30, 0.08);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 10px 22px rgba(28, 28, 30, 0.05);
   padding: 0.85rem;
+}
+
+.watchlist-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
 }
 
 .card-head,
@@ -594,8 +593,7 @@ canvas {
 }
 
 .card-head h2,
-.performance-card h2,
-.engine-card h2 {
+.performance-card h2 {
   margin: 0;
   font-size: 0.86rem;
   letter-spacing: 0.06em;
@@ -604,8 +602,7 @@ canvas {
 
 .mini-meta,
 .watchlist-head,
-.detail-copy,
-.engine-card li {
+.detail-copy {
   font-size: 0.74rem;
   color: rgba(29, 29, 31, 0.62);
 }
@@ -617,8 +614,11 @@ canvas {
 
 .watchlist-body {
   display: grid;
+  align-content: start;
   gap: 0.45rem;
   padding-top: 0.55rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .watch-item strong {
@@ -648,6 +648,23 @@ canvas {
   margin-bottom: 0.65rem;
 }
 
+.detail-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(28, 28, 30, 0.08);
+  font-size: 0.74rem;
+  color: rgba(29, 29, 31, 0.62);
+}
+
+.detail-status strong {
+  color: #1d1d1f;
+  font-size: 0.76rem;
+}
+
 .perf-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -675,11 +692,6 @@ canvas {
   color: rgba(29, 29, 31, 0.62);
   font-size: 0.68rem;
   text-transform: uppercase;
-}
-
-.engine-card ul {
-  margin: 0.7rem 0 0;
-  padding-left: 1rem;
 }
 
 .error-state {
@@ -729,6 +741,7 @@ canvas {
   .rightbar {
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
     border-left: none;
     border-top: 1px solid rgba(28, 28, 30, 0.08);
     overflow: visible;

@@ -241,7 +241,7 @@
   <header class="topbar">
     <div class="brand-block">
       <p class="eyebrow">chartx2</p>
-      <h1>Chart Workbench + Feature Tabs</h1>
+      <h1>NDX</h1>
     </div>
 
     <nav class="top-tabs" aria-label="chartx2 demo tabs">
@@ -262,19 +262,6 @@
       <span>phase-one steps complete</span>
     </div>
   </header>
-
-  <section class="hero-strip">
-    <div>
-      <p class="hero-kicker">Example Program Role</p>
-      <h2 class="workspace-heading">
-        Phase-one floor is now carrying the first real pane architecture.
-      </h2>
-    </div>
-    <p class="hero-copy">
-      Workbench is the complete chart example. The other tabs sit beside it as direct
-      K-line feature demos instead of hiding behind a second navigation layer.
-    </p>
-  </section>
 
   <section class="layout-grid">
     <section class="main-column">
@@ -589,7 +576,6 @@
   }
 
   .topbar,
-  .hero-strip,
   .layout-grid,
   .demo-card,
   .context-card {
@@ -685,44 +671,12 @@
     font-size: 0.88rem;
   }
 
-  .hero-strip {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 18px;
-    align-items: end;
-    margin: 18px 0;
-    padding: 20px 24px;
-    border-radius: 28px;
-    background: rgba(255, 252, 246, 0.84);
-    border: 1px solid rgba(24, 24, 27, 0.08);
-  }
-
-  .workspace-heading {
-    font-size: clamp(1.45rem, 1.2rem + 1vw, 2rem);
-    line-height: 1.08;
-  }
-
-  .hero-kicker,
-  .hero-copy {
-    margin: 0;
-  }
-
-  .hero-kicker {
-    color: rgba(24, 24, 27, 0.52);
-    font-size: 0.9rem;
-    margin-bottom: 10px;
-  }
-
-  .hero-copy {
-    color: rgba(24, 24, 27, 0.72);
-    line-height: 1.55;
-  }
-
   .layout-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 330px;
     gap: 18px;
     align-items: start;
+    margin-top: 18px;
   }
 
   .main-column {
@@ -1074,10 +1028,6 @@
     }
 
     .topbar,
-    .hero-strip {
-      grid-template-columns: 1fr;
-    }
-
     .workbench-shell {
       grid-template-columns: 1fr;
     }

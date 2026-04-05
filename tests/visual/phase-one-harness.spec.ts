@@ -6,11 +6,6 @@ function featureTab(page: Page, name: string) {
 
 test("workbench opens by default and renders the baseline chart", async ({ page }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", {
-      name: /phase-one floor is now carrying the first real pane architecture/i,
-    }),
-  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Workbench" })).toHaveClass(/active/);
 
   const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');

@@ -423,6 +423,7 @@ export class PhaseOneChartHarness {
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private paneResizeState: PaneResizeState | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
   private readonly clickHandlers = new Set<PhaseOneClickHandler>();
   private readonly handleResize = () => {
@@ -546,6 +547,15 @@ export class PhaseOneChartHarness {
     this.canvas.style.cursor = "crosshair";
     this.render(canvas);
     window.addEventListener("resize", this.handleResize);
+    const container = canvas.parentElement;
+    if (container !== null && typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.canvas !== null && this.manualLayout === null) {
+          this.render(this.canvas);
+        }
+      });
+      this.resizeObserver.observe(container);
+    }
     canvas.addEventListener("pointerdown", this.handlePointerDown);
     canvas.addEventListener("pointermove", this.handlePointerMove);
     canvas.addEventListener("pointerup", this.handlePointerUp);
@@ -566,6 +576,8 @@ export class PhaseOneChartHarness {
       this.canvas.removeEventListener("click", this.handleClick);
     }
     window.removeEventListener("resize", this.handleResize);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.canvas = null;
     this.crosshair = null;
     this.dragState = null;
@@ -2477,13 +2489,13 @@ function measureLayout(
   const horizontalPadding =
     parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
   const availableWidth = Math.floor(container.clientWidth - horizontalPadding);
-  const width = clamp(availableWidth, 480, DEFAULT_LAYOUT.width);
-  const height = Math.round((width / DEFAULT_LAYOUT.width) * DEFAULT_LAYOUT.height);
+  const width = Math.max(480, availableWidth);
+  const aspectHeight = Math.round((width / DEFAULT_LAYOUT.width) * DEFAULT_LAYOUT.height);
 
   return {
     ...DEFAULT_LAYOUT,
     width,
-    height: Math.max(320, height),
+    height: Math.max(320, aspectHeight),
   };
 }
 

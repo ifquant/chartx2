@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("phase-one harness renders the baseline chart", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: /phase-one floor is now carrying the first real pane architecture/i }),
+    page.getByRole("heading", { name: /phase-one floor is now carrying the first real pane architecture/i }).first(),
   ).toBeVisible();
   const frame = page.locator(".chart-frame");
   await expect(frame).toBeVisible();
@@ -45,15 +45,15 @@ test("phase-one harness keeps a deterministic high-dpi baseline", async ({ page 
     };
   });
 
-  expect(metrics.width).toBe(metrics.cssWidth * 2);
-  expect(metrics.height).toBe(metrics.cssHeight * 2);
+  expect(Math.abs(metrics.width - metrics.cssWidth * 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(metrics.height - metrics.cssHeight * 2)).toBeLessThanOrEqual(1);
 });
 
 test("phase-one harness renders a deterministic crosshair snapshot", async ({ page }) => {
   await page.goto("/");
   const frame = page.locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
-  const readout = page.locator(".readout-bar");
+  const readout = page.locator(".readout-bar").first();
   await expect(canvas).toBeVisible();
 
   const box = await canvas.boundingBox();

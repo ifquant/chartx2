@@ -479,18 +479,18 @@
     </section>
 
     <aside class="context-rail">
-      <section class="context-card">
+      <section class="context-card summary-card">
         <p class="eyebrow">{activeTopTab === "workbench" ? "Workbench" : "Feature Demo"}</p>
         <h3>{activeSnapshot.title}</h3>
         <p>{activeSnapshot.summary}</p>
       </section>
 
-      <section class="context-card">
+      <section class="context-card dashboard-card">
         <div class="card-label-row">
           <span class="eyebrow">Current Readout</span>
           <span>{formatTime(activeReadout.time)}</span>
         </div>
-        <div class="readout-grid">
+        <div class="readout-grid compact-grid">
           <article>
             <small>Open</small>
             <strong>{formatValue(activeReadout.open)}</strong>
@@ -508,14 +508,12 @@
             <strong>{formatValue(activeReadout.close)}</strong>
           </article>
         </div>
-      </section>
 
-      <section class="context-card">
-        <div class="card-label-row">
+        <div class="card-label-row metrics-head">
           <span class="eyebrow">Metrics</span>
           <span>{activeSnapshot.metrics.length}</span>
         </div>
-        <div class="metric-list">
+        <div class="metric-list compact-grid">
           {#each activeSnapshot.metrics as metric}
             <article>
               <small>{metric.label}</small>
@@ -525,9 +523,9 @@
         </div>
       </section>
 
-      <section class="context-card">
+      <section class="context-card activity-card">
         <div class="card-label-row">
-          <span class="eyebrow">Event Log</span>
+          <span class="eyebrow">Activity</span>
           <span>{activeSnapshot.eventLog.length}</span>
         </div>
         <ul class="event-log">
@@ -539,37 +537,44 @@
             {/each}
           {/if}
         </ul>
+
+        {#if activeSnapshot.note}
+          <div class="context-copy">
+            <small>Note</small>
+            <p>{activeSnapshot.note}</p>
+          </div>
+        {/if}
+
+        {#if activeSnapshot.featureGap}
+          <div class="context-copy">
+            <small>Current gap</small>
+            <p>{activeSnapshot.featureGap}</p>
+          </div>
+        {/if}
       </section>
-
-      {#if activeSnapshot.note}
-        <section class="context-card note-card">
-          <p class="eyebrow">Note</p>
-          <p>{activeSnapshot.note}</p>
-        </section>
-      {/if}
-
-      {#if activeSnapshot.featureGap}
-        <section class="context-card gap-card">
-          <p class="eyebrow">Current Gap</p>
-          <p>{activeSnapshot.featureGap}</p>
-        </section>
-      {/if}
     </aside>
   </section>
 </main>
 
 <style>
+  :global(html),
   :global(body) {
+    height: 100%;
     margin: 0;
+    overflow: hidden;
     background: #f5f2eb;
     color: #18181b;
     font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
   }
 
   .app-shell {
-    min-height: 100vh;
+    height: 100vh;
     padding: 24px;
     box-sizing: border-box;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 18px;
     background:
       radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 28%),
       linear-gradient(180deg, #f7f3eb 0%, #f1ede5 100%);
@@ -595,7 +600,6 @@
   }
 
   .brand-block h1,
-  .hero-strip h2,
   .card-head h3,
   .context-card h3,
   .sidebar-head h4 {
@@ -675,17 +679,20 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) 330px;
     gap: 18px;
-    align-items: start;
-    margin-top: 18px;
+    align-items: stretch;
+    min-height: 0;
   }
 
   .main-column {
     min-width: 0;
+    min-height: 0;
   }
 
   .demo-card {
     display: grid;
     gap: 16px;
+    height: 100%;
+    min-height: 0;
     padding: 20px;
     border-radius: 28px;
     border: 1px solid rgba(24, 24, 27, 0.08);
@@ -737,7 +744,8 @@
     display: grid;
     grid-template-columns: 54px minmax(0, 1fr) 280px;
     gap: 16px;
-    align-items: start;
+    align-items: stretch;
+    min-height: 0;
   }
 
   .tool-rail {
@@ -757,7 +765,9 @@
 
   .workbench-main {
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     gap: 14px;
+    min-height: 0;
   }
 
   .market-line {
@@ -771,6 +781,7 @@
 
   .chart-frame-shell {
     position: relative;
+    min-height: 0;
   }
 
   .quote-cards {
@@ -805,7 +816,8 @@
   }
 
   .chart-frame {
-    min-height: 620px;
+    height: 100%;
+    min-height: 0;
     border-radius: 24px;
     overflow: hidden;
     border: 1px solid rgba(24, 24, 27, 0.09);
@@ -813,7 +825,7 @@
   }
 
   .feature-frame {
-    min-height: 540px;
+    min-height: 0;
   }
 
   canvas {
@@ -889,7 +901,9 @@
 
   .workbench-sidebar {
     display: grid;
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
+    min-height: 0;
   }
 
   .mini-card,
@@ -911,6 +925,7 @@
     display: grid;
     gap: 10px;
     margin-top: 12px;
+    align-content: start;
   }
 
   .watch-body strong {
@@ -932,8 +947,10 @@
 
   .context-rail {
     display: grid;
+    grid-template-rows: auto minmax(0, 1.3fr) minmax(0, 1fr);
     gap: 14px;
-    align-self: start;
+    align-self: stretch;
+    min-height: 0;
   }
 
   .readout-grid,
@@ -949,6 +966,20 @@
 
   .readout-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-card,
+  .activity-card {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .metrics-head {
+    margin-top: 16px;
   }
 
   .readout-grid article,
@@ -969,10 +1000,28 @@
     margin: 12px 0 0;
     padding-left: 18px;
     color: rgba(24, 24, 27, 0.72);
+    display: grid;
+    gap: 8px;
   }
 
-  .event-log li + li {
-    margin-top: 8px;
+  .context-copy {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .context-copy small {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(24, 24, 27, 0.48);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    font-size: 0.72rem;
+  }
+
+  .context-copy p {
+    margin: 0;
   }
 
   .note-card {
@@ -1009,6 +1058,7 @@
     .workbench-sidebar {
       grid-column: 1 / -1;
       grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: none;
     }
   }
 
@@ -1019,6 +1069,7 @@
 
     .context-rail {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: none;
     }
   }
 
@@ -1041,10 +1092,11 @@
     .workbench-sidebar,
     .context-rail {
       grid-template-columns: 1fr;
+      grid-template-rows: none;
     }
 
     .chart-frame {
-      min-height: 480px;
+      min-height: 420px;
     }
   }
 </style>

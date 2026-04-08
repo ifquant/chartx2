@@ -584,6 +584,7 @@ export class PhaseOneChartHarness {
     const point = resolvePanePoint(this.canvas, event, layout);
     const divider = resolvePaneDivider(this.panes, paneFrames, point?.y ?? null);
     if (divider !== null) {
+      this.canvas.focus({ preventScroll: true });
       this.paneResizeState = {
         dividerAfterPaneId: divider.upperPaneId,
         dividerBeforePaneId: divider.lowerPaneId,
@@ -596,6 +597,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
+    this.canvas.focus({ preventScroll: true });
     this.dragState = {
       startClientX: event.clientX,
       startRightOffset: this.rightOffset,
@@ -646,10 +648,49 @@ export class PhaseOneChartHarness {
       });
     }
   };
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
+    const pointCount = this.getPointCount();
+    if (this.canvas === null || pointCount === 0) {
+      return;
+    }
+
+    const layout = measureLayout(this.canvas);
+    const paneWidth = layout.width - layout.left - layout.right;
+    const baseSpacing = calculateBaseBarSpacing(paneWidth, pointCount);
+    const currentSpacing = this.barSpacing ?? baseSpacing;
+
+    switch (event.key) {
+      case "ArrowUp":
+        event.preventDefault();
+        this.barSpacing = clamp(currentSpacing * 1.15, MIN_BAR_SPACING, MAX_BAR_SPACING);
+        this.render(this.canvas);
+        return;
+      case "ArrowDown":
+        event.preventDefault();
+        this.barSpacing = clamp(currentSpacing * 0.87, MIN_BAR_SPACING, MAX_BAR_SPACING);
+        this.render(this.canvas);
+        return;
+      case "ArrowLeft":
+        event.preventDefault();
+        this.rightOffset -= 0.6;
+        this.render(this.canvas);
+        return;
+      case "ArrowRight":
+        event.preventDefault();
+        this.rightOffset += 0.6;
+        this.render(this.canvas);
+        return;
+      default:
+        return;
+    }
+  };
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
     this.canvas = canvas;
+    if (!this.canvas.hasAttribute("tabindex")) {
+      this.canvas.tabIndex = 0;
+    }
     this.canvas.style.cursor = "crosshair";
     this.render(canvas);
     window.addEventListener("resize", this.handleResize);
@@ -669,6 +710,7 @@ export class PhaseOneChartHarness {
     canvas.addEventListener("pointerleave", this.handlePointerLeave);
     canvas.addEventListener("wheel", this.handleWheel, { passive: false });
     canvas.addEventListener("click", this.handleClick);
+    canvas.addEventListener("keydown", this.handleKeyDown);
   }
 
   public detach(): void {
@@ -680,6 +722,7 @@ export class PhaseOneChartHarness {
       this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
       this.canvas.removeEventListener("wheel", this.handleWheel);
       this.canvas.removeEventListener("click", this.handleClick);
+      this.canvas.removeEventListener("keydown", this.handleKeyDown);
     }
     window.removeEventListener("resize", this.handleResize);
     this.resizeObserver?.disconnect();

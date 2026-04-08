@@ -86,6 +86,19 @@ test("workbench renders a deterministic zoomed viewport snapshot", async ({ page
   await expect(frame).toHaveScreenshot("phase-one-harness-zoomed.png");
 });
 
+test("workbench supports keyboard zoom after the chart takes focus", async ({ page }) => {
+  await page.goto("/");
+  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  await expect(canvas).toBeVisible();
+
+  await canvas.click();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+
+  await expect(frame).toHaveScreenshot("phase-one-harness-keyboard-zoomed.png");
+});
+
 test("workbench renders a deterministic dragged viewport snapshot", async ({ page }) => {
   await page.goto("/");
   const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');

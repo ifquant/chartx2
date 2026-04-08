@@ -2390,6 +2390,11 @@ export class PhaseOneChartHarness {
         lineColor: this.chartOptions.gridColor,
       });
 
+      context.save();
+      context.beginPath();
+      context.rect(0, 0, paneWidth, pane.height);
+      context.clip();
+
       if (pane.kind === "primary" && primaryRows.length > 0) {
         const primaryRange = this.primaryStore.priceRange(
           primaryRows[0].index,
@@ -2649,6 +2654,8 @@ export class PhaseOneChartHarness {
           );
         }
       }
+
+      context.restore();
 
       const legendEntries =
         pane.kind === "primary"

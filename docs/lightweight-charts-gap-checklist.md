@@ -60,6 +60,7 @@ The capability categories below are intentionally practical:
   - bar
   - line
   - area
+  - baseline
   - histogram
   - volume (rendered through a dedicated histogram-style path for future pane work)
 - basic data write flow exists
@@ -92,10 +93,12 @@ Current state:
 - `addBarSeries()`
 - `addLineSeries()`
 - `addAreaSeries()`
+- `addBaselineSeries()`
 - `addHistogramSeries()`
 - `addVolumeSeries()`
 - `addLineSeries({ pane })`
 - `addAreaSeries({ pane })`
+- `addBaselineSeries({ pane })`
 - `addBarSeries({ pane })`
 - `addHistogramSeries({ pane })`
 - `panes()`
@@ -202,13 +205,14 @@ Why it matters:
 
 Next series types to add:
 
-- baseline
+- no remaining core lightweight-charts series hole at the current floor
 
 Why this matters:
 
 - these are part of the normal `lightweight-charts` expectation surface
 - histogram is already in place and acts as the direct bridge toward future volume rendering
 - a first dedicated volume expression now exists, but it is still single-pane and not yet a real pane-local volume overlay
+- the next meaningful breadth gaps now move past core series shapes into markers, price lines, richer scale/options surfaces, and broader pane/chart behavior
 
 ### 3. Add public options surfaces
 
@@ -295,7 +299,7 @@ The current demo-shell priorities are:
   - `Events`
   - `Annotations` when it becomes real
 - avoid fake placeholders
-  - if `area`, `baseline`, `markers`, or `price lines` are still missing, the demo should say so directly
+  - if `markers`, `price lines`, or other still-missing public features are absent, the demo should say so directly
 - keep all example tabs on the public API
   - the route shell and demo composition layer should not import chart internals directly
 
@@ -335,7 +339,7 @@ If the next goal is still `close the gap to lightweight-charts`, the best order 
 3. scale APIs and formatter hooks
 4. markers / price lines / subscriptions
 5. pane architecture
-6. area / baseline series
+6. richer annotation and overlay surfaces
 
 ## Current Bottom Line
 

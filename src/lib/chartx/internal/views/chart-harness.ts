@@ -8,12 +8,14 @@ import {
 } from "../model";
 import {
   AreaRenderer,
+  BaselineRenderer,
   BarRenderer,
   CandlesticksRenderer,
   GridRenderer,
   HistogramRenderer,
   LineRenderer,
   type AreaItem,
+  type BaselineItem,
   type BarItem,
   type CandlestickItem,
   type HistogramItem,
@@ -126,6 +128,17 @@ export type PhaseOneAreaSeriesOptions = {
   bottomColor?: string;
 };
 
+export type PhaseOneBaselineSeriesOptions = {
+  baseValue?: number;
+  lineWidth?: number;
+  topLineColor?: string;
+  topFillTopColor?: string;
+  topFillBottomColor?: string;
+  bottomLineColor?: string;
+  bottomFillTopColor?: string;
+  bottomFillBottomColor?: string;
+};
+
 export type PhaseOneHistogramSeriesOptions = {
   upColor?: string;
   downColor?: string;
@@ -232,6 +245,12 @@ export type PhaseOneAreaSeriesApi = {
   applyOptions(options: PhaseOneAreaSeriesOptions): void;
 };
 
+export type PhaseOneBaselineSeriesApi = {
+  setData(data: readonly PhaseOneLineData[]): void;
+  update(bar: PhaseOneLineData): void;
+  applyOptions(options: PhaseOneBaselineSeriesOptions): void;
+};
+
 export type PhaseOneHistogramSeriesApi = {
   setData(data: readonly PhaseOneHistogramData[]): void;
   update(bar: PhaseOneHistogramData): void;
@@ -249,6 +268,7 @@ export type PhaseOneChartApi = {
   addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi;
   addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi;
   addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi;
+  addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi;
   addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi;
   addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi;
   panes(): readonly PhaseOnePaneApi[];
@@ -261,6 +281,7 @@ export type PhaseOneChartApi = {
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
       | PhaseOneAreaSeriesApi
+      | PhaseOneBaselineSeriesApi
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void;
@@ -315,7 +336,7 @@ type HistogramVisual = {
   isUp: boolean;
 };
 
-type SecondarySeriesKind = "candlestick" | "line" | "area" | "bar" | "histogram" | "volume";
+type SecondarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
 
 type SecondarySeriesState = {
   paneId: string;
@@ -327,6 +348,7 @@ type SecondarySeriesState = {
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
     | PhaseOneAreaSeriesApi
+    | PhaseOneBaselineSeriesApi
     | PhaseOneHistogramSeriesApi
     | PhaseOneVolumeSeriesApi;
   data: readonly PhaseOneCandlestickData[];
@@ -338,6 +360,7 @@ type SecondarySeriesState = {
     | Required<PhaseOneBarSeriesOptions>
     | Required<PhaseOneLineSeriesOptions>
     | Required<PhaseOneAreaSeriesOptions>
+    | Required<PhaseOneBaselineSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions>;
 };
@@ -385,17 +408,19 @@ export class PhaseOneChartHarness {
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private readonly areaRenderer = new AreaRenderer();
+  private readonly baselineRenderer = new BaselineRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
   private primarySeriesMeta: { id: string; label: string } | null = null;
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
   private nextSeriesId = 1;
-  private primarySeriesType: "candlestick" | "bar" | "line" | "area" | "histogram" | null = null;
+  private primarySeriesType: "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram" | null = null;
   private currentPrimarySeriesApi:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
     | PhaseOneAreaSeriesApi
+    | PhaseOneBaselineSeriesApi
     | PhaseOneHistogramSeriesApi
     | null = null;
   private readonly secondarySeries = new Map<string, SecondarySeriesState>();
@@ -437,6 +462,16 @@ export class PhaseOneChartHarness {
     lineWidth: 2,
     topColor: "rgba(63, 111, 216, 0.28)",
     bottomColor: "rgba(63, 111, 216, 0.02)",
+  };
+  private readonly baselineOptions: Required<PhaseOneBaselineSeriesOptions> = {
+    baseValue: 130,
+    lineWidth: 2,
+    topLineColor: "#0c8f62",
+    topFillTopColor: "rgba(12, 143, 98, 0.26)",
+    topFillBottomColor: "rgba(12, 143, 98, 0.03)",
+    bottomLineColor: "#c7543e",
+    bottomFillTopColor: "rgba(199, 84, 62, 0.03)",
+    bottomFillBottomColor: "rgba(199, 84, 62, 0.24)",
   };
   private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = {
     upColor: UP_COLOR,
@@ -677,6 +712,14 @@ export class PhaseOneChartHarness {
     return this.addSecondaryAreaSeries(resolved.paneId);
   }
 
+  public addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    if (resolved.kind === "primary") {
+      return this.addPrimaryBaselineSeries();
+    }
+    return this.addSecondaryBaselineSeries(resolved.paneId);
+  }
+
   public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
     const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
     if (resolved.kind === "primary") {
@@ -707,6 +750,7 @@ export class PhaseOneChartHarness {
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
       | PhaseOneAreaSeriesApi
+      | PhaseOneBaselineSeriesApi
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
@@ -1017,6 +1061,58 @@ export class PhaseOneChartHarness {
     return api;
   }
 
+  private addPrimaryBaselineSeries(): PhaseOneBaselineSeriesApi {
+    if (this.currentPrimarySeriesApi !== null) {
+      throw new Error("chartx phase-one chart supports only one primary series");
+    }
+
+    this.primarySeriesType = "baseline";
+    this.primarySeriesMeta = this.createSeriesMeta("baseline");
+    this.primaryHistogramVisuals.clear();
+    const api: PhaseOneBaselineSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryData(normalizeLineData(data));
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updatePrimary(normalizeLineBar(bar));
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.baseValue !== undefined) {
+          this.baselineOptions.baseValue = options.baseValue;
+        }
+        if (options.lineWidth !== undefined) {
+          this.baselineOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.topLineColor !== undefined) {
+          this.baselineOptions.topLineColor = options.topLineColor;
+        }
+        if (options.topFillTopColor !== undefined) {
+          this.baselineOptions.topFillTopColor = options.topFillTopColor;
+        }
+        if (options.topFillBottomColor !== undefined) {
+          this.baselineOptions.topFillBottomColor = options.topFillBottomColor;
+        }
+        if (options.bottomLineColor !== undefined) {
+          this.baselineOptions.bottomLineColor = options.bottomLineColor;
+        }
+        if (options.bottomFillTopColor !== undefined) {
+          this.baselineOptions.bottomFillTopColor = options.bottomFillTopColor;
+        }
+        if (options.bottomFillBottomColor !== undefined) {
+          this.baselineOptions.bottomFillBottomColor = options.bottomFillBottomColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentPrimarySeriesApi = api;
+    return api;
+  }
+
   private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
     if (this.currentPrimarySeriesApi !== null) {
       throw new Error("chartx phase-one chart supports only one primary series");
@@ -1180,6 +1276,54 @@ export class PhaseOneChartHarness {
       },
     };
     this.attachSecondarySeries(paneId, "area", api, meta);
+    return api;
+  }
+
+  private addSecondaryBaselineSeries(paneId: string): PhaseOneBaselineSeriesApi {
+    const meta = this.createSeriesMeta("baseline");
+    const api: PhaseOneBaselineSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, normalizeLineData(data), "baseline");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, normalizeLineBar(bar), "baseline");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "baseline");
+        const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
+        if (options.baseValue !== undefined) {
+          seriesOptions.baseValue = options.baseValue;
+        }
+        if (options.lineWidth !== undefined) {
+          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.topLineColor !== undefined) {
+          seriesOptions.topLineColor = options.topLineColor;
+        }
+        if (options.topFillTopColor !== undefined) {
+          seriesOptions.topFillTopColor = options.topFillTopColor;
+        }
+        if (options.topFillBottomColor !== undefined) {
+          seriesOptions.topFillBottomColor = options.topFillBottomColor;
+        }
+        if (options.bottomLineColor !== undefined) {
+          seriesOptions.bottomLineColor = options.bottomLineColor;
+        }
+        if (options.bottomFillTopColor !== undefined) {
+          seriesOptions.bottomFillTopColor = options.bottomFillTopColor;
+        }
+        if (options.bottomFillBottomColor !== undefined) {
+          seriesOptions.bottomFillBottomColor = options.bottomFillBottomColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "baseline", api, meta);
     return api;
   }
 
@@ -1751,6 +1895,7 @@ export class PhaseOneChartHarness {
     | Required<PhaseOneBarSeriesOptions>
     | Required<PhaseOneLineSeriesOptions>
     | Required<PhaseOneAreaSeriesOptions>
+    | Required<PhaseOneBaselineSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions> {
     switch (kind) {
@@ -1762,6 +1907,8 @@ export class PhaseOneChartHarness {
         return { ...this.lineOptions };
       case "area":
         return { ...this.areaOptions };
+      case "baseline":
+        return { ...this.baselineOptions };
       case "histogram":
         return { ...this.histogramOptions };
       case "volume":
@@ -1825,6 +1972,7 @@ export class PhaseOneChartHarness {
         this.barOptions,
         this.lineOptions,
         this.areaOptions,
+        this.baselineOptions,
         this.histogramOptions,
         this.primaryHistogramVisuals,
       ),
@@ -2040,6 +2188,27 @@ export class PhaseOneChartHarness {
             bottomColor: this.areaOptions.bottomColor,
             baseY: pane.height,
           });
+        } else if (this.primarySeriesType === "baseline") {
+          const baselineItems = primaryRows.map((row): BaselineItem => ({
+            x: this.timeScale.indexToCoordinate(row.index),
+            y: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+          }));
+          const baselineY = toCoordinate(
+            this.primaryPriceScale.priceToCoordinate(this.baselineOptions.baseValue),
+          );
+
+          this.baselineRenderer.draw(context, {
+            items: baselineItems,
+            baseY: baselineY,
+            height: pane.height,
+            lineWidth: this.baselineOptions.lineWidth,
+            topLineColor: this.baselineOptions.topLineColor,
+            topFillTopColor: this.baselineOptions.topFillTopColor,
+            topFillBottomColor: this.baselineOptions.topFillBottomColor,
+            bottomLineColor: this.baselineOptions.bottomLineColor,
+            bottomFillTopColor: this.baselineOptions.bottomFillTopColor,
+            bottomFillBottomColor: this.baselineOptions.bottomFillBottomColor,
+          });
         } else if (this.primarySeriesType === "bar") {
           const barItems = primaryRows.map((row): BarItem => ({
             x: this.timeScale.indexToCoordinate(row.index),
@@ -2128,6 +2297,26 @@ export class PhaseOneChartHarness {
               topColor: seriesOptions.topColor,
               bottomColor: seriesOptions.bottomColor,
               baseY: pane.height,
+            });
+          } else if (state.kind === "baseline") {
+            const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
+            const baselineItems = rows.map((row): BaselineItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+            }));
+            const baselineY = toCoordinate(state.priceScale.priceToCoordinate(seriesOptions.baseValue));
+
+            this.baselineRenderer.draw(context, {
+              items: baselineItems,
+              baseY: baselineY,
+              height: pane.height,
+              lineWidth: seriesOptions.lineWidth,
+              topLineColor: seriesOptions.topLineColor,
+              topFillTopColor: seriesOptions.topFillTopColor,
+              topFillBottomColor: seriesOptions.topFillBottomColor,
+              bottomLineColor: seriesOptions.bottomLineColor,
+              bottomFillTopColor: seriesOptions.bottomFillTopColor,
+              bottomFillBottomColor: seriesOptions.bottomFillBottomColor,
             });
           } else if (state.kind === "bar") {
             const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
@@ -2309,6 +2498,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     addAreaSeries(target) {
       return harness.addAreaSeries(target);
     },
+    addBaselineSeries(target) {
+      return harness.addBaselineSeries(target);
+    },
     addHistogramSeries(target) {
       return harness.addHistogramSeries(target);
     },
@@ -2449,6 +2641,8 @@ function formatSeriesKindLabel(kind: string): string {
       return "Line";
     case "area":
       return "Area";
+    case "baseline":
+      return "Baseline";
     case "bar":
       return "Bar";
     case "histogram":
@@ -3019,12 +3213,13 @@ function resolveSeriesReadoutValue(
 }
 
 function resolvePrimarySeriesColor(
-  kind: "candlestick" | "bar" | "line" | "area" | "histogram",
+  kind: "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram",
   data: readonly PhaseOneCandlestickData[],
   candlestickOptions: Required<PhaseOneCandlestickSeriesOptions>,
   barOptions: Required<PhaseOneBarSeriesOptions>,
   lineOptions: Required<PhaseOneLineSeriesOptions>,
   areaOptions: Required<PhaseOneAreaSeriesOptions>,
+  baselineOptions: Required<PhaseOneBaselineSeriesOptions>,
   histogramOptions: Required<PhaseOneHistogramSeriesOptions>,
   visuals: ReadonlyMap<number, HistogramVisual>,
 ): string {
@@ -3034,6 +3229,10 @@ function resolvePrimarySeriesColor(
       return lineOptions.color;
     case "area":
       return areaOptions.lineColor;
+    case "baseline":
+      return last !== undefined && last.close >= baselineOptions.baseValue
+        ? baselineOptions.topLineColor
+        : baselineOptions.bottomLineColor;
     case "bar":
       return last !== undefined && last.close >= last.open ? barOptions.upColor : barOptions.downColor;
     case "histogram": {
@@ -3061,6 +3260,12 @@ function resolveSecondarySeriesColor(state: SecondarySeriesState): string {
     case "area": {
       const options = state.options as Required<PhaseOneAreaSeriesOptions>;
       return options.lineColor;
+    }
+    case "baseline": {
+      const options = state.options as Required<PhaseOneBaselineSeriesOptions>;
+      return last !== undefined && last.close >= options.baseValue
+        ? options.topLineColor
+        : options.bottomLineColor;
     }
     case "bar": {
       const options = state.options as Required<PhaseOneBarSeriesOptions>;

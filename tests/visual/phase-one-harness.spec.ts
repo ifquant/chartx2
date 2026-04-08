@@ -179,7 +179,7 @@ test("features renders the series tab as a deterministic grouped example baselin
   await page.goto("/");
   await featureTab(page, "Series").click();
   const card = page.locator('[data-demo-tab="feature"]');
-  await expect(card).toContainText("candlestick, bar, line, histogram, and volume");
+  await expect(card).toContainText("candlestick, bar, line, area, baseline, histogram, and volume");
   await expect(card).toHaveScreenshot("demo-features-series.png");
 });
 

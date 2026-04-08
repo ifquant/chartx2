@@ -101,7 +101,7 @@ export const FEATURE_TABS: readonly FeatureExampleDescriptor[] = [
   {
     id: "series",
     label: "Series",
-    summary: "Compare the current candlestick, bar, line, histogram, and volume paths.",
+    summary: "Compare the current candlestick, bar, line, area, baseline, histogram, and volume paths.",
     available: true,
   },
   {
@@ -340,7 +340,7 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
   const volume = createVolumeData(bars);
   const log: EventLog = [];
   let chart: PhaseOneChartApi | null = null;
-  let kind: "candlestick" | "bar" | "line" | "area" | "histogram" | "volume" = "candlestick";
+  let kind: "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram" | "volume" = "candlestick";
 
   const rebuild = () => {
     chart?.destroy();
@@ -358,6 +358,10 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
       series.setData(line);
     } else if (kind === "area") {
       const series = chart.addAreaSeries();
+      series.setData(line);
+    } else if (kind === "baseline") {
+      const series = chart.addBaselineSeries();
+      series.applyOptions({ baseValue: 130 });
       series.setData(line);
     } else if (kind === "histogram") {
       const series = chart.addHistogramSeries();
@@ -378,12 +382,12 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
         "This tab turns the same public entrypoint through the series shapes already implemented in chartx2.",
       metrics: [
         { label: "Active series", value: kind },
-        { label: "Data points", value: String(kind === "line" || kind === "area" ? line.length : bars.length) },
-        { label: "Missing", value: "baseline" },
+        { label: "Data points", value: String(kind === "line" || kind === "area" || kind === "baseline" ? line.length : bars.length) },
+        { label: "Missing", value: "--" },
       ],
       eventLog: [...log],
       note: "These examples stay on the public API and make the current series breadth legible.",
-      featureGap: "Baseline is still an explicit gap instead of a fake placeholder.",
+      featureGap: "The basic series floor now includes baseline, so the next gaps move past core shapes and into richer chart breadth.",
     });
   };
 
@@ -396,6 +400,7 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
         { id: "bar", label: "Bar" },
         { id: "line", label: "Line" },
         { id: "area", label: "Area" },
+        { id: "baseline", label: "Baseline" },
         { id: "histogram", label: "Histogram" },
         { id: "volume", label: "Volume" },
       ];

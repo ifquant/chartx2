@@ -188,6 +188,43 @@ test("phase-one public api mounts a single area chart and renders the first fram
   await expect(fixture).toHaveScreenshot("phase-one-api-area-series.png");
 });
 
+test("phase-one public api mounts a single baseline chart and renders the first frame", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-baseline-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-baseline-canvas" aria-label="phase-one api baseline chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-baseline-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API baseline fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addBaselineSeries();
+    series.applyOptions({
+      baseValue: 130,
+      topLineColor: "#0f766e",
+      topFillTopColor: "rgba(15, 118, 110, 0.24)",
+      topFillBottomColor: "rgba(15, 118, 110, 0.02)",
+      bottomLineColor: "#c7543e",
+      bottomFillTopColor: "rgba(199, 84, 62, 0.03)",
+      bottomFillBottomColor: "rgba(199, 84, 62, 0.22)",
+    });
+    series.setData(data);
+  }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-baseline-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-baseline-series.png");
+});
+
 test("phase-one public api mounts a single bar chart and renders the first frame", async ({
   page,
 }) => {

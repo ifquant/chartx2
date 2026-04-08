@@ -1,4 +1,5 @@
 export * from "./area-renderer";
+export * from "./baseline-renderer";
 export * from "./bar-renderer";
 export * from "./candlesticks-renderer";
 export * from "./grid-renderer";

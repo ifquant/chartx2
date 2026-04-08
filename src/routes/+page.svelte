@@ -225,7 +225,6 @@
   }
 
   $: activeSnapshot = activeTopTab === "workbench" ? workbenchSnapshot : featureSnapshot;
-  $: activeReadout = activeTopTab === "workbench" ? workbenchReadout : featureReadout;
   $: activeFeatureSummary =
     activeTopTab === "workbench" ? null : featureDescriptor(activeTopTab);
   $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
@@ -261,19 +260,15 @@
     </nav>
 
     <div class="status-chip">
-      <span>{completedPhaseOneSteps}/{foundation.phaseOneSteps.length}</span>
+      <span>{completedPhaseOneSteps}</span>
     </div>
   </header>
 
-  <section class:feature-layout={activeTopTab !== "workbench"} class="layout-grid">
+  <section class="layout-grid">
     <section class="main-column">
       {#if activeTopTab === "workbench"}
         <article class="demo-card workbench-card" data-demo-tab="workbench">
           <div class="card-head compact-head">
-            <div>
-              <h3>Workbench</h3>
-              <p class="subtle-copy">完整工作台例子</p>
-            </div>
             <div class="toolbar-strip workstation-toolbar">
               <button>NDX</button>
               <button>1D</button>
@@ -402,7 +397,6 @@
                   <span>NASDAQ</span>
                 </div>
                 <strong class="big-price">{formatValue(workbenchReadout.close)}</strong>
-                <p class="price-meta">{workbenchSnapshot.featureGap}</p>
                 <div class="metric-list compact">
                   {#each workbenchSnapshot.metrics.slice(0, 3) as metric}
                     <article>
@@ -414,8 +408,7 @@
               </section>
 
               <section class="mini-card action-card">
-                <h4>Workbench Notes</h4>
-                <p>{workbenchSnapshot.note}</p>
+                <h4>Activity</h4>
                 <ul class="event-log">
                   {#if workbenchSnapshot.eventLog.length === 0}
                     <li>Waiting for the first chart event.</li>
@@ -510,84 +503,6 @@
         </article>
       {/if}
     </section>
-
-    {#if activeTopTab === "workbench"}
-    <aside class="context-rail">
-      <section class="context-card summary-card">
-        <p class="eyebrow">{activeTopTab === "workbench" ? "Workbench" : "Feature Demo"}</p>
-        <h3>{activeSnapshot.title}</h3>
-        <p>{activeSnapshot.summary}</p>
-      </section>
-
-      <section class="context-card dashboard-card">
-        <div class="card-label-row">
-          <span class="eyebrow">Current Readout</span>
-          <span>{formatTime(activeReadout.time)}</span>
-        </div>
-        <div class="readout-grid compact-grid">
-          <article>
-            <small>Open</small>
-            <strong>{formatValue(activeReadout.open)}</strong>
-          </article>
-          <article>
-            <small>High</small>
-            <strong>{formatValue(activeReadout.high)}</strong>
-          </article>
-          <article>
-            <small>Low</small>
-            <strong>{formatValue(activeReadout.low)}</strong>
-          </article>
-          <article>
-            <small>Close</small>
-            <strong>{formatValue(activeReadout.close)}</strong>
-          </article>
-        </div>
-
-        <div class="card-label-row metrics-head">
-          <span class="eyebrow">Metrics</span>
-          <span>{activeSnapshot.metrics.length}</span>
-        </div>
-        <div class="metric-list compact-grid">
-          {#each activeSnapshot.metrics as metric}
-            <article>
-              <small>{metric.label}</small>
-              <strong>{metric.value}</strong>
-            </article>
-          {/each}
-        </div>
-      </section>
-
-      <section class="context-card activity-card">
-        <div class="card-label-row">
-          <span class="eyebrow">Activity</span>
-          <span>{activeSnapshot.eventLog.length}</span>
-        </div>
-        <ul class="event-log">
-          {#if activeSnapshot.eventLog.length === 0}
-            <li>Waiting for the first chart event.</li>
-          {:else}
-            {#each activeSnapshot.eventLog as entry}
-              <li>{entry}</li>
-            {/each}
-          {/if}
-        </ul>
-
-        {#if activeSnapshot.note}
-          <div class="context-copy">
-            <small>Note</small>
-            <p>{activeSnapshot.note}</p>
-          </div>
-        {/if}
-
-        {#if activeSnapshot.featureGap}
-          <div class="context-copy">
-            <small>Current gap</small>
-            <p>{activeSnapshot.featureGap}</p>
-          </div>
-        {/if}
-      </section>
-    </aside>
-    {/if}
   </section>
 </main>
 
@@ -623,8 +538,7 @@
 
   .topbar,
   .layout-grid,
-  .demo-card,
-  .context-card {
+  .demo-card {
     box-sizing: border-box;
   }
 
@@ -644,7 +558,6 @@
   }
 
   .card-head h3,
-  .context-card h3,
   .sidebar-head h4 {
     margin: 0;
   }
@@ -762,8 +675,8 @@
 
   .layout-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 330px;
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
     align-items: stretch;
     height: 100%;
     min-height: 0;
@@ -773,10 +686,6 @@
     display: grid;
     min-width: 0;
     min-height: 0;
-  }
-
-  .feature-layout {
-    grid-template-columns: 1fr;
   }
 
   .demo-card {
@@ -908,7 +817,7 @@
 
   .workbench-shell {
     display: grid;
-    grid-template-columns: 54px minmax(0, 1fr) 280px;
+    grid-template-columns: 50px minmax(0, 1fr) 248px;
     gap: 16px;
     align-items: stretch;
     min-height: 0;
@@ -922,9 +831,9 @@
   }
 
   .tool-rail button {
-    width: 54px;
-    height: 54px;
-    border-radius: 18px;
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
     background: rgba(24, 24, 27, 0.04);
     color: rgba(24, 24, 27, 0.84);
     font: inherit;
@@ -1160,8 +1069,7 @@
     overflow: hidden;
   }
 
-  .mini-card,
-  .context-card {
+  .mini-card {
     padding: 16px;
     border-radius: 22px;
     border: 1px solid rgba(24, 24, 27, 0.08);
@@ -1193,23 +1101,12 @@
     font-size: 2rem;
   }
 
-  .price-meta,
-  .context-card p {
+  .price-meta {
     margin: 8px 0 0;
     line-height: 1.55;
     color: rgba(24, 24, 27, 0.7);
   }
 
-  .context-rail {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1.3fr) minmax(0, 1fr);
-    gap: 14px;
-    align-self: stretch;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .readout-grid,
   .metric-list {
     display: grid;
     gap: 10px;
@@ -1220,32 +1117,16 @@
     margin-top: 16px;
   }
 
-  .readout-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .compact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dashboard-card,
-  .activity-card {
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .metrics-head {
-    margin-top: 16px;
-  }
-
-  .readout-grid article,
   .metric-list article {
     padding: 12px 14px;
     border-radius: 16px;
     background: rgba(24, 24, 27, 0.04);
   }
 
-  .readout-grid small,
   .metric-list small {
     display: block;
     margin-bottom: 4px;
@@ -1259,26 +1140,6 @@
     display: grid;
     gap: 8px;
     overflow: hidden;
-  }
-
-  .context-copy {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(24, 24, 27, 0.08);
-  }
-
-  .context-copy small {
-    display: block;
-    margin-bottom: 6px;
-    color: rgba(24, 24, 27, 0.48);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    font-size: 0.72rem;
-  }
-
-  .context-copy p {
-    margin: 0;
   }
 
   .note-card {
@@ -1307,26 +1168,9 @@
     text-transform: uppercase;
   }
 
-  @media (max-width: 1340px) {
+  @media (max-width: 1180px) {
     .workbench-shell {
-      grid-template-columns: 54px minmax(0, 1fr);
-    }
-
-    .workbench-sidebar {
-      grid-column: 1 / -1;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      grid-template-rows: none;
-    }
-  }
-
-  @media (max-width: 1220px) {
-    .layout-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .context-rail {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-template-rows: none;
+      grid-template-columns: 44px minmax(0, 1fr) 220px;
     }
 
     .feature-console {
@@ -1335,17 +1179,13 @@
     }
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 840px) {
     .app-shell {
       --topbar-height: auto;
       --card-head-height: auto;
       --feature-console-height: auto;
       padding: 16px;
       grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .workbench-shell {
-      grid-template-columns: 1fr;
     }
 
     .topbar {
@@ -1366,14 +1206,17 @@
       flex-wrap: wrap;
     }
 
+    .workbench-shell {
+      grid-template-columns: 1fr;
+    }
+
     .tool-rail {
       grid-auto-flow: column;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(44px, 1fr));
       overflow-x: auto;
     }
 
-    .workbench-sidebar,
-    .context-rail {
+    .workbench-sidebar {
       grid-template-columns: 1fr;
       grid-template-rows: none;
     }

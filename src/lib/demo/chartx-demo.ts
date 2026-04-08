@@ -152,7 +152,7 @@ export function mountWorkbenchDemo(
   canvas: HTMLCanvasElement,
   publish: SnapshotPublisher,
 ): DemoController {
-  const bars = createBars(52);
+  const bars = createBars(10_000);
   const volume = createVolumeData(bars);
   const line = createLineData(bars, 6);
   const log: EventLog = [];

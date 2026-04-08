@@ -59,6 +59,7 @@ The capability categories below are intentionally practical:
   - candlestick
   - bar
   - line
+  - area
   - histogram
   - volume (rendered through a dedicated histogram-style path for future pane work)
 - basic data write flow exists
@@ -90,9 +91,11 @@ Current state:
 - `addCandlestickSeries({ pane })`
 - `addBarSeries()`
 - `addLineSeries()`
+- `addAreaSeries()`
 - `addHistogramSeries()`
 - `addVolumeSeries()`
 - `addLineSeries({ pane })`
+- `addAreaSeries({ pane })`
 - `addBarSeries({ pane })`
 - `addHistogramSeries({ pane })`
 - `panes()`
@@ -199,7 +202,6 @@ Why it matters:
 
 Next series types to add:
 
-- area
 - baseline
 
 Why this matters:

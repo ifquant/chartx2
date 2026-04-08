@@ -340,7 +340,7 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
   const volume = createVolumeData(bars);
   const log: EventLog = [];
   let chart: PhaseOneChartApi | null = null;
-  let kind: "candlestick" | "bar" | "line" | "histogram" | "volume" = "candlestick";
+  let kind: "candlestick" | "bar" | "line" | "area" | "histogram" | "volume" = "candlestick";
 
   const rebuild = () => {
     chart?.destroy();
@@ -355,6 +355,9 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
       series.setData(bars);
     } else if (kind === "line") {
       const series = chart.addLineSeries();
+      series.setData(line);
+    } else if (kind === "area") {
+      const series = chart.addAreaSeries();
       series.setData(line);
     } else if (kind === "histogram") {
       const series = chart.addHistogramSeries();
@@ -375,12 +378,12 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
         "This tab turns the same public entrypoint through the series shapes already implemented in chartx2.",
       metrics: [
         { label: "Active series", value: kind },
-        { label: "Data points", value: String(kind === "line" ? line.length : bars.length) },
-        { label: "Missing", value: "area, baseline" },
+        { label: "Data points", value: String(kind === "line" || kind === "area" ? line.length : bars.length) },
+        { label: "Missing", value: "baseline" },
       ],
       eventLog: [...log],
       note: "These examples stay on the public API and make the current series breadth legible.",
-      featureGap: "Area and baseline are still explicit gaps instead of fake placeholders.",
+      featureGap: "Baseline is still an explicit gap instead of a fake placeholder.",
     });
   };
 
@@ -392,6 +395,7 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
         { id: "candlestick", label: "Candles" },
         { id: "bar", label: "Bar" },
         { id: "line", label: "Line" },
+        { id: "area", label: "Area" },
         { id: "histogram", label: "Histogram" },
         { id: "volume", label: "Volume" },
       ];

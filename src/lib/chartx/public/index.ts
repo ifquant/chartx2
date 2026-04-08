@@ -5,6 +5,8 @@ import {
 import {
   createPhaseOneChart,
   mountPhaseOneChartHarness,
+  type PhaseOneAreaSeriesApi,
+  type PhaseOneAreaSeriesOptions,
   type PhaseOneBarSeriesOptions,
   type PhaseOneBarSeriesApi,
   type PhaseOneCandlestickData,
@@ -44,6 +46,8 @@ import {
 
 export type {
   EngineBoundarySummary,
+  PhaseOneAreaSeriesApi,
+  PhaseOneAreaSeriesOptions,
   PhaseOneBarSeriesOptions,
   PhaseOneBarSeriesApi,
   PhaseOneCandlestickData,

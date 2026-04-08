@@ -7,11 +7,13 @@ import {
   type OhlcDataPoint,
 } from "../model";
 import {
+  AreaRenderer,
   BarRenderer,
   CandlesticksRenderer,
   GridRenderer,
   HistogramRenderer,
   LineRenderer,
+  type AreaItem,
   type BarItem,
   type CandlestickItem,
   type HistogramItem,
@@ -117,6 +119,13 @@ export type PhaseOneLineSeriesOptions = {
   lineWidth?: number;
 };
 
+export type PhaseOneAreaSeriesOptions = {
+  lineColor?: string;
+  lineWidth?: number;
+  topColor?: string;
+  bottomColor?: string;
+};
+
 export type PhaseOneHistogramSeriesOptions = {
   upColor?: string;
   downColor?: string;
@@ -217,6 +226,12 @@ export type PhaseOneLineSeriesApi = {
   applyOptions(options: PhaseOneLineSeriesOptions): void;
 };
 
+export type PhaseOneAreaSeriesApi = {
+  setData(data: readonly PhaseOneLineData[]): void;
+  update(bar: PhaseOneLineData): void;
+  applyOptions(options: PhaseOneAreaSeriesOptions): void;
+};
+
 export type PhaseOneHistogramSeriesApi = {
   setData(data: readonly PhaseOneHistogramData[]): void;
   update(bar: PhaseOneHistogramData): void;
@@ -233,6 +248,7 @@ export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
   addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi;
   addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi;
+  addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi;
   addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi;
   addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi;
   panes(): readonly PhaseOnePaneApi[];
@@ -244,6 +260,7 @@ export type PhaseOneChartApi = {
       | PhaseOneCandlestickSeriesApi
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
+      | PhaseOneAreaSeriesApi
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void;
@@ -298,7 +315,7 @@ type HistogramVisual = {
   isUp: boolean;
 };
 
-type SecondarySeriesKind = "candlestick" | "line" | "bar" | "histogram" | "volume";
+type SecondarySeriesKind = "candlestick" | "line" | "area" | "bar" | "histogram" | "volume";
 
 type SecondarySeriesState = {
   paneId: string;
@@ -309,6 +326,7 @@ type SecondarySeriesState = {
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
+    | PhaseOneAreaSeriesApi
     | PhaseOneHistogramSeriesApi
     | PhaseOneVolumeSeriesApi;
   data: readonly PhaseOneCandlestickData[];
@@ -319,6 +337,7 @@ type SecondarySeriesState = {
     | Required<PhaseOneCandlestickSeriesOptions>
     | Required<PhaseOneBarSeriesOptions>
     | Required<PhaseOneLineSeriesOptions>
+    | Required<PhaseOneAreaSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions>;
 };
@@ -365,18 +384,20 @@ export class PhaseOneChartHarness {
   private readonly gridRenderer = new GridRenderer();
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
+  private readonly areaRenderer = new AreaRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
   private primarySeriesMeta: { id: string; label: string } | null = null;
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
   private nextSeriesId = 1;
-  private primarySeriesType: "candlestick" | "bar" | "line" | "histogram" | null = null;
+  private primarySeriesType: "candlestick" | "bar" | "line" | "area" | "histogram" | null = null;
   private currentPrimarySeriesApi:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
     | PhaseOneLineSeriesApi
-      | PhaseOneHistogramSeriesApi
-      | null = null;
+    | PhaseOneAreaSeriesApi
+    | PhaseOneHistogramSeriesApi
+    | null = null;
   private readonly secondarySeries = new Map<string, SecondarySeriesState>();
   private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
   private canvas: HTMLCanvasElement | null = null;
@@ -410,6 +431,12 @@ export class PhaseOneChartHarness {
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
     color: LINE_COLOR,
     lineWidth: 2,
+  };
+  private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = {
+    lineColor: LINE_COLOR,
+    lineWidth: 2,
+    topColor: "rgba(63, 111, 216, 0.28)",
+    bottomColor: "rgba(63, 111, 216, 0.02)",
   };
   private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = {
     upColor: UP_COLOR,
@@ -642,6 +669,14 @@ export class PhaseOneChartHarness {
     return this.addSecondaryLineSeries(resolved.paneId);
   }
 
+  public addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    if (resolved.kind === "primary") {
+      return this.addPrimaryAreaSeries();
+    }
+    return this.addSecondaryAreaSeries(resolved.paneId);
+  }
+
   public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
     const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
     if (resolved.kind === "primary") {
@@ -671,6 +706,7 @@ export class PhaseOneChartHarness {
       | PhaseOneCandlestickSeriesApi
       | PhaseOneBarSeriesApi
       | PhaseOneLineSeriesApi
+      | PhaseOneAreaSeriesApi
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
@@ -941,6 +977,46 @@ export class PhaseOneChartHarness {
     return api;
   }
 
+  private addPrimaryAreaSeries(): PhaseOneAreaSeriesApi {
+    if (this.currentPrimarySeriesApi !== null) {
+      throw new Error("chartx phase-one chart supports only one primary series");
+    }
+
+    this.primarySeriesType = "area";
+    this.primarySeriesMeta = this.createSeriesMeta("area");
+    this.primaryHistogramVisuals.clear();
+    const api: PhaseOneAreaSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryData(normalizeLineData(data));
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updatePrimary(normalizeLineBar(bar));
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        if (options.lineColor !== undefined) {
+          this.areaOptions.lineColor = options.lineColor;
+        }
+        if (options.lineWidth !== undefined) {
+          this.areaOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.topColor !== undefined) {
+          this.areaOptions.topColor = options.topColor;
+        }
+        if (options.bottomColor !== undefined) {
+          this.areaOptions.bottomColor = options.bottomColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.currentPrimarySeriesApi = api;
+    return api;
+  }
+
   private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
     if (this.currentPrimarySeriesApi !== null) {
       throw new Error("chartx phase-one chart supports only one primary series");
@@ -1068,6 +1144,42 @@ export class PhaseOneChartHarness {
       },
     };
     this.attachSecondarySeries(paneId, "line", api, meta);
+    return api;
+  }
+
+  private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
+    const meta = this.createSeriesMeta("area");
+    const api: PhaseOneAreaSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, normalizeLineData(data), "area");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, normalizeLineBar(bar), "area");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "area");
+        const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
+        if (options.lineColor !== undefined) {
+          seriesOptions.lineColor = options.lineColor;
+        }
+        if (options.lineWidth !== undefined) {
+          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.topColor !== undefined) {
+          seriesOptions.topColor = options.topColor;
+        }
+        if (options.bottomColor !== undefined) {
+          seriesOptions.bottomColor = options.bottomColor;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    };
+    this.attachSecondarySeries(paneId, "area", api, meta);
     return api;
   }
 
@@ -1638,6 +1750,7 @@ export class PhaseOneChartHarness {
     | Required<PhaseOneCandlestickSeriesOptions>
     | Required<PhaseOneBarSeriesOptions>
     | Required<PhaseOneLineSeriesOptions>
+    | Required<PhaseOneAreaSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions> {
     switch (kind) {
@@ -1647,6 +1760,8 @@ export class PhaseOneChartHarness {
         return { ...this.barOptions };
       case "line":
         return { ...this.lineOptions };
+      case "area":
+        return { ...this.areaOptions };
       case "histogram":
         return { ...this.histogramOptions };
       case "volume":
@@ -1709,6 +1824,7 @@ export class PhaseOneChartHarness {
         this.candlestickOptions,
         this.barOptions,
         this.lineOptions,
+        this.areaOptions,
         this.histogramOptions,
         this.primaryHistogramVisuals,
       ),
@@ -1910,6 +2026,20 @@ export class PhaseOneChartHarness {
             lineColor: this.lineOptions.color,
             lineWidth: this.lineOptions.lineWidth,
           });
+        } else if (this.primarySeriesType === "area") {
+          const areaItems = primaryRows.map((row): AreaItem => ({
+            x: this.timeScale.indexToCoordinate(row.index),
+            y: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+          }));
+
+          this.areaRenderer.draw(context, {
+            items: areaItems,
+            lineColor: this.areaOptions.lineColor,
+            lineWidth: this.areaOptions.lineWidth,
+            topColor: this.areaOptions.topColor,
+            bottomColor: this.areaOptions.bottomColor,
+            baseY: pane.height,
+          });
         } else if (this.primarySeriesType === "bar") {
           const barItems = primaryRows.map((row): BarItem => ({
             x: this.timeScale.indexToCoordinate(row.index),
@@ -1983,6 +2113,21 @@ export class PhaseOneChartHarness {
               items: lineItems,
               lineColor: seriesOptions.color,
               lineWidth: seriesOptions.lineWidth,
+            });
+          } else if (state.kind === "area") {
+            const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
+            const areaItems = rows.map((row): AreaItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+            }));
+
+            this.areaRenderer.draw(context, {
+              items: areaItems,
+              lineColor: seriesOptions.lineColor,
+              lineWidth: seriesOptions.lineWidth,
+              topColor: seriesOptions.topColor,
+              bottomColor: seriesOptions.bottomColor,
+              baseY: pane.height,
             });
           } else if (state.kind === "bar") {
             const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
@@ -2161,6 +2306,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     addLineSeries(target) {
       return harness.addLineSeries(target);
     },
+    addAreaSeries(target) {
+      return harness.addAreaSeries(target);
+    },
     addHistogramSeries(target) {
       return harness.addHistogramSeries(target);
     },
@@ -2299,6 +2447,8 @@ function formatSeriesKindLabel(kind: string): string {
       return "Candlestick";
     case "line":
       return "Line";
+    case "area":
+      return "Area";
     case "bar":
       return "Bar";
     case "histogram":
@@ -2869,11 +3019,12 @@ function resolveSeriesReadoutValue(
 }
 
 function resolvePrimarySeriesColor(
-  kind: "candlestick" | "bar" | "line" | "histogram",
+  kind: "candlestick" | "bar" | "line" | "area" | "histogram",
   data: readonly PhaseOneCandlestickData[],
   candlestickOptions: Required<PhaseOneCandlestickSeriesOptions>,
   barOptions: Required<PhaseOneBarSeriesOptions>,
   lineOptions: Required<PhaseOneLineSeriesOptions>,
+  areaOptions: Required<PhaseOneAreaSeriesOptions>,
   histogramOptions: Required<PhaseOneHistogramSeriesOptions>,
   visuals: ReadonlyMap<number, HistogramVisual>,
 ): string {
@@ -2881,6 +3032,8 @@ function resolvePrimarySeriesColor(
   switch (kind) {
     case "line":
       return lineOptions.color;
+    case "area":
+      return areaOptions.lineColor;
     case "bar":
       return last !== undefined && last.close >= last.open ? barOptions.upColor : barOptions.downColor;
     case "histogram": {
@@ -2904,6 +3057,10 @@ function resolveSecondarySeriesColor(state: SecondarySeriesState): string {
     case "line": {
       const options = state.options as Required<PhaseOneLineSeriesOptions>;
       return options.color;
+    }
+    case "area": {
+      const options = state.options as Required<PhaseOneAreaSeriesOptions>;
+      return options.lineColor;
     }
     case "bar": {
       const options = state.options as Required<PhaseOneBarSeriesOptions>;

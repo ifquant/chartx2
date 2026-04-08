@@ -155,6 +155,39 @@ test("phase-one public api mounts a single line chart and renders the first fram
   await expect(fixture).toHaveScreenshot("phase-one-api-line-series.png");
 });
 
+test("phase-one public api mounts a single area chart and renders the first frame", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-area-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-area-canvas" aria-label="phase-one api area chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-area-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API area fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addAreaSeries();
+    series.setData(data);
+    series.applyOptions({
+      lineColor: "#2563eb",
+      topColor: "rgba(37, 99, 235, 0.34)",
+      bottomColor: "rgba(37, 99, 235, 0.02)",
+    });
+  }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-area-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-area-series.png");
+});
+
 test("phase-one public api mounts a single bar chart and renders the first frame", async ({
   page,
 }) => {

@@ -268,7 +268,7 @@
   <section class:feature-layout={activeTopTab !== "workbench"} class="layout-grid">
     <section class="main-column">
       {#if activeTopTab === "workbench"}
-        <article class="demo-card" data-demo-tab="workbench">
+        <article class="demo-card workbench-card" data-demo-tab="workbench">
           <div class="card-head compact-head">
             <div>
               <h3>Workbench</h3>
@@ -430,7 +430,7 @@
           </div>
         </article>
       {:else}
-        <article class="demo-card" data-demo-tab="feature">
+        <article class="demo-card feature-card" data-demo-tab="feature">
           <div class="card-head compact-head feature-header">
             <div class="feature-title-row">
               <h3>{activeFeatureSummary?.label}</h3>
@@ -603,13 +603,19 @@
   }
 
   .app-shell {
+    --shell-gap: 14px;
+    --topbar-height: clamp(82px, 9.2vh, 98px);
+    --card-head-height: 60px;
+    --readout-height: 52px;
+    --action-strip-height: 48px;
+    --feature-console-height: clamp(124px, 15vh, 156px);
     height: 100vh;
     padding: clamp(14px, 1.8vw, 24px);
     box-sizing: border-box;
     overflow: hidden;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 14px;
+    grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+    gap: var(--shell-gap);
     background:
       radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 28%),
       linear-gradient(180deg, #f7f3eb 0%, #f1ede5 100%);
@@ -627,7 +633,8 @@
     grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto;
     gap: 14px;
     align-items: center;
-    min-height: 78px;
+    height: 100%;
+    min-height: 0;
     padding: 14px 18px;
     border: 1px solid rgba(24, 24, 27, 0.08);
     border-radius: 24px;
@@ -661,6 +668,7 @@
   .symbol-block {
     display: grid;
     gap: 2px;
+    min-width: 0;
   }
 
   .symbol-block strong {
@@ -757,10 +765,12 @@
     grid-template-columns: minmax(0, 1fr) 330px;
     gap: 18px;
     align-items: stretch;
+    height: 100%;
     min-height: 0;
   }
 
   .main-column {
+    display: grid;
     min-width: 0;
     min-height: 0;
   }
@@ -782,6 +792,19 @@
     box-shadow: 0 18px 48px rgba(38, 33, 24, 0.07);
   }
 
+  .workbench-card {
+    grid-template-rows: var(--card-head-height) minmax(0, 1fr);
+  }
+
+  .feature-card {
+    grid-template-rows:
+      var(--card-head-height)
+      minmax(0, 1fr)
+      var(--readout-height)
+      var(--action-strip-height)
+      var(--feature-console-height);
+  }
+
   .card-head,
   .chart-meta,
   .market-line,
@@ -798,6 +821,7 @@
   }
 
   .compact-head {
+    height: var(--card-head-height);
     align-items: center;
     min-height: 0;
     min-width: 0;
@@ -844,6 +868,7 @@
     gap: 12px;
     align-items: center;
     justify-content: flex-start;
+    min-height: var(--action-strip-height);
     overflow-x: auto;
     overflow-y: hidden;
     min-width: 0;
@@ -907,9 +932,15 @@
 
   .workbench-main {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: 58px minmax(0, 1fr) var(--readout-height) 94px;
     gap: 14px;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .chart-meta {
+    min-height: 58px;
+    min-width: 0;
     overflow: hidden;
   }
 
@@ -979,10 +1010,12 @@
     display: grid;
     grid-template-columns: 1.1fr 1.5fr 1fr;
     gap: 12px;
+    min-height: var(--feature-console-height);
   }
 
   .feature-console-card {
     min-height: 0;
+    overflow: hidden;
     padding: 12px 14px;
     border-radius: 18px;
     background: rgba(24, 24, 27, 0.04);
@@ -1028,6 +1061,8 @@
     color: rgba(24, 24, 27, 0.72);
     display: grid;
     gap: 8px;
+    max-height: 100%;
+    overflow: hidden;
   }
 
   canvas {
@@ -1052,7 +1087,7 @@
   }
 
   .feature-readout {
-    min-height: 52px;
+    min-height: var(--readout-height);
   }
 
   .series-pill {
@@ -1075,7 +1110,9 @@
 
   .workbench-footer {
     display: grid;
-    gap: 12px;
+    grid-template-rows: 40px var(--action-strip-height);
+    gap: 10px;
+    min-height: 0;
   }
 
   .time-strip {
@@ -1143,6 +1180,7 @@
     gap: 10px;
     margin-top: 12px;
     align-content: start;
+    overflow: hidden;
   }
 
   .watch-body strong {
@@ -1168,6 +1206,7 @@
     gap: 14px;
     align-self: stretch;
     min-height: 0;
+    overflow: hidden;
   }
 
   .readout-grid,
@@ -1219,6 +1258,7 @@
     color: rgba(24, 24, 27, 0.72);
     display: grid;
     gap: 8px;
+    overflow: hidden;
   }
 
   .context-copy {
@@ -1291,12 +1331,17 @@
 
     .feature-console {
       grid-template-columns: 1fr;
+      grid-auto-rows: minmax(0, 1fr);
     }
   }
 
   @media (max-width: 900px) {
     .app-shell {
+      --topbar-height: auto;
+      --card-head-height: auto;
+      --feature-console-height: auto;
       padding: 16px;
+      grid-template-rows: auto minmax(0, 1fr);
     }
 
     .workbench-shell {
@@ -1305,6 +1350,7 @@
 
     .topbar {
       grid-template-columns: 1fr;
+      height: auto;
       min-height: auto;
     }
 
@@ -1334,6 +1380,13 @@
 
     .chart-frame {
       min-height: 420px;
+    }
+
+    .workbench-card,
+    .feature-card,
+    .workbench-main,
+    .workbench-footer {
+      grid-template-rows: none;
     }
   }
 </style>

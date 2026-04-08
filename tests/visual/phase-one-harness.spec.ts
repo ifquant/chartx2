@@ -173,6 +173,16 @@ test("features renders the interactions tab as a deterministic grouped example b
   await expect(card).toHaveScreenshot("demo-features-interactions.png");
 });
 
+test("features renders the annotations tab as a deterministic grouped example baseline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await featureTab(page, "Annotations").click();
+  const card = page.locator('[data-demo-tab="feature"]');
+  await expect(card).toContainText("price-line");
+  await expect(card).toHaveScreenshot("demo-features-annotations.png");
+});
+
 test("features renders the series tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

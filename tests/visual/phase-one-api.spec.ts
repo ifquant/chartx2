@@ -225,6 +225,34 @@ test("phase-one public api mounts a single baseline chart and renders the first 
   await expect(fixture).toHaveScreenshot("phase-one-api-baseline-series.png");
 });
 
+test("phase-one public api renders series-level price lines", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-price-line-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-price-line-canvas" aria-label="phase-one api price line chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-price-line-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API price line fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    series.createPriceLine({ price: 134, color: "#0c8f62", title: "Support" });
+    series.createPriceLine({ price: 138, color: "#c7543e", title: "Resistance" });
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-price-line-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-price-lines.png");
+});
+
 test("phase-one public api mounts a single bar chart and renders the first frame", async ({
   page,
 }) => {

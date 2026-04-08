@@ -78,6 +78,18 @@ export type PhaseOneReadoutDetail = {
   series: readonly PhaseOneReadoutSeriesDetail[];
 };
 
+export type PhaseOnePriceLineOptions = {
+  price?: number;
+  color?: string;
+  lineWidth?: number;
+  title?: string;
+};
+
+export type PhaseOnePriceLineApi = {
+  applyOptions(options: PhaseOnePriceLineOptions): void;
+  remove(): void;
+};
+
 export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
   point: PanePoint | null;
 };
@@ -225,42 +237,56 @@ export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
   applyOptions(options: PhaseOneCandlestickSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneBarSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
   applyOptions(options: PhaseOneBarSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneLineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneLineSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneAreaSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneAreaSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneBaselineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneBaselineSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneHistogramSeriesApi = {
   setData(data: readonly PhaseOneHistogramData[]): void;
   update(bar: PhaseOneHistogramData): void;
   applyOptions(options: PhaseOneHistogramSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneVolumeSeriesApi = {
   setData(data: readonly PhaseOneVolumeData[]): void;
   update(bar: PhaseOneVolumeData): void;
   applyOptions(options: PhaseOneVolumeSeriesOptions): void;
+  createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+  removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
 export type PhaseOneChartApi = {
@@ -336,6 +362,14 @@ type HistogramVisual = {
   isUp: boolean;
 };
 
+type PriceLineState = {
+  id: string;
+  price: number;
+  color: string;
+  lineWidth: number;
+  title: string;
+};
+
 type SecondarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
 
 type SecondarySeriesState = {
@@ -355,6 +389,7 @@ type SecondarySeriesState = {
   store: SeriesDataStore<number>;
   priceScale: PriceScale;
   visuals: Map<number, HistogramVisual>;
+  priceLines: Map<string, PriceLineState>;
   options:
     | Required<PhaseOneCandlestickSeriesOptions>
     | Required<PhaseOneBarSeriesOptions>
@@ -414,6 +449,7 @@ export class PhaseOneChartHarness {
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
   private nextSeriesId = 1;
+  private nextPriceLineId = 1;
   private primarySeriesType: "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram" | null = null;
   private currentPrimarySeriesApi:
     | PhaseOneCandlestickSeriesApi
@@ -425,6 +461,7 @@ export class PhaseOneChartHarness {
     | null = null;
   private readonly secondarySeries = new Map<string, SecondarySeriesState>();
   private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
+  private readonly priceLineHandleIds = new WeakMap<PhaseOnePriceLineApi, string>();
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
@@ -481,7 +518,14 @@ export class PhaseOneChartHarness {
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
   };
+  private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = {
+    price: 0,
+    color: "rgba(16, 16, 16, 0.48)",
+    lineWidth: 1,
+    title: "Price line",
+  };
   private primaryHistogramVisuals = new Map<number, HistogramVisual>();
+  private primaryPriceLines = new Map<string, PriceLineState>();
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private paneResizeState: PaneResizeState | null = null;
@@ -691,6 +735,15 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
+      },
     };
     this.currentPrimarySeriesApi = api;
     return api;
@@ -760,6 +813,7 @@ export class PhaseOneChartHarness {
       this.primarySeriesMeta = null;
       this.primaryData = [];
       this.primaryHistogramVisuals.clear();
+      this.primaryPriceLines.clear();
     } else {
       const state = Array.from(this.secondarySeries.values()).find((entry) => entry.api === series);
       if (state === undefined) {
@@ -1016,6 +1070,15 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
+      },
     };
     this.currentPrimarySeriesApi = api;
     return api;
@@ -1055,6 +1118,15 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
       },
     };
     this.currentPrimarySeriesApi = api;
@@ -1108,6 +1180,15 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
+      },
     };
     this.currentPrimarySeriesApi = api;
     return api;
@@ -1142,6 +1223,15 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
+      },
     };
     this.currentPrimarySeriesApi = api;
     return api;
@@ -1174,6 +1264,15 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(this.primaryPriceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        this.removePriceLineFromMap(this.primaryPriceLines, line);
       },
     };
     this.currentPrimarySeriesApi = api;
@@ -1208,6 +1307,17 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "candlestick");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "candlestick");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
     };
     this.attachSecondarySeries(target, "candlestick", api, meta);
     return api;
@@ -1237,6 +1347,17 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "line");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "line");
+        this.removePriceLineFromMap(state.priceLines, line);
       },
     };
     this.attachSecondarySeries(paneId, "line", api, meta);
@@ -1273,6 +1394,17 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "area");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "area");
+        this.removePriceLineFromMap(state.priceLines, line);
       },
     };
     this.attachSecondarySeries(paneId, "area", api, meta);
@@ -1322,6 +1454,17 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "baseline");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "baseline");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
     };
     this.attachSecondarySeries(paneId, "baseline", api, meta);
     return api;
@@ -1351,6 +1494,17 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "bar");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "bar");
+        this.removePriceLineFromMap(state.priceLines, line);
       },
     };
     this.attachSecondarySeries(paneId, "bar", api, meta);
@@ -1382,6 +1536,17 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "histogram");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "histogram");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
     };
     this.attachSecondarySeries(paneId, "histogram", api, meta);
     return api;
@@ -1412,6 +1577,17 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "volume");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSecondaryStateByApi(api, "volume");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
     };
     this.attachSecondarySeries(paneId, "volume", api, meta);
     return api;
@@ -1433,6 +1609,7 @@ export class PhaseOneChartHarness {
       store: new SeriesDataStore<number>(),
       priceScale: this.getOrCreateSecondaryPanePriceScale(paneId),
       visuals: new Map<number, HistogramVisual>(),
+      priceLines: new Map<string, PriceLineState>(),
       options: this.createSecondarySeriesOptions(kind),
     });
   }
@@ -1888,6 +2065,75 @@ export class PhaseOneChartHarness {
     };
   }
 
+  private createPriceLineState(options: PhaseOnePriceLineOptions = {}): PriceLineState {
+    const ordinal = this.nextPriceLineId;
+    this.nextPriceLineId += 1;
+
+    return {
+      id: `price-line-${ordinal}`,
+      price: options.price ?? this.defaultPriceLineOptions.price,
+      color: options.color ?? this.defaultPriceLineOptions.color,
+      lineWidth: Math.max(1, options.lineWidth ?? this.defaultPriceLineOptions.lineWidth),
+      title: options.title ?? `Line ${ordinal}`,
+    };
+  }
+
+  private createPriceLineApi(
+    lines: Map<string, PriceLineState>,
+    lineState: PriceLineState,
+  ): PhaseOnePriceLineApi {
+    const api: PhaseOnePriceLineApi = {
+      applyOptions: (options) => {
+        this.assertPriceLineActive(lines, api);
+        const line = lines.get(lineState.id);
+        if (line === undefined) {
+          throw new Error("chartx phase-one price line has been removed");
+        }
+        if (options.price !== undefined) {
+          line.price = options.price;
+        }
+        if (options.color !== undefined) {
+          line.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          line.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.title !== undefined) {
+          line.title = options.title;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      remove: () => {
+        this.removePriceLineFromMap(lines, api);
+      },
+    };
+
+    this.priceLineHandleIds.set(api, lineState.id);
+    lines.set(lineState.id, lineState);
+    return api;
+  }
+
+  private removePriceLineFromMap(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
+    const lineId = this.priceLineHandleIds.get(line);
+    if (lineId === undefined || !lines.has(lineId)) {
+      throw new Error("chartx phase-one price line has been removed");
+    }
+
+    lines.delete(lineId);
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  private assertPriceLineActive(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
+    const lineId = this.priceLineHandleIds.get(line);
+    if (lineId === undefined || !lines.has(lineId)) {
+      throw new Error("chartx phase-one price line has been removed");
+    }
+  }
+
   private createSecondarySeriesOptions(
     kind: SecondarySeriesKind,
   ):
@@ -2252,6 +2498,15 @@ export class PhaseOneChartHarness {
             wickColor: this.candlestickOptions.wickColor,
           });
         }
+
+        drawPriceLines(
+          context,
+          paneWidth,
+          pane.height,
+          this.primaryPriceScale,
+          this.primaryPriceLines,
+          this.chartOptions,
+        );
       }
 
       if (pane.kind === "secondary") {
@@ -2374,6 +2629,24 @@ export class PhaseOneChartHarness {
               downColor: seriesOptions.downColor,
             });
           }
+        }
+
+        if (panePriceScale !== undefined) {
+          const panePriceLines = new Map<string, PriceLineState>();
+          for (const state of paneSeries) {
+            for (const [lineId, line] of state.priceLines.entries()) {
+              panePriceLines.set(lineId, line);
+            }
+          }
+
+          drawPriceLines(
+            context,
+            paneWidth,
+            pane.height,
+            panePriceScale,
+            panePriceLines,
+            this.chartOptions,
+          );
         }
       }
 
@@ -2950,6 +3223,56 @@ function drawPaneLegend(
     context.fillStyle = "rgba(16, 16, 16, 0.78)";
     context.fillText(text, x + 13, 12);
     x += textWidth + 30;
+  }
+
+  context.restore();
+}
+
+function drawPriceLines(
+  context: CanvasRenderingContext2D,
+  paneWidth: number,
+  paneHeight: number,
+  priceScale: PriceScale,
+  priceLines: ReadonlyMap<string, PriceLineState>,
+  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
+): void {
+  if (priceLines.size === 0) {
+    return;
+  }
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textBaseline = "middle";
+  context.setLineDash([4, 4]);
+
+  for (const line of priceLines.values()) {
+    const y = toCoordinate(priceScale.priceToCoordinate(line.price));
+    if (y < 0 || y > paneHeight) {
+      continue;
+    }
+
+    context.strokeStyle = line.color;
+    context.lineWidth = line.lineWidth;
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(paneWidth, y);
+    context.stroke();
+
+    const label = line.title.trim() === "" ? formatPriceAxisLabel(line.price) : `${line.title} ${formatPriceAxisLabel(line.price)}`;
+    drawAxisTag(
+      context,
+      {
+        text: label,
+        x: Math.max(8, paneWidth - context.measureText(label).width - 22),
+        y: y - 9,
+      },
+      {
+        ...options,
+        axisLabelBackground: "rgba(255, 253, 247, 0.9)",
+        axisLabelBorder: line.color,
+        axisTextColor: line.color,
+      },
+    );
   }
 
   context.restore();

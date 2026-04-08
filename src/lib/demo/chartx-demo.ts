@@ -125,8 +125,8 @@ export const FEATURE_TABS: readonly FeatureExampleDescriptor[] = [
   {
     id: "annotations",
     label: "Annotations",
-    summary: "Price lines and markers are still deferred from the public surface.",
-    available: false,
+    summary: "Show the first public price-line path while markers remain an explicit next gap.",
+    available: true,
   },
   {
     id: "data",
@@ -329,7 +329,7 @@ export function mountFeatureDemo(
     case "events":
       return mountEventsFeature(canvas, publish);
     case "annotations":
-      return mountAnnotationsPlaceholder(publish);
+      return mountAnnotationsFeature(canvas, publish);
   }
 }
 
@@ -1004,25 +1004,102 @@ function mountEventsFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
   };
 }
 
-function mountAnnotationsPlaceholder(publish: SnapshotPublisher): DemoController {
-  publish({
-    title: "Annotations",
-    summary:
-      "The annotations tab is intentionally disabled until markers and price lines exist on the public chart surface.",
-    metrics: [
-      { label: "Markers", value: "deferred" },
-      { label: "Price lines", value: "deferred" },
-    ],
-    eventLog: ["markers and price lines are still missing from the public API"],
-    featureGap: "This tab is a real gap, not a fake placeholder.",
-  });
+function mountAnnotationsFeature(canvas: HTMLCanvasElement, publish: SnapshotPublisher): DemoController {
+  const bars = createBars(34);
+  const line = createLineData(bars, 5);
+  const log: EventLog = [];
+  let chart: PhaseOneChartApi | null = null;
+  let mode: "candles" | "study" = "candles";
+  let supportPrice = 16_920;
+  let resistancePrice = 17_140;
+  let showResistance = true;
+
+  const publishSnapshot = () => {
+    publish({
+      title: "Annotations",
+      summary:
+        "This tab turns on the first real annotation surface through public series-level price lines.",
+      metrics: [
+        { label: "Mode", value: mode === "candles" ? "candlestick" : "line study" },
+        { label: "Price lines", value: showResistance ? "2" : "1" },
+        { label: "Markers", value: "deferred" },
+      ],
+      eventLog: [...log],
+      note: "Support and resistance lines are rendered through the public series API, not a demo-only overlay.",
+      featureGap: "Markers are still the next explicit annotation gap after price lines.",
+    });
+  };
+
+  const rebuild = () => {
+    chart?.destroy();
+    chart = createChartxPhaseOneChart(canvas);
+    chart.applyOptions(warmChartOptions());
+
+    if (mode === "candles") {
+      const series = chart.addCandlestickSeries();
+      series.setData(bars);
+      series.createPriceLine({
+        price: supportPrice,
+        color: "#0c8f62",
+        title: "Support",
+      });
+      if (showResistance) {
+        series.createPriceLine({
+          price: resistancePrice,
+          color: "#c7543e",
+          title: "Resistance",
+        });
+      }
+    } else {
+      const series = chart.addLineSeries();
+      series.applyOptions({ color: "#365cb7", lineWidth: 3 });
+      series.setData(line);
+      series.createPriceLine({
+        price: 16_980,
+        color: "#365cb7",
+        title: "Signal",
+      });
+      if (showResistance) {
+        series.createPriceLine({
+          price: 17_120,
+          color: "#c7543e",
+          title: "Ceiling",
+        });
+      }
+    }
+
+    pushLog(log, `${mode} price lines ${showResistance ? "support+resistance" : "support-only"}`);
+    publishSnapshot();
+  };
+
+  rebuild();
 
   return {
     actions() {
-      return [];
+      return [
+        { id: "mode", label: mode === "candles" ? "Switch to line study" : "Switch to candles" },
+        { id: "toggle-resistance", label: showResistance ? "Hide resistance" : "Show resistance" },
+        { id: "raise-support", label: "Raise support", tone: "accent" },
+      ];
     },
-    runAction() {},
-    destroy() {},
+    runAction(actionId) {
+      if (actionId === "mode") {
+        mode = mode === "candles" ? "study" : "candles";
+      } else if (actionId === "toggle-resistance") {
+        showResistance = !showResistance;
+      } else if (actionId === "raise-support") {
+        supportPrice += 18;
+        resistancePrice += 12;
+      } else {
+        return;
+      }
+
+      rebuild();
+    },
+    destroy() {
+      chart?.destroy();
+      chart = null;
+    },
   };
 }
 

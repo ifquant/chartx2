@@ -112,6 +112,7 @@ Current state:
 - `unsubscribeCrosshairMove()`
 - `subscribeClick()`
 - `unsubscribeClick()`
+- series-level `createPriceLine() / removePriceLine()`
 - `setData()`
 - `update()`
 - `destroy()`
@@ -244,13 +245,13 @@ Why this matters:
 
 Must-close items:
 
-- price lines
 - markers
 - last value visibility control
 - crosshair/price/time readout subscriptions through public API
 
 Why this matters:
 
+- the first public price-line path now exists, which moves the next explicit annotation gap to markers
 - many real integrations need annotation/marker layers before they need multi-pane workstation UI
 
 ### 6. Add pane architecture
@@ -297,7 +298,7 @@ The current demo-shell priorities are:
   - `Data`
   - `Styling`
   - `Events`
-  - `Annotations` when it becomes real
+  - `Annotations`
 - avoid fake placeholders
   - if `markers`, `price lines`, or other still-missing public features are absent, the demo should say so directly
 - keep all example tabs on the public API
@@ -305,7 +306,7 @@ The current demo-shell priorities are:
 
 The main demo/showcase gaps still open after the shell reframe are:
 
-- `Annotations` is still deferred because markers and price lines are not on the public API yet
+- `Annotations` now shows the first public price-line path, but still needs markers and richer annotation breadth
 - the workbench still shows only one coherent workstation slice, not a broader set of terminal workflows
 - the sibling demo tabs still need to grow alongside future engine work so the showcase stays honest
 
@@ -337,7 +338,7 @@ If the next goal is still `close the gap to lightweight-charts`, the best order 
 1. chart-level API breadth
 2. chart and series options
 3. scale APIs and formatter hooks
-4. markers / price lines / subscriptions
+4. markers / richer annotation surfaces / subscriptions
 5. pane architecture
 6. richer annotation and overlay surfaces
 

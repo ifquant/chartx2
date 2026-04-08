@@ -240,10 +240,6 @@
   <header class="topbar">
     <div class="brand-block">
       <span class="app-mark">chartx2</span>
-      <div class="symbol-block">
-        <strong>NDX</strong>
-        <small>NASDAQ 100</small>
-      </div>
     </div>
 
     <nav class="top-tabs" aria-label="chartx2 demo tabs">
@@ -308,17 +304,6 @@
               </div>
 
               <div class="chart-frame-shell">
-                <div class="quote-cards">
-                  <article class="quote-card sell">
-                    <strong>{formatValue(workbenchReadout.close)}</strong>
-                    <small>SELL</small>
-                  </article>
-                  <article class="quote-card buy">
-                    <strong>{formatValue(workbenchReadout.close)}</strong>
-                    <small>BUY</small>
-                  </article>
-                </div>
-
                 <div class="chart-frame">
                   {#if workbenchError}
                     <div class="error-state">
@@ -519,8 +504,8 @@
 
   .app-shell {
     --shell-gap: 14px;
-    --topbar-height: clamp(82px, 9.2vh, 98px);
-    --card-head-height: 60px;
+    --topbar-height: 64px;
+    --card-head-height: 52px;
     --readout-height: 52px;
     --action-strip-height: 48px;
     --feature-console-height: clamp(124px, 15vh, 156px);
@@ -544,16 +529,16 @@
 
   .topbar {
     display: grid;
-    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto;
-    gap: 14px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
     align-items: center;
     height: 100%;
     min-height: 0;
-    padding: 14px 18px;
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    border-radius: 24px;
-    background: rgba(255, 252, 246, 0.9);
-    box-shadow: 0 14px 40px rgba(34, 32, 28, 0.06);
+    padding: 10px 14px;
+    border: 1px solid rgba(24, 24, 27, 0.06);
+    border-radius: 18px;
+    background: rgba(255, 252, 246, 0.88);
+    box-shadow: 0 10px 28px rgba(34, 32, 28, 0.05);
     overflow: hidden;
   }
 
@@ -563,35 +548,18 @@
   }
 
   .brand-block {
-    display: inline-grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 0;
     min-width: 0;
   }
 
   .app-mark {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgba(24, 24, 27, 0.48);
-  }
-
-  .symbol-block {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .symbol-block strong {
-    font-size: clamp(1.35rem, 1.2rem + 1vw, 2rem);
-    line-height: 1;
-  }
-
-  .symbol-block small {
-    color: rgba(24, 24, 27, 0.52);
-    font-size: 0.82rem;
+    color: rgba(24, 24, 27, 0.42);
   }
 
   .eyebrow {
@@ -606,9 +574,9 @@
   .top-tabs {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
-    padding: 6px;
-    border-radius: 18px;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 14px;
     background: rgba(24, 24, 27, 0.04);
     min-width: 0;
     overflow-x: auto;
@@ -638,11 +606,12 @@
   .top-tabs button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 9px 13px;
+    padding: 8px 12px;
     border-radius: 999px;
     background: transparent;
     color: rgba(24, 24, 27, 0.64);
     font: inherit;
+    font-size: 0.94rem;
     font-weight: 600;
   }
 
@@ -660,16 +629,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 58px;
-    padding: 8px 12px;
-    border-radius: 14px;
+    min-width: 40px;
+    padding: 6px 10px;
+    border-radius: 12px;
     background: rgba(24, 24, 27, 0.04);
     white-space: nowrap;
   }
 
   .status-chip span {
     color: rgba(24, 24, 27, 0.74);
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
   }
 
@@ -807,7 +776,7 @@
   .sidebar-head button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 10px 14px;
+    padding: 9px 12px;
     border-radius: 12px;
     background: rgba(24, 24, 27, 0.05);
     font: inherit;
@@ -867,39 +836,7 @@
   }
 
   .chart-frame-shell {
-    position: relative;
     min-height: 0;
-  }
-
-  .quote-cards {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    z-index: 2;
-    display: flex;
-    gap: 12px;
-  }
-
-  .quote-card {
-    min-width: 112px;
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    box-shadow: 0 14px 28px rgba(26, 25, 21, 0.08);
-  }
-
-  .quote-card strong,
-  .quote-card small {
-    display: block;
-  }
-
-  .quote-card.sell strong {
-    color: #c7543e;
-  }
-
-  .quote-card.buy strong {
-    color: #365cb7;
   }
 
   .chart-frame {

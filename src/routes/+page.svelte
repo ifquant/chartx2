@@ -240,8 +240,11 @@
 <main class="app-shell">
   <header class="topbar">
     <div class="brand-block">
-      <p class="eyebrow">chartx2</p>
-      <h1>NDX</h1>
+      <span class="app-mark">chartx2</span>
+      <div class="symbol-block">
+        <strong>NDX</strong>
+        <small>NASDAQ 100</small>
+      </div>
     </div>
 
     <nav class="top-tabs" aria-label="chartx2 demo tabs">
@@ -258,8 +261,7 @@
     </nav>
 
     <div class="status-chip">
-      <strong>{completedPhaseOneSteps}/{foundation.phaseOneSteps.length}</strong>
-      <span>phase-one steps complete</span>
+      <span>{completedPhaseOneSteps}/{foundation.phaseOneSteps.length}</span>
     </div>
   </header>
 
@@ -267,10 +269,10 @@
     <section class="main-column">
       {#if activeTopTab === "workbench"}
         <article class="demo-card" data-demo-tab="workbench">
-          <div class="card-head">
+          <div class="card-head compact-head">
             <div>
-              <p class="eyebrow">Complete Example</p>
               <h3>Workbench</h3>
+              <p class="subtle-copy">完整工作台例子</p>
             </div>
             <div class="toolbar-strip workstation-toolbar">
               <button>NDX</button>
@@ -429,12 +431,11 @@
         </article>
       {:else}
         <article class="demo-card" data-demo-tab="feature">
-          <div class="card-head">
-            <div>
-              <p class="eyebrow">Focused Example</p>
+          <div class="card-head compact-head feature-header">
+            <div class="feature-title-row">
               <h3>{activeFeatureSummary?.label}</h3>
+              <span class="feature-summary-inline">{activeFeatureSummary?.summary}</span>
             </div>
-            <p class="head-copy">{activeFeatureSummary?.summary}</p>
           </div>
 
           <div class="chart-frame feature-frame">
@@ -478,7 +479,6 @@
           <section class="feature-console">
             <article class="feature-console-card">
               <small>Summary</small>
-              <strong>{activeSnapshot.title}</strong>
               <p>{activeSnapshot.summary}</p>
             </article>
 
@@ -634,11 +634,39 @@
     box-shadow: 0 14px 40px rgba(34, 32, 28, 0.06);
   }
 
-  .brand-block h1,
   .card-head h3,
   .context-card h3,
   .sidebar-head h4 {
     margin: 0;
+  }
+
+  .brand-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .app-mark {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(24, 24, 27, 0.48);
+  }
+
+  .symbol-block {
+    display: grid;
+    gap: 2px;
+  }
+
+  .symbol-block strong {
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .symbol-block small {
+    color: rgba(24, 24, 27, 0.52);
+    font-size: 0.88rem;
   }
 
   .eyebrow {
@@ -693,21 +721,19 @@
   }
 
   .status-chip {
-    display: grid;
-    gap: 2px;
-    justify-items: end;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
     padding: 10px 14px;
     border-radius: 16px;
     background: rgba(24, 24, 27, 0.04);
   }
 
-  .status-chip strong {
-    font-size: 1.15rem;
-  }
-
   .status-chip span {
-    color: rgba(24, 24, 27, 0.58);
-    font-size: 0.88rem;
+    color: rgba(24, 24, 27, 0.74);
+    font-size: 1rem;
+    font-weight: 700;
   }
 
   .layout-grid {
@@ -754,11 +780,38 @@
     flex-wrap: wrap;
   }
 
+  .compact-head {
+    align-items: center;
+    min-height: 0;
+  }
+
+  .subtle-copy {
+    margin: 4px 0 0;
+    color: rgba(24, 24, 27, 0.54);
+    font-size: 0.88rem;
+  }
+
   .head-copy {
     max-width: 460px;
     margin: 0;
     color: rgba(24, 24, 27, 0.68);
     line-height: 1.55;
+  }
+
+  .feature-header {
+    justify-content: flex-start;
+  }
+
+  .feature-title-row {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .feature-summary-inline {
+    color: rgba(24, 24, 27, 0.56);
+    font-size: 0.92rem;
   }
 
   .action-strip {
@@ -882,7 +935,7 @@
 
   .feature-console-card {
     min-height: 0;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-radius: 18px;
     background: rgba(24, 24, 27, 0.04);
   }
@@ -898,9 +951,10 @@
   }
 
   .feature-console-card p {
-    margin: 8px 0 0;
+    margin: 4px 0 0;
     color: rgba(24, 24, 27, 0.7);
-    line-height: 1.45;
+    line-height: 1.35;
+    font-size: 0.92rem;
   }
 
   .feature-metric-grid {
@@ -912,8 +966,12 @@
   .feature-metric-grid span {
     display: block;
     color: rgba(24, 24, 27, 0.52);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     margin-bottom: 2px;
+  }
+
+  .feature-metric-grid strong {
+    font-size: 1rem;
   }
 
   .feature-activity {

@@ -189,7 +189,7 @@ test("tab switching keeps chart mount deterministic without stale content", asyn
 
   await featureTab(page, "Panes").click();
   await expect(page.getByLabel("chartx2 feature demo chart")).toBeVisible();
-  await expect(page.getByText("Focused Example")).toBeVisible();
+  await expect(page.locator('[data-demo-tab="feature"]')).toBeVisible();
   await expect(page.locator('[data-demo-tab="workbench"]')).toHaveCount(0);
 
   await featureTab(page, "Series").click();

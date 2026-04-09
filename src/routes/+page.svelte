@@ -503,22 +503,18 @@
   }
 
   .app-shell {
-    --shell-gap: 14px;
-    --topbar-height: 64px;
-    --card-head-height: 52px;
-    --readout-height: 52px;
-    --action-strip-height: 48px;
-    --feature-console-height: clamp(124px, 15vh, 156px);
+    --topbar-height: 52px;
+    --card-head-height: 42px;
+    --readout-height: 40px;
+    --action-strip-height: 44px;
+    --feature-console-height: clamp(110px, 13vh, 144px);
     height: 100vh;
-    padding: clamp(14px, 1.8vw, 24px);
     box-sizing: border-box;
     overflow: hidden;
     display: grid;
     grid-template-rows: var(--topbar-height) minmax(0, 1fr);
-    gap: var(--shell-gap);
-    background:
-      radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 28%),
-      linear-gradient(180deg, #f7f3eb 0%, #f1ede5 100%);
+    gap: 0;
+    background: #f3f0e8;
   }
 
   .topbar,
@@ -530,15 +526,13 @@
   .topbar {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
     height: 100%;
     min-height: 0;
-    padding: 10px 14px;
-    border: 1px solid rgba(24, 24, 27, 0.06);
-    border-radius: 18px;
-    background: rgba(255, 252, 246, 0.88);
-    box-shadow: 0 10px 28px rgba(34, 32, 28, 0.05);
+    padding: 0 14px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: linear-gradient(180deg, #f8f5ee 0%, #f2eee6 100%);
     overflow: hidden;
   }
 
@@ -574,10 +568,8 @@
   .top-tabs {
     display: flex;
     flex-wrap: nowrap;
-    gap: 6px;
-    padding: 4px;
-    border-radius: 14px;
-    background: rgba(24, 24, 27, 0.04);
+    gap: 4px;
+    padding: 0;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -606,8 +598,8 @@
   .top-tabs button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 8px 12px;
-    border-radius: 999px;
+    padding: 6px 12px;
+    border-radius: 9px;
     background: transparent;
     color: rgba(24, 24, 27, 0.64);
     font: inherit;
@@ -630,10 +622,10 @@
     align-items: center;
     justify-content: center;
     min-width: 40px;
-    padding: 6px 10px;
-    border-radius: 12px;
-    background: rgba(24, 24, 27, 0.04);
+    padding: 0 8px;
+    border-left: 1px solid rgba(24, 24, 27, 0.08);
     white-space: nowrap;
+    height: 100%;
   }
 
   .status-chip span {
@@ -659,15 +651,15 @@
 
   .demo-card {
     display: grid;
-    gap: 16px;
+    gap: 0;
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    padding: 20px;
-    border-radius: 28px;
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    background: rgba(255, 252, 246, 0.9);
-    box-shadow: 0 18px 48px rgba(38, 33, 24, 0.07);
+    padding: 0;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .workbench-card {
@@ -704,6 +696,9 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(248, 245, 237, 0.92);
   }
 
   .subtle-copy {
@@ -743,7 +738,7 @@
   .action-strip {
     display: flex;
     flex-wrap: nowrap;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
     justify-content: flex-start;
     min-height: var(--action-strip-height);
@@ -751,6 +746,8 @@
     overflow-y: hidden;
     min-width: 0;
     scrollbar-width: none;
+    padding: 0 12px;
+    background: rgba(243, 239, 231, 0.96);
   }
 
   .action-strip::-webkit-scrollbar {
@@ -760,7 +757,7 @@
   .toolbar-strip {
     display: flex;
     flex-wrap: nowrap;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -776,9 +773,9 @@
   .sidebar-head button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 9px 12px;
-    border-radius: 12px;
-    background: rgba(24, 24, 27, 0.05);
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: rgba(24, 24, 27, 0.04);
     font: inherit;
     font-weight: 600;
     color: rgba(24, 24, 27, 0.75);
@@ -786,8 +783,8 @@
 
   .workbench-shell {
     display: grid;
-    grid-template-columns: 50px minmax(0, 1fr) 248px;
-    gap: 16px;
+    grid-template-columns: 44px minmax(0, 1fr) 292px;
+    gap: 0;
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
@@ -795,36 +792,43 @@
 
   .tool-rail {
     display: grid;
-    gap: 10px;
+    gap: 6px;
     align-content: start;
+    padding: 8px 4px;
+    border-right: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(245, 242, 234, 0.95);
   }
 
   .tool-rail button {
-    width: 50px;
-    height: 50px;
-    border-radius: 16px;
-    background: rgba(24, 24, 27, 0.04);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
     color: rgba(24, 24, 27, 0.84);
     font: inherit;
   }
 
   .workbench-main {
     display: grid;
-    grid-template-rows: 58px minmax(0, 1fr) var(--readout-height) 94px;
-    gap: 14px;
+    grid-template-rows: 38px minmax(0, 1fr) var(--readout-height) 82px;
+    gap: 0;
     min-height: 0;
     overflow: hidden;
+    background: #f9f6ef;
   }
 
   .chart-meta {
-    min-height: 58px;
+    min-height: 38px;
     min-width: 0;
     overflow: hidden;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(250, 247, 241, 0.98);
   }
 
   .market-line {
     color: rgba(24, 24, 27, 0.66);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
@@ -837,14 +841,15 @@
 
   .chart-frame-shell {
     min-height: 0;
+    background: #fffdf7;
   }
 
   .chart-frame {
     height: 100%;
     min-height: 0;
-    border-radius: 24px;
+    border-radius: 0;
     overflow: hidden;
-    border: 1px solid rgba(24, 24, 27, 0.09);
+    border: 0;
     background: #fffdf7;
   }
 
@@ -855,16 +860,18 @@
   .feature-console {
     display: grid;
     grid-template-columns: 1.1fr 1.5fr 1fr;
-    gap: 12px;
+    gap: 0;
     min-height: var(--feature-console-height);
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(244, 240, 232, 0.94);
   }
 
   .feature-console-card {
     min-height: 0;
     overflow: hidden;
     padding: 12px 14px;
-    border-radius: 18px;
-    background: rgba(24, 24, 27, 0.04);
+    border-right: 1px solid rgba(24, 24, 27, 0.08);
+    background: transparent;
   }
 
   .feature-console-card small {
@@ -918,11 +925,12 @@
   }
 
   .readout-bar {
-    padding: 12px 14px;
-    border-radius: 18px;
-    background: rgba(24, 24, 27, 0.04);
+    padding: 0 12px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(247, 243, 235, 0.96);
     color: rgba(24, 24, 27, 0.72);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -940,7 +948,7 @@
     display: inline-flex;
     gap: 6px;
     align-items: center;
-    padding: 8px 12px;
+    padding: 5px 9px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--series-color) 12%, white);
     color: rgba(24, 24, 27, 0.8);
@@ -956,9 +964,10 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 40px var(--action-strip-height);
-    gap: 10px;
+    grid-template-rows: 34px var(--action-strip-height);
+    gap: 0;
     min-height: 0;
+    background: rgba(244, 240, 232, 0.96);
   }
 
   .time-strip {
@@ -968,6 +977,9 @@
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
+    align-items: center;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
   }
 
   .time-strip::-webkit-scrollbar {
@@ -980,8 +992,8 @@
   }
 
   .action-btn {
-    padding: 11px 16px;
-    border-radius: 14px;
+    padding: 9px 14px;
+    border-radius: 10px;
     background: rgba(24, 24, 27, 0.05);
     color: rgba(24, 24, 27, 0.86);
     font: inherit;
@@ -1001,17 +1013,20 @@
   .workbench-sidebar {
     display: grid;
     grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
-    gap: 14px;
+    gap: 0;
     min-height: 0;
     overflow: hidden;
+    border-left: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(244, 240, 232, 0.96);
   }
 
   .mini-card {
-    padding: 16px;
-    border-radius: 22px;
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    background: rgba(255, 252, 246, 0.9);
-    box-shadow: 0 14px 34px rgba(38, 33, 24, 0.06);
+    padding: 14px;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: transparent;
+    box-shadow: none;
   }
 
   .watch-head,
@@ -1022,8 +1037,8 @@
 
   .watch-body {
     display: grid;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 10px;
     align-content: start;
     overflow: hidden;
   }
@@ -1034,8 +1049,8 @@
 
   .big-price {
     display: block;
-    margin-top: 8px;
-    font-size: 2rem;
+    margin-top: 6px;
+    font-size: 1.7rem;
   }
 
   .price-meta {
@@ -1059,8 +1074,9 @@
   }
 
   .metric-list article {
-    padding: 12px 14px;
-    border-radius: 16px;
+    padding: 10px 0;
+    border-radius: 0;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(24, 24, 27, 0.04);
   }
 
@@ -1094,7 +1110,7 @@
     padding: 24px;
     text-align: center;
     color: #9f2f1c;
-    background: rgba(199, 84, 62, 0.08);
+    background: rgba(199, 84, 62, 0.06);
   }
 
   .error-label {
@@ -1107,7 +1123,7 @@
 
   @media (max-width: 1180px) {
     .workbench-shell {
-      grid-template-columns: 44px minmax(0, 1fr) 220px;
+      grid-template-columns: 40px minmax(0, 1fr) 220px;
     }
 
     .feature-console {
@@ -1121,7 +1137,6 @@
       --topbar-height: auto;
       --card-head-height: auto;
       --feature-console-height: auto;
-      padding: 16px;
       grid-template-rows: auto minmax(0, 1fr);
     }
 
@@ -1129,6 +1144,7 @@
       grid-template-columns: 1fr;
       height: auto;
       min-height: auto;
+      padding: 10px 12px;
     }
 
     .card-head,

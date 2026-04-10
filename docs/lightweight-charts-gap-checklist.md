@@ -61,7 +61,7 @@ Current `chartx2` status against that model:
   - pane attachment, pane snapshots, and active-series lifecycle now read through that registry instead of only through pane-local arrays
   - the deeper model is still incomplete because `StudySource` and `DrawingSource` are not yet split into richer subtypes and the registry is still harness-owned
 - `StudySource`
-  - extra pane series currently act as the bridge
+  - extra pane series now act as the first explicit `StudySource` runtime subtype, currently with `studyKind: "series"`
   - overlay / compare / indicator studies are not yet modeled as first-class study entities
 - `DrawingSource`
   - markers and price lines exist as early annotation paths

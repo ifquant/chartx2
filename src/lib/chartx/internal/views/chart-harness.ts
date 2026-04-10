@@ -227,6 +227,7 @@ export type PhaseOnePaneSeriesState = {
   label: string;
   kind: string;
   sourceRole: "main-series" | "study";
+  studyKind: "series" | "indicator" | "overlay" | "compare" | null;
   priceScaleId: string;
   pointCount: number;
 };
@@ -420,7 +421,9 @@ type ChartSeriesApi =
   | PhaseOneHistogramSeriesApi
   | PhaseOneVolumeSeriesApi;
 
-type SeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & {
+type StudySourceKind = "series" | "indicator" | "overlay" | "compare";
+
+type BaseSeriesSourceState = {
   api:
     | PhaseOneCandlestickSeriesApi
     | PhaseOneBarSeriesApi
@@ -444,6 +447,17 @@ type SeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & {
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions>;
 };
+
+type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
+  role: "main-series";
+};
+
+type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
+  role: "study";
+  studyKind: StudySourceKind;
+};
+
+type SeriesSourceState = MainSeriesSourceState | StudySourceState;
 
 type PaneFrame = {
   id: string;
@@ -829,8 +843,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState(
-      "main-series",
+    const source = this.createMainSourceState(
       "primary",
       "candlestick",
       api,
@@ -1242,7 +1255,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState("main-series", "primary", "line", api, meta, this.primaryPriceScale, "primary-right");
+    const source = this.createMainSourceState("primary", "line", api, meta, this.primaryPriceScale, "primary-right");
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -1299,7 +1312,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState("main-series", "primary", "area", api, meta, this.primaryPriceScale, "primary-right");
+    const source = this.createMainSourceState("primary", "area", api, meta, this.primaryPriceScale, "primary-right");
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -1368,7 +1381,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState("main-series", "primary", "baseline", api, meta, this.primaryPriceScale, "primary-right");
+    const source = this.createMainSourceState("primary", "baseline", api, meta, this.primaryPriceScale, "primary-right");
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -1419,7 +1432,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState("main-series", "primary", "bar", api, meta, this.primaryPriceScale, "primary-right");
+    const source = this.createMainSourceState("primary", "bar", api, meta, this.primaryPriceScale, "primary-right");
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -1470,7 +1483,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createSourceState("main-series", "primary", "histogram", api, meta, this.primaryPriceScale, "primary-right");
+    const source = this.createMainSourceState("primary", "histogram", api, meta, this.primaryPriceScale, "primary-right");
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -1825,8 +1838,7 @@ export class PhaseOneChartHarness {
     meta: { id: string; label: string },
   ): void {
     this.sourceRegistry.register(
-      this.createSourceState(
-        "study",
+      this.createStudySourceState(
         paneId,
         kind,
         api,
@@ -2260,6 +2272,7 @@ export class PhaseOneChartHarness {
       label: source.label,
       kind: source.kind,
       sourceRole: source.role,
+      studyKind: source.role === "study" ? source.studyKind : null,
       priceScaleId: source.priceScaleId,
       pointCount: source.data.length,
     }));
@@ -2371,20 +2384,19 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private createSourceState(
-    role: "main-series" | "study",
+  private createMainSourceState(
     paneId: string,
     kind: ChartSeriesKind,
     api: ChartSeriesApi,
     meta: { id: string; label: string },
     priceScale: PriceScale,
     priceScaleId: string,
-  ): SeriesSourceState {
+  ): MainSeriesSourceState {
     return {
       id: meta.id,
       label: meta.label,
       kind,
-      role,
+      role: "main-series",
       paneId,
       priceScaleId,
       visible: true,
@@ -2399,13 +2411,42 @@ export class PhaseOneChartHarness {
     };
   }
 
-  private getMainSource(): SeriesSourceState | null {
-    return this.currentMainSourceId === null
-      ? null
-      : (this.sourceRegistry.getById(this.currentMainSourceId) ?? null);
+  private createStudySourceState(
+    paneId: string,
+    kind: ChartSeriesKind,
+    api: ChartSeriesApi,
+    meta: { id: string; label: string },
+    priceScale: PriceScale,
+    priceScaleId: string,
+    studyKind: StudySourceKind = "series",
+  ): StudySourceState {
+    return {
+      id: meta.id,
+      label: meta.label,
+      kind,
+      role: "study",
+      studyKind,
+      paneId,
+      priceScaleId,
+      visible: true,
+      api,
+      data: [],
+      store: new SeriesDataStore<number>(),
+      priceScale,
+      visuals: new Map<number, HistogramVisual>(),
+      priceLines: new Map<string, PriceLineState>(),
+      markers: [],
+      options: this.createSeriesOptions(kind),
+    };
   }
 
-  private getMainSourceOrThrow(): SeriesSourceState {
+  private getMainSource(): MainSeriesSourceState | null {
+    return this.currentMainSourceId === null
+      ? null
+      : ((this.sourceRegistry.getById(this.currentMainSourceId) as MainSeriesSourceState | undefined) ?? null);
+  }
+
+  private getMainSourceOrThrow(): MainSeriesSourceState {
     const source = this.getMainSource();
     if (source === null) {
       throw new Error("chartx phase-one chart requires a primary series before this operation");
@@ -2413,13 +2454,13 @@ export class PhaseOneChartHarness {
     return source;
   }
 
-  private getStudySourcesForPane(paneId: string): SeriesSourceState[] {
+  private getStudySourcesForPane(paneId: string): StudySourceState[] {
     return this.sourceRegistry
       .listByPane(paneId)
-      .filter((entry) => entry.role === "study");
+      .filter((entry): entry is StudySourceState => entry.role === "study");
   }
 
-  private getSecondarySeriesForPane(paneId: string): SeriesSourceState[] {
+  private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
     return this.getStudySourcesForPane(paneId);
   }
 

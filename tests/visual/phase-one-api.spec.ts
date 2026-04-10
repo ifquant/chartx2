@@ -40,6 +40,7 @@ type PaneSeriesSnapshot = {
   label: string;
   kind: string;
   sourceRole: string;
+  studyKind: string | null;
   priceScaleId: string;
   pointCount: number;
 };
@@ -601,7 +602,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -611,7 +612,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -624,7 +625,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -634,7 +635,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -676,6 +677,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     label: "Volume 2",
     kind: "volume",
     sourceRole: "study",
+    studyKind: "series",
     priceScaleId: "pane-1-right",
     pointCount: 5,
   }]);
@@ -686,6 +688,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     label: "Candlestick 1",
     kind: "candlestick",
     sourceRole: "main-series",
+    studyKind: null,
     priceScaleId: "primary-right",
     pointCount: 4,
   }]);

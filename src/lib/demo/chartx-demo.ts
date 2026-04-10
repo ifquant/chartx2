@@ -180,7 +180,6 @@ export function mountWorkbenchDemo(
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
     const visiblePrice = chart?.priceScale().getVisibleRange() ?? null;
-    const usesSyntheticMain = mainChartType === "renko";
 
     publish({
       title: "Workbench",
@@ -215,9 +214,7 @@ export function mountWorkbenchDemo(
       eventLog: [...log],
       note:
         latestPaneEvent === null
-          ? usesSyntheticMain
-            ? "Renko currently runs without the time-based volume/study panes because the phase-one shared time scale does not yet align synthetic bricks with time-indexed secondary panes."
-            : "Use the buttons below the chart to mutate panes and scales through the public API."
+          ? "Use the buttons below the chart to mutate panes and scales through the public API."
           : `Last pane event: ${latestPaneEvent.type} on pane ${latestPaneEvent.pane.paneIndex + 1}`,
       featureGap:
         latestClick?.price === null || latestClick === null
@@ -251,8 +248,6 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     });
 
-    const enableTimeBasedSecondaryPanes = mainChartType !== "renko";
-
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -283,13 +278,13 @@ export function mountWorkbenchDemo(
       mainSeries.setData(line);
     }
 
-    if (enableTimeBasedSecondaryPanes) {
+    {
       const volumePane = chart.addPane({ height: 126 });
       const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
       volumeSeries.setData(volume);
     }
 
-    if (studyPaneEnabled && enableTimeBasedSecondaryPanes) {
+    if (studyPaneEnabled) {
       const studyPane = chart.addPane({ height: 126 });
       const studySeries = chart.addLineSeries({ pane: studyPane });
       studySeries.applyOptions({

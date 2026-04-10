@@ -1,4 +1,5 @@
 import {
+  createPlotRows,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -7,6 +8,7 @@ import {
   TimeScale,
   type OhlcDataPoint,
   type SourceDescriptor,
+  type TimePointIndex,
 } from "../model";
 import {
   AreaRenderer,
@@ -1406,7 +1408,7 @@ export class PhaseOneChartHarness {
   }
 
   private getPointCount(): number {
-    let pointCount = this.getMainSource()?.data.length ?? 0;
+    let pointCount = this.getMainPointCount(this.getMainSource());
     for (const state of this.sourceRegistry.list()) {
       pointCount = Math.max(pointCount, state.data.length);
     }
@@ -2999,9 +3001,42 @@ export class PhaseOneChartHarness {
     });
   }
 
+  private buildMainRenderRows(source: MainSeriesSourceState | null): RowSet {
+    if (source === null) {
+      return [];
+    }
+
+    const rows = source.store.setData(source.data);
+    if (source.builder === "renko") {
+      return projectSyntheticRowsToInputTimeline(rows, source.inputData);
+    }
+
+    return rows;
+  }
+
+  private buildMainTimeAxisRows(source: MainSeriesSourceState | null): RowSet {
+    if (source === null) {
+      return [];
+    }
+
+    if (source.builder === "renko") {
+      return createPlotRows(source.inputData);
+    }
+
+    return source.store.rows();
+  }
+
+  private getMainPointCount(source: MainSeriesSourceState | null): number {
+    if (source === null) {
+      return 0;
+    }
+
+    return source.builder === "renko" ? source.inputData.length : source.data.length;
+  }
+
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
     const mainSource = this.getMainSource();
-    const primaryRows = mainSource === null ? [] : mainSource.store.setData(mainSource.data);
+    const primaryRows = this.buildMainRenderRows(mainSource);
     const primaryStudies = this.getStudySourcesForPane("primary");
     const primarySources = this.buildPrimaryPaneSeries(mainSource);
     const primaryRowSets = new Map<string, RowSet>();
@@ -3115,7 +3150,8 @@ export class PhaseOneChartHarness {
     const paneWidth = layout.width - layout.left - layout.right;
     const plotHeight = layout.height - layout.top - layout.bottom;
     const mainSource = this.getMainSource();
-    const primaryRows = mainSource === null ? [] : mainSource.store.setData(mainSource.data);
+    const primaryRows = this.buildMainRenderRows(mainSource);
+    const primaryTimeAxisRows = this.buildMainTimeAxisRows(mainSource);
     const primaryStudies = this.getStudySourcesForPane("primary");
     const primarySources = this.buildPrimaryPaneSeries(mainSource);
     const primaryRowSets = new Map<string, RowSet>();
@@ -3126,7 +3162,7 @@ export class PhaseOneChartHarness {
       primaryRowSets.set(state.id, state.store.setData(state.data));
     }
     const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
-    let pointCount = primaryRows.length;
+    let pointCount = this.getMainPointCount(mainSource);
     for (const state of this.sourceRegistry.list().filter((entry) => entry.role === "study")) {
       const seriesId = state.id;
       const rows = state.paneId === "primary"
@@ -3178,8 +3214,8 @@ export class PhaseOneChartHarness {
 
       if (pane.kind === "primary" && primaryRows.length > 0 && mainSource !== null) {
         let computedPrimaryRange = mainSource.store.priceRange(
-          primaryRows[0].index,
-          primaryRows[primaryRows.length - 1].index,
+          0 as TimePointIndex,
+          (mainSource.data.length - 1) as TimePointIndex,
         );
         for (const state of primaryStudies) {
           if (
@@ -3356,7 +3392,7 @@ export class PhaseOneChartHarness {
     drawTimeAxis(
       context,
       layout,
-      primaryRows.length > 0 ? primaryRows : (firstSecondaryRows ?? []),
+      primaryTimeAxisRows.length > 0 ? primaryTimeAxisRows : (firstSecondaryRows ?? []),
       this.timeScale,
       this.crosshair,
       this.chartOptions,
@@ -4398,8 +4434,10 @@ function drawTimeAxis(
 
   const paneHeight = layout.height - layout.top - layout.bottom;
   const visible = timeScale.visibleStrictRange();
-  const start = visible === null ? 0 : clamp(visible.left(), 0, rows.length - 1);
-  const end = visible === null ? rows.length - 1 : clamp(visible.right(), 0, rows.length - 1);
+  const minIndex = rows[0]?.index ?? 0;
+  const maxIndex = rows[rows.length - 1]?.index ?? 0;
+  const start = visible === null ? minIndex : clamp(visible.left(), minIndex, maxIndex);
+  const end = visible === null ? maxIndex : clamp(visible.right(), minIndex, maxIndex);
   const tickCount = clamp(Math.floor((layout.width - layout.left - layout.right) / 140), 3, 7);
   const anchors = collectVisibleTimeAnchors(rows, start, end, tickCount);
 
@@ -4420,7 +4458,11 @@ function drawTimeAxis(
 
   if (crosshair !== null) {
     const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-    const row = rows[clamp(logical, 0, rows.length - 1)];
+    const row = findNearestRowByLogical(rows, logical);
+    if (row === null) {
+      context.restore();
+      return;
+    }
     const text = formatTimeAxisLabel(row.time, formatter);
     drawAxisTag(context, {
       text,
@@ -4462,18 +4504,114 @@ function collectVisibleTimeAnchors(
   tickCount: number,
 ): Array<{ time: number; index: number }> {
   const anchors: Array<{ time: number; index: number }> = [];
-  const seen = new Set<number>();
+  const seen = new Set<string>();
 
   for (let index = 0; index < tickCount; index += 1) {
     const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
-    const candidate = clamp(Math.round(start + (end - start) * ratio), start, end);
-    if (!seen.has(candidate)) {
-      seen.add(candidate);
-      anchors.push(rows[candidate]);
+    const candidate = start + (end - start) * ratio;
+    const row = findNearestRowByLogical(rows, candidate);
+    if (row !== null) {
+      const key = `${row.index}:${row.time}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        anchors.push(row);
+      }
     }
   }
 
   return anchors;
+}
+
+function projectSyntheticRowsToInputTimeline(
+  rows: RowSet,
+  inputData: readonly PhaseOneCandlestickData[],
+): RowSet {
+  if (rows.length === 0 || inputData.length === 0) {
+    return rows;
+  }
+
+  const buckets = new Map<number, Array<RowSet[number]>>();
+
+  for (const row of rows) {
+    const inputIndex = findLastInputIndexAtOrBeforeTime(inputData, row.time);
+    const bucket = buckets.get(inputIndex);
+    if (bucket === undefined) {
+      buckets.set(inputIndex, [row]);
+      continue;
+    }
+    buckets.set(inputIndex, [...bucket, row]);
+  }
+
+  const projected: Array<RowSet[number]> = [];
+  for (const [inputIndex, bucket] of buckets.entries()) {
+    const bucketSize = bucket.length;
+    bucket.forEach((row, bucketIndex) => {
+      projected.push({
+        ...row,
+        index: (inputIndex + (bucketIndex + 1) / (bucketSize + 1)) as TimePointIndex,
+      });
+    });
+  }
+
+  return projected;
+}
+
+function findLastInputIndexAtOrBeforeTime(
+  inputData: readonly PhaseOneCandlestickData[],
+  time: number,
+): number {
+  let left = 0;
+  let right = inputData.length - 1;
+  let answer = 0;
+
+  while (left <= right) {
+    const middle = Math.floor((left + right) / 2);
+    const candidate = inputData[middle]?.time ?? time;
+    if (candidate <= time) {
+      answer = middle;
+      left = middle + 1;
+    } else {
+      right = middle - 1;
+    }
+  }
+
+  return answer;
+}
+
+function findNearestRowByLogical<TRow extends { index: number }>(
+  rows: readonly TRow[],
+  logical: number,
+): TRow | null {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  let left = 0;
+  let right = rows.length - 1;
+
+  while (left <= right) {
+    const middle = Math.floor((left + right) / 2);
+    const row = rows[middle];
+    if (row.index === logical) {
+      return row;
+    }
+    if (row.index < logical) {
+      left = middle + 1;
+    } else {
+      right = middle - 1;
+    }
+  }
+
+  const lower = rows[Math.max(0, right)];
+  const upper = rows[Math.min(rows.length - 1, left)];
+  if (lower === undefined) {
+    return upper ?? null;
+  }
+  if (upper === undefined) {
+    return lower;
+  }
+
+  return Math.abs(lower.index - logical) <= Math.abs(upper.index - logical) ? lower : upper;
 }
 
 function clampCenterTag(
@@ -4539,7 +4677,7 @@ function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): 
 }
 
 function buildCrosshairReadout(
-  rows: readonly { time: number; value: [number, number, number, number] }[],
+  rows: readonly { index: number; time: number; value: [number, number, number, number] }[],
   crosshair: PanePoint | null,
   timeScale: TimeScale,
   priceScale: PriceScale,
@@ -4559,7 +4697,20 @@ function buildCrosshairReadout(
   }
 
   const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-  const row = rows[clamp(logical, 0, rows.length - 1)];
+  const row = findNearestRowByLogical(rows, logical);
+  if (row === null) {
+    return {
+      active: false,
+      paneIndex: null,
+      time: null,
+      open: null,
+      high: null,
+      low: null,
+      close: null,
+      price: null,
+      series: [],
+    };
+  }
 
   return {
     active: true,
@@ -4575,7 +4726,7 @@ function buildCrosshairReadout(
 }
 
 function resolveSeriesReadoutValue(
-  rows: readonly { time: number; value: [number, number, number, number] }[],
+  rows: readonly { index: number; time: number; value: [number, number, number, number] }[],
   crosshair: PanePoint | null,
   timeScale: TimeScale,
 ): number | null {
@@ -4588,7 +4739,7 @@ function resolveSeriesReadoutValue(
   }
 
   const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-  const row = rows[clamp(logical, 0, rows.length - 1)];
+  const row = findNearestRowByLogical(rows, logical);
   return row?.value[PlotRowValueIndex.Close] ?? null;
 }
 

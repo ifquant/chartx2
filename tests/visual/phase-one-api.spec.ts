@@ -34,6 +34,34 @@ const VOLUME_API_DATA = [
   { time: 4, value: 1_520_000, up: true },
   { time: 5, value: 1_180_000, up: false },
 ] as const;
+const RENKO_ALIGNMENT_BARS = [
+  { time: 1, open: 100, high: 102, low: 99, close: 101 },
+  { time: 2, open: 101, high: 103, low: 100, close: 102 },
+  { time: 3, open: 102, high: 104, low: 101, close: 103 },
+  { time: 4, open: 103, high: 104, low: 101, close: 102 },
+  { time: 5, open: 102, high: 103, low: 100, close: 101 },
+  { time: 6, open: 101, high: 102, low: 99, close: 100 },
+  { time: 7, open: 100, high: 101, low: 98, close: 99 },
+  { time: 8, open: 99, high: 101, low: 98, close: 100 },
+  { time: 9, open: 100, high: 103, low: 99, close: 102 },
+  { time: 10, open: 102, high: 105, low: 101, close: 104 },
+  { time: 11, open: 104, high: 106, low: 103, close: 105 },
+  { time: 12, open: 105, high: 107, low: 104, close: 106 },
+] as const;
+const RENKO_ALIGNMENT_VOLUME = [
+  { time: 1, value: 600_000, up: true },
+  { time: 2, value: 640_000, up: true },
+  { time: 3, value: 680_000, up: true },
+  { time: 4, value: 610_000, up: false },
+  { time: 5, value: 590_000, up: false },
+  { time: 6, value: 560_000, up: false },
+  { time: 7, value: 530_000, up: false },
+  { time: 8, value: 545_000, up: true },
+  { time: 9, value: 625_000, up: true },
+  { time: 10, value: 710_000, up: true },
+  { time: 11, value: 760_000, up: true },
+  { time: 12, value: 805_000, up: true },
+] as const;
 
 type PaneSeriesSnapshot = {
   id: string;
@@ -453,6 +481,83 @@ test("phase-one renko main series can take a fixed box size through series optio
 
   expect(result.autoPointCount).toBeGreaterThan(0);
   expect(result.fixedPointCount).toBeGreaterThan(result.autoPointCount);
+});
+
+test("phase-one public api keeps a renko main series aligned with time-based secondary panes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    readout: ReadoutSnapshot | null;
+    panes: Array<{ paneIndex: number; hasSeries: boolean }>;
+  } = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-renko-alignment-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-renko-alignment-canvas" aria-label="phase-one api renko alignment chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-renko-alignment-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API renko alignment fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumePane = chart.addPane({ height: 108 });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+    chart.setChartType("renko");
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      readout,
+      panes: chart.panes().map((pane: { paneIndex(): number; hasSeries(): boolean }) => ({
+        paneIndex: pane.paneIndex(),
+        hasSeries: pane.hasSeries(),
+      })),
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    volume: RENKO_ALIGNMENT_VOLUME,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.readout?.paneIndex).toBe(0);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+  expect(result.panes).toEqual([
+    { paneIndex: 0, hasSeries: true },
+    { paneIndex: 1, hasSeries: true },
+  ]);
+
+  const fixture = page.locator("#api-renko-alignment-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-renko-secondary-alignment.png");
 });
 
 test("phase-one public api renders series-level price lines", async ({ page }) => {

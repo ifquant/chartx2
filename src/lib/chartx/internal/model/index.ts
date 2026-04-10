@@ -1,6 +1,7 @@
 export * from "./chart-bar-sequence";
 export * from "./chart-context";
 export * from "./coordinate";
+export * from "./indicator-studies";
 export * from "./plot-data";
 export * from "./plot-list";
 export * from "./price-range-impl";

@@ -3,6 +3,7 @@ import {
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
   ChartContext,
+  buildMovingAverageStudyData,
   mergeStudyDataToChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
@@ -199,6 +200,16 @@ export type PhaseOneCompareSeriesOptions = {
   mergePolicy?: "carry-forward" | "gaps" | "exact";
 };
 
+export type PhaseOneMovingAverageStudyOptions = {
+  length?: number;
+  inputContextMode?: "chart-context" | "requested-context";
+  requestedSymbol?: string | null;
+  requestedResolution?: string | null;
+  requestedSession?: string | null;
+  requestedTimezone?: string | null;
+  mergePolicy?: "carry-forward" | "gaps" | "exact";
+};
+
 export type PhaseOneAreaSeriesOptions = {
   lineColor?: string;
   lineWidth?: number;
@@ -386,6 +397,10 @@ export type PhaseOneCompareSeriesApi = PhaseOneLineSeriesApi & {
   applyCompareOptions(options: PhaseOneCompareSeriesOptions): void;
   getCompareOptions(): Required<PhaseOneCompareSeriesOptions>;
 };
+export type PhaseOneMovingAverageStudyApi = PhaseOneLineSeriesApi & {
+  applyStudyOptions(options: PhaseOneMovingAverageStudyOptions): void;
+  getStudyOptions(): Required<PhaseOneMovingAverageStudyOptions>;
+};
 export type PhaseOneMainSeriesApi =
   | PhaseOneCandlestickSeriesApi
   | PhaseOneBarSeriesApi
@@ -405,6 +420,7 @@ export type PhaseOneChartApi = {
   addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi;
   addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi;
   addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi;
+  addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
@@ -553,11 +569,17 @@ type StudyInputContextState = {
   mergePolicy: "carry-forward" | "gaps" | "exact";
 };
 
+type MovingAverageIndicatorState = {
+  kind: "moving-average";
+  length: number;
+};
+
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "study";
   studyKind: StudySourceKind;
   inputData: readonly PhaseOneCandlestickData[];
   inputContext: StudyInputContextState;
+  indicator?: MovingAverageIndicatorState;
   compareOptions?: Required<PhaseOneCompareSeriesOptions>;
 };
 
@@ -657,6 +679,15 @@ export class PhaseOneChartHarness {
   };
   private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = {
     affectMainScale: true,
+    inputContextMode: "chart-context",
+    requestedSymbol: null,
+    requestedResolution: null,
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  };
+  private readonly defaultMovingAverageOptions: Required<PhaseOneMovingAverageStudyOptions> = {
+    length: 3,
     inputContextMode: "chart-context",
     requestedSymbol: null,
     requestedResolution: null,
@@ -1096,6 +1127,11 @@ export class PhaseOneChartHarness {
   public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
     const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
     return this.addCompareStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
+  }
+
+  public addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: true, allowPrimary: true });
+    return this.addMovingAverageStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
   }
 
   public removeSeries(
@@ -1899,6 +1935,92 @@ export class PhaseOneChartHarness {
     return api;
   }
 
+  private addMovingAverageStudySeries(paneId: string): PhaseOneMovingAverageStudyApi {
+    const meta = this.createSeriesMeta("line");
+    const api: PhaseOneMovingAverageStudyApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, normalizeLineData(data), "line");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, normalizeLineBar(bar), "line");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        if (options.color !== undefined) {
+          seriesOptions.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      applyStudyOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getMovingAverageStudyState(api);
+        state.indicator = {
+          kind: "moving-average",
+          length: Math.max(1, options.length ?? state.indicator?.length ?? this.defaultMovingAverageOptions.length),
+        };
+        state.inputContext = {
+          ...state.inputContext,
+          mode: options.inputContextMode ?? state.inputContext.mode,
+          symbol:
+            options.requestedSymbol !== undefined ? options.requestedSymbol : state.inputContext.symbol,
+          resolution:
+            options.requestedResolution !== undefined ? options.requestedResolution : state.inputContext.resolution,
+          session:
+            options.requestedSession !== undefined ? options.requestedSession : state.inputContext.session,
+          timezone:
+            options.requestedTimezone !== undefined ? options.requestedTimezone : state.inputContext.timezone,
+          mergePolicy: options.mergePolicy ?? state.inputContext.mergePolicy,
+        };
+        state.data = this.resolveStudyDisplayData(state);
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      getStudyOptions: () => {
+        this.assertSeriesActive(api);
+        const state = this.getMovingAverageStudyState(api);
+        return {
+          length: state.indicator?.length ?? this.defaultMovingAverageOptions.length,
+          inputContextMode: state.inputContext.mode,
+          requestedSymbol: state.inputContext.symbol,
+          requestedResolution: state.inputContext.resolution,
+          requestedSession: state.inputContext.session,
+          requestedTimezone: state.inputContext.timezone,
+          mergePolicy: state.inputContext.mergePolicy,
+        };
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "line");
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
+    };
+    this.attachStudySeries(paneId, "line", api, meta, "indicator", {
+      kind: "moving-average",
+      length: this.defaultMovingAverageOptions.length,
+    });
+    return api;
+  }
+
   private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
     const meta = this.createSeriesMeta("area");
     const api: PhaseOneAreaSeriesApi = {
@@ -2154,6 +2276,7 @@ export class PhaseOneChartHarness {
     api: SeriesSourceState["api"],
     meta: { id: string; label: string },
     studyKind: StudySourceKind = "series",
+    indicator?: MovingAverageIndicatorState,
   ): void {
     const priceScale = paneId === "primary"
       ? this.primaryPriceScale
@@ -2168,6 +2291,7 @@ export class PhaseOneChartHarness {
         priceScale,
         priceScaleId,
         studyKind,
+        indicator,
       ),
     );
   }
@@ -2762,6 +2886,7 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     priceScaleId: string,
     studyKind: StudySourceKind = "series",
+    indicator?: MovingAverageIndicatorState,
   ): StudySourceState {
     return {
       id: meta.id,
@@ -2778,6 +2903,7 @@ export class PhaseOneChartHarness {
         timezone: null,
         mergePolicy: "carry-forward",
       },
+      indicator,
       compareOptions:
         studyKind === "compare"
           ? { ...this.defaultCompareOptions }
@@ -2863,6 +2989,14 @@ export class PhaseOneChartHarness {
     const source = this.getSourceByApi(api, "line");
     if (source.role !== "study" || source.studyKind !== "compare") {
       throw new Error("chartx phase-one compare api is attached to an unexpected source kind");
+    }
+    return source;
+  }
+
+  private getMovingAverageStudyState(api: PhaseOneMovingAverageStudyApi): StudySourceState {
+    const source = this.getSourceByApi(api, "line");
+    if (source.role !== "study" || source.studyKind !== "indicator" || source.indicator?.kind !== "moving-average") {
+      throw new Error("chartx phase-one moving average api is attached to an unexpected source kind");
     }
     return source;
   }
@@ -3114,11 +3248,28 @@ export class PhaseOneChartHarness {
   }
 
   private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
+    if (state.studyKind === "indicator" && state.indicator?.kind === "moving-average") {
+      const input =
+        state.inputContext.mode === "requested-context"
+          ? mergeStudyDataToChartContext(
+              state.inputData,
+              this.chartContext.snapshot().barSequence.axisBars,
+              state.inputContext.mergePolicy,
+            )
+          : this.chartContext.snapshot().barSequence.bars.map((row) => ({
+              time: row.time,
+              open: row.value[PlotRowValueIndex.Open],
+              high: row.value[PlotRowValueIndex.High],
+              low: row.value[PlotRowValueIndex.Low],
+              close: row.value[PlotRowValueIndex.Close],
+            }));
+      return buildMovingAverageStudyData(input, state.indicator.length);
+    }
+
     if (state.inputContext.mode === "requested-context" && state.studyKind === "compare") {
-      const axisBars = this.chartContext.snapshot().barSequence.axisBars;
       return mergeStudyDataToChartContext(
         state.inputData,
-        axisBars,
+        this.chartContext.snapshot().barSequence.axisBars,
         state.inputContext.mergePolicy,
       );
     }
@@ -3566,6 +3717,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addCompareSeries(target) {
       return harness.addCompareSeries(target);
+    },
+    addMovingAverageStudy(target) {
+      return harness.addMovingAverageStudy(target);
     },
     panes() {
       return harness.panesApi();

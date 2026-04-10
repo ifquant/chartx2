@@ -1315,6 +1315,142 @@ test("phase-one public api supports overlay and compare studies in the primary p
   await expect(fixture).toHaveScreenshot("phase-one-api-overlay-compare-primary.png");
 });
 
+test("phase-one public api supports a moving-average study on chart-context and requested-context data", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    chartContextReadout: ReadoutSnapshot | null;
+    requestedContextReadout: ReadoutSnapshot | null;
+    paneSeries: readonly PaneSeriesSnapshot[];
+    studyOptions: {
+      length: number;
+      inputContextMode: string;
+      requestedSymbol: string | null;
+      requestedResolution: string | null;
+      requestedSession: string | null;
+      requestedTimezone: string | null;
+      mergePolicy: string;
+    };
+  } = await page.evaluate(async ({ bars, requested, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-moving-average-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-moving-average-canvas" aria-label="phase-one api moving average study chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-moving-average-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API moving average fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.resize(720, 448);
+    const studyPane = chart.addPane({ height: 112 });
+    const mainSeries = chart.addCandlestickSeries();
+    const movingAverage = chart.addMovingAverageStudy({ pane: studyPane });
+    mainSeries.setData(bars);
+    movingAverage.applyOptions({ color: "#7c3aed", lineWidth: 2 });
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    let chartContextReadout: ReadoutSnapshot | null = null;
+    let requestedContextReadout: ReadoutSnapshot | null = null;
+    let moveCount = 0;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      const snapshot = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+      moveCount += 1;
+      if (moveCount === 1) {
+        chartContextReadout = snapshot;
+      } else {
+        requestedContextReadout = snapshot;
+      }
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    const layoutTop = 28;
+    const paneGap = 10;
+    const plotHeight = 448 - layoutTop - 34;
+    const initialStudyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap - 112) + paneGap + 56;
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.98,
+      clientY: initialStudyPaneCenterY,
+      bubbles: true,
+    }));
+
+    movingAverage.setData(requested);
+    movingAverage.applyStudyOptions({
+      length: 2,
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1H",
+      mergePolicy: "carry-forward",
+    });
+    chart.addPane({ height: 84 });
+
+    const resizedStudyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap * 2 - 112 - 84) + paneGap + 56;
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.98,
+      clientY: resizedStudyPaneCenterY,
+      bubbles: true,
+    }));
+
+    return {
+      chartContextReadout,
+      requestedContextReadout,
+      paneSeries: paneEvents[paneEvents.length - 1]?.panes[1]?.series ?? [],
+      studyOptions: movingAverage.getStudyOptions(),
+    };
+  }, {
+    bars: [
+      { time: 1, open: 120, high: 124, low: 118, close: 123 },
+      { time: 2, open: 123, high: 126, low: 121, close: 124 },
+      { time: 3, open: 124, high: 128, low: 122, close: 127 },
+      { time: 4, open: 127, high: 129, low: 125, close: 128 },
+      { time: 5, open: 128, high: 137, low: 127, close: 136 },
+    ],
+    requested: [
+      { time: 2, value: 200 },
+      { time: 4, value: 240 },
+      { time: 5, value: 260 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.chartContextReadout?.paneIndex).toBe(1);
+  expect(result.chartContextReadout?.series[0]?.value).toBe(130.33333333333334);
+  expect(result.requestedContextReadout?.paneIndex).toBe(1);
+  expect(result.requestedContextReadout?.series[0]?.value).toBe(250);
+  expect(result.paneSeries[0]).toMatchObject({
+    studyKind: "indicator",
+    inputContextMode: "requested-context",
+  });
+  expect(result.studyOptions).toEqual({
+    length: 2,
+    inputContextMode: "requested-context",
+    requestedSymbol: "NASDAQ:NDX",
+    requestedResolution: "1H",
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  });
+});
+
 test("phase-one public api can exclude compare studies from primary autoscale", async ({
   page,
 }) => {

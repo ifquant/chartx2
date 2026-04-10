@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ChartContext,
+  buildMovingAverageStudyData,
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
@@ -205,6 +206,20 @@ describe("model core scales and data", () => {
       { time: 3, open: 20, high: 20, low: 20, close: 20 },
       { time: 4, open: 40, high: 40, low: 40, close: 40 },
       { time: 5, open: 40, high: 40, low: 40, close: 40 },
+    ]);
+  });
+
+  it("builds a moving average study from chart-context closes", () => {
+    const movingAverage = buildMovingAverageStudyData([
+      { time: 1, open: 10, high: 10, low: 10, close: 10 },
+      { time: 2, open: 20, high: 20, low: 20, close: 20 },
+      { time: 3, open: 30, high: 30, low: 30, close: 30 },
+      { time: 4, open: 40, high: 40, low: 40, close: 40 },
+    ], 3);
+
+    expect(movingAverage).toEqual([
+      { time: 3, open: 20, high: 20, low: 20, close: 20 },
+      { time: 4, open: 30, high: 30, low: 30, close: 30 },
     ]);
   });
 

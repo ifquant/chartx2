@@ -237,11 +237,20 @@ export type PhaseOnePaneEventHandler = (event: PhaseOnePaneEvent) => void;
 
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
-  applyOptions(options: { barSpacing?: number; rightOffset?: number }): void;
+  setVisibleLogicalRange(range: { from: number; to: number }): void;
+  applyOptions(options: {
+    barSpacing?: number;
+    rightOffset?: number;
+    tickMarkFormatter?: ((time: number) => string) | null;
+  }): void;
 };
 
 export type PhaseOnePriceScaleApi = {
   getVisibleRange(): { minValue: number; maxValue: number } | null;
+  setVisibleRange(range: { minValue: number; maxValue: number } | null): void;
+  applyOptions(options: {
+    priceFormatter?: ((value: number) => string) | null;
+  }): void;
 };
 
 export type PhaseOneCandlestickSeriesApi = {
@@ -509,6 +518,9 @@ export class PhaseOneChartHarness {
     lineColor: CROSSHAIR_COLOR,
     pointColor: CROSSHAIR_POINT_COLOR,
   };
+  private timeAxisFormatter: ((time: number) => string) | null = null;
+  private priceAxisFormatter: ((value: number) => string) | null = null;
+  private primaryPriceRangeOverride: PriceRangeImpl | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
@@ -992,15 +1004,48 @@ export class PhaseOneChartHarness {
   public timeScaleApi(): PhaseOneTimeScaleApi {
     return {
       getVisibleLogicalRange: () => {
-        const range = this.timeScale.visibleLogicalRange().logicalRange();
-        if (range === null) {
+        const pointCount = this.getPointCount();
+        if (pointCount <= 0) {
           return null;
         }
 
+        const layout = this.canvas === null
+          ? DEFAULT_LAYOUT
+          : measureLayout(this.canvas, this.manualLayout);
+        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
+        const spacing = resolveBarSpacing(this.barSpacing, paneWidth, pointCount);
+        const lastIndex = pointCount - 1;
+
         return {
-          from: range.left(),
-          to: range.right(),
+          from: lastIndex - paneWidth / spacing + this.rightOffset,
+          to: lastIndex + this.rightOffset,
         };
+      },
+      setVisibleLogicalRange: (range) => {
+        const pointCount = this.getPointCount();
+        if (!Number.isFinite(range.from) || !Number.isFinite(range.to) || range.to <= range.from) {
+          throw new Error("chartx phase-one time scale visible range requires finite from/to with to > from");
+        }
+        if (pointCount <= 0) {
+          throw new Error("chartx phase-one time scale visible range requires at least one data point");
+        }
+        const layout = this.canvas === null
+          ? DEFAULT_LAYOUT
+          : measureLayout(this.canvas, this.manualLayout);
+        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
+        const spacing = Math.max(MIN_BAR_SPACING, paneWidth / (range.to - range.from));
+        const lastIndex = pointCount - 1;
+        this.barSpacing = spacing;
+        this.rightOffset = range.to - lastIndex;
+        this.timeScale.applyOptions({
+          width: paneWidth,
+          pointCount,
+          barSpacing: this.barSpacing,
+          rightOffset: this.rightOffset,
+        });
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
       },
       applyOptions: (options) => {
         if (options.barSpacing !== undefined) {
@@ -1009,6 +1054,20 @@ export class PhaseOneChartHarness {
         if (options.rightOffset !== undefined) {
           this.rightOffset = options.rightOffset;
         }
+        if (options.tickMarkFormatter !== undefined) {
+          this.timeAxisFormatter = options.tickMarkFormatter;
+        }
+
+        const layout = this.canvas === null
+          ? DEFAULT_LAYOUT
+          : measureLayout(this.canvas, this.manualLayout);
+        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
+        this.timeScale.applyOptions({
+          width: paneWidth,
+          pointCount: this.getPointCount(),
+          barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, this.getPointCount()),
+          rightOffset: this.rightOffset,
+        });
 
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1020,9 +1079,33 @@ export class PhaseOneChartHarness {
   public priceScaleApi(): PhaseOnePriceScaleApi {
     return {
       getVisibleRange: () =>
+        this.primaryPriceRangeOverride?.toRaw() ??
         this.primaryPriceScale.getPriceRange()?.toRaw() ??
         Array.from(this.secondaryPanePriceScales.values())[0]?.getPriceRange()?.toRaw() ??
         null,
+      setVisibleRange: (range) => {
+        this.primaryPriceRangeOverride = PriceRangeImpl.fromRaw(range);
+        if (this.primaryPriceRangeOverride !== null && this.canvas !== null) {
+          const layout = measureLayout(this.canvas, this.manualLayout);
+          const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
+          const paneHeight = buildPaneFrames(this.panes, plotHeight).find((pane) => pane.kind === "primary")?.height ?? plotHeight;
+          this.primaryPriceScale.applyOptions({
+            height: paneHeight,
+            priceRange: this.primaryPriceRangeOverride,
+          });
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      applyOptions: (options) => {
+        if (options.priceFormatter !== undefined) {
+          this.priceAxisFormatter = options.priceFormatter;
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     };
   }
 
@@ -1065,6 +1148,7 @@ export class PhaseOneChartHarness {
 
     this.primaryData = [...data];
     this.primaryHistogramVisuals.clear();
+    this.primaryPriceRangeOverride = null;
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
     if (this.canvas !== null) {
@@ -1084,6 +1168,7 @@ export class PhaseOneChartHarness {
       low: row.value[PlotRowValueIndex.Low],
       close: row.value[PlotRowValueIndex.Close],
     }));
+    this.primaryPriceRangeOverride = null;
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -2540,13 +2625,13 @@ export class PhaseOneChartHarness {
       context.clip();
 
       if (pane.kind === "primary" && primaryRows.length > 0) {
-        const primaryRange = this.primaryStore.priceRange(
+        const computedPrimaryRange = this.primaryStore.priceRange(
           primaryRows[0].index,
           primaryRows[primaryRows.length - 1].index,
         );
         this.primaryPriceScale.applyOptions({
           height: pane.height,
-          priceRange: primaryRange,
+          priceRange: this.primaryPriceRangeOverride ?? computedPrimaryRange,
         });
 
         const items = primaryRows.map((row): CandlestickItem => ({
@@ -2621,7 +2706,7 @@ export class PhaseOneChartHarness {
             downColor: this.barOptions.downColor,
           });
         } else if (this.primarySeriesType === "histogram") {
-          const primaryRangeMin = primaryRange?.minValue() ?? 0;
+          const primaryRangeMin = (this.primaryPriceRangeOverride ?? computedPrimaryRange)?.minValue() ?? 0;
           const histogramItems = primaryRows.map((row): HistogramItem => ({
             x: this.timeScale.indexToCoordinate(row.index),
             valueY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
@@ -2655,6 +2740,7 @@ export class PhaseOneChartHarness {
           this.primaryPriceScale,
           this.primaryPriceLines,
           this.chartOptions,
+          this.priceAxisFormatter,
         );
 
         drawSeriesMarkers(
@@ -2805,6 +2891,7 @@ export class PhaseOneChartHarness {
             panePriceScale,
             panePriceLines,
             this.chartOptions,
+            this.priceAxisFormatter,
           );
         }
 
@@ -2856,6 +2943,7 @@ export class PhaseOneChartHarness {
           resolveLocalPanePoint(activePane?.kind === "primary" ? activePane : null, this.crosshair),
           this.chartOptions,
           "primary",
+          this.priceAxisFormatter,
         );
       }
     }
@@ -2878,6 +2966,7 @@ export class PhaseOneChartHarness {
           resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
           this.chartOptions,
           state.kind === "volume" ? "volume" : "primary",
+          this.priceAxisFormatter,
         );
       }
     }
@@ -2890,6 +2979,7 @@ export class PhaseOneChartHarness {
       this.timeScale,
       this.crosshair,
       this.chartOptions,
+      this.timeAxisFormatter,
     );
     const readout = this.buildReadout(this.crosshair, layout);
     emitReadout(canvas, readout);
@@ -3307,8 +3397,12 @@ function resolveBarSpacing(
   paneWidth: number,
   pointCount: number,
 ): number {
+  if (currentSpacing !== null) {
+    return Math.max(MIN_BAR_SPACING, currentSpacing);
+  }
+
   return clamp(
-    currentSpacing ?? calculateBaseBarSpacing(paneWidth, pointCount),
+    calculateBaseBarSpacing(paneWidth, pointCount),
     MIN_BAR_SPACING,
     MAX_BAR_SPACING,
   );
@@ -3423,6 +3517,7 @@ function drawPriceLines(
   priceScale: PriceScale,
   priceLines: ReadonlyMap<string, PriceLineState>,
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
+  formatter: ((value: number) => string) | null,
 ): void {
   if (priceLines.size === 0) {
     return;
@@ -3446,7 +3541,8 @@ function drawPriceLines(
     context.lineTo(paneWidth, y);
     context.stroke();
 
-    const label = line.title.trim() === "" ? formatPriceAxisLabel(line.price) : `${line.title} ${formatPriceAxisLabel(line.price)}`;
+    const formattedPrice = formatPriceAxisLabel(line.price, formatter);
+    const label = line.title.trim() === "" ? formattedPrice : `${line.title} ${formattedPrice}`;
     drawAxisTag(
       context,
       {
@@ -3602,6 +3698,7 @@ function drawPriceAxis(
   crosshair: PanePoint | null,
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
   axisType: "primary" | "volume",
+  formatter: ((value: number) => string) | null,
 ): void {
   const range = priceScale.getPriceRange();
   if (range === null) {
@@ -3616,7 +3713,7 @@ function drawPriceAxis(
       text:
         axisType === "volume"
           ? formatVolumeAxisLabel(price)
-          : formatPriceAxisLabel(price),
+          : formatPriceAxisLabel(price, formatter),
       x: layout.width - layout.right + 6,
       y: layout.top + paneTop + paneHeight * ratio - 9,
     };
@@ -3637,7 +3734,7 @@ function drawPriceAxis(
         text:
           axisType === "volume"
             ? formatVolumeAxisLabel(price)
-            : formatPriceAxisLabel(price),
+            : formatPriceAxisLabel(price, formatter),
         x: layout.width - layout.right + 6,
         y: layout.top + paneTop + crosshair.y - 9,
         active: true,
@@ -3655,6 +3752,7 @@ function drawTimeAxis(
   timeScale: TimeScale,
   crosshair: PanePoint | null,
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
+  formatter: ((time: number) => string) | null,
 ): void {
   if (rows.length === 0) {
     return;
@@ -3673,7 +3771,7 @@ function drawTimeAxis(
   context.fillStyle = options.axisTextColor;
 
   for (const row of anchors) {
-    const text = formatTimeAxisLabel(row.time);
+    const text = formatTimeAxisLabel(row.time, formatter);
     const x = layout.left + timeScale.indexToCoordinate(row.index as never);
     drawAxisTag(context, {
       text,
@@ -3685,7 +3783,7 @@ function drawTimeAxis(
   if (crosshair !== null) {
     const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
     const row = rows[clamp(logical, 0, rows.length - 1)];
-    const text = formatTimeAxisLabel(row.time);
+    const text = formatTimeAxisLabel(row.time, formatter);
     drawAxisTag(context, {
       text,
       x: clampCenterTag(layout.left + crosshair.x, context.measureText(text).width, layout.left, layout.width - layout.right),
@@ -3750,7 +3848,10 @@ function clampCenterTag(
   return clamp(centerX - boxWidth / 2, minX, maxX - boxWidth);
 }
 
-function formatPriceAxisLabel(value: number): string {
+function formatPriceAxisLabel(value: number, formatter: ((value: number) => string) | null = null): string {
+  if (formatter !== null) {
+    return formatter(value);
+  }
   const digits = Math.abs(value) >= 1000 ? 2 : 3;
   return value.toLocaleString("en-US", {
     minimumFractionDigits: 0,
@@ -3772,7 +3873,10 @@ function formatVolumeAxisLabel(value: number): string {
   return value.toFixed(0);
 }
 
-function formatTimeAxisLabel(value: number): string {
+function formatTimeAxisLabel(value: number, formatter: ((time: number) => string) | null = null): string {
+  if (formatter !== null) {
+    return formatter(value);
+  }
   if (Math.abs(value) < 100_000_000_000) {
     return `T ${value}`;
   }

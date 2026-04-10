@@ -81,6 +81,11 @@ The capability categories below are intentionally practical:
   - `setMarkers()` on all current series APIs
   - canvas marker rendering for the common `aboveBar / belowBar / inBar` positions
   - basic `circle / square / arrowUp / arrowDown` marker shapes
+- a first real scale-control path now exists
+  - time scale visible logical range getter/setter
+  - time axis formatter hook
+  - price scale visible range getter/setter
+  - price axis formatter hook
 
 ## Done But Simplified
 
@@ -150,8 +155,8 @@ Current references:
 Why this is still simplified:
 
 - axis tick generation is still local and minimal
-- formatting is hard-coded
-- no public scale APIs
+- formatter hooks now exist, but the tick-generation strategy is still local and narrow
+- public scale APIs now exist for visible range control and formatter injection, but only as a first subset
 - no overlay scales, percentage mode, log mode, invert mode, or richer localization
 
 ### Rendering and styling
@@ -236,10 +241,9 @@ Why this matters:
 
 Must-close items:
 
-- public scale handles
 - richer tick generation
-- formatter hooks
-- visible range getters/setters
+- overlay or pane-aware scale handles beyond the current first subset
+- richer localization and scale modes
 
 Why this matters:
 

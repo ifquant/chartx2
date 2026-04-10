@@ -1017,6 +1017,17 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
     timeScale.applyOptions({
       barSpacing: 14,
       rightOffset: 1.25,
+      tickMarkFormatter: (time: number) => `T-${time}`,
+    });
+    timeScale.setVisibleLogicalRange({ from: 1.5, to: 4.6 });
+
+    const priceScale = chart.priceScale();
+    priceScale.applyOptions({
+      priceFormatter: (value: number) => `${value.toFixed(1)} pts`,
+    });
+    priceScale.setVisibleRange({
+      minValue: 120,
+      maxValue: 142,
     });
 
     (window as Window & {
@@ -1048,9 +1059,11 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
     to: expect.any(Number),
   });
   expect(state?.priceRange).toEqual({
-    minValue: expect.any(Number),
-    maxValue: expect.any(Number),
+    minValue: 120,
+    maxValue: 142,
   });
+  expect(state?.logicalRange?.from).toBeCloseTo(1.5, 1);
+  expect(state?.logicalRange?.to).toBeCloseTo(4.6, 1);
 });
 
 test("phase-one public api supports click subscriptions and series-level options", async ({

@@ -410,6 +410,51 @@ test("phase-one public api can switch the active main chart type to renko", asyn
   expect(result.paneEvents[0]?.panes[0]?.series[0]?.pointCount).toBeGreaterThan(0);
 });
 
+test("phase-one renko main series can take a fixed box size through series options", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-renko-options-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-renko-options-canvas" aria-label="phase-one api renko options chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-renko-options-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    const renkoSeries = chart.setChartType("renko");
+    chart.addPane({ height: 98 });
+    const autoPointCount = paneEvents[0]?.panes[0]?.series[0]?.pointCount ?? 0;
+    renkoSeries.applyOptions({
+      renkoBoxSizeMode: "fixed",
+      renkoBoxSize: 2,
+    });
+    chart.addPane({ height: 82 });
+
+    return {
+      autoPointCount,
+      fixedPointCount: paneEvents[1]?.panes[0]?.series[0]?.pointCount ?? 0,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.autoPointCount).toBeGreaterThan(0);
+  expect(result.fixedPointCount).toBeGreaterThan(result.autoPointCount);
+});
+
 test("phase-one public api renders series-level price lines", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async ({ data, publicEntry }) => {

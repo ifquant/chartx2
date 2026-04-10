@@ -168,6 +168,8 @@ export type PhaseOneCandlestickSeriesOptions = {
   upColor?: string;
   downColor?: string;
   wickColor?: string;
+  renkoBoxSize?: number | null;
+  renkoBoxSizeMode?: "auto" | "fixed";
 };
 
 export type PhaseOneBarSeriesOptions = {
@@ -516,10 +518,16 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   role: "main-series";
   chartType: PhaseOneMainChartType;
   inputData: readonly PhaseOneCandlestickData[];
+  renkoOptions: Required<PhaseOneRenkoOptions>;
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
   styleSchemaId: string;
+};
+
+type PhaseOneRenkoOptions = {
+  boxSize: number | null;
+  boxSizeMode: "auto" | "fixed";
 };
 
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
@@ -611,6 +619,8 @@ export class PhaseOneChartHarness {
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
     wickColor: WICK_COLOR,
+    renkoBoxSize: null,
+    renkoBoxSizeMode: "auto",
   };
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
     upColor: UP_COLOR,
@@ -903,11 +913,11 @@ export class PhaseOneChartHarness {
     );
     if (preserved !== undefined) {
       source.inputData = [...preserved.data];
-      source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
       source.visuals = new Map(preserved.visuals);
       source.markers = [...preserved.markers];
       source.priceLines = clonePriceLines(preserved.priceLines);
     }
+    source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.sourceRegistry.register(source);
     this.currentMainSourceId = source.id;
     return api;
@@ -962,6 +972,18 @@ export class PhaseOneChartHarness {
         }
         if (options.wickColor !== undefined) {
           seriesOptions.wickColor = options.wickColor;
+        }
+        if (state.role === "main-series" && state.chartType === "renko") {
+          if (options.renkoBoxSizeMode !== undefined) {
+            state.renkoOptions.boxSizeMode = options.renkoBoxSizeMode;
+          }
+          if (options.renkoBoxSize !== undefined) {
+            state.renkoOptions.boxSize =
+              options.renkoBoxSize !== null && options.renkoBoxSize > 0
+                ? options.renkoBoxSize
+                : null;
+          }
+          state.data = applyMainSeriesBuilderData(state.inputData, state);
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1342,7 +1364,7 @@ export class PhaseOneChartHarness {
   private setPrimaryData(data: readonly PhaseOneCandlestickData[]): void {
     const source = this.getMainSourceOrThrow();
     source.inputData = [...data];
-    source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
+    source.data = applyMainSeriesBuilderData(source.inputData, source);
     source.visuals.clear();
     this.primaryPriceRangeOverride = null;
     this.barSpacing = null;
@@ -1355,7 +1377,7 @@ export class PhaseOneChartHarness {
   private updatePrimary(bar: PhaseOneCandlestickData): void {
     const source = this.getMainSourceOrThrow();
     source.inputData = updateCanonicalData(source.inputData, bar);
-    source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
+    source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.primaryPriceRangeOverride = null;
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -2643,6 +2665,10 @@ export class PhaseOneChartHarness {
       role: "main-series",
       chartType,
       inputData: [],
+      renkoOptions: {
+        boxSize: this.candlestickOptions.renkoBoxSize,
+        boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
+      },
       inputCapability: chartTypeSpec.inputCapability,
       builder: chartTypeSpec.builder,
       renderer: chartTypeSpec.renderer,
@@ -3601,12 +3627,17 @@ function inferRenkoBoxSize(data: readonly PhaseOneCandlestickData[]): number {
 
 export function buildRenkoData(
   data: readonly PhaseOneCandlestickData[],
+  options: PhaseOneRenkoOptions = { boxSize: null, boxSizeMode: "auto" },
 ): readonly PhaseOneCandlestickData[] {
   if (data.length === 0) {
     return [];
   }
 
-  const boxSize = inferRenkoBoxSize(data);
+  const inferredBoxSize = inferRenkoBoxSize(data);
+  const boxSize =
+    options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
+      ? options.boxSize
+      : inferredBoxSize;
   const bricks: PhaseOneCandlestickData[] = [];
   let anchor = data[0].close;
 
@@ -3651,13 +3682,13 @@ export function buildRenkoData(
 
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
-  builder: PhaseOneMainSeriesBuilder,
+  source: Pick<MainSeriesSourceState, "builder" | "renkoOptions">,
 ): readonly PhaseOneCandlestickData[] {
-  switch (builder) {
+  switch (source.builder) {
     case "heikin-ashi":
       return buildHeikinAshiData(data);
     case "renko":
-      return buildRenkoData(data);
+      return buildRenkoData(data, source.renkoOptions);
     case "time-bars":
     case "line-break":
     case "kagi":

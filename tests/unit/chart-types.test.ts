@@ -51,4 +51,27 @@ describe("chart type builders", () => {
       { time: 5, open: 112, high: 113, low: 103, close: 104 },
     ]);
   });
+
+  it("builds renko bricks with a fixed box size when provided", () => {
+    const input = [
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 113, low: 107, close: 112 },
+      { time: 5, open: 112, high: 113, low: 103, close: 104 },
+    ] as const;
+
+    const result = buildRenkoData(input, {
+      boxSizeMode: "fixed",
+      boxSize: 4,
+    });
+
+    expect(result).toEqual([
+      { time: 2, open: 100, high: 104, low: 100, close: 104 },
+      { time: 3, open: 104, high: 108, low: 104, close: 108 },
+      { time: 4, open: 108, high: 112, low: 108, close: 112 },
+      { time: 5, open: 112, high: 112, low: 108, close: 108 },
+      { time: 5.001, open: 108, high: 108, low: 104, close: 104 },
+    ]);
+  });
 });

@@ -89,6 +89,7 @@ export type PhaseOneMainSeriesRenderer =
 export type PhaseOneMainChartType =
   | "candlestick"
   | "heikin-ashi"
+  | "renko"
   | "bar"
   | "line"
   | "area"
@@ -919,6 +920,8 @@ export class PhaseOneChartHarness {
       case "candlestick":
         return this.createPrimaryCandlestickSeriesApi();
       case "heikin-ashi":
+        return this.createPrimaryCandlestickSeriesApi();
+      case "renko":
         return this.createPrimaryCandlestickSeriesApi();
       case "bar":
         return this.createPrimaryBarSeriesApi();
@@ -2892,7 +2895,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (renderer === "candles") {
+    if (renderer === "candles" || renderer === "brick") {
       const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
       const candleItems = rows.map((row): CandlestickItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -2908,7 +2911,7 @@ export class PhaseOneChartHarness {
         barWidth,
         upColor: seriesOptions.upColor,
         downColor: seriesOptions.downColor,
-        wickColor: seriesOptions.wickColor,
+        wickColor: renderer === "brick" ? "rgba(0, 0, 0, 0)" : seriesOptions.wickColor,
       });
       return;
     }
@@ -3583,6 +3586,69 @@ export function buildHeikinAshiData(
   });
 }
 
+function inferRenkoBoxSize(data: readonly PhaseOneCandlestickData[]): number {
+  if (data.length < 2) {
+    return 1;
+  }
+
+  let totalDelta = 0;
+  for (let index = 1; index < data.length; index += 1) {
+    totalDelta += Math.abs(data[index].close - data[index - 1].close);
+  }
+
+  return Math.max(totalDelta / (data.length - 1), Number.EPSILON);
+}
+
+export function buildRenkoData(
+  data: readonly PhaseOneCandlestickData[],
+): readonly PhaseOneCandlestickData[] {
+  if (data.length === 0) {
+    return [];
+  }
+
+  const boxSize = inferRenkoBoxSize(data);
+  const bricks: PhaseOneCandlestickData[] = [];
+  let anchor = data[0].close;
+
+  for (let index = 1; index < data.length; index += 1) {
+    const bar = data[index];
+    let syntheticOrdinal = 0;
+
+    while (Math.abs(bar.close - anchor) >= boxSize) {
+      const direction = bar.close > anchor ? 1 : -1;
+      const nextClose = anchor + direction * boxSize;
+      const syntheticTime = bar.time + syntheticOrdinal * 0.001;
+      const high = Math.max(anchor, nextClose);
+      const low = Math.min(anchor, nextClose);
+
+      bricks.push({
+        time: syntheticTime,
+        open: anchor,
+        high,
+        low,
+        close: nextClose,
+      });
+
+      anchor = nextClose;
+      syntheticOrdinal += 1;
+    }
+  }
+
+  if (bricks.length > 0) {
+    return bricks;
+  }
+
+  return [
+    {
+      time: data[0].time,
+      open: data[0].close,
+      high: data[0].close,
+      low: data[0].close,
+      close: data[0].close,
+    },
+  ];
+}
+
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
   builder: PhaseOneMainSeriesBuilder,
@@ -3590,8 +3656,9 @@ function applyMainSeriesBuilderData(
   switch (builder) {
     case "heikin-ashi":
       return buildHeikinAshiData(data);
-    case "time-bars":
     case "renko":
+      return buildRenkoData(data);
+    case "time-bars":
     case "line-break":
     case "kagi":
     case "point-figure":
@@ -3606,6 +3673,8 @@ function formatSeriesKindLabel(kind: string): string {
       return "Candlestick";
     case "heikin-ashi":
       return "Heikin Ashi";
+    case "renko":
+      return "Renko";
     case "line":
       return "Line";
     case "area":
@@ -3644,6 +3713,7 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
   switch (type) {
     case "heikin-ashi":
+    case "renko":
       return "candlestick";
     case "candlestick":
     case "bar":
@@ -3675,6 +3745,13 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "heikin-ashi",
         renderer: "candles",
         styleSchemaId: "haStyle",
+      };
+    case "renko":
+      return {
+        inputCapability: "ohlcv",
+        builder: "renko",
+        renderer: "brick",
+        styleSchemaId: "renkoStyle",
       };
     case "bar":
       return {

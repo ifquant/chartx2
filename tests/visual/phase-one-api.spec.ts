@@ -362,6 +362,54 @@ test("phase-one public api can switch the active main chart type to heikin-ashi"
   });
 });
 
+test("phase-one public api can switch the active main chart type to renko", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-renko-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-renko-canvas" aria-label="phase-one api renko chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-renko-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("renko");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("renko");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "renko",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "renko",
+    renderer: "brick",
+    styleSchemaId: "renkoStyle",
+  });
+  expect(result.paneEvents[0]?.panes[0]?.series[0]?.pointCount).toBeGreaterThan(0);
+});
+
 test("phase-one public api renders series-level price lines", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async ({ data, publicEntry }) => {

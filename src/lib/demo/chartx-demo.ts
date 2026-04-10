@@ -246,6 +246,10 @@ export function mountWorkbenchDemo(
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
       chart.setChartType("heikin-ashi");
+    } else if (mainChartType === "renko") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("renko");
     } else if (mainChartType === "bar") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
@@ -310,6 +314,12 @@ export function mountWorkbenchDemo(
           active: mainChartType === "heikin-ashi",
         },
         {
+          id: "main-renko",
+          label: "Renko",
+          group: "chart-type",
+          active: mainChartType === "renko",
+        },
+        {
           id: "main-bar",
           label: "Bar",
           group: "chart-type",
@@ -365,6 +375,11 @@ export function mountWorkbenchDemo(
         case "main-bar":
           mainChartType = "bar";
           chart.setChartType("bar");
+          publishSnapshot();
+          return;
+        case "main-renko":
+          mainChartType = "renko";
+          chart.setChartType("renko");
           publishSnapshot();
           return;
         case "main-heikin-ashi":
@@ -539,6 +554,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
       return "Candles";
     case "heikin-ashi":
       return "Heikin Ashi";
+    case "renko":
+      return "Renko";
     case "bar":
       return "Bar";
     case "line":

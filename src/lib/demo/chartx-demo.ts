@@ -3,11 +3,13 @@ import {
   type PhaseOneCandlestickData,
   type PhaseOneCandlestickSeriesApi,
   type PhaseOneChartApi,
+  type PhaseOneChartTypeChangeHandler,
   type PhaseOneChartOptions,
   type PhaseOneClickEvent,
   type PhaseOneCrosshairMoveEvent,
   type PhaseOneHistogramData,
   type PhaseOneLineData,
+  type PhaseOneMainChartType,
   type PhaseOnePaneApi,
   type PhaseOnePaneEvent,
   type PhaseOnePaneState,
@@ -65,7 +67,7 @@ export type FeatureExampleDescriptor = {
 type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
 type EventLog = string[];
 type ThemeId = "warm" | "ink";
-type WorkbenchMainChartType = "candlestick" | "bar" | "line" | "area" | "baseline";
+type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
@@ -170,6 +172,7 @@ export function mountWorkbenchDemo(
   let latestClick: PhaseOneClickEvent | null = null;
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
+  let teardownChartTypeSubscription: (() => void) | null = null;
 
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
@@ -216,6 +219,19 @@ export function mountWorkbenchDemo(
     chart = createChartxPhaseOneChart(canvas);
     chart.applyOptions(theme === "warm" ? warmChartOptions() : inkChartOptions());
     chart.timeScale().applyOptions({ barSpacing, rightOffset });
+    teardownChartTypeSubscription?.();
+    const handleChartTypeChange: PhaseOneChartTypeChangeHandler = (type) => {
+      if (type !== "histogram") {
+        mainChartType = type;
+      }
+      pushLog(log, `chart type ${type}`);
+      publishSnapshot();
+    };
+    chart.subscribeChartTypeChange(handleChartTypeChange);
+    teardownChartTypeSubscription = () => {
+      chart?.unsubscribeChartTypeChange(handleChartTypeChange);
+      teardownChartTypeSubscription = null;
+    };
     chart.subscribePaneEvents((event) => {
       latestPaneEvent = event;
       paneSnapshot = event.panes;
@@ -333,23 +349,28 @@ export function mountWorkbenchDemo(
       switch (actionId) {
         case "main-candlestick":
           mainChartType = "candlestick";
-          rebuild();
+          chart.setChartType("candlestick");
+          publishSnapshot();
           return;
         case "main-bar":
           mainChartType = "bar";
-          rebuild();
+          chart.setChartType("bar");
+          publishSnapshot();
           return;
         case "main-line":
           mainChartType = "line";
-          rebuild();
+          chart.setChartType("line");
+          publishSnapshot();
           return;
         case "main-area":
           mainChartType = "area";
-          rebuild();
+          chart.setChartType("area");
+          publishSnapshot();
           return;
         case "main-baseline":
           mainChartType = "baseline";
-          rebuild();
+          chart.setChartType("baseline");
+          publishSnapshot();
           return;
         case "toggle-study":
           studyPaneEnabled = !studyPaneEnabled;
@@ -382,6 +403,7 @@ export function mountWorkbenchDemo(
       }
     },
     destroy() {
+      teardownChartTypeSubscription?.();
       chart?.destroy();
       chart = null;
     },

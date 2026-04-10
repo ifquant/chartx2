@@ -238,6 +238,80 @@ test("phase-one public api mounts a single baseline chart and renders the first 
   await expect(fixture).toHaveScreenshot("phase-one-api-baseline-series.png");
 });
 
+test("phase-one public api can switch the active main chart type without rebuilding the chart shell", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-chart-type-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-chart-type-canvas" aria-label="phase-one api chart type"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-chart-type-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const initialSeries = chart.addCandlestickSeries();
+    initialSeries.setData(data);
+    const chartTypeEvents: string[] = [];
+    const paneEvents: PaneEventSnapshot[] = [];
+    const handler = (type: string) => {
+      chartTypeEvents.push(type);
+    };
+    const paneHandler = (event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    };
+    chart.subscribeChartTypeChange(handler);
+    chart.subscribePaneEvents(paneHandler);
+    const chartTypeBefore = chart.getChartType();
+    const nextSeries = chart.setChartType("line");
+    chart.addPane({ height: 104 });
+
+    let staleMessage = "";
+    try {
+      initialSeries.applyOptions({ upColor: "#000000" });
+    } catch (error) {
+      staleMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    chart.unsubscribeChartTypeChange(handler);
+    chart.unsubscribePaneEvents(paneHandler);
+
+    return {
+      chartTypeBefore,
+      chartTypeAfter: chart.getChartType(),
+      chartTypeEvents,
+      staleMessage,
+      nextSeriesAlive: typeof nextSeries.applyOptions === "function",
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartTypeBefore).toBe("candlestick");
+  expect(result.chartTypeAfter).toBe("line");
+  expect(result.chartTypeEvents).toEqual(["line"]);
+  expect(result.nextSeriesAlive).toBe(true);
+  expect(result.staleMessage).toContain("series has been removed");
+  expect(result.paneEvents[0]?.type).toBe("added");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    id: "series-1",
+    label: "Candlestick 1",
+    kind: "line",
+    sourceRole: "main-series",
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "line",
+    styleSchemaId: "lineStyle",
+    pointCount: 4,
+  });
+});
+
 test("phase-one public api renders series-level price lines", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async ({ data, publicEntry }) => {

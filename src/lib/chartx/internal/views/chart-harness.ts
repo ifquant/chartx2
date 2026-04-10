@@ -86,6 +86,13 @@ export type PhaseOneMainSeriesRenderer =
   | "columns"
   | "brick"
   | "segment";
+export type PhaseOneMainChartType =
+  | "candlestick"
+  | "bar"
+  | "line"
+  | "area"
+  | "baseline"
+  | "histogram";
 export type PhaseOneReadoutSeriesDetail = {
   id: string;
   label: string;
@@ -360,6 +367,14 @@ export type PhaseOneCompareSeriesApi = PhaseOneLineSeriesApi & {
   applyCompareOptions(options: PhaseOneCompareSeriesOptions): void;
   getCompareOptions(): Required<PhaseOneCompareSeriesOptions>;
 };
+export type PhaseOneMainSeriesApi =
+  | PhaseOneCandlestickSeriesApi
+  | PhaseOneBarSeriesApi
+  | PhaseOneLineSeriesApi
+  | PhaseOneAreaSeriesApi
+  | PhaseOneBaselineSeriesApi
+  | PhaseOneHistogramSeriesApi;
+export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
@@ -375,6 +390,10 @@ export type PhaseOneChartApi = {
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
   applyOptions(options: PhaseOneChartOptions): void;
+  getChartType(): PhaseOneMainChartType | null;
+  setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi;
+  subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
+  unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   removeSeries(
     series:
       | PhaseOneCandlestickSeriesApi
@@ -542,6 +561,7 @@ export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
   private readonly paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
   private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
+  private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
   private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
@@ -837,6 +857,7 @@ export class PhaseOneChartHarness {
     this.clickHandlers.clear();
     this.paneResizeHandlers.clear();
     this.paneEventHandlers.clear();
+    this.chartTypeChangeHandlers.clear();
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
@@ -848,12 +869,66 @@ export class PhaseOneChartHarness {
     return this.addPrimaryCandlestickSeries();
   }
 
-  private addPrimaryCandlestickSeries(): PhaseOneCandlestickSeriesApi {
+  private attachPrimarySeries(
+    kind: PhaseOneMainChartType,
+    preserved?: {
+      id: string;
+      label: string;
+      data: readonly PhaseOneCandlestickData[];
+      visuals: Map<number, HistogramVisual>;
+      markers: readonly SeriesMarkerState[];
+      priceLines: Map<string, PriceLineState>;
+    },
+  ): PhaseOneMainSeriesApi {
     if (this.currentMainSourceId !== null) {
       throw new Error("chartx phase-one chart supports only one primary series");
     }
 
-    const meta = this.createSeriesMeta("candlestick");
+    const meta = preserved === undefined ? this.createSeriesMeta(kind) : { id: preserved.id, label: preserved.label };
+    const api = this.createPrimarySeriesApi(kind);
+    const source = this.createMainSourceState(
+      "primary",
+      kind,
+      api,
+      meta,
+      this.primaryPriceScale,
+      "primary-right",
+    );
+    if (preserved !== undefined) {
+      source.data = [...preserved.data];
+      source.visuals = new Map(preserved.visuals);
+      source.markers = [...preserved.markers];
+      source.priceLines = clonePriceLines(preserved.priceLines);
+    }
+    this.sourceRegistry.register(source);
+    this.currentMainSourceId = source.id;
+    return api;
+  }
+
+  private createPrimarySeriesApi(
+    kind: PhaseOneMainChartType,
+  ): PhaseOneMainSeriesApi {
+    switch (kind) {
+      case "candlestick":
+        return this.createPrimaryCandlestickSeriesApi();
+      case "bar":
+        return this.createPrimaryBarSeriesApi();
+      case "line":
+        return this.createPrimaryLineSeriesApi();
+      case "area":
+        return this.createPrimaryAreaSeriesApi();
+      case "baseline":
+        return this.createPrimaryBaselineSeriesApi();
+      case "histogram":
+        return this.createPrimaryHistogramSeriesApi();
+    }
+  }
+
+  private addPrimaryCandlestickSeries(): PhaseOneCandlestickSeriesApi {
+    return this.attachPrimarySeries("candlestick") as PhaseOneCandlestickSeriesApi;
+  }
+
+  private createPrimaryCandlestickSeriesApi(): PhaseOneCandlestickSeriesApi {
     const api: PhaseOneCandlestickSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -896,16 +971,6 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState(
-      "primary",
-      "candlestick",
-      api,
-      meta,
-      this.primaryPriceScale,
-      "primary-right",
-    );
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
@@ -1212,6 +1277,48 @@ export class PhaseOneChartHarness {
     this.paneEventHandlers.delete(handler);
   }
 
+  public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
+    this.chartTypeChangeHandlers.add(handler);
+  }
+
+  public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
+    this.chartTypeChangeHandlers.delete(handler);
+  }
+
+  public getChartType(): PhaseOneMainChartType | null {
+    const mainSource = this.getMainSource();
+    return mainSource === null ? null : (mainSource.kind as PhaseOneMainChartType);
+  }
+
+  public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
+    const current = this.getMainSourceOrThrow();
+    if (current.kind === type) {
+      return current.api as PhaseOneMainSeriesApi;
+    }
+
+    const removed = this.sourceRegistry.removeByApi(current.api);
+    if (removed === undefined) {
+      throw new Error("chartx phase-one chart could not replace the active main series");
+    }
+
+    this.currentMainSourceId = null;
+    this.primaryPriceRangeOverride = null;
+    const nextSeries = this.attachPrimarySeries(type, {
+      id: current.id,
+      label: current.label,
+      data: [...current.data],
+      visuals: new Map(current.visuals),
+      markers: [...current.markers],
+      priceLines: clonePriceLines(current.priceLines),
+    });
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+    this.emitChartTypeChange(type);
+    return nextSeries;
+  }
+
   public setData(data: readonly PhaseOneCandlestickData[]): void {
     this.setPrimaryData(data);
   }
@@ -1277,11 +1384,10 @@ export class PhaseOneChartHarness {
   }
 
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
-    if (this.currentMainSourceId !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
+    return this.attachPrimarySeries("line") as PhaseOneLineSeriesApi;
+  }
 
-    const meta = this.createSeriesMeta("line");
+  private createPrimaryLineSeriesApi(): PhaseOneLineSeriesApi {
     const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1321,18 +1427,14 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState("primary", "line", api, meta, this.primaryPriceScale, "primary-right");
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
   private addPrimaryAreaSeries(): PhaseOneAreaSeriesApi {
-    if (this.currentMainSourceId !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
+    return this.attachPrimarySeries("area") as PhaseOneAreaSeriesApi;
+  }
 
-    const meta = this.createSeriesMeta("area");
+  private createPrimaryAreaSeriesApi(): PhaseOneAreaSeriesApi {
     const api: PhaseOneAreaSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1378,18 +1480,14 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState("primary", "area", api, meta, this.primaryPriceScale, "primary-right");
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
   private addPrimaryBaselineSeries(): PhaseOneBaselineSeriesApi {
-    if (this.currentMainSourceId !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
+    return this.attachPrimarySeries("baseline") as PhaseOneBaselineSeriesApi;
+  }
 
-    const meta = this.createSeriesMeta("baseline");
+  private createPrimaryBaselineSeriesApi(): PhaseOneBaselineSeriesApi {
     const api: PhaseOneBaselineSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1447,18 +1545,14 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState("primary", "baseline", api, meta, this.primaryPriceScale, "primary-right");
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
   private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
-    if (this.currentMainSourceId !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
+    return this.attachPrimarySeries("bar") as PhaseOneBarSeriesApi;
+  }
 
-    const meta = this.createSeriesMeta("bar");
+  private createPrimaryBarSeriesApi(): PhaseOneBarSeriesApi {
     const api: PhaseOneBarSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1498,18 +1592,14 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState("primary", "bar", api, meta, this.primaryPriceScale, "primary-right");
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
   private addPrimaryHistogramSeries(): PhaseOneHistogramSeriesApi {
-    if (this.currentMainSourceId !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
+    return this.attachPrimarySeries("histogram") as PhaseOneHistogramSeriesApi;
+  }
 
-    const meta = this.createSeriesMeta("histogram");
+  private createPrimaryHistogramSeriesApi(): PhaseOneHistogramSeriesApi {
     const api: PhaseOneHistogramSeriesApi = {
       setData: (data) => {
         this.assertSeriesActive(api);
@@ -1549,9 +1639,6 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    const source = this.createMainSourceState("primary", "histogram", api, meta, this.primaryPriceScale, "primary-right");
-    this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
     return api;
   }
 
@@ -3264,6 +3351,12 @@ export class PhaseOneChartHarness {
       handler(event);
     }
   }
+
+  private emitChartTypeChange(type: PhaseOneMainChartType): void {
+    for (const handler of this.chartTypeChangeHandlers) {
+      handler(type);
+    }
+  }
 }
 
 export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {
@@ -3311,6 +3404,18 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     applyOptions(options) {
       harness.applyOptions(options);
+    },
+    getChartType() {
+      return harness.getChartType();
+    },
+    setChartType(type) {
+      return harness.setChartType(type);
+    },
+    subscribeChartTypeChange(handler) {
+      harness.subscribeChartTypeChange(handler);
+    },
+    unsubscribeChartTypeChange(handler) {
+      harness.unsubscribeChartTypeChange(handler);
     },
     removeSeries(series) {
       harness.removeSeries(series);
@@ -3539,6 +3644,17 @@ function buildHistogramVisuals(
   }
 
   return visuals;
+}
+
+function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {
+  return new Map(
+    Array.from(lines.entries(), ([id, line]) => [
+      id,
+      {
+        ...line,
+      },
+    ]),
+  );
 }
 
 function normalizePaneHeight(height: number | undefined): number {

@@ -70,6 +70,7 @@ type PaneSeriesSnapshot = {
   chartType: string | null;
   sourceRole: string;
   studyKind: string | null;
+  inputContextMode: string | null;
   priceScaleId: string;
   inputCapability: string | null;
   builder: string | null;
@@ -1011,6 +1012,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     chartType: null,
     sourceRole: "study",
     studyKind: "series",
+    inputContextMode: "chart-context",
     priceScaleId: "pane-1-right",
     inputCapability: null,
     builder: null,
@@ -1027,6 +1029,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     chartType: "candlestick",
     sourceRole: "main-series",
     studyKind: null,
+    inputContextMode: null,
     priceScaleId: "primary-right",
     inputCapability: "ohlcv",
     builder: "time-bars",
@@ -1273,6 +1276,7 @@ test("phase-one public api supports overlay and compare studies in the primary p
     kind: series.kind,
     sourceRole: series.sourceRole,
     studyKind: series.studyKind,
+    inputContextMode: series.inputContextMode,
     builder: series.builder,
     renderer: series.renderer,
   }))).toEqual([
@@ -1280,11 +1284,26 @@ test("phase-one public api supports overlay and compare studies in the primary p
       kind: "candlestick",
       sourceRole: "main-series",
       studyKind: null,
+      inputContextMode: null,
       builder: "time-bars",
       renderer: "candles",
     },
-    { kind: "line", sourceRole: "study", studyKind: "overlay", builder: null, renderer: null },
-    { kind: "line", sourceRole: "study", studyKind: "compare", builder: null, renderer: null },
+    {
+      kind: "line",
+      sourceRole: "study",
+      studyKind: "overlay",
+      inputContextMode: "chart-context",
+      builder: null,
+      renderer: null,
+    },
+    {
+      kind: "line",
+      sourceRole: "study",
+      studyKind: "compare",
+      inputContextMode: "chart-context",
+      builder: null,
+      renderer: null,
+    },
   ]);
   const readout = result.readout as ReadoutSnapshot | null;
   expect(readout?.paneIndex).toBe(0);

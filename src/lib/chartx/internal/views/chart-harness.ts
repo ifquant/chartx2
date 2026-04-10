@@ -275,6 +275,7 @@ export type PhaseOnePaneSeriesState = {
   chartType: PhaseOneMainChartType | null;
   sourceRole: "main-series" | "study";
   studyKind: "series" | "indicator" | "overlay" | "compare" | null;
+  inputContextMode: "chart-context" | "requested-context" | null;
   priceScaleId: string;
   inputCapability: PhaseOneMainSeriesInputCapability | null;
   builder: PhaseOneMainSeriesBuilder | null;
@@ -536,9 +537,19 @@ type PhaseOneRenkoOptions = {
   boxSizeMode: "auto" | "fixed";
 };
 
+type StudyInputContextState = {
+  mode: "chart-context" | "requested-context";
+  symbol?: string;
+  resolution?: string;
+  session?: string;
+  timezone?: string;
+  mergePolicy?: "carry-forward" | "gaps" | "exact";
+};
+
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "study";
   studyKind: StudySourceKind;
+  inputContext: StudyInputContextState;
   compareOptions?: Required<PhaseOneCompareSeriesOptions>;
 };
 
@@ -2541,6 +2552,7 @@ export class PhaseOneChartHarness {
       chartType: source.role === "main-series" ? source.chartType : null,
       sourceRole: source.role,
       studyKind: source.role === "study" ? source.studyKind : null,
+      inputContextMode: source.role === "study" ? source.inputContext.mode : null,
       priceScaleId: source.priceScaleId,
       inputCapability: source.role === "main-series" ? source.inputCapability : null,
       builder: source.role === "main-series" ? source.builder : null,
@@ -2710,6 +2722,9 @@ export class PhaseOneChartHarness {
       kind,
       role: "study",
       studyKind,
+      inputContext: {
+        mode: "chart-context",
+      },
       compareOptions:
         studyKind === "compare"
           ? { ...this.defaultCompareOptions }

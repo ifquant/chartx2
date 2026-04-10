@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ChartContext,
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
@@ -154,6 +155,32 @@ describe("model core scales and data", () => {
     );
 
     expect(row).toEqual({ index: 1.667, value: 20 });
+  });
+
+  it("chart context keeps descriptor metadata while main sources change", () => {
+    const context = new ChartContext<number, string>();
+    context.updateDescriptor({
+      symbol: "NASDAQ:NDX",
+      resolution: "1D",
+      session: "regular",
+      timezone: "America/New_York",
+    });
+
+    context.bindMainSource(
+      "series-1",
+      "candlestick",
+      createTimeBasedChartBarSequence([]),
+    );
+    context.clearMainSource();
+
+    expect(context.snapshot().descriptor).toEqual({
+      symbol: "NASDAQ:NDX",
+      resolution: "1D",
+      session: "regular",
+      timezone: "America/New_York",
+    });
+    expect(context.snapshot().mainSourceId).toBeNull();
+    expect(context.snapshot().chartType).toBeNull();
   });
 
   it("series data store appends a new bar through update", () => {

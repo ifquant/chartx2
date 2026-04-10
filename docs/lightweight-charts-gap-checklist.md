@@ -31,11 +31,14 @@ Target direction:
 WidgetShell / Layout
 └─ Charts[]
    └─ ChartModel
+      ├─ ChartContext
       ├─ TimeScale
       ├─ Panes[]
       │  ├─ PriceScales[]
       │  └─ Sources (via entityRegistry)
+      ├─ ChartBarSequence
       ├─ LegendViewModel
+      ├─ MergeEngine
       ├─ ToolbarRegistry / CommandBus
       └─ LayoutSnapshot / Templates / UserSettings
 ```
@@ -50,6 +53,11 @@ Current `chartx2` status against that model:
   - part of that state still lives in a harness-shaped implementation rather than a fully explicit model layer
 - `TimeScale`
   - already chart-level and shared across panes, which matches the intended direction
+  - but the canonical owner of the horizontal domain is still implicit; it should move under an explicit chart-level `ChartContext -> ChartBarSequence` model
+- `ChartContext / ChartBarSequence`
+  - the current harness can now keep synthetic mains visible alongside time-based secondary panes
+  - that alignment is still a transitional strategy, not the final model
+  - long term, the chart should own one canonical `ChartBarSequence`, and non-time builders like `Renko` should be allowed to redefine that sequence instead of being projected back into raw time slots
 - `Panes`
   - pane lifecycle, pane resize, pane event bus, and managed multi-series secondary panes now exist
   - collapse/maximize/move/reorder breadth is still missing
@@ -66,6 +74,10 @@ Current `chartx2` status against that model:
   - extra pane series now act as the first explicit `StudySource` runtime subtype, currently with `studyKind: "series"`
   - the first `overlay` and `compare` runtime creation paths now exist as primary-pane study subtypes
   - broader indicator studies are not yet modeled as first-class study entities
+  - study inputs still need a clearer split between `chart-context` and future `requested-context` execution
+- `MergeEngine`
+  - this does not exist yet
+  - it will be required once studies can request a different timeframe or standard-vs-nonstandard source context and then merge those results back onto the current chart sequence
 - `DrawingSource`
   - markers and price lines exist as early annotation paths
   - drawings are not yet a full entity system with registry, grouping, and z-order control
@@ -216,6 +228,7 @@ Current references:
 
 Why this is still simplified:
 
+- the current chart-level time scale is correct, but it still derives its working domain from harness-local source state rather than an explicit `ChartBarSequence`
 - axis tick generation is still local and minimal
 - formatter hooks now exist, but the tick-generation strategy is still local and narrow
 - public scale APIs now exist for visible range control and formatter injection, but only as a first subset
@@ -248,6 +261,9 @@ Current references:
 
 Why this is still simplified:
 
+- the engine still lacks an explicit chart-level `ChartContext` that owns `symbol / resolution / chartType / barSequence`
+- `Renko` alignment currently works by projecting synthetic rows back onto a time-based logical domain; that is useful for transition, but not the final TradingView-like model
+- studies still read mostly from direct series state instead of a first-class `chart-context` input model
 - no whitespace bars
 - no richer historical merge behavior
 - no broader time model coverage
@@ -256,6 +272,23 @@ Why this is still simplified:
 ## Phase-Two Must Close
 
 These are the highest-signal gaps if the goal is to move from a phase-one floor to a serious `lightweight-charts`-class engine.
+
+### 0. Promote chart context into a first-class model
+
+Must-close items:
+
+- define a chart-level `ChartContext` that owns `symbol / resolution / chartType / barSequence`
+- make `TimeScale` read from one canonical `ChartBarSequence`, not from whichever source rows the harness happens to assemble
+- keep `Pane` time-scale-free; panes should continue to own only `PriceScale`
+- let non-time builders such as `Renko` redefine the chart bar sequence instead of permanently projecting back into raw time slots
+- prepare `StudySource` for `inputContext = chart-context | requested-context`
+- add a future `mergePolicy = carry-forward | gaps | exact` path for studies that request another context and map it back onto the current chart sequence
+
+Why this matters:
+
+- this is the architectural line between “synthetic charts are a rendering trick” and “synthetic charts are real chart contexts”
+- TradingView-like behavior depends on the chart owning one shared horizontal domain while studies decide whether they consume the current chart context or a separately requested one
+- without this, `Renko` and future non-time chart types will keep accumulating special-case alignment logic instead of moving toward a stable runtime model
 
 ### 1. Expand chart API breadth
 
@@ -419,12 +452,13 @@ These belong to the broader product direction already recorded in:
 
 If the next goal is still `close the gap to lightweight-charts`, the best order is:
 
-1. chart-level API breadth
-2. chart and series options
-3. scale APIs and formatter hooks
-4. markers / richer annotation surfaces / subscriptions
-5. pane architecture
-6. richer annotation and overlay surfaces
+1. chart-context / bar-sequence promotion
+2. chart-level API breadth
+3. chart and series options
+4. scale APIs and formatter hooks
+5. markers / richer annotation surfaces / subscriptions
+6. pane architecture
+7. richer annotation and overlay surfaces
 
 ## Current Bottom Line
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createProjectedPriceBasedChartBarSequence,
+  createTimeBasedChartBarSequence,
+  findNearestRowByLogical,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -89,6 +92,68 @@ describe("model core scales and data", () => {
 
     expect(range?.minValue()).toBe(8);
     expect(range?.maxValue()).toBe(16);
+  });
+
+  it("chart bar sequence keeps time-based rows as the canonical axis", () => {
+    const store = new SeriesDataStore<number>();
+    const rows = store.setData([
+      { time: 1, open: 10, high: 12, low: 9, close: 11 },
+      { time: 2, open: 11, high: 13, low: 10, close: 12 },
+    ]);
+
+    const sequence = createTimeBasedChartBarSequence(rows);
+
+    expect(sequence.kind).toBe("time-based");
+    expect(sequence.axisBars).toBe(rows);
+    expect(sequence.logicalLength).toBe(2);
+  });
+
+  it("chart bar sequence can project price-based rows onto an input timeline", () => {
+    const sequence = createProjectedPriceBasedChartBarSequence(
+      [
+        {
+          index: 0 as never,
+          time: 2,
+          originalTime: 2,
+          value: [11, 12, 11, 12],
+        },
+        {
+          index: 1 as never,
+          time: 2.001,
+          originalTime: 2.001,
+          value: [12, 13, 12, 13],
+        },
+        {
+          index: 2 as never,
+          time: 3,
+          originalTime: 3,
+          value: [13, 14, 13, 14],
+        },
+      ],
+      [
+        { time: 1, open: 10, high: 12, low: 9, close: 11 },
+        { time: 2, open: 11, high: 13, low: 10, close: 12 },
+        { time: 3, open: 12, high: 14, low: 11, close: 13 },
+      ],
+    );
+
+    expect(sequence.kind).toBe("price-based");
+    expect(sequence.axisBars.map((row) => row.index)).toEqual([0, 1, 2]);
+    expect(sequence.bars.map((row) => Number(row.index.toFixed(3)))).toEqual([1.333, 1.667, 2.5]);
+    expect(sequence.logicalLength).toBe(3);
+  });
+
+  it("finds the nearest projected row by logical index", () => {
+    const row = findNearestRowByLogical(
+      [
+        { index: 1.333, value: 10 },
+        { index: 1.667, value: 20 },
+        { index: 2.5, value: 30 },
+      ],
+      1.6,
+    );
+
+    expect(row).toEqual({ index: 1.667, value: 20 });
   });
 
   it("series data store appends a new bar through update", () => {

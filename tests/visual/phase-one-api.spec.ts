@@ -360,6 +360,68 @@ test("phase-one public api can switch the active main chart type to hollow-candl
   await expect(fixture).toHaveScreenshot("phase-one-api-hollow-candles-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to line-break", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-line-break-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-line-break-canvas" aria-label="phase-one api line break chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-line-break-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API line break fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("line-break");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, {
+    data: [
+      { time: 1, open: 100, high: 104, low: 99, close: 102 },
+      { time: 2, open: 102, high: 108, low: 101, close: 106 },
+      { time: 3, open: 106, high: 109, low: 105, close: 108 },
+      { time: 4, open: 108, high: 111, low: 107, close: 110 },
+      { time: 5, open: 110, high: 111, low: 102, close: 103 },
+      { time: 6, open: 103, high: 104, low: 97, close: 98 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.chartType).toBe("line-break");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "line-break",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "line-break",
+    renderer: "candles",
+    styleSchemaId: "lineBreakStyle",
+    pointCount: 6,
+  });
+
+  const fixture = page.locator("#api-line-break-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-line-break-series.png");
+});
+
 test("phase-one public api can switch the active main chart type to volume-candles", async ({
   page,
 }) => {

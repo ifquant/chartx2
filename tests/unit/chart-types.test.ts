@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildHeikinAshiData,
+  buildLineBreakData,
   buildRenkoData,
 } from "../../src/lib/chartx/internal/views/chart-harness";
 
@@ -72,6 +73,36 @@ describe("chart type builders", () => {
       { time: 4, open: 108, high: 112, low: 108, close: 112 },
       { time: 5, open: 112, high: 112, low: 108, close: 108 },
       { time: 5.001, open: 108, high: 108, low: 104, close: 104 },
+    ]);
+  });
+
+  it("builds line-break bars from canonical ohlc input without mutating the source", () => {
+    const input = [
+      { time: 1, open: 100, high: 104, low: 99, close: 102 },
+      { time: 2, open: 102, high: 108, low: 101, close: 106 },
+      { time: 3, open: 106, high: 109, low: 105, close: 108 },
+      { time: 4, open: 108, high: 111, low: 107, close: 110 },
+      { time: 5, open: 110, high: 111, low: 102, close: 103 },
+      { time: 6, open: 103, high: 104, low: 97, close: 98 },
+    ] as const;
+
+    const result = buildLineBreakData(input);
+
+    expect(result).toEqual([
+      { time: 1, open: 100, high: 104, low: 99, close: 102 },
+      { time: 2, open: 102, high: 106, low: 102, close: 106, volume: undefined },
+      { time: 3, open: 106, high: 108, low: 106, close: 108, volume: undefined },
+      { time: 4, open: 108, high: 110, low: 108, close: 110, volume: undefined },
+      { time: 5, open: 110, high: 110, low: 103, close: 103, volume: undefined },
+      { time: 6, open: 103, high: 103, low: 98, close: 98, volume: undefined },
+    ]);
+    expect(input).toEqual([
+      { time: 1, open: 100, high: 104, low: 99, close: 102 },
+      { time: 2, open: 102, high: 108, low: 101, close: 106 },
+      { time: 3, open: 106, high: 109, low: 105, close: 108 },
+      { time: 4, open: 108, high: 111, low: 107, close: 110 },
+      { time: 5, open: 110, high: 111, low: 102, close: 103 },
+      { time: 6, open: 103, high: 104, low: 97, close: 98 },
     ]);
   });
 });

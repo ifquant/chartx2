@@ -251,6 +251,10 @@ export function mountWorkbenchDemo(
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
+    } else if (mainChartType === "line-break") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("line-break");
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -351,6 +355,12 @@ export function mountWorkbenchDemo(
           label: "Heikin",
           group: "chart-type",
           active: mainChartType === "heikin-ashi",
+        },
+        {
+          id: "main-line-break",
+          label: "Line Break",
+          group: "chart-type",
+          active: mainChartType === "line-break",
         },
         {
           id: "main-volume-candles",
@@ -473,6 +483,11 @@ export function mountWorkbenchDemo(
         case "main-candlestick":
           mainChartType = "candlestick";
           chart.setChartType("candlestick");
+          publishSnapshot();
+          return;
+        case "main-line-break":
+          mainChartType = "line-break";
+          chart.setChartType("line-break");
           publishSnapshot();
           return;
         case "main-volume-candles":
@@ -723,6 +738,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
   switch (kind) {
     case "candlestick":
       return "Candles";
+    case "line-break":
+      return "Line Break";
     case "volume-candles":
       return "Volume Candles";
     case "hollow-candles":

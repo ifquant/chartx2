@@ -1411,11 +1411,117 @@ test("phase-one compare series can opt out of primary autoscale without a chart-
 
   expect(result.before?.maxValue ?? 0).toBeGreaterThan(500);
   expect(result.after?.maxValue ?? 0).toBeLessThan(150);
-  expect(result.compareOptions).toEqual({ affectMainScale: false });
+  expect(result.compareOptions).toEqual({
+    affectMainScale: false,
+    inputContextMode: "chart-context",
+    requestedSymbol: null,
+    requestedResolution: null,
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  });
 
   const fixture = page.locator("#api-compare-series-options-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-compare-series-options.png");
+});
+
+test("phase-one compare series can request another context and merge it back onto the current chart bars", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    compareOptions: {
+      affectMainScale: boolean;
+      inputContextMode: string;
+      requestedSymbol: string | null;
+      requestedResolution: string | null;
+      requestedSession: string | null;
+      requestedTimezone: string | null;
+      mergePolicy: string;
+    };
+    panes: PaneEventSnapshot["panes"];
+    readout: ReadoutSnapshot | null;
+  } = await page.evaluate(async ({ bars, compare, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-compare-requested-context-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-compare-requested-context-canvas" aria-label="phase-one api compare requested-context chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-compare-requested-context-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API compare requested-context fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const compareSeries = chart.addCompareSeries();
+    mainSeries.setData(bars);
+    compareSeries.setData(compare);
+    compareSeries.applyCompareOptions({
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1H",
+      mergePolicy: "carry-forward",
+    });
+
+    let lastReadout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      lastReadout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+    chart.addPane({ height: 96 });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.98,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      compareOptions: compareSeries.getCompareOptions(),
+      panes: paneEvents[0]?.panes ?? [],
+      readout: lastReadout,
+    };
+  }, {
+    bars: API_DATA,
+    compare: [
+      { time: 2, value: 210 },
+      { time: 4, value: 240 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.compareOptions).toEqual({
+    affectMainScale: true,
+    inputContextMode: "requested-context",
+    requestedSymbol: "NASDAQ:NDX",
+    requestedResolution: "1H",
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  });
+  expect(result.panes[0]?.series[1]?.inputContextMode).toBe("requested-context");
+  expect(result.readout?.series.map((series) => series.value)).toEqual([136, 240]);
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

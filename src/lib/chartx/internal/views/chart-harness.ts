@@ -3,6 +3,7 @@ import {
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
   ChartContext,
+  mergeStudyDataToChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -190,6 +191,12 @@ export type PhaseOneLineSeriesOptions = {
 
 export type PhaseOneCompareSeriesOptions = {
   affectMainScale?: boolean;
+  inputContextMode?: "chart-context" | "requested-context";
+  requestedSymbol?: string | null;
+  requestedResolution?: string | null;
+  requestedSession?: string | null;
+  requestedTimezone?: string | null;
+  mergePolicy?: "carry-forward" | "gaps" | "exact";
 };
 
 export type PhaseOneAreaSeriesOptions = {
@@ -539,16 +546,17 @@ type PhaseOneRenkoOptions = {
 
 type StudyInputContextState = {
   mode: "chart-context" | "requested-context";
-  symbol?: string;
-  resolution?: string;
-  session?: string;
-  timezone?: string;
-  mergePolicy?: "carry-forward" | "gaps" | "exact";
+  symbol: string | null;
+  resolution: string | null;
+  session: string | null;
+  timezone: string | null;
+  mergePolicy: "carry-forward" | "gaps" | "exact";
 };
 
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "study";
   studyKind: StudySourceKind;
+  inputData: readonly PhaseOneCandlestickData[];
   inputContext: StudyInputContextState;
   compareOptions?: Required<PhaseOneCompareSeriesOptions>;
 };
@@ -649,6 +657,12 @@ export class PhaseOneChartHarness {
   };
   private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = {
     affectMainScale: true,
+    inputContextMode: "chart-context",
+    requestedSymbol: null,
+    requestedResolution: null,
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
   };
   private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = {
     lineColor: LINE_COLOR,
@@ -1825,6 +1839,29 @@ export class PhaseOneChartHarness {
             affectMainScale: options.affectMainScale,
           };
         }
+        const nextInputContext = {
+          ...state.inputContext,
+          mode: options.inputContextMode ?? state.inputContext.mode,
+          symbol:
+            options.requestedSymbol !== undefined
+              ? options.requestedSymbol
+              : state.inputContext.symbol,
+          resolution:
+            options.requestedResolution !== undefined
+              ? options.requestedResolution
+              : state.inputContext.resolution,
+          session:
+            options.requestedSession !== undefined
+              ? options.requestedSession
+              : state.inputContext.session,
+          timezone:
+            options.requestedTimezone !== undefined
+              ? options.requestedTimezone
+              : state.inputContext.timezone,
+          mergePolicy: options.mergePolicy ?? state.inputContext.mergePolicy,
+        } satisfies StudyInputContextState;
+        state.inputContext = nextInputContext;
+        state.data = this.resolveStudyDisplayData(state);
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
@@ -1832,7 +1869,15 @@ export class PhaseOneChartHarness {
       getCompareOptions: () => {
         this.assertSeriesActive(api);
         const state = this.getCompareStudyState(api);
-        return { ...(state.compareOptions ?? this.defaultCompareOptions) };
+        return {
+          ...(state.compareOptions ?? this.defaultCompareOptions),
+          inputContextMode: state.inputContext.mode,
+          requestedSymbol: state.inputContext.symbol,
+          requestedResolution: state.inputContext.resolution,
+          requestedSession: state.inputContext.session,
+          requestedTimezone: state.inputContext.timezone,
+          mergePolicy: state.inputContext.mergePolicy,
+        };
       },
       setMarkers: (markers) => {
         this.assertSeriesActive(api);
@@ -2133,7 +2178,11 @@ export class PhaseOneChartHarness {
     kind: ChartSeriesKind,
   ): void {
     const state = this.getSourceByApi(api, kind);
-    state.data = [...data];
+    if (state.role !== "study") {
+      throw new Error("chartx phase-one secondary data path expects a study source");
+    }
+    state.inputData = [...data];
+    state.data = this.resolveStudyDisplayData(state);
     state.visuals.clear();
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -2148,13 +2197,11 @@ export class PhaseOneChartHarness {
     kind: ChartSeriesKind,
   ): void {
     const state = this.getSourceByApi(api, kind);
-    state.data = state.store.update(bar).map((row) => ({
-      time: row.time,
-      open: row.value[PlotRowValueIndex.Open],
-      high: row.value[PlotRowValueIndex.High],
-      low: row.value[PlotRowValueIndex.Low],
-      close: row.value[PlotRowValueIndex.Close],
-    }));
+    if (state.role !== "study") {
+      throw new Error("chartx phase-one secondary update path expects a study source");
+    }
+    state.inputData = updateCanonicalData(state.inputData, bar);
+    state.data = this.resolveStudyDisplayData(state);
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
@@ -2722,8 +2769,14 @@ export class PhaseOneChartHarness {
       kind,
       role: "study",
       studyKind,
+      inputData: [],
       inputContext: {
         mode: "chart-context",
+        symbol: null,
+        resolution: null,
+        session: null,
+        timezone: null,
+        mergePolicy: "carry-forward",
       },
       compareOptions:
         studyKind === "compare"
@@ -2746,6 +2799,7 @@ export class PhaseOneChartHarness {
   private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {
     if (source === null) {
       this.chartContext.clearMainSource();
+      this.syncStudyContextData();
       return;
     }
 
@@ -2754,6 +2808,7 @@ export class PhaseOneChartHarness {
       source.chartType,
       this.createMainBarSequenceFromSource(source),
     );
+    this.syncStudyContextData();
   }
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
@@ -3056,6 +3111,25 @@ export class PhaseOneChartHarness {
     }
 
     return this.createMainBarSequenceFromSource(source);
+  }
+
+  private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
+    if (state.inputContext.mode === "requested-context" && state.studyKind === "compare") {
+      const axisBars = this.chartContext.snapshot().barSequence.axisBars;
+      return mergeStudyDataToChartContext(
+        state.inputData,
+        axisBars,
+        state.inputContext.mergePolicy,
+      );
+    }
+
+    return [...state.inputData];
+  }
+
+  private syncStudyContextData(): void {
+    for (const state of this.sourceRegistry.list().filter((entry): entry is StudySourceState => entry.role === "study")) {
+      state.data = this.resolveStudyDisplayData(state);
+    }
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {

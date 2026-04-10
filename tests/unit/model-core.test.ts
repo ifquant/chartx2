@@ -5,6 +5,7 @@ import {
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
+  mergeStudyDataToChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -181,6 +182,30 @@ describe("model core scales and data", () => {
     });
     expect(context.snapshot().mainSourceId).toBeNull();
     expect(context.snapshot().chartType).toBeNull();
+  });
+
+  it("merges requested-context study data back onto chart bars with carry-forward semantics", () => {
+    const merged = mergeStudyDataToChartContext(
+      [
+        { time: 2, open: 20, high: 20, low: 20, close: 20 },
+        { time: 4, open: 40, high: 40, low: 40, close: 40 },
+      ],
+      [
+        { index: 0 as never, time: 1, originalTime: 1, value: [1, 1, 1, 1] },
+        { index: 1 as never, time: 2, originalTime: 2, value: [2, 2, 2, 2] },
+        { index: 2 as never, time: 3, originalTime: 3, value: [3, 3, 3, 3] },
+        { index: 3 as never, time: 4, originalTime: 4, value: [4, 4, 4, 4] },
+        { index: 4 as never, time: 5, originalTime: 5, value: [5, 5, 5, 5] },
+      ],
+      "carry-forward",
+    );
+
+    expect(merged).toEqual([
+      { time: 2, open: 20, high: 20, low: 20, close: 20 },
+      { time: 3, open: 20, high: 20, low: 20, close: 20 },
+      { time: 4, open: 40, high: 40, low: 40, close: 40 },
+      { time: 5, open: 40, high: 40, low: 40, close: 40 },
+    ]);
   });
 
   it("series data store appends a new bar through update", () => {

@@ -15,6 +15,7 @@ export type CandlesticksRendererData = {
   upColor: string;
   downColor: string;
   wickColor: string;
+  bodyMode?: "filled" | "hollow";
 };
 
 export class CandlesticksRenderer {
@@ -23,6 +24,7 @@ export class CandlesticksRenderer {
     data: CandlesticksRendererData,
   ): void {
     const bodyWidth = Math.max(3, Math.floor(data.barWidth));
+    const bodyMode = data.bodyMode ?? "filled";
 
     for (const item of data.items) {
       const color = item.isUp ? data.upColor : data.downColor;
@@ -38,13 +40,24 @@ export class CandlesticksRenderer {
       context.lineTo(x + 0.5, Math.round(item.lowY) + 0.5);
       context.stroke();
 
-      context.fillStyle = color;
-      context.fillRect(
-        Math.round(x - bodyWidth / 2),
-        Math.round(bodyTop),
-        bodyWidth,
-        Math.round(bodyHeight),
-      );
+      if (bodyMode === "hollow" && item.isUp) {
+        context.strokeStyle = color;
+        context.lineWidth = 1;
+        context.strokeRect(
+          Math.round(x - bodyWidth / 2) + 0.5,
+          Math.round(bodyTop) + 0.5,
+          Math.max(1, bodyWidth - 1),
+          Math.max(1, Math.round(bodyHeight) - 1),
+        );
+      } else {
+        context.fillStyle = color;
+        context.fillRect(
+          Math.round(x - bodyWidth / 2),
+          Math.round(bodyTop),
+          bodyWidth,
+          Math.round(bodyHeight),
+        );
+      }
     }
   }
 }

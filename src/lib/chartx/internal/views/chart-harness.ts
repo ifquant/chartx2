@@ -96,9 +96,12 @@ export type PhaseOneMainSeriesRenderer =
   | "segment";
 export type PhaseOneMainChartType =
   | "candlestick"
+  | "hollow-candles"
   | "heikin-ashi"
   | "renko"
   | "bar"
+  | "hlc-bars"
+  | "high-low"
   | "line"
   | "line-markers"
   | "stepline"
@@ -992,12 +995,15 @@ export class PhaseOneChartHarness {
   ): PhaseOneMainSeriesApi {
     switch (kind) {
       case "candlestick":
+      case "hollow-candles":
         return this.createPrimaryCandlestickSeriesApi();
       case "heikin-ashi":
         return this.createPrimaryCandlestickSeriesApi();
       case "renko":
         return this.createPrimaryCandlestickSeriesApi();
       case "bar":
+      case "hlc-bars":
+      case "high-low":
         return this.createPrimaryBarSeriesApi();
       case "line":
       case "line-markers":
@@ -3176,11 +3182,33 @@ export class PhaseOneChartHarness {
         barWidth,
         upColor: seriesOptions.upColor,
         downColor: seriesOptions.downColor,
+        mode: "bars",
       });
       return;
     }
 
-    if (renderer === "candles" || renderer === "brick") {
+    if (renderer === "hlc-bars" || renderer === "high-low") {
+      const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
+      const barItems = rows.map((row): BarItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
+        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
+        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.barRenderer.draw(context, {
+        items: barItems,
+        barWidth,
+        upColor: seriesOptions.upColor,
+        downColor: seriesOptions.downColor,
+        mode: renderer === "hlc-bars" ? "hlc-bars" : "high-low",
+      });
+      return;
+    }
+
+    if (renderer === "candles" || renderer === "brick" || renderer === "hollow-candles") {
       const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
       const candleItems = rows.map((row): CandlestickItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -3197,6 +3225,7 @@ export class PhaseOneChartHarness {
         upColor: seriesOptions.upColor,
         downColor: seriesOptions.downColor,
         wickColor: renderer === "brick" ? "rgba(0, 0, 0, 0)" : seriesOptions.wickColor,
+        bodyMode: renderer === "hollow-candles" ? "hollow" : "filled",
       });
       return;
     }
@@ -4016,10 +4045,16 @@ function formatSeriesKindLabel(kind: string): string {
   switch (kind) {
     case "candlestick":
       return "Candlestick";
+    case "hollow-candles":
+      return "Hollow Candles";
     case "heikin-ashi":
       return "Heikin Ashi";
     case "renko":
       return "Renko";
+    case "hlc-bars":
+      return "HLC Bars";
+    case "high-low":
+      return "High-Low";
     case "line":
       return "Line";
     case "line-markers":
@@ -4061,9 +4096,13 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
 
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
   switch (type) {
+    case "hollow-candles":
     case "heikin-ashi":
     case "renko":
       return "candlestick";
+    case "hlc-bars":
+    case "high-low":
+      return "bar";
     case "candlestick":
     case "bar":
     case "line":
@@ -4091,6 +4130,13 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         renderer: "candles",
         styleSchemaId: "candleStyle",
       };
+    case "hollow-candles":
+      return {
+        inputCapability: "ohlcv",
+        builder: "time-bars",
+        renderer: "hollow-candles",
+        styleSchemaId: "hollowCandleStyle",
+      };
     case "heikin-ashi":
       return {
         inputCapability: "ohlcv",
@@ -4111,6 +4157,20 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "time-bars",
         renderer: "bars",
         styleSchemaId: "barStyle",
+      };
+    case "hlc-bars":
+      return {
+        inputCapability: "ohlc",
+        builder: "time-bars",
+        renderer: "hlc-bars",
+        styleSchemaId: "hlcBarStyle",
+      };
+    case "high-low":
+      return {
+        inputCapability: "ohlc",
+        builder: "time-bars",
+        renderer: "high-low",
+        styleSchemaId: "highLowStyle",
       };
     case "line":
       return {

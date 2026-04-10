@@ -251,6 +251,10 @@ export function mountWorkbenchDemo(
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
+    } else if (mainChartType === "hollow-candles") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("hollow-candles");
     } else if (mainChartType === "heikin-ashi") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -266,6 +270,14 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "bar") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
+    } else if (mainChartType === "hlc-bars") {
+      const mainSeries = chart.addBarSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("hlc-bars");
+    } else if (mainChartType === "high-low") {
+      const mainSeries = chart.addBarSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("high-low");
     } else if (mainChartType === "line") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
@@ -337,6 +349,12 @@ export function mountWorkbenchDemo(
           active: mainChartType === "heikin-ashi",
         },
         {
+          id: "main-hollow-candles",
+          label: "Hollow",
+          group: "chart-type",
+          active: mainChartType === "hollow-candles",
+        },
+        {
           id: "main-renko",
           label: "Renko",
           group: "chart-type",
@@ -347,6 +365,18 @@ export function mountWorkbenchDemo(
           label: "Bar",
           group: "chart-type",
           active: mainChartType === "bar",
+        },
+        {
+          id: "main-hlc-bars",
+          label: "HLC",
+          group: "chart-type",
+          active: mainChartType === "hlc-bars",
+        },
+        {
+          id: "main-high-low",
+          label: "Hi-Lo",
+          group: "chart-type",
+          active: mainChartType === "high-low",
         },
         {
           id: "main-line",
@@ -435,9 +465,24 @@ export function mountWorkbenchDemo(
           chart.setChartType("candlestick");
           publishSnapshot();
           return;
+        case "main-hollow-candles":
+          mainChartType = "hollow-candles";
+          chart.setChartType("hollow-candles");
+          publishSnapshot();
+          return;
         case "main-bar":
           mainChartType = "bar";
           chart.setChartType("bar");
+          publishSnapshot();
+          return;
+        case "main-hlc-bars":
+          mainChartType = "hlc-bars";
+          chart.setChartType("hlc-bars");
+          publishSnapshot();
+          return;
+        case "main-high-low":
+          mainChartType = "high-low";
+          chart.setChartType("high-low");
           publishSnapshot();
           return;
         case "main-renko":
@@ -663,12 +708,18 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
   switch (kind) {
     case "candlestick":
       return "Candles";
+    case "hollow-candles":
+      return "Hollow Candles";
     case "heikin-ashi":
       return "Heikin Ashi";
     case "renko":
       return "Renko";
     case "bar":
       return "Bar";
+    case "hlc-bars":
+      return "HLC Bars";
+    case "high-low":
+      return "High-Low";
     case "line":
       return "Line";
     case "line-markers":

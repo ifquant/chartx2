@@ -302,6 +302,162 @@ test("phase-one public api can switch the active main chart type to stepline", a
   await expect(fixture).toHaveScreenshot("phase-one-api-stepline-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to hollow-candles", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-hollow-candles-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-hollow-candles-canvas" aria-label="phase-one api hollow candles chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-hollow-candles-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API hollow candles fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("hollow-candles");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("hollow-candles");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "hollow-candles",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "hollow-candles",
+    styleSchemaId: "hollowCandleStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-hollow-candles-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-hollow-candles-series.png");
+});
+
+test("phase-one public api can switch the active main chart type to hlc-bars", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-hlc-bars-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-hlc-bars-canvas" aria-label="phase-one api hlc bars chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-hlc-bars-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API hlc bars fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addBarSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("hlc-bars");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("hlc-bars");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "bar",
+    chartType: "hlc-bars",
+    sourceRole: "main-series",
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "hlc-bars",
+    styleSchemaId: "hlcBarStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-hlc-bars-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-hlc-bars-series.png");
+});
+
+test("phase-one public api can switch the active main chart type to high-low", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-high-low-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-high-low-canvas" aria-label="phase-one api high low chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-high-low-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API high low fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addBarSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("high-low");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("high-low");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "bar",
+    chartType: "high-low",
+    sourceRole: "main-series",
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "high-low",
+    styleSchemaId: "highLowStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-high-low-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-high-low-series.png");
+});
+
 test("phase-one public api mounts a single area chart and renders the first frame", async ({
   page,
 }) => {

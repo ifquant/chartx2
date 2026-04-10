@@ -253,6 +253,37 @@ test("phase-one public api renders series-level price lines", async ({ page }) =
   await expect(fixture).toHaveScreenshot("phase-one-api-price-lines.png");
 });
 
+test("phase-one public api renders series-level markers", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-marker-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-marker-canvas" aria-label="phase-one api marker chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-marker-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API marker fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    series.setMarkers([
+      { time: 2, position: "belowBar", shape: "arrowUp", color: "#0c8f62", text: "Buy" },
+      { time: 3, position: "aboveBar", shape: "arrowDown", color: "#c7543e", text: "Sell" },
+      { time: 4, position: "inBar", shape: "circle", color: "#2563eb", text: "Info" },
+    ]);
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const fixture = page.locator("#api-marker-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-markers.png");
+});
+
 test("phase-one public api mounts a single bar chart and renders the first frame", async ({
   page,
 }) => {

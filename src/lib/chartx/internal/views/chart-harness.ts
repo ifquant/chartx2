@@ -90,6 +90,17 @@ export type PhaseOnePriceLineApi = {
   remove(): void;
 };
 
+export type PhaseOneSeriesMarkerPosition = "aboveBar" | "belowBar" | "inBar";
+export type PhaseOneSeriesMarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
+
+export type PhaseOneSeriesMarker = {
+  time: number;
+  position?: PhaseOneSeriesMarkerPosition;
+  shape?: PhaseOneSeriesMarkerShape;
+  color?: string;
+  text?: string;
+};
+
 export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
   point: PanePoint | null;
 };
@@ -237,6 +248,7 @@ export type PhaseOneCandlestickSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
   applyOptions(options: PhaseOneCandlestickSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -245,6 +257,7 @@ export type PhaseOneBarSeriesApi = {
   setData(data: readonly PhaseOneCandlestickData[]): void;
   update(bar: PhaseOneCandlestickData): void;
   applyOptions(options: PhaseOneBarSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -253,6 +266,7 @@ export type PhaseOneLineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneLineSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -261,6 +275,7 @@ export type PhaseOneAreaSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneAreaSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -269,6 +284,7 @@ export type PhaseOneBaselineSeriesApi = {
   setData(data: readonly PhaseOneLineData[]): void;
   update(bar: PhaseOneLineData): void;
   applyOptions(options: PhaseOneBaselineSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -277,6 +293,7 @@ export type PhaseOneHistogramSeriesApi = {
   setData(data: readonly PhaseOneHistogramData[]): void;
   update(bar: PhaseOneHistogramData): void;
   applyOptions(options: PhaseOneHistogramSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -285,6 +302,7 @@ export type PhaseOneVolumeSeriesApi = {
   setData(data: readonly PhaseOneVolumeData[]): void;
   update(bar: PhaseOneVolumeData): void;
   applyOptions(options: PhaseOneVolumeSeriesOptions): void;
+  setMarkers(markers: readonly PhaseOneSeriesMarker[]): void;
   createPriceLine(options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
@@ -370,6 +388,14 @@ type PriceLineState = {
   title: string;
 };
 
+type SeriesMarkerState = {
+  time: number;
+  position: PhaseOneSeriesMarkerPosition;
+  shape: PhaseOneSeriesMarkerShape;
+  color: string;
+  text: string;
+};
+
 type SecondarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
 
 type SecondarySeriesState = {
@@ -390,6 +416,7 @@ type SecondarySeriesState = {
   priceScale: PriceScale;
   visuals: Map<number, HistogramVisual>;
   priceLines: Map<string, PriceLineState>;
+  markers: readonly SeriesMarkerState[];
   options:
     | Required<PhaseOneCandlestickSeriesOptions>
     | Required<PhaseOneBarSeriesOptions>
@@ -446,6 +473,7 @@ export class PhaseOneChartHarness {
   private readonly baselineRenderer = new BaselineRenderer();
   private primaryData: readonly PhaseOneCandlestickData[] = [];
   private primarySeriesMeta: { id: string; label: string } | null = null;
+  private primaryMarkers: readonly SeriesMarkerState[] = [];
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
   private nextPaneId = 1;
   private nextSeriesId = 1;
@@ -778,6 +806,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const priceLine = this.createPriceLineState(options);
@@ -856,6 +888,7 @@ export class PhaseOneChartHarness {
       this.primarySeriesMeta = null;
       this.primaryData = [];
       this.primaryHistogramVisuals.clear();
+      this.primaryMarkers = [];
       this.primaryPriceLines.clear();
     } else {
       const state = Array.from(this.secondarySeries.values()).find((entry) => entry.api === series);
@@ -1113,6 +1146,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const priceLine = this.createPriceLineState(options);
@@ -1161,6 +1198,10 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
       },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
@@ -1223,6 +1264,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const priceLine = this.createPriceLineState(options);
@@ -1266,6 +1311,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const priceLine = this.createPriceLineState(options);
@@ -1307,6 +1356,10 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setPrimaryMarkers(markers);
       },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
@@ -1350,6 +1403,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "candlestick");
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const state = this.getSecondaryStateByApi(api, "candlestick");
@@ -1390,6 +1447,10 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "line");
       },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
@@ -1437,6 +1498,10 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "area");
       },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
@@ -1497,6 +1562,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "baseline");
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const state = this.getSecondaryStateByApi(api, "baseline");
@@ -1537,6 +1606,10 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "bar");
       },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
@@ -1579,6 +1652,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "histogram");
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const state = this.getSecondaryStateByApi(api, "histogram");
@@ -1620,6 +1697,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "volume");
+      },
       createPriceLine: (options = {}) => {
         this.assertSeriesActive(api);
         const state = this.getSecondaryStateByApi(api, "volume");
@@ -1653,6 +1734,7 @@ export class PhaseOneChartHarness {
       priceScale: this.getOrCreateSecondaryPanePriceScale(paneId),
       visuals: new Map<number, HistogramVisual>(),
       priceLines: new Map<string, PriceLineState>(),
+      markers: [],
       options: this.createSecondarySeriesOptions(kind),
     });
   }
@@ -1716,6 +1798,25 @@ export class PhaseOneChartHarness {
           : bar.value >= previous.close),
     });
     this.updateSecondary(api, normalizeHistogramBar(bar), kind);
+  }
+
+  private setPrimaryMarkers(markers: readonly PhaseOneSeriesMarker[]): void {
+    this.primaryMarkers = normalizeMarkers(markers);
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  private setSecondaryMarkers(
+    api: SecondarySeriesState["api"],
+    markers: readonly PhaseOneSeriesMarker[],
+    kind: SecondarySeriesKind,
+  ): void {
+    const state = this.getSecondaryStateByApi(api, kind);
+    state.markers = normalizeMarkers(markers);
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
   }
 
   private getSecondaryStateByApi(
@@ -2555,6 +2656,16 @@ export class PhaseOneChartHarness {
           this.primaryPriceLines,
           this.chartOptions,
         );
+
+        drawSeriesMarkers(
+          context,
+          primaryRows,
+          this.primaryMarkers,
+          this.timeScale,
+          this.primaryPriceScale,
+          pane.height,
+          this.primarySeriesType,
+        );
       }
 
       if (pane.kind === "secondary") {
@@ -2694,6 +2805,23 @@ export class PhaseOneChartHarness {
             panePriceScale,
             panePriceLines,
             this.chartOptions,
+          );
+        }
+
+        for (const state of paneSeries) {
+          const rows = secondaryRows.get(state.id);
+          if (rows === undefined || rows.length === 0) {
+            continue;
+          }
+
+          drawSeriesMarkers(
+            context,
+            rows,
+            state.markers,
+            this.timeScale,
+            state.priceScale,
+            pane.height,
+            state.kind,
           );
         }
       }
@@ -3278,6 +3406,16 @@ function drawPaneLegend(
   context.restore();
 }
 
+function normalizeMarkers(markers: readonly PhaseOneSeriesMarker[]): readonly SeriesMarkerState[] {
+  return markers.map((marker, index) => ({
+    time: marker.time,
+    position: marker.position ?? "aboveBar",
+    shape: marker.shape ?? "circle",
+    color: marker.color ?? "#2563eb",
+    text: marker.text ?? "",
+  })).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
+}
+
 function drawPriceLines(
   context: CanvasRenderingContext2D,
   paneWidth: number,
@@ -3325,6 +3463,133 @@ function drawPriceLines(
     );
   }
 
+  context.restore();
+}
+
+function drawSeriesMarkers(
+  context: CanvasRenderingContext2D,
+  rows: readonly {
+    time: number;
+    index: Parameters<TimeScale["indexToCoordinate"]>[0];
+    value: readonly number[];
+  }[],
+  markers: readonly SeriesMarkerState[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+  paneHeight: number,
+  kind: SecondarySeriesKind | PhaseOneChartHarness["primarySeriesType"],
+): void {
+  if (markers.length === 0 || rows.length === 0 || kind === null) {
+    return;
+  }
+
+  const rowsByTime = new Map(rows.map((row) => [row.time, row]));
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+
+  for (const marker of markers) {
+    const row = rowsByTime.get(marker.time);
+    if (row === undefined) {
+      continue;
+    }
+
+    const x = timeScale.indexToCoordinate(row.index);
+    const y = markerYForRow(row, marker.position, priceScale, kind, paneHeight);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < -24 || x > 5000) {
+      continue;
+    }
+
+    drawMarkerShape(context, x, y, marker.shape, marker.color);
+    if (marker.text !== "") {
+      const textY = marker.position === "belowBar" ? y + 13 : y - 13;
+      context.fillStyle = marker.color;
+      context.fillText(marker.text, x, textY);
+    }
+  }
+
+  context.restore();
+}
+
+function markerYForRow(
+  row: { value: readonly number[] },
+  position: PhaseOneSeriesMarkerPosition,
+  priceScale: PriceScale,
+  kind: SecondarySeriesKind | "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram",
+  paneHeight: number,
+): number {
+  const openY = toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open]));
+  const highY = toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High]));
+  const lowY = toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low]));
+  const closeY = toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close]));
+
+  if (position === "inBar") {
+    if (kind === "histogram" || kind === "volume") {
+      const range = priceScale.getPriceRange();
+      const basePrice = range?.minValue() ?? 0;
+      const baseY = toCoordinate(priceScale.priceToCoordinate(basePrice));
+      return Math.max(12, Math.min(paneHeight - 12, (baseY + closeY) / 2));
+    }
+    return Math.max(12, Math.min(paneHeight - 12, closeY));
+  }
+
+  if (position === "aboveBar") {
+    const anchor = kind === "line" || kind === "area" || kind === "baseline" ? closeY : highY;
+    return Math.max(10, anchor - 14);
+  }
+
+  const anchor = kind === "line" || kind === "area" || kind === "baseline" ? closeY : lowY;
+  return Math.min(paneHeight - 10, anchor + 14);
+}
+
+function drawMarkerShape(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  shape: PhaseOneSeriesMarkerShape,
+  color: string,
+): void {
+  context.save();
+  context.fillStyle = color;
+  context.strokeStyle = color;
+  context.lineWidth = 1.5;
+
+  if (shape === "circle") {
+    context.beginPath();
+    context.arc(x, y, 4, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    return;
+  }
+
+  if (shape === "square") {
+    context.fillRect(x - 4, y - 4, 8, 8);
+    context.restore();
+    return;
+  }
+
+  context.beginPath();
+  if (shape === "arrowUp") {
+    context.moveTo(x, y - 6);
+    context.lineTo(x + 6, y + 4);
+    context.lineTo(x + 2, y + 4);
+    context.lineTo(x + 2, y + 8);
+    context.lineTo(x - 2, y + 8);
+    context.lineTo(x - 2, y + 4);
+    context.lineTo(x - 6, y + 4);
+  } else {
+    context.moveTo(x, y + 6);
+    context.lineTo(x + 6, y - 4);
+    context.lineTo(x + 2, y - 4);
+    context.lineTo(x + 2, y - 8);
+    context.lineTo(x - 2, y - 8);
+    context.lineTo(x - 2, y - 4);
+    context.lineTo(x - 6, y - 4);
+  }
+  context.closePath();
+  context.fill();
   context.restore();
 }
 

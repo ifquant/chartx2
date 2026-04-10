@@ -77,6 +77,10 @@ The capability categories below are intentionally practical:
   - local 2K/5K performance smoke
 - model and scale unit tests exist
 - a small upstream parity contract layer exists
+- a first series-marker path now exists
+  - `setMarkers()` on all current series APIs
+  - canvas marker rendering for the common `aboveBar / belowBar / inBar` positions
+  - basic `circle / square / arrowUp / arrowDown` marker shapes
 
 ## Done But Simplified
 
@@ -245,13 +249,12 @@ Why this matters:
 
 Must-close items:
 
-- markers
 - last value visibility control
 - crosshair/price/time readout subscriptions through public API
 
 Why this matters:
 
-- the first public price-line path now exists, which moves the next explicit annotation gap to markers
+- the first public price-line path and the first public marker path now exist, which moves the next explicit annotation gap to richer marker options and visibility controls
 - many real integrations need annotation/marker layers before they need multi-pane workstation UI
 
 ### 6. Add pane architecture

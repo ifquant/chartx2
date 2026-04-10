@@ -251,6 +251,10 @@ export function mountWorkbenchDemo(
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
+    } else if (mainChartType === "volume-candles") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("volume-candles");
     } else if (mainChartType === "hollow-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -347,6 +351,12 @@ export function mountWorkbenchDemo(
           label: "Heikin",
           group: "chart-type",
           active: mainChartType === "heikin-ashi",
+        },
+        {
+          id: "main-volume-candles",
+          label: "Vol Candles",
+          group: "chart-type",
+          active: mainChartType === "volume-candles",
         },
         {
           id: "main-hollow-candles",
@@ -463,6 +473,11 @@ export function mountWorkbenchDemo(
         case "main-candlestick":
           mainChartType = "candlestick";
           chart.setChartType("candlestick");
+          publishSnapshot();
+          return;
+        case "main-volume-candles":
+          mainChartType = "volume-candles";
+          chart.setChartType("volume-candles");
           publishSnapshot();
           return;
         case "main-hollow-candles":
@@ -708,6 +723,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
   switch (kind) {
     case "candlestick":
       return "Candles";
+    case "volume-candles":
+      return "Volume Candles";
     case "hollow-candles":
       return "Hollow Candles";
     case "heikin-ashi":
@@ -1437,6 +1454,7 @@ function createBars(count: number): PhaseOneCandlestickData[] {
       high: round(high),
       low: round(low),
       close: round(nextClose),
+      volume: 760_000 + index * 22_000 + Math.round(Math.abs(nextClose - open) * 8_400),
     });
 
     close = nextClose;
@@ -1448,7 +1466,7 @@ function createBars(count: number): PhaseOneCandlestickData[] {
 function createVolumeData(bars: readonly PhaseOneCandlestickData[]): PhaseOneVolumeData[] {
   return bars.map((bar, index) => ({
     time: bar.time,
-    value: 760_000 + index * 22_000 + Math.round(Math.abs(bar.close - bar.open) * 8_400),
+    value: bar.volume ?? 760_000 + index * 22_000 + Math.round(Math.abs(bar.close - bar.open) * 8_400),
     up: bar.close >= bar.open,
   }));
 }

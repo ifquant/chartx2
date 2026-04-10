@@ -12,6 +12,7 @@ export interface OhlcDataPoint<TTime extends ChartTime = ChartTime> {
   readonly high: number;
   readonly low: number;
   readonly close: number;
+  readonly volume?: number;
 }
 
 export class SeriesDataStore<TTime extends ChartTime = ChartTime> {

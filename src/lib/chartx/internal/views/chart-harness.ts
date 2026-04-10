@@ -96,6 +96,7 @@ export type PhaseOneMainSeriesRenderer =
   | "segment";
 export type PhaseOneMainChartType =
   | "candlestick"
+  | "volume-candles"
   | "hollow-candles"
   | "heikin-ashi"
   | "renko"
@@ -995,6 +996,7 @@ export class PhaseOneChartHarness {
   ): PhaseOneMainSeriesApi {
     switch (kind) {
       case "candlestick":
+      case "volume-candles":
       case "hollow-candles":
         return this.createPrimaryCandlestickSeriesApi();
       case "heikin-ashi":
@@ -3208,8 +3210,15 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (renderer === "candles" || renderer === "brick" || renderer === "hollow-candles") {
+    if (
+      renderer === "candles" ||
+      renderer === "brick" ||
+      renderer === "hollow-candles" ||
+      renderer === "volume-candles"
+    ) {
       const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+      const volumeWidthScale =
+        renderer === "volume-candles" ? buildVolumeWidthScale(rows, state.inputData, barWidth) : null;
       const candleItems = rows.map((row): CandlestickItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
         openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
@@ -3217,6 +3226,7 @@ export class PhaseOneChartHarness {
         lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
         closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
         isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+        bodyWidth: volumeWidthScale?.get(row.time),
       }));
 
       this.candlesRenderer.draw(context, {
@@ -4045,6 +4055,8 @@ function formatSeriesKindLabel(kind: string): string {
   switch (kind) {
     case "candlestick":
       return "Candlestick";
+    case "volume-candles":
+      return "Volume Candles";
     case "hollow-candles":
       return "Hollow Candles";
     case "heikin-ashi":
@@ -4096,6 +4108,7 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
 
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
   switch (type) {
+    case "volume-candles":
     case "hollow-candles":
     case "heikin-ashi":
     case "renko":
@@ -4129,6 +4142,13 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "time-bars",
         renderer: "candles",
         styleSchemaId: "candleStyle",
+      };
+    case "volume-candles":
+      return {
+        inputCapability: "ohlcv",
+        builder: "time-bars",
+        renderer: "volume-candles",
+        styleSchemaId: "volumeCandleStyle",
       };
     case "hollow-candles":
       return {
@@ -4232,6 +4252,36 @@ function buildHistogramVisuals(
   }
 
   return visuals;
+}
+
+function buildVolumeWidthScale(
+  rows: readonly { time: number }[],
+  inputData: readonly PhaseOneCandlestickData[],
+  barWidth: number,
+): Map<number, number> {
+  const volumes = inputData
+    .map((item) => item.volume ?? null)
+    .filter((value): value is number => value !== null && Number.isFinite(value) && value > 0);
+
+  if (volumes.length === 0) {
+    return new Map();
+  }
+
+  const minVolume = Math.min(...volumes);
+  const maxVolume = Math.max(...volumes);
+  const minWidth = Math.max(3, Math.floor(barWidth * 0.55));
+  const maxWidth = Math.max(minWidth + 1, Math.floor(barWidth * 1.55));
+  const inputByTime = new Map(inputData.map((item) => [item.time, item] as const));
+
+  return new Map(rows.map((row) => {
+    const volume = inputByTime.get(row.time)?.volume ?? null;
+    if (volume === null || !Number.isFinite(volume) || volume <= 0 || maxVolume === minVolume) {
+      return [row.time, barWidth] as const;
+    }
+
+    const ratio = (volume - minVolume) / (maxVolume - minVolume);
+    return [row.time, minWidth + (maxWidth - minWidth) * ratio] as const;
+  }));
 }
 
 function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {

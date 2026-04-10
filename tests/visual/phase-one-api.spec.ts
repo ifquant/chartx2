@@ -7,6 +7,12 @@ const API_DATA = [
   { time: 3, open: 133, high: 140, low: 129, close: 131 },
   { time: 4, open: 131, high: 138, low: 126, close: 136 },
 ] as const;
+const VOLUME_CANDLE_API_DATA = [
+  { time: 1, open: 120, high: 132, low: 118, close: 128, volume: 820_000 },
+  { time: 2, open: 128, high: 136, low: 124, close: 133, volume: 1_420_000 },
+  { time: 3, open: 133, high: 140, low: 129, close: 131, volume: 960_000 },
+  { time: 4, open: 131, high: 138, low: 126, close: 136, volume: 1_760_000 },
+] as const;
 const LINE_API_DATA = [
   { time: 1, value: 126 },
   { time: 2, value: 130 },
@@ -352,6 +358,58 @@ test("phase-one public api can switch the active main chart type to hollow-candl
   const fixture = page.locator("#api-hollow-candles-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-hollow-candles-series.png");
+});
+
+test("phase-one public api can switch the active main chart type to volume-candles", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-volume-candles-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-volume-candles-canvas" aria-label="phase-one api volume candles chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-volume-candles-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API volume candles fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("volume-candles");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: VOLUME_CANDLE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("volume-candles");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "volume-candles",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "volume-candles",
+    styleSchemaId: "volumeCandleStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-volume-candles-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-volume-candles-series.png");
 });
 
 test("phase-one public api can switch the active main chart type to hlc-bars", async ({

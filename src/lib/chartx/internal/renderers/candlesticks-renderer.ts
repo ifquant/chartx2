@@ -7,6 +7,7 @@ export type CandlestickItem = {
   lowY: Coordinate;
   closeY: Coordinate;
   isUp: boolean;
+  bodyWidth?: number;
 };
 
 export type CandlesticksRendererData = {
@@ -23,7 +24,6 @@ export class CandlesticksRenderer {
     context: CanvasRenderingContext2D,
     data: CandlesticksRendererData,
   ): void {
-    const bodyWidth = Math.max(3, Math.floor(data.barWidth));
     const bodyMode = data.bodyMode ?? "filled";
 
     for (const item of data.items) {
@@ -31,6 +31,7 @@ export class CandlesticksRenderer {
       const bodyTop = Math.min(item.openY, item.closeY);
       const bodyBottom = Math.max(item.openY, item.closeY);
       const bodyHeight = Math.max(1, bodyBottom - bodyTop);
+      const bodyWidth = Math.max(3, Math.floor(item.bodyWidth ?? data.barWidth));
       const x = Math.round(item.x);
 
       context.strokeStyle = data.wickColor;

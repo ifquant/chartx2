@@ -68,6 +68,7 @@ Current `chartx2` status against that model:
   - drawings are not yet a full entity system with registry, grouping, and z-order control
 - `LegendViewModel`
   - workbench readouts and pane-aware legend payloads already point in the right direction
+  - pane event snapshots now also carry stable source role and price-scale attachment metadata
   - these should stay projection/viewmodel layers rather than becoming data owners
 - `ToolbarRegistry / CommandBus`
   - the demo shell has command surfaces

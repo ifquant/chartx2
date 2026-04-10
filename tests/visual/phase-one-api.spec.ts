@@ -39,6 +39,8 @@ type PaneSeriesSnapshot = {
   id: string;
   label: string;
   kind: string;
+  sourceRole: string;
+  priceScaleId: string;
   pointCount: number;
 };
 
@@ -599,7 +601,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -609,7 +611,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -622,7 +624,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -632,7 +634,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; priceScaleId: string; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -673,6 +675,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     id: "series-2",
     label: "Volume 2",
     kind: "volume",
+    sourceRole: "study",
+    priceScaleId: "pane-1-right",
     pointCount: 5,
   }]);
   expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
@@ -681,6 +685,8 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     id: "series-1",
     label: "Candlestick 1",
     kind: "candlestick",
+    sourceRole: "main-series",
+    priceScaleId: "primary-right",
     pointCount: 4,
   }]);
   expect(result.events[1]?.panes[1]?.series[0]?.id).toBe(result.events[2]?.pane.series[0]?.id);

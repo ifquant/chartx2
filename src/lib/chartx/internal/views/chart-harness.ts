@@ -226,6 +226,8 @@ export type PhaseOnePaneSeriesState = {
   id: string;
   label: string;
   kind: string;
+  sourceRole: "main-series" | "study";
+  priceScaleId: string;
   pointCount: number;
 };
 
@@ -2257,6 +2259,8 @@ export class PhaseOneChartHarness {
       id: source.id,
       label: source.label,
       kind: source.kind,
+      sourceRole: source.role,
+      priceScaleId: source.priceScaleId,
       pointCount: source.data.length,
     }));
   }

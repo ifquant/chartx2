@@ -198,6 +198,110 @@ test("phase-one public api mounts a single line chart and renders the first fram
   await expect(fixture).toHaveScreenshot("phase-one-api-line-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to line-markers", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-line-markers-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-line-markers-canvas" aria-label="phase-one api line markers chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-line-markers-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API line markers fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addLineSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("line-markers");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("line-markers");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "line",
+    chartType: "line-markers",
+    sourceRole: "main-series",
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "line-markers",
+    styleSchemaId: "lineWithMarkersStyle",
+    pointCount: 5,
+  });
+
+  const fixture = page.locator("#api-line-markers-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-line-markers-series.png");
+});
+
+test("phase-one public api can switch the active main chart type to stepline", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-stepline-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-stepline-canvas" aria-label="phase-one api stepline chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-stepline-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API stepline fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addLineSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("stepline");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("stepline");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "line",
+    chartType: "stepline",
+    sourceRole: "main-series",
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "stepline",
+    styleSchemaId: "steplineStyle",
+    pointCount: 5,
+  });
+
+  const fixture = page.locator("#api-stepline-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-stepline-series.png");
+});
+
 test("phase-one public api mounts a single area chart and renders the first frame", async ({
   page,
 }) => {

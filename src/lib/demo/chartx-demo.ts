@@ -269,6 +269,14 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "line") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
+    } else if (mainChartType === "line-markers") {
+      const mainSeries = chart.addLineSeries();
+      mainSeries.setData(line);
+      chart.setChartType("line-markers");
+    } else if (mainChartType === "stepline") {
+      const mainSeries = chart.addLineSeries();
+      mainSeries.setData(line);
+      chart.setChartType("stepline");
     } else if (mainChartType === "area") {
       const mainSeries = chart.addAreaSeries();
       mainSeries.setData(line);
@@ -345,6 +353,18 @@ export function mountWorkbenchDemo(
           label: "Line",
           group: "chart-type",
           active: mainChartType === "line",
+        },
+        {
+          id: "main-line-markers",
+          label: "Markers",
+          group: "chart-type",
+          active: mainChartType === "line-markers",
+        },
+        {
+          id: "main-stepline",
+          label: "Step",
+          group: "chart-type",
+          active: mainChartType === "stepline",
         },
         {
           id: "main-area",
@@ -471,6 +491,16 @@ export function mountWorkbenchDemo(
         case "main-line":
           mainChartType = "line";
           chart.setChartType("line");
+          publishSnapshot();
+          return;
+        case "main-line-markers":
+          mainChartType = "line-markers";
+          chart.setChartType("line-markers");
+          publishSnapshot();
+          return;
+        case "main-stepline":
+          mainChartType = "stepline";
+          chart.setChartType("stepline");
           publishSnapshot();
           return;
         case "main-area":
@@ -641,6 +671,10 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
       return "Bar";
     case "line":
       return "Line";
+    case "line-markers":
+      return "Line Markers";
+    case "stepline":
+      return "Stepline";
     case "area":
       return "Area";
     case "baseline":

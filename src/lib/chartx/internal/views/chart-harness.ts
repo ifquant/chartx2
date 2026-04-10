@@ -100,6 +100,8 @@ export type PhaseOneMainChartType =
   | "renko"
   | "bar"
   | "line"
+  | "line-markers"
+  | "stepline"
   | "area"
   | "baseline"
   | "histogram";
@@ -998,6 +1000,8 @@ export class PhaseOneChartHarness {
       case "bar":
         return this.createPrimaryBarSeriesApi();
       case "line":
+      case "line-markers":
+      case "stepline":
         return this.createPrimaryLineSeriesApi();
       case "area":
         return this.createPrimaryAreaSeriesApi();
@@ -3091,6 +3095,26 @@ export class PhaseOneChartHarness {
         items: lineItems,
         lineColor: seriesOptions.color,
         lineWidth: seriesOptions.lineWidth,
+        mode: "line",
+        showMarkers: false,
+      });
+      return;
+    }
+
+    if (renderer === "line-markers" || renderer === "stepline") {
+      const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+      const lineItems = rows.map((row): LineItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+      }));
+
+      this.lineRenderer.draw(context, {
+        items: lineItems,
+        lineColor: seriesOptions.color,
+        lineWidth: seriesOptions.lineWidth,
+        mode: renderer === "stepline" ? "stepline" : "line",
+        showMarkers: renderer === "line-markers",
+        markerRadius: Math.max(2, seriesOptions.lineWidth + 1),
       });
       return;
     }
@@ -3998,6 +4022,10 @@ function formatSeriesKindLabel(kind: string): string {
       return "Renko";
     case "line":
       return "Line";
+    case "line-markers":
+      return "Line Markers";
+    case "stepline":
+      return "Stepline";
     case "area":
       return "Area";
     case "baseline":
@@ -4043,6 +4071,9 @@ function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKin
     case "baseline":
     case "histogram":
       return type;
+    case "line-markers":
+    case "stepline":
+      return "line";
   }
 }
 
@@ -4087,6 +4118,20 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "time-bars",
         renderer: "line",
         styleSchemaId: "lineStyle",
+      };
+    case "line-markers":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "line-markers",
+        styleSchemaId: "lineWithMarkersStyle",
+      };
+    case "stepline":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "stepline",
+        styleSchemaId: "steplineStyle",
       };
     case "area":
       return {

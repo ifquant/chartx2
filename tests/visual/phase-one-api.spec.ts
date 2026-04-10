@@ -42,6 +42,10 @@ type PaneSeriesSnapshot = {
   sourceRole: string;
   studyKind: string | null;
   priceScaleId: string;
+  inputCapability: string | null;
+  builder: string | null;
+  renderer: string | null;
+  styleSchemaId: string | null;
   pointCount: number;
 };
 
@@ -608,7 +612,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -618,7 +622,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -631,7 +635,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -641,7 +645,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -685,6 +689,10 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     sourceRole: "study",
     studyKind: "series",
     priceScaleId: "pane-1-right",
+    inputCapability: null,
+    builder: null,
+    renderer: null,
+    styleSchemaId: null,
     pointCount: 5,
   }]);
   expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
@@ -696,6 +704,10 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     sourceRole: "main-series",
     studyKind: null,
     priceScaleId: "primary-right",
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "candles",
+    styleSchemaId: "candleStyle",
     pointCount: 4,
   }]);
   expect(result.events[1]?.panes[1]?.series[0]?.id).toBe(result.events[2]?.pane.series[0]?.id);
@@ -937,10 +949,18 @@ test("phase-one public api supports overlay and compare studies in the primary p
     kind: series.kind,
     sourceRole: series.sourceRole,
     studyKind: series.studyKind,
+    builder: series.builder,
+    renderer: series.renderer,
   }))).toEqual([
-    { kind: "candlestick", sourceRole: "main-series", studyKind: null },
-    { kind: "line", sourceRole: "study", studyKind: "overlay" },
-    { kind: "line", sourceRole: "study", studyKind: "compare" },
+    {
+      kind: "candlestick",
+      sourceRole: "main-series",
+      studyKind: null,
+      builder: "time-bars",
+      renderer: "candles",
+    },
+    { kind: "line", sourceRole: "study", studyKind: "overlay", builder: null, renderer: null },
+    { kind: "line", sourceRole: "study", studyKind: "compare", builder: null, renderer: null },
   ]);
   const readout = result.readout as ReadoutSnapshot | null;
   expect(readout?.paneIndex).toBe(0);

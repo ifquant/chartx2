@@ -230,6 +230,12 @@
   $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
     (step) => step.status === "complete",
   ).length;
+  $: workbenchChartTypeActions = workbenchActions.filter(
+    (action) => action.group === "chart-type",
+  );
+  $: workbenchChartActions = workbenchActions.filter(
+    (action) => action.group !== "chart-type",
+  );
 </script>
 
 <svelte:head>
@@ -268,6 +274,16 @@
             <div class="toolbar-strip workstation-toolbar">
               <button>NDX</button>
               <button>1D</button>
+              <div class="type-picker" aria-label="main chart type picker">
+                {#each workbenchChartTypeActions as action}
+                  <button
+                    class:active={action.active}
+                    on:click={() => runWorkbenchAction(action.id)}
+                  >
+                    {action.label}
+                  </button>
+                {/each}
+              </div>
               <button>Indicators</button>
               <button>Alert</button>
               <button>Replay</button>
@@ -345,9 +361,9 @@
                   <button>All</button>
                 </div>
                 <div class="action-strip">
-                  {#each workbenchActions as action}
+                  {#each workbenchChartActions as action}
                     <button
-                      class={actionClass(action.tone)}
+                      class={`${actionClass(action.tone)} ${action.active ? "active" : ""}`}
                       on:click={() => runWorkbenchAction(action.id)}
                     >
                       {action.label}
@@ -467,7 +483,7 @@
           <div class="action-strip">
             {#each featureActions as action}
               <button
-                class={actionClass(action.tone)}
+                class={`${actionClass(action.tone)} ${action.active ? "active" : ""}`}
                 on:click={() => runFeatureAction(action.id)}
               >
                 {action.label}
@@ -779,6 +795,7 @@
     display: flex;
     flex-wrap: nowrap;
     gap: 6px;
+    align-items: center;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -800,6 +817,29 @@
     font: inherit;
     font-weight: 600;
     color: rgba(24, 24, 27, 0.75);
+  }
+
+  .type-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px;
+    border-radius: 9px;
+    background: rgba(24, 24, 27, 0.05);
+  }
+
+  .type-picker button {
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: transparent;
+    color: rgba(24, 24, 27, 0.62);
+    font-size: 0.82rem;
+  }
+
+  .type-picker button.active,
+  .action-btn.active {
+    background: #18181b;
+    color: #fffdf8;
   }
 
   .workbench-shell {
@@ -1029,6 +1069,11 @@
   .action-btn.danger {
     background: rgba(199, 84, 62, 0.12);
     color: #9f2f1c;
+  }
+
+  .action-btn.danger.active {
+    background: #9f2f1c;
+    color: #fffdf8;
   }
 
   .workbench-sidebar {

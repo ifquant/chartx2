@@ -31,6 +31,8 @@ export type DemoAction = {
   id: string;
   label: string;
   tone?: DemoActionTone;
+  group?: "chart-type" | "chart-action";
+  active?: boolean;
 };
 
 export type DemoMetric = {
@@ -63,6 +65,7 @@ export type FeatureExampleDescriptor = {
 type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
 type EventLog = string[];
 type ThemeId = "warm" | "ink";
+type WorkbenchMainChartType = "candlestick" | "bar" | "line" | "area" | "baseline";
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
@@ -160,6 +163,7 @@ export function mountWorkbenchDemo(
   let studyPaneEnabled = true;
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
+  let mainChartType: WorkbenchMainChartType = "candlestick";
   let barSpacing = 15;
   let rightOffset = 0.8;
   let latestReadout: PhaseOneCrosshairMoveEvent | null = null;
@@ -177,6 +181,7 @@ export function mountWorkbenchDemo(
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
+        { label: "Main type", value: formatWorkbenchChartType(mainChartType) },
         { label: "Panes", value: String(paneSnapshot.length) },
         {
           label: "Visible bars",
@@ -218,8 +223,23 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     });
 
-    const mainSeries = chart.addCandlestickSeries();
-    mainSeries.setData(bars);
+    if (mainChartType === "candlestick") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+    } else if (mainChartType === "bar") {
+      const mainSeries = chart.addBarSeries();
+      mainSeries.setData(bars);
+    } else if (mainChartType === "line") {
+      const mainSeries = chart.addLineSeries();
+      mainSeries.setData(line);
+    } else if (mainChartType === "area") {
+      const mainSeries = chart.addAreaSeries();
+      mainSeries.setData(line);
+    } else {
+      const mainSeries = chart.addBaselineSeries();
+      mainSeries.applyOptions({ baseValue: 16_950 });
+      mainSeries.setData(line);
+    }
 
     const volumePane = chart.addPane({ height: 126 });
     const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
@@ -257,12 +277,52 @@ export function mountWorkbenchDemo(
   return {
     actions() {
       return [
-        { id: "toggle-study", label: studyPaneEnabled ? "Hide study pane" : "Show study pane", tone: "default" },
-        { id: "add-pane", label: "Add empty pane", tone: "default" },
-        { id: "trim-pane", label: "Remove empty pane", tone: "danger" },
-        { id: "zoom-in", label: "Zoom in", tone: "accent" },
-        { id: "shift-right", label: "Shift right", tone: "default" },
-        { id: "theme", label: theme === "warm" ? "Switch to ink" : "Switch to warm", tone: "default" },
+        {
+          id: "main-candlestick",
+          label: "Candles",
+          group: "chart-type",
+          active: mainChartType === "candlestick",
+        },
+        {
+          id: "main-bar",
+          label: "Bar",
+          group: "chart-type",
+          active: mainChartType === "bar",
+        },
+        {
+          id: "main-line",
+          label: "Line",
+          group: "chart-type",
+          active: mainChartType === "line",
+        },
+        {
+          id: "main-area",
+          label: "Area",
+          group: "chart-type",
+          active: mainChartType === "area",
+        },
+        {
+          id: "main-baseline",
+          label: "Baseline",
+          group: "chart-type",
+          active: mainChartType === "baseline",
+        },
+        {
+          id: "toggle-study",
+          label: studyPaneEnabled ? "Hide study pane" : "Show study pane",
+          tone: "default",
+          group: "chart-action",
+        },
+        { id: "add-pane", label: "Add empty pane", tone: "default", group: "chart-action" },
+        { id: "trim-pane", label: "Remove empty pane", tone: "danger", group: "chart-action" },
+        { id: "zoom-in", label: "Zoom in", tone: "accent", group: "chart-action" },
+        { id: "shift-right", label: "Shift right", tone: "default", group: "chart-action" },
+        {
+          id: "theme",
+          label: theme === "warm" ? "Switch to ink" : "Switch to warm",
+          tone: "default",
+          group: "chart-action",
+        },
       ];
     },
     runAction(actionId) {
@@ -271,6 +331,26 @@ export function mountWorkbenchDemo(
       }
 
       switch (actionId) {
+        case "main-candlestick":
+          mainChartType = "candlestick";
+          rebuild();
+          return;
+        case "main-bar":
+          mainChartType = "bar";
+          rebuild();
+          return;
+        case "main-line":
+          mainChartType = "line";
+          rebuild();
+          return;
+        case "main-area":
+          mainChartType = "area";
+          rebuild();
+          return;
+        case "main-baseline":
+          mainChartType = "baseline";
+          rebuild();
+          return;
         case "toggle-study":
           studyPaneEnabled = !studyPaneEnabled;
           rebuild();
@@ -414,6 +494,21 @@ function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublishe
       chart = null;
     },
   };
+}
+
+function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
+  switch (kind) {
+    case "candlestick":
+      return "Candles";
+    case "bar":
+      return "Bar";
+    case "line":
+      return "Line";
+    case "area":
+      return "Area";
+    case "baseline":
+      return "Baseline";
+  }
 }
 
 function mountPanesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublisher): DemoController {

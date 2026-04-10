@@ -61,6 +61,31 @@ export type PhaseOneVolumeData = {
   color?: string;
   up?: boolean;
 };
+export type PhaseOneMainSeriesInputCapability = "ohlcv" | "ohlc" | "c";
+export type PhaseOneMainSeriesBuilder =
+  | "time-bars"
+  | "heikin-ashi"
+  | "renko"
+  | "line-break"
+  | "kagi"
+  | "point-figure"
+  | "range";
+export type PhaseOneMainSeriesRenderer =
+  | "line"
+  | "line-markers"
+  | "stepline"
+  | "area"
+  | "hlc-area"
+  | "baseline"
+  | "bars"
+  | "hlc-bars"
+  | "candles"
+  | "hollow-candles"
+  | "volume-candles"
+  | "high-low"
+  | "columns"
+  | "brick"
+  | "segment";
 export type PhaseOneReadoutSeriesDetail = {
   id: string;
   label: string;
@@ -233,6 +258,10 @@ export type PhaseOnePaneSeriesState = {
   sourceRole: "main-series" | "study";
   studyKind: "series" | "indicator" | "overlay" | "compare" | null;
   priceScaleId: string;
+  inputCapability: PhaseOneMainSeriesInputCapability | null;
+  builder: PhaseOneMainSeriesBuilder | null;
+  renderer: PhaseOneMainSeriesRenderer | null;
+  styleSchemaId: string | null;
   pointCount: number;
 };
 
@@ -463,6 +492,10 @@ type BaseSeriesSourceState = {
 
 type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "main-series";
+  inputCapability: PhaseOneMainSeriesInputCapability;
+  builder: PhaseOneMainSeriesBuilder;
+  renderer: PhaseOneMainSeriesRenderer;
+  styleSchemaId: string;
 };
 
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
@@ -2383,6 +2416,10 @@ export class PhaseOneChartHarness {
       sourceRole: source.role,
       studyKind: source.role === "study" ? source.studyKind : null,
       priceScaleId: source.priceScaleId,
+      inputCapability: source.role === "main-series" ? source.inputCapability : null,
+      builder: source.role === "main-series" ? source.builder : null,
+      renderer: source.role === "main-series" ? source.renderer : null,
+      styleSchemaId: source.role === "main-series" ? source.styleSchemaId : null,
       pointCount: source.data.length,
     }));
   }
@@ -2501,11 +2538,16 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     priceScaleId: string,
   ): MainSeriesSourceState {
+    const chartType = mainSeriesChartTypeSpec(kind);
     return {
       id: meta.id,
       label: meta.label,
       kind,
       role: "main-series",
+      inputCapability: chartType.inputCapability,
+      builder: chartType.builder,
+      renderer: chartType.renderer,
+      styleSchemaId: chartType.styleSchemaId,
       paneId,
       priceScaleId,
       visible: true,
@@ -2676,7 +2718,9 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (state.kind === "line") {
+    const renderer = state.role === "main-series" ? state.renderer : rendererForSeriesKind(state.kind);
+
+    if (renderer === "line") {
       const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
       const lineItems = rows.map((row): LineItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -2691,7 +2735,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (state.kind === "area") {
+    if (renderer === "area") {
       const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
       const areaItems = rows.map((row): AreaItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -2709,7 +2753,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (state.kind === "baseline") {
+    if (renderer === "baseline") {
       const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
       const baselineItems = rows.map((row): BaselineItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -2732,7 +2776,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (state.kind === "bar") {
+    if (renderer === "bars") {
       const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
       const barItems = rows.map((row): BarItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -2752,7 +2796,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (state.kind === "candlestick") {
+    if (renderer === "candles") {
       const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
       const candleItems = rows.map((row): CandlestickItem => ({
         x: this.timeScale.indexToCoordinate(row.index),
@@ -3400,6 +3444,83 @@ function formatSeriesKindLabel(kind: string): string {
       return "Volume";
     default:
       return "Series";
+  }
+}
+
+function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRenderer {
+  switch (kind) {
+    case "line":
+      return "line";
+    case "area":
+      return "area";
+    case "baseline":
+      return "baseline";
+    case "bar":
+      return "bars";
+    case "candlestick":
+      return "candles";
+    case "histogram":
+    case "volume":
+      return "columns";
+  }
+}
+
+function mainSeriesChartTypeSpec(kind: ChartSeriesKind): {
+  inputCapability: PhaseOneMainSeriesInputCapability;
+  builder: PhaseOneMainSeriesBuilder;
+  renderer: PhaseOneMainSeriesRenderer;
+  styleSchemaId: string;
+} {
+  switch (kind) {
+    case "candlestick":
+      return {
+        inputCapability: "ohlcv",
+        builder: "time-bars",
+        renderer: "candles",
+        styleSchemaId: "candleStyle",
+      };
+    case "bar":
+      return {
+        inputCapability: "ohlc",
+        builder: "time-bars",
+        renderer: "bars",
+        styleSchemaId: "barStyle",
+      };
+    case "line":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "line",
+        styleSchemaId: "lineStyle",
+      };
+    case "area":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "area",
+        styleSchemaId: "areaStyle",
+      };
+    case "baseline":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "baseline",
+        styleSchemaId: "baselineStyle",
+      };
+    case "histogram":
+      return {
+        inputCapability: "c",
+        builder: "time-bars",
+        renderer: "columns",
+        styleSchemaId: "histogramStyle",
+      };
+    case "volume":
+      return {
+        inputCapability: "ohlcv",
+        builder: "time-bars",
+        renderer: "columns",
+        styleSchemaId: "volumeStyle",
+      };
   }
 }
 

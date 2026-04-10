@@ -321,6 +321,9 @@ export type PhaseOneVolumeSeriesApi = {
   removePriceLine(line: PhaseOnePriceLineApi): void;
 };
 
+export type PhaseOneOverlaySeriesApi = PhaseOneLineSeriesApi;
+export type PhaseOneCompareSeriesApi = PhaseOneLineSeriesApi;
+
 export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
   addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi;
@@ -329,6 +332,8 @@ export type PhaseOneChartApi = {
   addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi;
   addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi;
   addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi;
+  addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi;
+  addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
@@ -458,6 +463,8 @@ type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & Base
 };
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
+
+type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
 
 type PaneFrame = {
   id: string;
@@ -902,6 +909,16 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart volume series requires a secondary pane");
     }
     return this.addSecondaryVolumeSeries(resolved.paneId);
+  }
+
+  public addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    return this.addStudyLineSeries(resolved.kind === "primary" ? "primary" : resolved.paneId, "overlay");
+  }
+
+  public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    return this.addStudyLineSeries(resolved.kind === "primary" ? "primary" : resolved.paneId, "compare");
   }
 
   public removeSeries(
@@ -1533,11 +1550,18 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(target, "candlestick", api, meta);
+    this.attachStudySeries(target, "candlestick", api, meta);
     return api;
   }
 
   private addSecondaryLineSeries(paneId: string): PhaseOneLineSeriesApi {
+    return this.addStudyLineSeries(paneId, "series");
+  }
+
+  private addStudyLineSeries(
+    paneId: string,
+    studyKind: StudySourceKind,
+  ): PhaseOneLineSeriesApi {
     const meta = this.createSeriesMeta("line");
     const api: PhaseOneLineSeriesApi = {
       setData: (data) => {
@@ -1578,7 +1602,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "line", api, meta);
+    this.attachStudySeries(paneId, "line", api, meta, studyKind);
     return api;
   }
 
@@ -1629,7 +1653,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "area", api, meta);
+    this.attachStudySeries(paneId, "area", api, meta);
     return api;
   }
 
@@ -1692,7 +1716,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "baseline", api, meta);
+    this.attachStudySeries(paneId, "baseline", api, meta);
     return api;
   }
 
@@ -1737,7 +1761,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "bar", api, meta);
+    this.attachStudySeries(paneId, "bar", api, meta);
     return api;
   }
 
@@ -1782,7 +1806,7 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "histogram", api, meta);
+    this.attachStudySeries(paneId, "histogram", api, meta);
     return api;
   }
 
@@ -1827,24 +1851,30 @@ export class PhaseOneChartHarness {
         this.removePriceLineFromMap(state.priceLines, line);
       },
     };
-    this.attachSecondarySeries(paneId, "volume", api, meta);
+    this.attachStudySeries(paneId, "volume", api, meta);
     return api;
   }
 
-  private attachSecondarySeries(
+  private attachStudySeries(
     paneId: string,
     kind: ChartSeriesKind,
     api: SeriesSourceState["api"],
     meta: { id: string; label: string },
+    studyKind: StudySourceKind = "series",
   ): void {
+    const priceScale = paneId === "primary"
+      ? this.primaryPriceScale
+      : this.getOrCreateSecondaryPanePriceScale(paneId);
+    const priceScaleId = paneId === "primary" ? "primary-right" : `${paneId}-right`;
     this.sourceRegistry.register(
       this.createStudySourceState(
         paneId,
         kind,
         api,
         meta,
-        this.getOrCreateSecondaryPanePriceScale(paneId),
-        `${paneId}-right`,
+        priceScale,
+        priceScaleId,
+        studyKind,
       ),
     );
   }
@@ -2491,7 +2521,7 @@ export class PhaseOneChartHarness {
 
   private resolveSecondaryPanePriceRange(
     paneSeries: readonly SeriesSourceState[],
-    secondaryRows: ReadonlyMap<string, ReturnType<SeriesDataStore<number>["setData"]>>,
+    secondaryRows: ReadonlyMap<string, RowSet>,
   ): PriceRangeImpl | null {
     let merged: PriceRangeImpl | null = null;
 
@@ -2510,22 +2540,187 @@ export class PhaseOneChartHarness {
     return merged;
   }
 
-  private buildReadoutSeriesForPrimary(
-    rows: readonly { time: number; value: [number, number, number, number] }[],
-    crosshair: PanePoint | null,
-  ): readonly PhaseOneReadoutSeriesDetail[] {
-    const source = this.getMainSource();
-    if (source === null) {
-      return [];
+  private mergeSeriesRange(
+    rows: RowSet,
+    source: SeriesSourceState,
+    merged: PriceRangeImpl | null,
+  ): PriceRangeImpl | null {
+    if (rows.length === 0) {
+      return merged;
+    }
+    const nextRange = source.store.priceRange(rows[0].index, rows[rows.length - 1].index);
+    if (nextRange === null) {
+      return merged;
+    }
+    return merged === null ? nextRange : merged.merge(nextRange);
+  }
+
+  private buildPrimaryPaneSeries(
+    mainSource: MainSeriesSourceState | null,
+  ): readonly SeriesSourceState[] {
+    const studies = this.getStudySourcesForPane("primary");
+    return mainSource === null ? studies : [mainSource, ...studies];
+  }
+
+  private collectPriceLines(sources: readonly SeriesSourceState[]): Map<string, PriceLineState> {
+    const lines = new Map<string, PriceLineState>();
+    for (const source of sources) {
+      for (const [lineId, line] of source.priceLines.entries()) {
+        lines.set(lineId, line);
+      }
+    }
+    return lines;
+  }
+
+  private renderSeriesSource(
+    context: CanvasRenderingContext2D,
+    state: SeriesSourceState,
+    rows: RowSet,
+    paneHeight: number,
+    barWidth: number,
+    priceScale: PriceScale,
+    rangeMin: number | null,
+  ): void {
+    if (rows.length === 0) {
+      return;
     }
 
-    return [{
-      id: source.id,
-      label: source.label,
-      kind: source.kind,
-      value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
-      color: resolveSeriesColor(source),
-    }];
+    if (state.kind === "line") {
+      const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+      const lineItems = rows.map((row): LineItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+      }));
+
+      this.lineRenderer.draw(context, {
+        items: lineItems,
+        lineColor: seriesOptions.color,
+        lineWidth: seriesOptions.lineWidth,
+      });
+      return;
+    }
+
+    if (state.kind === "area") {
+      const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
+      const areaItems = rows.map((row): AreaItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+      }));
+
+      this.areaRenderer.draw(context, {
+        items: areaItems,
+        lineColor: seriesOptions.lineColor,
+        lineWidth: seriesOptions.lineWidth,
+        topColor: seriesOptions.topColor,
+        bottomColor: seriesOptions.bottomColor,
+        baseY: paneHeight,
+      });
+      return;
+    }
+
+    if (state.kind === "baseline") {
+      const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
+      const baselineItems = rows.map((row): BaselineItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+      }));
+      const baselineY = toCoordinate(priceScale.priceToCoordinate(seriesOptions.baseValue));
+
+      this.baselineRenderer.draw(context, {
+        items: baselineItems,
+        baseY: baselineY,
+        height: paneHeight,
+        lineWidth: seriesOptions.lineWidth,
+        topLineColor: seriesOptions.topLineColor,
+        topFillTopColor: seriesOptions.topFillTopColor,
+        topFillBottomColor: seriesOptions.topFillBottomColor,
+        bottomLineColor: seriesOptions.bottomLineColor,
+        bottomFillTopColor: seriesOptions.bottomFillTopColor,
+        bottomFillBottomColor: seriesOptions.bottomFillBottomColor,
+      });
+      return;
+    }
+
+    if (state.kind === "bar") {
+      const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
+      const barItems = rows.map((row): BarItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
+        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
+        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.barRenderer.draw(context, {
+        items: barItems,
+        barWidth,
+        upColor: seriesOptions.upColor,
+        downColor: seriesOptions.downColor,
+      });
+      return;
+    }
+
+    if (state.kind === "candlestick") {
+      const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+      const candleItems = rows.map((row): CandlestickItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
+        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
+        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.candlesRenderer.draw(context, {
+        items: candleItems,
+        barWidth,
+        upColor: seriesOptions.upColor,
+        downColor: seriesOptions.downColor,
+        wickColor: seriesOptions.wickColor,
+      });
+      return;
+    }
+
+    const seriesOptions =
+      (state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>);
+    const histogramRangeMin = rangeMin ?? 0;
+    const histogramItems = rows.map((row): HistogramItem => ({
+      x: this.timeScale.indexToCoordinate(row.index),
+      valueY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+      baseY: toCoordinate(priceScale.priceToCoordinate(histogramRangeMin)),
+      isUp:
+        state.visuals.get(row.time)?.isUp ??
+        row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      color: state.visuals.get(row.time)?.color,
+    }));
+
+    this.histogramRenderer.draw(context, {
+      items: histogramItems,
+      barWidth,
+      upColor: seriesOptions.upColor,
+      downColor: seriesOptions.downColor,
+    });
+  }
+
+  private buildReadoutSeriesForPrimary(
+    primarySources: readonly SeriesSourceState[],
+    rowSets: ReadonlyMap<string, RowSet>,
+    crosshair: PanePoint | null,
+  ): readonly PhaseOneReadoutSeriesDetail[] {
+    return primarySources.flatMap((source) => {
+      const rows = rowSets.get(source.id);
+      if (rows === undefined) {
+        return [];
+      }
+      return [{
+        id: source.id,
+        label: source.label,
+        kind: source.kind,
+        value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
+        color: resolveSeriesColor(source),
+      }];
+    });
   }
 
   private buildReadoutSeriesForPane(
@@ -2547,6 +2742,15 @@ export class PhaseOneChartHarness {
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
     const mainSource = this.getMainSource();
     const primaryRows = mainSource === null ? [] : mainSource.store.setData(mainSource.data);
+    const primaryStudies = this.getStudySourcesForPane("primary");
+    const primarySources = this.buildPrimaryPaneSeries(mainSource);
+    const primaryRowSets = new Map<string, RowSet>();
+    if (mainSource !== null) {
+      primaryRowSets.set(mainSource.id, primaryRows);
+    }
+    for (const study of primaryStudies) {
+      primaryRowSets.set(study.id, study.store.setData(study.data));
+    }
     const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
     const activePane = point === null ? null : resolveActivePane(paneFrames, point.y);
     const logicalPoint = point === null ? null : resolveLocalPanePoint(activePane, point);
@@ -2559,7 +2763,7 @@ export class PhaseOneChartHarness {
         this.timeScale,
         this.primaryPriceScale,
       );
-      const baseSeries = this.buildReadoutSeriesForPrimary(primaryRows, logicalPoint);
+      const baseSeries = this.buildReadoutSeriesForPrimary(primarySources, primaryRowSets, logicalPoint);
 
       if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
         const paneSeries = this.getSecondarySeriesForPane(activePane.id);
@@ -2652,11 +2856,22 @@ export class PhaseOneChartHarness {
     const plotHeight = layout.height - layout.top - layout.bottom;
     const mainSource = this.getMainSource();
     const primaryRows = mainSource === null ? [] : mainSource.store.setData(mainSource.data);
+    const primaryStudies = this.getStudySourcesForPane("primary");
+    const primarySources = this.buildPrimaryPaneSeries(mainSource);
+    const primaryRowSets = new Map<string, RowSet>();
+    if (mainSource !== null) {
+      primaryRowSets.set(mainSource.id, primaryRows);
+    }
+    for (const state of primaryStudies) {
+      primaryRowSets.set(state.id, state.store.setData(state.data));
+    }
     const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
     let pointCount = primaryRows.length;
     for (const state of this.sourceRegistry.list().filter((entry) => entry.role === "study")) {
       const seriesId = state.id;
-      const rows = state.store.setData(state.data);
+      const rows = state.paneId === "primary"
+        ? (primaryRowSets.get(state.id) ?? state.store.setData(state.data))
+        : state.store.setData(state.data);
       secondaryRows.set(seriesId, rows);
       pointCount = Math.max(pointCount, rows.length);
     }
@@ -2702,118 +2917,31 @@ export class PhaseOneChartHarness {
       context.clip();
 
       if (pane.kind === "primary" && primaryRows.length > 0 && mainSource !== null) {
-        const computedPrimaryRange = mainSource.store.priceRange(
+        let computedPrimaryRange = mainSource.store.priceRange(
           primaryRows[0].index,
           primaryRows[primaryRows.length - 1].index,
         );
+        for (const state of primaryStudies) {
+          const rows = primaryRowSets.get(state.id) ?? [];
+          computedPrimaryRange = this.mergeSeriesRange(rows, state, computedPrimaryRange);
+        }
         this.primaryPriceScale.applyOptions({
           height: pane.height,
           priceRange: this.primaryPriceRangeOverride ?? computedPrimaryRange,
         });
 
-        const items = primaryRows.map((row): CandlestickItem => ({
-          x: this.timeScale.indexToCoordinate(row.index),
-          openY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-          highY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-          lowY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-          closeY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-          isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-        }));
-
-        if (mainSource.kind === "line") {
-          const lineItems = primaryRows.map((row): LineItem => ({
-            x: this.timeScale.indexToCoordinate(row.index),
-            y: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-          }));
-
-          const seriesOptions = mainSource.options as Required<PhaseOneLineSeriesOptions>;
-          this.lineRenderer.draw(context, {
-            items: lineItems,
-            lineColor: seriesOptions.color,
-            lineWidth: seriesOptions.lineWidth,
-          });
-        } else if (mainSource.kind === "area") {
-          const areaItems = primaryRows.map((row): AreaItem => ({
-            x: this.timeScale.indexToCoordinate(row.index),
-            y: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-          }));
-
-          const seriesOptions = mainSource.options as Required<PhaseOneAreaSeriesOptions>;
-          this.areaRenderer.draw(context, {
-            items: areaItems,
-            lineColor: seriesOptions.lineColor,
-            lineWidth: seriesOptions.lineWidth,
-            topColor: seriesOptions.topColor,
-            bottomColor: seriesOptions.bottomColor,
-            baseY: pane.height,
-          });
-        } else if (mainSource.kind === "baseline") {
-          const baselineItems = primaryRows.map((row): BaselineItem => ({
-            x: this.timeScale.indexToCoordinate(row.index),
-            y: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-          }));
-          const seriesOptions = mainSource.options as Required<PhaseOneBaselineSeriesOptions>;
-          const baselineY = toCoordinate(
-            this.primaryPriceScale.priceToCoordinate(seriesOptions.baseValue),
+        const primaryRangeMin = (this.primaryPriceRangeOverride ?? computedPrimaryRange)?.minValue() ?? 0;
+        for (const state of primarySources) {
+          const rows = primaryRowSets.get(state.id) ?? [];
+          this.renderSeriesSource(
+            context,
+            state,
+            rows,
+            pane.height,
+            barWidth,
+            this.primaryPriceScale,
+            primaryRangeMin,
           );
-
-          this.baselineRenderer.draw(context, {
-            items: baselineItems,
-            baseY: baselineY,
-            height: pane.height,
-            lineWidth: seriesOptions.lineWidth,
-            topLineColor: seriesOptions.topLineColor,
-            topFillTopColor: seriesOptions.topFillTopColor,
-            topFillBottomColor: seriesOptions.topFillBottomColor,
-            bottomLineColor: seriesOptions.bottomLineColor,
-            bottomFillTopColor: seriesOptions.bottomFillTopColor,
-            bottomFillBottomColor: seriesOptions.bottomFillBottomColor,
-          });
-        } else if (mainSource.kind === "bar") {
-          const barItems = primaryRows.map((row): BarItem => ({
-            x: this.timeScale.indexToCoordinate(row.index),
-            openY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-            highY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-            lowY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-            closeY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-          }));
-
-          const seriesOptions = mainSource.options as Required<PhaseOneBarSeriesOptions>;
-          this.barRenderer.draw(context, {
-            items: barItems,
-            barWidth,
-            upColor: seriesOptions.upColor,
-            downColor: seriesOptions.downColor,
-          });
-        } else if (mainSource.kind === "histogram") {
-          const primaryRangeMin = (this.primaryPriceRangeOverride ?? computedPrimaryRange)?.minValue() ?? 0;
-          const histogramItems = primaryRows.map((row): HistogramItem => ({
-            x: this.timeScale.indexToCoordinate(row.index),
-            valueY: toCoordinate(this.primaryPriceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            baseY: toCoordinate(this.primaryPriceScale.priceToCoordinate(primaryRangeMin)),
-            isUp:
-              mainSource.visuals.get(row.time)?.isUp ??
-              row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-            color: mainSource.visuals.get(row.time)?.color,
-          }));
-
-          const seriesOptions = mainSource.options as Required<PhaseOneHistogramSeriesOptions>;
-          this.histogramRenderer.draw(context, {
-            items: histogramItems,
-            barWidth,
-            upColor: seriesOptions.upColor,
-            downColor: seriesOptions.downColor,
-          });
-        } else {
-          const seriesOptions = mainSource.options as Required<PhaseOneCandlestickSeriesOptions>;
-          this.candlesRenderer.draw(context, {
-            items,
-            barWidth,
-            upColor: seriesOptions.upColor,
-            downColor: seriesOptions.downColor,
-            wickColor: seriesOptions.wickColor,
-          });
         }
 
         drawPriceLines(
@@ -2821,20 +2949,23 @@ export class PhaseOneChartHarness {
           paneWidth,
           pane.height,
           this.primaryPriceScale,
-          mainSource.priceLines,
+          this.collectPriceLines(primarySources),
           this.chartOptions,
           this.priceAxisFormatter,
         );
 
-        drawSeriesMarkers(
-          context,
-          primaryRows,
-          mainSource.markers,
-          this.timeScale,
-          this.primaryPriceScale,
-          pane.height,
-          mainSource.kind,
-        );
+        for (const state of primarySources) {
+          const rows = primaryRowSets.get(state.id) ?? [];
+          drawSeriesMarkers(
+            context,
+            rows,
+            state.markers,
+            this.timeScale,
+            this.primaryPriceScale,
+            pane.height,
+            state.kind,
+          );
+        }
       }
 
       if (pane.kind === "secondary") {
@@ -2853,110 +2984,7 @@ export class PhaseOneChartHarness {
           if (rows === undefined || rows.length === 0) {
             continue;
           }
-
-          if (state.kind === "line") {
-            const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-            const lineItems = rows.map((row): LineItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            }));
-
-            this.lineRenderer.draw(context, {
-              items: lineItems,
-              lineColor: seriesOptions.color,
-              lineWidth: seriesOptions.lineWidth,
-            });
-          } else if (state.kind === "area") {
-            const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
-            const areaItems = rows.map((row): AreaItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            }));
-
-            this.areaRenderer.draw(context, {
-              items: areaItems,
-              lineColor: seriesOptions.lineColor,
-              lineWidth: seriesOptions.lineWidth,
-              topColor: seriesOptions.topColor,
-              bottomColor: seriesOptions.bottomColor,
-              baseY: pane.height,
-            });
-          } else if (state.kind === "baseline") {
-            const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
-            const baselineItems = rows.map((row): BaselineItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              y: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            }));
-            const baselineY = toCoordinate(state.priceScale.priceToCoordinate(seriesOptions.baseValue));
-
-            this.baselineRenderer.draw(context, {
-              items: baselineItems,
-              baseY: baselineY,
-              height: pane.height,
-              lineWidth: seriesOptions.lineWidth,
-              topLineColor: seriesOptions.topLineColor,
-              topFillTopColor: seriesOptions.topFillTopColor,
-              topFillBottomColor: seriesOptions.topFillBottomColor,
-              bottomLineColor: seriesOptions.bottomLineColor,
-              bottomFillTopColor: seriesOptions.bottomFillTopColor,
-              bottomFillBottomColor: seriesOptions.bottomFillBottomColor,
-            });
-          } else if (state.kind === "bar") {
-            const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
-            const barItems = rows.map((row): BarItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              openY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-              highY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-              lowY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-              closeY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-              isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-            }));
-
-            this.barRenderer.draw(context, {
-              items: barItems,
-              barWidth,
-              upColor: seriesOptions.upColor,
-              downColor: seriesOptions.downColor,
-            });
-          } else if (state.kind === "candlestick") {
-            const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
-            const candleItems = rows.map((row): CandlestickItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              openY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-              highY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-              lowY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-              closeY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-              isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-            }));
-
-            this.candlesRenderer.draw(context, {
-              items: candleItems,
-              barWidth,
-              upColor: seriesOptions.upColor,
-              downColor: seriesOptions.downColor,
-              wickColor: seriesOptions.wickColor,
-            });
-          } else {
-            const seriesOptions =
-              (state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>);
-            const rangeMin = range?.minValue() ?? 0;
-            const histogramItems = rows.map((row): HistogramItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              valueY: toCoordinate(state.priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-              baseY: toCoordinate(state.priceScale.priceToCoordinate(rangeMin)),
-              isUp:
-                state.visuals.get(row.time)?.isUp ??
-                row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-              color: state.visuals.get(row.time)?.color,
-            }));
-
-            this.histogramRenderer.draw(context, {
-              items: histogramItems,
-              barWidth,
-              upColor: seriesOptions.upColor,
-              downColor: seriesOptions.downColor,
-            });
-          }
+          this.renderSeriesSource(context, state, rows, pane.height, barWidth, state.priceScale, range?.minValue() ?? 0);
         }
 
         if (panePriceScale !== undefined) {
@@ -3000,7 +3028,11 @@ export class PhaseOneChartHarness {
 
       const legendEntries =
         pane.kind === "primary"
-          ? this.buildReadoutSeriesForPrimary(primaryRows, resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair))
+          ? this.buildReadoutSeriesForPrimary(
+              primarySources,
+              primaryRowSets,
+              resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
+            )
           : this.buildReadoutSeriesForPane(
               this.getSecondarySeriesForPane(pane.id),
               resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
@@ -3120,6 +3152,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addVolumeSeries(target) {
       return harness.addVolumeSeries(target);
+    },
+    addOverlaySeries(target) {
+      return harness.addOverlaySeries(target);
+    },
+    addCompareSeries(target) {
+      return harness.addCompareSeries(target);
     },
     panes() {
       return harness.panesApi();

@@ -62,7 +62,8 @@ Current `chartx2` status against that model:
   - the deeper model is still incomplete because `StudySource` and `DrawingSource` are not yet split into richer subtypes and the registry is still harness-owned
 - `StudySource`
   - extra pane series now act as the first explicit `StudySource` runtime subtype, currently with `studyKind: "series"`
-  - overlay / compare / indicator studies are not yet modeled as first-class study entities
+  - the first `overlay` and `compare` runtime creation paths now exist as primary-pane study subtypes
+  - broader indicator studies are not yet modeled as first-class study entities
 - `DrawingSource`
   - markers and price lines exist as early annotation paths
   - drawings are not yet a full entity system with registry, grouping, and z-order control
@@ -104,6 +105,10 @@ The capability categories below are intentionally practical:
   - pointer-driven divider resize in the browser harness
   - controlled multi-series composition in managed secondary panes
   - pane-aware readout payloads and in-pane legend summaries for managed multi-series panes
+- a first primary-pane study path now exists
+  - `addOverlaySeries()`
+  - `addCompareSeries()`
+  - both currently map to minimal line-style `StudySource` variants
 - secondary panes are no longer volume-only
   - `candlestick`
   - `line`

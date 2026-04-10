@@ -53,6 +53,12 @@ type PaneEventSnapshot = {
     seriesKinds: readonly string[];
     series: readonly PaneSeriesSnapshot[];
   };
+  panes: readonly {
+    paneIndex: number;
+    seriesCount: number;
+    seriesKinds: readonly string[];
+    series: readonly PaneSeriesSnapshot[];
+  }[];
 };
 
 type ReadoutSnapshot = {
@@ -853,6 +859,97 @@ test("phase-one public api supports controlled multi-series composition in one m
   const fixture = page.locator("#api-secondary-multi-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-secondary-multi-series-pane.png");
+});
+
+test("phase-one public api supports overlay and compare studies in the primary pane", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, line, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-overlay-compare-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-overlay-compare-canvas" aria-label="phase-one api overlay compare chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-overlay-compare-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API overlay compare fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const overlaySeries = chart.addOverlaySeries();
+    const compareSeries = chart.addCompareSeries();
+    mainSeries.setData(bars);
+    overlaySeries.setData(line);
+    compareSeries.setData(line.map((point, index) => ({
+      time: point.time,
+      value: point.value + 4 + index,
+    })));
+    overlaySeries.applyOptions({ color: "#7c3aed", lineWidth: 2 });
+    compareSeries.applyOptions({ color: "#f59e0b", lineWidth: 2 });
+
+    const events: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      events.push(event);
+    });
+    chart.addPane({ height: 112 });
+
+    let lastReadout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      lastReadout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.54,
+      clientY: rect.top + rect.height * 0.28,
+      bubbles: true,
+    }));
+
+    return {
+      events,
+      readout: lastReadout,
+    };
+  }, {
+    bars: API_DATA,
+    line: LINE_API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.events).toHaveLength(1);
+  expect(result.events[0]?.pane.paneIndex).toBe(1);
+  expect(result.events[0]?.panes[0]?.series.map((series) => ({
+    kind: series.kind,
+    sourceRole: series.sourceRole,
+    studyKind: series.studyKind,
+  }))).toEqual([
+    { kind: "candlestick", sourceRole: "main-series", studyKind: null },
+    { kind: "line", sourceRole: "study", studyKind: "overlay" },
+    { kind: "line", sourceRole: "study", studyKind: "compare" },
+  ]);
+  const readout = result.readout as ReadoutSnapshot | null;
+  expect(readout?.paneIndex).toBe(0);
+  expect(readout?.series).toHaveLength(3);
+  expect(readout?.series.map((series) => series.color)).toEqual(["#0c8f62", "#7c3aed", "#f59e0b"]);
+
+  const fixture = page.locator("#api-overlay-compare-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-overlay-compare-primary.png");
 });
 
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {

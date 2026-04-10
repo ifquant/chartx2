@@ -165,6 +165,23 @@ test("workbench shows a visible error state when chart init fails", async ({ pag
   await expect(errorState).toContainText("Canvas 2D context is unavailable");
 });
 
+test("workbench surfaces renko builder controls when the main chart switches to renko", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Renko", exact: true }).click();
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const modeStrip = workbench.locator(".mode-strip");
+  await expect(modeStrip).toBeVisible();
+  await expect(modeStrip.getByRole("button", { name: "Renko Auto" })).toHaveClass(/active/);
+  await expect(workbench).toContainText("Auto box");
+
+  await modeStrip.getByRole("button", { name: "Box 2" }).click();
+  await expect(modeStrip.getByRole("button", { name: "Box 2" })).toHaveClass(/active/);
+  await expect(workbench).toContainText("Fixed 2");
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

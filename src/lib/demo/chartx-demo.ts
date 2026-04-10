@@ -33,7 +33,7 @@ export type DemoAction = {
   id: string;
   label: string;
   tone?: DemoActionTone;
-  group?: "chart-type" | "chart-action";
+  group?: "chart-type" | "chart-action" | "renko-option";
   active?: boolean;
 };
 
@@ -68,6 +68,7 @@ type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
 type EventLog = string[];
 type ThemeId = "warm" | "ink";
 type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
+type WorkbenchRenkoMode = "auto" | "fixed";
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
@@ -166,6 +167,8 @@ export function mountWorkbenchDemo(
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
   let mainChartType: WorkbenchMainChartType = "candlestick";
+  let renkoMode: WorkbenchRenkoMode = "auto";
+  let renkoFixedBoxSize = 4;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let latestReadout: PhaseOneCrosshairMoveEvent | null = null;
@@ -185,6 +188,12 @@ export function mountWorkbenchDemo(
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
         { label: "Main type", value: formatWorkbenchChartType(mainChartType) },
+        ...(mainChartType === "renko"
+          ? [{
+              label: "Renko",
+              value: renkoMode === "auto" ? "Auto box" : `Fixed ${renkoFixedBoxSize}`,
+            }]
+          : []),
         { label: "Panes", value: String(paneSnapshot.length) },
         {
           label: "Visible bars",
@@ -249,7 +258,11 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "renko") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      chart.setChartType("renko");
+      const renkoSeries = chart.setChartType("renko");
+      renkoSeries.applyOptions({
+        renkoBoxSizeMode: renkoMode,
+        renkoBoxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
+      });
     } else if (mainChartType === "bar") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
@@ -349,6 +362,34 @@ export function mountWorkbenchDemo(
           tone: "default",
           group: "chart-action",
         },
+        ...(mainChartType === "renko"
+          ? [
+              {
+                id: "renko-auto",
+                label: "Renko Auto",
+                group: "renko-option" as const,
+                active: renkoMode === "auto",
+              },
+              {
+                id: "renko-box-2",
+                label: "Box 2",
+                group: "renko-option" as const,
+                active: renkoMode === "fixed" && renkoFixedBoxSize === 2,
+              },
+              {
+                id: "renko-box-4",
+                label: "Box 4",
+                group: "renko-option" as const,
+                active: renkoMode === "fixed" && renkoFixedBoxSize === 4,
+              },
+              {
+                id: "renko-box-8",
+                label: "Box 8",
+                group: "renko-option" as const,
+                active: renkoMode === "fixed" && renkoFixedBoxSize === 8,
+              },
+            ]
+          : []),
         { id: "add-pane", label: "Add empty pane", tone: "default", group: "chart-action" },
         { id: "trim-pane", label: "Remove empty pane", tone: "danger", group: "chart-action" },
         { id: "zoom-in", label: "Zoom in", tone: "accent", group: "chart-action" },
@@ -379,7 +420,45 @@ export function mountWorkbenchDemo(
           return;
         case "main-renko":
           mainChartType = "renko";
-          chart.setChartType("renko");
+          chart.setChartType("renko").applyOptions({
+            renkoBoxSizeMode: renkoMode,
+            renkoBoxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
+          });
+          publishSnapshot();
+          return;
+        case "renko-auto":
+          renkoMode = "auto";
+          chart.setChartType("renko").applyOptions({
+            renkoBoxSizeMode: "auto",
+            renkoBoxSize: null,
+          });
+          publishSnapshot();
+          return;
+        case "renko-box-2":
+          renkoMode = "fixed";
+          renkoFixedBoxSize = 2;
+          chart.setChartType("renko").applyOptions({
+            renkoBoxSizeMode: "fixed",
+            renkoBoxSize: 2,
+          });
+          publishSnapshot();
+          return;
+        case "renko-box-4":
+          renkoMode = "fixed";
+          renkoFixedBoxSize = 4;
+          chart.setChartType("renko").applyOptions({
+            renkoBoxSizeMode: "fixed",
+            renkoBoxSize: 4,
+          });
+          publishSnapshot();
+          return;
+        case "renko-box-8":
+          renkoMode = "fixed";
+          renkoFixedBoxSize = 8;
+          chart.setChartType("renko").applyOptions({
+            renkoBoxSizeMode: "fixed",
+            renkoBoxSize: 8,
+          });
           publishSnapshot();
           return;
         case "main-heikin-ashi":

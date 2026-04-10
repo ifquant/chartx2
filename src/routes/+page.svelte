@@ -233,8 +233,11 @@
   $: workbenchChartTypeActions = workbenchActions.filter(
     (action) => action.group === "chart-type",
   );
+  $: workbenchRenkoActions = workbenchActions.filter(
+    (action) => action.group === "renko-option",
+  );
   $: workbenchChartActions = workbenchActions.filter(
-    (action) => action.group !== "chart-type",
+    (action) => action.group === "chart-action" || action.group === undefined,
   );
 </script>
 
@@ -360,6 +363,18 @@
                   <button>5Y</button>
                   <button>All</button>
                 </div>
+                {#if workbenchRenkoActions.length > 0}
+                  <div class="mode-strip">
+                    {#each workbenchRenkoActions as action}
+                      <button
+                        class:active={action.active}
+                        on:click={() => runWorkbenchAction(action.id)}
+                      >
+                        {action.label}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
                 <div class="action-strip">
                   {#each workbenchChartActions as action}
                     <button
@@ -1025,7 +1040,7 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 28px var(--action-strip-height);
+    grid-template-rows: 28px auto var(--action-strip-height);
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
@@ -1045,6 +1060,42 @@
 
   .time-strip::-webkit-scrollbar {
     display: none;
+  }
+
+  .mode-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding: 4px 10px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(247, 243, 235, 0.9);
+  }
+
+  .mode-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mode-strip button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 5px 9px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.05);
+    color: rgba(24, 24, 27, 0.66);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mode-strip button.active {
+    background: #18181b;
+    color: #fffdf8;
   }
 
   .time-strip button.active {

@@ -255,6 +255,7 @@ export type PhaseOnePriceScaleApi = {
   setVisibleRange(range: { minValue: number; maxValue: number } | null): void;
   applyOptions(options: {
     priceFormatter?: ((value: number) => string) | null;
+    scaleSeriesOnly?: boolean;
   }): void;
 };
 
@@ -538,6 +539,7 @@ export class PhaseOneChartHarness {
   };
   private timeAxisFormatter: ((time: number) => string) | null = null;
   private priceAxisFormatter: ((value: number) => string) | null = null;
+  private primaryScaleSeriesOnly = false;
   private primaryPriceRangeOverride: PriceRangeImpl | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
     upColor: UP_COLOR,
@@ -1131,6 +1133,9 @@ export class PhaseOneChartHarness {
       applyOptions: (options) => {
         if (options.priceFormatter !== undefined) {
           this.priceAxisFormatter = options.priceFormatter;
+        }
+        if (options.scaleSeriesOnly !== undefined) {
+          this.primaryScaleSeriesOnly = options.scaleSeriesOnly;
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -2922,6 +2927,9 @@ export class PhaseOneChartHarness {
           primaryRows[primaryRows.length - 1].index,
         );
         for (const state of primaryStudies) {
+          if (this.primaryScaleSeriesOnly && state.studyKind === "compare") {
+            continue;
+          }
           const rows = primaryRowSets.get(state.id) ?? [];
           computedPrimaryRange = this.mergeSeriesRange(rows, state, computedPrimaryRange);
         }

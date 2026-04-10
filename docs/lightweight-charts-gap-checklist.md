@@ -55,6 +55,7 @@ Current `chartx2` status against that model:
   - collapse/maximize/move/reorder breadth is still missing
 - `PriceScales`
   - pane-local scales exist and public scale control has started
+  - the primary price scale now has a first `scaleSeriesOnly` path to exclude compare studies from autoscale
   - scales are still narrower than the target pane-level object model with richer identity, modes, and attachments
 - `Sources via entityRegistry`
   - current code now has a first explicit source-registry path for main-series and study sources
@@ -304,6 +305,7 @@ Must-close items:
 - richer tick generation
 - overlay or pane-aware scale handles beyond the current first subset
 - richer localization and scale modes
+- richer compare/overlay scale semantics beyond the first `scaleSeriesOnly` exclusion path
 
 Why this matters:
 

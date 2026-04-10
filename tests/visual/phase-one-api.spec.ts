@@ -952,6 +952,57 @@ test("phase-one public api supports overlay and compare studies in the primary p
   await expect(fixture).toHaveScreenshot("phase-one-api-overlay-compare-primary.png");
 });
 
+test("phase-one public api can exclude compare studies from primary autoscale", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async (publicEntry) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-compare-scale-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-compare-scale-canvas" aria-label="phase-one api compare scale chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-compare-scale-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API compare scale fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const compareSeries = chart.addCompareSeries();
+    mainSeries.setData([
+      { time: 1, open: 120, high: 124, low: 118, close: 123 },
+      { time: 2, open: 123, high: 126, low: 121, close: 124 },
+      { time: 3, open: 124, high: 128, low: 122, close: 127 },
+      { time: 4, open: 127, high: 129, low: 125, close: 128 },
+    ]);
+    compareSeries.setData([
+      { time: 1, value: 980 },
+      { time: 2, value: 1010 },
+      { time: 3, value: 1045 },
+      { time: 4, value: 1090 },
+    ]);
+    compareSeries.applyOptions({ color: "#f59e0b", lineWidth: 2 });
+
+    const before = chart.priceScale().getVisibleRange();
+    chart.priceScale().applyOptions({ scaleSeriesOnly: true });
+    const after = chart.priceScale().getVisibleRange();
+
+    return { before, after };
+  }, PUBLIC_ENTRY);
+
+  expect(result.before?.maxValue ?? 0).toBeGreaterThan(500);
+  expect(result.after?.maxValue ?? 0).toBeLessThan(150);
+  expect(result.after?.minValue ?? 0).toBeGreaterThan(110);
+
+  const fixture = page.locator("#api-compare-scale-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-compare-scale-series-only.png");
+});
+
 test("phase-one public api rejects invalid chart hosts", async ({ page }) => {
   await page.goto("/");
   const message = await page.evaluate(async (publicEntry) => {

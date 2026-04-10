@@ -242,6 +242,10 @@ export function mountWorkbenchDemo(
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
+    } else if (mainChartType === "heikin-ashi") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("heikin-ashi");
     } else if (mainChartType === "bar") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
@@ -300,6 +304,12 @@ export function mountWorkbenchDemo(
           active: mainChartType === "candlestick",
         },
         {
+          id: "main-heikin-ashi",
+          label: "Heikin",
+          group: "chart-type",
+          active: mainChartType === "heikin-ashi",
+        },
+        {
           id: "main-bar",
           label: "Bar",
           group: "chart-type",
@@ -355,6 +365,11 @@ export function mountWorkbenchDemo(
         case "main-bar":
           mainChartType = "bar";
           chart.setChartType("bar");
+          publishSnapshot();
+          return;
+        case "main-heikin-ashi":
+          mainChartType = "heikin-ashi";
+          chart.setChartType("heikin-ashi");
           publishSnapshot();
           return;
         case "main-line":
@@ -522,6 +537,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
   switch (kind) {
     case "candlestick":
       return "Candles";
+    case "heikin-ashi":
+      return "Heikin Ashi";
     case "bar":
       return "Bar";
     case "line":

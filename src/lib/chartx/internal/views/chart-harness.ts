@@ -88,6 +88,7 @@ export type PhaseOneMainSeriesRenderer =
   | "segment";
 export type PhaseOneMainChartType =
   | "candlestick"
+  | "heikin-ashi"
   | "bar"
   | "line"
   | "area"
@@ -262,6 +263,7 @@ export type PhaseOnePaneSeriesState = {
   id: string;
   label: string;
   kind: string;
+  chartType: PhaseOneMainChartType | null;
   sourceRole: "main-series" | "study";
   studyKind: "series" | "indicator" | "overlay" | "compare" | null;
   priceScaleId: string;
@@ -511,6 +513,8 @@ type BaseSeriesSourceState = {
 
 type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "main-series";
+  chartType: PhaseOneMainChartType;
+  inputData: readonly PhaseOneCandlestickData[];
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
@@ -886,16 +890,19 @@ export class PhaseOneChartHarness {
 
     const meta = preserved === undefined ? this.createSeriesMeta(kind) : { id: preserved.id, label: preserved.label };
     const api = this.createPrimarySeriesApi(kind);
+    const seriesKind = seriesKindForMainChartType(kind);
     const source = this.createMainSourceState(
       "primary",
       kind,
+      seriesKind,
       api,
       meta,
       this.primaryPriceScale,
       "primary-right",
     );
     if (preserved !== undefined) {
-      source.data = [...preserved.data];
+      source.inputData = [...preserved.data];
+      source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
       source.visuals = new Map(preserved.visuals);
       source.markers = [...preserved.markers];
       source.priceLines = clonePriceLines(preserved.priceLines);
@@ -910,6 +917,8 @@ export class PhaseOneChartHarness {
   ): PhaseOneMainSeriesApi {
     switch (kind) {
       case "candlestick":
+        return this.createPrimaryCandlestickSeriesApi();
+      case "heikin-ashi":
         return this.createPrimaryCandlestickSeriesApi();
       case "bar":
         return this.createPrimaryBarSeriesApi();
@@ -1287,7 +1296,7 @@ export class PhaseOneChartHarness {
 
   public getChartType(): PhaseOneMainChartType | null {
     const mainSource = this.getMainSource();
-    return mainSource === null ? null : (mainSource.kind as PhaseOneMainChartType);
+    return mainSource === null ? null : mainSource.chartType;
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
@@ -1306,7 +1315,7 @@ export class PhaseOneChartHarness {
     const nextSeries = this.attachPrimarySeries(type, {
       id: current.id,
       label: current.label,
-      data: [...current.data],
+      data: [...current.inputData],
       visuals: new Map(current.visuals),
       markers: [...current.markers],
       priceLines: clonePriceLines(current.priceLines),
@@ -1329,7 +1338,8 @@ export class PhaseOneChartHarness {
 
   private setPrimaryData(data: readonly PhaseOneCandlestickData[]): void {
     const source = this.getMainSourceOrThrow();
-    source.data = [...data];
+    source.inputData = [...data];
+    source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
     source.visuals.clear();
     this.primaryPriceRangeOverride = null;
     this.barSpacing = null;
@@ -1341,13 +1351,8 @@ export class PhaseOneChartHarness {
 
   private updatePrimary(bar: PhaseOneCandlestickData): void {
     const source = this.getMainSourceOrThrow();
-    source.data = source.store.update(bar).map((row) => ({
-      time: row.time,
-      open: row.value[PlotRowValueIndex.Open],
-      high: row.value[PlotRowValueIndex.High],
-      low: row.value[PlotRowValueIndex.Low],
-      close: row.value[PlotRowValueIndex.Close],
-    }));
+    source.inputData = updateCanonicalData(source.inputData, bar);
+    source.data = applyMainSeriesBuilderData(source.inputData, source.builder);
     this.primaryPriceRangeOverride = null;
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -2500,6 +2505,7 @@ export class PhaseOneChartHarness {
       id: source.id,
       label: source.label,
       kind: source.kind,
+      chartType: source.role === "main-series" ? source.chartType : null,
       sourceRole: source.role,
       studyKind: source.role === "study" ? source.studyKind : null,
       priceScaleId: source.priceScaleId,
@@ -2619,22 +2625,25 @@ export class PhaseOneChartHarness {
 
   private createMainSourceState(
     paneId: string,
+    chartType: PhaseOneMainChartType,
     kind: ChartSeriesKind,
     api: ChartSeriesApi,
     meta: { id: string; label: string },
     priceScale: PriceScale,
     priceScaleId: string,
   ): MainSeriesSourceState {
-    const chartType = mainSeriesChartTypeSpec(kind);
+    const chartTypeSpec = mainSeriesChartTypeSpec(chartType);
     return {
       id: meta.id,
       label: meta.label,
       kind,
       role: "main-series",
-      inputCapability: chartType.inputCapability,
-      builder: chartType.builder,
-      renderer: chartType.renderer,
-      styleSchemaId: chartType.styleSchemaId,
+      chartType,
+      inputData: [],
+      inputCapability: chartTypeSpec.inputCapability,
+      builder: chartTypeSpec.builder,
+      renderer: chartTypeSpec.renderer,
+      styleSchemaId: chartTypeSpec.styleSchemaId,
       paneId,
       priceScaleId,
       visible: true,
@@ -3531,10 +3540,72 @@ function normalizeHistogramBar(
   };
 }
 
+function updateCanonicalData(
+  data: readonly PhaseOneCandlestickData[],
+  bar: PhaseOneCandlestickData,
+): readonly PhaseOneCandlestickData[] {
+  const store = new SeriesDataStore<number>();
+  store.setData(data);
+  return store.update(bar).map((row) => ({
+    time: row.time,
+    open: row.value[PlotRowValueIndex.Open],
+    high: row.value[PlotRowValueIndex.High],
+    low: row.value[PlotRowValueIndex.Low],
+    close: row.value[PlotRowValueIndex.Close],
+  }));
+}
+
+export function buildHeikinAshiData(
+  data: readonly PhaseOneCandlestickData[],
+): readonly PhaseOneCandlestickData[] {
+  let previousOpen: number | null = null;
+  let previousClose: number | null = null;
+
+  return data.map((bar) => {
+    const close = (bar.open + bar.high + bar.low + bar.close) / 4;
+    const open =
+      previousOpen === null || previousClose === null
+        ? (bar.open + bar.close) / 2
+        : (previousOpen + previousClose) / 2;
+    const high = Math.max(bar.high, open, close);
+    const low = Math.min(bar.low, open, close);
+
+    previousOpen = open;
+    previousClose = close;
+
+    return {
+      time: bar.time,
+      open,
+      high,
+      low,
+      close,
+    };
+  });
+}
+
+function applyMainSeriesBuilderData(
+  data: readonly PhaseOneCandlestickData[],
+  builder: PhaseOneMainSeriesBuilder,
+): readonly PhaseOneCandlestickData[] {
+  switch (builder) {
+    case "heikin-ashi":
+      return buildHeikinAshiData(data);
+    case "time-bars":
+    case "renko":
+    case "line-break":
+    case "kagi":
+    case "point-figure":
+    case "range":
+      return [...data];
+  }
+}
+
 function formatSeriesKindLabel(kind: string): string {
   switch (kind) {
     case "candlestick":
       return "Candlestick";
+    case "heikin-ashi":
+      return "Heikin Ashi";
     case "line":
       return "Line";
     case "area":
@@ -3570,19 +3641,40 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
   }
 }
 
-function mainSeriesChartTypeSpec(kind: ChartSeriesKind): {
+function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
+  switch (type) {
+    case "heikin-ashi":
+      return "candlestick";
+    case "candlestick":
+    case "bar":
+    case "line":
+    case "area":
+    case "baseline":
+    case "histogram":
+      return type;
+  }
+}
+
+function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
   styleSchemaId: string;
 } {
-  switch (kind) {
+  switch (type) {
     case "candlestick":
       return {
         inputCapability: "ohlcv",
         builder: "time-bars",
         renderer: "candles",
         styleSchemaId: "candleStyle",
+      };
+    case "heikin-ashi":
+      return {
+        inputCapability: "ohlcv",
+        builder: "heikin-ashi",
+        renderer: "candles",
+        styleSchemaId: "haStyle",
       };
     case "bar":
       return {
@@ -3618,13 +3710,6 @@ function mainSeriesChartTypeSpec(kind: ChartSeriesKind): {
         builder: "time-bars",
         renderer: "columns",
         styleSchemaId: "histogramStyle",
-      };
-    case "volume":
-      return {
-        inputCapability: "ohlcv",
-        builder: "time-bars",
-        renderer: "columns",
-        styleSchemaId: "volumeStyle",
       };
   }
 }

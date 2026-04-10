@@ -39,6 +39,7 @@ type PaneSeriesSnapshot = {
   id: string;
   label: string;
   kind: string;
+  chartType: string | null;
   sourceRole: string;
   studyKind: string | null;
   priceScaleId: string;
@@ -303,11 +304,60 @@ test("phase-one public api can switch the active main chart type without rebuild
     id: "series-1",
     label: "Candlestick 1",
     kind: "line",
+    chartType: "line",
     sourceRole: "main-series",
     inputCapability: "c",
     builder: "time-bars",
     renderer: "line",
     styleSchemaId: "lineStyle",
+    pointCount: 4,
+  });
+});
+
+test("phase-one public api can switch the active main chart type to heikin-ashi", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-heikin-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-heikin-canvas" aria-label="phase-one api heikin-ashi chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-heikin-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("heikin-ashi");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("heikin-ashi");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "heikin-ashi",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "heikin-ashi",
+    renderer: "candles",
+    styleSchemaId: "haStyle",
     pointCount: 4,
   });
 });
@@ -686,7 +736,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -696,7 +746,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -709,7 +759,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -719,7 +769,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -760,6 +810,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     id: "series-2",
     label: "Volume 2",
     kind: "volume",
+    chartType: null,
     sourceRole: "study",
     studyKind: "series",
     priceScaleId: "pane-1-right",
@@ -775,6 +826,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     id: "series-1",
     label: "Candlestick 1",
     kind: "candlestick",
+    chartType: "candlestick",
     sourceRole: "main-series",
     studyKind: null,
     priceScaleId: "primary-right",

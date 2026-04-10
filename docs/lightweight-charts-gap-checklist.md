@@ -21,6 +21,59 @@ The categories below are intentionally practical and now split into three lenses
 - `Deferred TradingView Workstation Gap`
   - what matters for the long-term terminal shape but sits beyond the current library-comparison line
 
+## Mapping The Gap To The TradingView Object Model
+
+The lightweight-charts comparison is still useful, but future work should be judged against the longer-term runtime model, not only against a feature list.
+
+Target direction:
+
+```text
+WidgetShell / Layout
+└─ Charts[]
+   └─ ChartModel
+      ├─ TimeScale
+      ├─ Panes[]
+      │  ├─ PriceScales[]
+      │  └─ Sources (via entityRegistry)
+      ├─ LegendViewModel
+      ├─ ToolbarRegistry / CommandBus
+      └─ LayoutSnapshot / Templates / UserSettings
+```
+
+Current `chartx2` status against that model:
+
+- `WidgetShell / Layout`
+  - the Svelte workbench exists as a demo shell
+  - real multi-chart layout ownership and persistence do not exist yet
+- `ChartModel`
+  - there is a real chart-level public API and shared runtime state
+  - part of that state still lives in a harness-shaped implementation rather than a fully explicit model layer
+- `TimeScale`
+  - already chart-level and shared across panes, which matches the intended direction
+- `Panes`
+  - pane lifecycle, pane resize, pane event bus, and managed multi-series secondary panes now exist
+  - collapse/maximize/move/reorder breadth is still missing
+- `PriceScales`
+  - pane-local scales exist and public scale control has started
+  - scales are still narrower than the target pane-level object model with richer identity, modes, and attachments
+- `Sources via entityRegistry`
+  - current code supports multiple series and pane attachment
+  - the deeper model is still transitional because sources are not yet promoted into a clearer registry-driven `SourceModel` hierarchy
+- `StudySource`
+  - extra pane series currently act as the bridge
+  - overlay / compare / indicator studies are not yet modeled as first-class study entities
+- `DrawingSource`
+  - markers and price lines exist as early annotation paths
+  - drawings are not yet a full entity system with registry, grouping, and z-order control
+- `LegendViewModel`
+  - workbench readouts and pane-aware legend payloads already point in the right direction
+  - these should stay projection/viewmodel layers rather than becoming data owners
+- `ToolbarRegistry / CommandBus`
+  - the demo shell has command surfaces
+  - there is no generalized toolbar/command architecture yet
+- `LayoutSnapshot / Templates / UserSettings`
+  - this remains largely deferred and must stay separate from runtime chart entities when it appears
+
 The capability categories below are intentionally practical:
 
 - `Done` means `chartx2` already covers the capability at the current phase-one floor.
@@ -267,16 +320,29 @@ This is the last item in this section because it is structurally larger, but it 
 
 Must-close items:
 
-- more than one pane
-- pane-local price scales
-- pane sizing
-- pane add/remove lifecycle
+- promote current pane support into a fuller pane object model
+- widen pane controls beyond resize/add/remove
+- keep pane-local price scales explicit as pane-owned objects
+- stop treating secondary-pane series composition as the final source architecture
 
 Why this matters:
 
 - this is the bridge from single-chart engine to volume + indicators and to anything visually closer to TradingView
-- `chartx2` now has the first fixed `primary + volume` pane split, but not yet pane sizing APIs, pane lifecycle, or arbitrary pane composition
-- `chartx2` now has a first pane lifecycle surface, explicit pane targeting for candlestick, line, bar, and histogram, and a controlled multi-series path for managed secondary panes, but generalized composition rules are still intentionally narrow
+- `chartx2` already has pane sizing APIs, pane lifecycle, pane event snapshots, and controlled multi-series secondary panes
+- the remaining architectural gap is no longer "do panes exist", but "are panes, scales, and sources modeled explicitly enough to scale into studies, drawings, and richer workstation behavior"
+
+### 7. Promote sources into an explicit runtime object model
+
+Must-close items:
+
+- introduce a clearer `SourceModel` / entity-registry path
+- distinguish `MainSeriesSource`, `StudySource`, and future `DrawingSource`
+- treat `Overlay` / `Compare` as study-like entities instead of ad-hoc extra series
+
+Why this matters:
+
+- this is the main architectural bridge from lightweight-charts parity into the larger TradingView-style system
+- without it, every new indicator, overlay, compare source, or drawing feature will keep leaking model responsibilities into the harness and demo shell
 
 ## Deferred Beyond Lightweight-Charts
 

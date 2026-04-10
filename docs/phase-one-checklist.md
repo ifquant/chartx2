@@ -43,6 +43,52 @@ Phase one does not include:
 - independent package publishing pipeline
 - final TradingView-grade performance targets such as `40K historical bars`
 
+## Mapping To The TradingView Object Model
+
+This document is the completed phase-one floor, not the full current architecture spec.
+
+Use it as the migration baseline, then interpret each completed area through the longer-term model below:
+
+```text
+WidgetShell / Layout
+└─ Charts[]
+   └─ ChartModel
+      ├─ TimeScale
+      ├─ Panes[]
+      │  ├─ PriceScales[]
+      │  └─ Sources (via entityRegistry)
+      ├─ LegendViewModel
+      ├─ ToolbarRegistry / CommandBus
+      └─ LayoutSnapshot / Templates / UserSettings
+```
+
+The mapping from phase-one language to the newer model is:
+
+- `engine/shell boundary`
+  - start of the separation between `WidgetShell` and a reusable `ChartModel`
+- `typings/helpers`
+  - low-level support code for the engine, not product-shell state
+- `model core/scales/data`
+  - the first stable `TimeScale` and pane-local `PriceScale` math, plus the earliest source/data semantics
+- `renderers/views`
+  - rendering adapters that project model state to canvas; these should not become the owner of chart entities
+- `minimal public chart API`
+  - the first `ChartModel` facade exposed to the host
+- `host integration`
+  - a `WidgetShell`-style demo host proving that the engine can be mounted without page-local chart logic
+- `visual baseline / parity contract tests`
+  - proof that the engine boundary behaves deterministically enough to keep migrating
+
+Phase one intentionally did not define these later-model parts yet:
+
+- `Charts[]` multi-chart layout ownership
+- `entityRegistry` as an explicit runtime registry
+- `StudySource`, `OverlayStudy`, `CompareStudy`
+- `DrawingSource` and drawing grouping / z-order
+- `LegendViewModel` and `ToolbarRegistry` as first-class subsystems
+- `LayoutSnapshot / TemplateStore / UserSettingsStore`
+- datafeed, broker, alert, replay, and other service-backed TradingView layers
+
 ## Hard Rules
 
 - Do not leave chart internals in [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte) once real chart logic begins.

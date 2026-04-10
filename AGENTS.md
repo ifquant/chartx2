@@ -45,6 +45,42 @@ Parent rules in [../AGENTS.md](/Users/dev/workspace2/hc_apps/AGENTS.md) still ap
   - `Volume candles`
 - 任何当前模板代码、占位命令、草稿文件，都不应被误判为最终架构。
 
+## TradingView 对象模型方向
+
+`chartx2` 的长期实现方向，不应被建模成“一个页面里包着一个 canvas，再往里塞一些 series”。更接近 TradingView 的抽象应该是：
+
+```text
+WidgetShell / Layout
+└─ Charts[]
+   └─ ChartModel
+      ├─ TimeScale
+      ├─ Panes[]
+      │  ├─ PriceScales[]
+      │  └─ Sources (via entityRegistry)
+      ├─ LegendViewModel
+      ├─ ToolbarRegistry / CommandBus
+      ├─ Theme / Overrides
+      └─ LayoutSnapshot / Templates / UserSettings
+```
+
+实现和重构时，按下面这些规则判断路线是否偏了：
+
+- `TimeScale` 是 `ChartModel` 级单例，所有 panes 共用一条时间轴；不要把它做成 pane 私有对象。
+- `Pane` 是一等场景对象，不是“主图底下多塞一块区域”的样式技巧。
+- `PriceScale` 是 pane 级对象，最终应具有 `id / side / mode / autoScale / visibleRange / attachedSourceIds` 这类身份与挂载语义；不要长期停留在“一个 `{ min, max }` 结构体”。
+- 运行时图表内容应该走 `entityRegistry` / `SourceModel`，而不是只靠 pane children 的隐式树关系。
+- `MainSeriesSource`、`StudySource`、`DrawingSource` 应分开建模；不要把所有附加图层都继续塞成“另一个 series”。
+- `OverlayStudy` 和 `CompareStudy` 在方向上都属于 `StudySource` 的子类，不应作为漂浮在 chart 外面的特殊节点。
+- `Legend` 是 source 状态的投影层，`Toolbar` 是命令入口层；二者都不应该反过来拥有或主导 chart runtime state。
+- `Theme / Template / LayoutSnapshot / UserSettings` 是跨层配置与持久化模型，不等于运行时 `ChartModel`。
+
+当前代码与这套模型的关系，要按“对齐中”理解：
+
+- 现有 `chart-harness` 更像是 `ChartModel + render/view adapter` 的过渡承载层，不应无限膨胀成最终对象模型。
+- 现有 primary/secondary series 状态只是过渡路径；后续继续做 study、drawing、compare 之前，应优先往 `SourceModel` / `entityRegistry` 迁移。
+- 现有 pane lifecycle 和 shared time scale 是正确方向，但 price scale 还要继续朝显式 pane-local scale object 演进。
+- demo shell 只负责展示 public API，不应成为 chart internals 的 owner。
+
 ## 适用范围
 
 These rules apply to everything under `/Users/dev/workspace2/hc_apps/chartx2`.
@@ -61,11 +97,14 @@ Use this file especially when changing:
 
 - [README.md](/Users/dev/workspace2/hc_apps/chartx2/README.md): current starter-template readme; not the final product spec
 - [docs/develop.md](/Users/dev/workspace2/hc_apps/chartx2/docs/develop.md): historical session notes and roadmap fragments; useful for context, but may drift from the current filesystem
-- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte): current Svelte entry page, still mostly template code
+- [docs/phase-one-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/phase-one-checklist.md): historical phase-one execution floor; use it as the completed migration baseline, not as the full current capability map
+- [docs/lightweight-charts-gap-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/lightweight-charts-gap-checklist.md): current parity and next-gap tracker against `lightweight-charts`
+- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte): current demo/workbench shell; must stay on the public chart API
 - [src/routes/+layout.ts](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+layout.ts): SPA/SSR boundary for the Tauri host
 - [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs): current Tauri command registration and backend entry wiring
 - [src-tauri/src/main.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/main.rs): desktop app bootstrap
-- [chart-model.ts](/Users/dev/workspace2/hc_apps/chartx2/chart-model.ts): currently points to a missing path; treat as stale scaffolding until repaired
+- [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts): current public chart API entry
+- [src/lib/chartx/internal](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal): engine internals; host/demo code should not import across this boundary directly
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit): per-commit newcomer tutorials
 
 ## 常用命令
@@ -74,6 +113,7 @@ From repo root:
 
 ```bash
 pnpm check
+pnpm test
 pnpm build
 pnpm tauri dev
 ```
@@ -87,8 +127,9 @@ cargo test
 
 Notes:
 
-- `package.json` exists and defines `pnpm`-style scripts, but there is no lockfile checked in right now. Confirm package-manager expectations before introducing workspace-level tooling.
-- `pnpm test`, `pnpm lint`, Storybook, and benchmark commands are not wired yet. Do not claim they exist until they are actually added.
+- `pnpm-lock.yaml` is checked in. Keep dependency and script changes aligned with it.
+- `pnpm test` exists and should be the default verification path for chart-engine behavior, unit coverage, and browser visual baselines.
+- Do not claim `pnpm lint`, Storybook, or benchmark commands exist unless they are actually present on disk.
 
 ## 开发原则
 
@@ -118,13 +159,25 @@ Notes:
   - time scale
   - price scale
   - pane
-  - series
+  - source
+  - main series
+  - study
   - overlay
+  - compare
   - indicator
   - drawing
   - layout
 - Prefer naming modules by chart responsibilities, not generic UI terms like `utils2`, `misc`, or `helpers-final`.
 - `docs/develop.md` can keep session history, but it is not the source of truth for architecture on its own. If implementation diverges, update docs or add a narrower design note.
+- When introducing new runtime structures, prefer names that fit the target object model directly:
+  - `ChartModel`
+  - `PaneModel`
+  - `PriceScaleModel`
+  - `SourceModel`
+  - `StudySource`
+  - `DrawingSource`
+  - `LegendViewModel`
+  - `LayoutSnapshot`
 
 ## 应用领域硬约束
 
@@ -132,10 +185,15 @@ Notes:
 - Do not optimize only for a single-chart demo if the change blocks later support for multi-pane or multi-chart layouts.
 - Do not describe the goal as merely matching current `lightweight-charts` features; the intended direction is a broader charting system.
 - When making architecture or scope decisions, prefer choices that keep the path open toward the explicitly stated end-state feature set above, even if the current slice only lands a much smaller subset.
-- Do not silently treat stale scaffolding as production API:
-  - `chart-model.ts` currently references a missing module
+- Do not silently treat the demo shell as the chart object model:
+  - `src/routes/+page.svelte` is a showcase host, not the owner of chart runtime state
+  - toolbar/readout/watchlist panels are UI composition, not substitutes for engine entities
+- Do not blur runtime models and persistence models:
+  - runtime source state is not a layout snapshot
+  - a drawing entity is not the same thing as a drawing template
+  - theme overrides are not the same thing as pane/series ownership
+- Do not silently treat stale starter text as product spec:
   - `README.md` is still starter-template text
-  - `src/routes/+page.svelte` and `src-tauri/src/lib.rs` are template-level examples
 - Non-standard files such as `/a`, `/b`, and `/temp_page.html` should be treated as scratch or imported artifacts unless they are deliberately promoted and documented.
 - Compatibility-sensitive areas should be called out before casual refactors once they exist:
   - chart public API
@@ -148,6 +206,8 @@ Notes:
 
 - For Svelte / TypeScript changes, run at least:
   - `pnpm check`
+- For chart engine, public API, interaction, renderer, or visual changes, run at least:
+  - `pnpm test`
 - For production-build-affecting frontend changes, prefer also running:
   - `pnpm build`
 - For Rust / Tauri changes, run at least:
@@ -240,6 +300,8 @@ Unless the user explicitly says not to commit yet:
 - [../AGENTS.md](/Users/dev/workspace2/hc_apps/AGENTS.md)
 - [README.md](/Users/dev/workspace2/hc_apps/chartx2/README.md)
 - [docs/develop.md](/Users/dev/workspace2/hc_apps/chartx2/docs/develop.md)
+- [docs/phase-one-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/phase-one-checklist.md)
+- [docs/lightweight-charts-gap-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/lightweight-charts-gap-checklist.md)
 - [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte)
 - [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs)
 

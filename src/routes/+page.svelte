@@ -392,6 +392,27 @@
                 </div>
               </section>
 
+              <section class="mini-card panes-card">
+                <div class="sidebar-head">
+                  <h4>Panes</h4>
+                  <span>{workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1} active</span>
+                </div>
+                <div class="pane-list">
+                  <article class="pane-row active">
+                    <strong>Pane 1</strong>
+                    <span>Price</span>
+                  </article>
+                  <article class="pane-row">
+                    <strong>Pane 2</strong>
+                    <span>Volume</span>
+                  </article>
+                  <article class="pane-row">
+                    <strong>Pane 3</strong>
+                    <span>Study</span>
+                  </article>
+                </div>
+              </section>
+
               <section class="mini-card action-card">
                 <h4>Activity</h4>
                 <ul class="event-log">
@@ -503,10 +524,10 @@
   }
 
   .app-shell {
-    --topbar-height: 52px;
-    --card-head-height: 42px;
-    --readout-height: 40px;
-    --action-strip-height: 44px;
+    --topbar-height: 46px;
+    --card-head-height: 38px;
+    --readout-height: 36px;
+    --action-strip-height: 40px;
     --feature-console-height: clamp(110px, 13vh, 144px);
     height: 100vh;
     box-sizing: border-box;
@@ -530,7 +551,7 @@
     align-items: center;
     height: 100%;
     min-height: 0;
-    padding: 0 14px;
+    padding: 0 10px 0 12px;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: linear-gradient(180deg, #f8f5ee 0%, #f2eee6 100%);
     overflow: hidden;
@@ -598,8 +619,8 @@
   .top-tabs button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 6px 12px;
-    border-radius: 9px;
+    padding: 5px 10px;
+    border-radius: 7px;
     background: transparent;
     color: rgba(24, 24, 27, 0.64);
     font: inherit;
@@ -630,7 +651,7 @@
 
   .status-chip span {
     color: rgba(24, 24, 27, 0.74);
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-weight: 700;
   }
 
@@ -696,7 +717,7 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    padding: 0 12px;
+    padding: 0 10px;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(248, 245, 237, 0.92);
   }
@@ -738,7 +759,7 @@
   .action-strip {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     justify-content: flex-start;
     min-height: var(--action-strip-height);
@@ -746,7 +767,7 @@
     overflow-y: hidden;
     min-width: 0;
     scrollbar-width: none;
-    padding: 0 12px;
+    padding: 0 10px;
     background: rgba(243, 239, 231, 0.96);
   }
 
@@ -757,7 +778,7 @@
   .toolbar-strip {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -773,8 +794,8 @@
   .sidebar-head button {
     flex: 0 0 auto;
     white-space: nowrap;
-    padding: 7px 10px;
-    border-radius: 8px;
+    padding: 6px 9px;
+    border-radius: 7px;
     background: rgba(24, 24, 27, 0.04);
     font: inherit;
     font-weight: 600;
@@ -783,7 +804,7 @@
 
   .workbench-shell {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) 292px;
+    grid-template-columns: 40px minmax(0, 1fr) 268px;
     gap: 0;
     align-items: stretch;
     min-height: 0;
@@ -792,17 +813,17 @@
 
   .tool-rail {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     align-content: start;
-    padding: 8px 4px;
+    padding: 6px 2px;
     border-right: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(245, 242, 234, 0.95);
   }
 
   .tool-rail button {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
     background: transparent;
     color: rgba(24, 24, 27, 0.84);
     font: inherit;
@@ -810,7 +831,7 @@
 
   .workbench-main {
     display: grid;
-    grid-template-rows: 38px minmax(0, 1fr) var(--readout-height) 82px;
+    grid-template-rows: 34px minmax(0, 1fr) var(--readout-height) 68px;
     gap: 0;
     min-height: 0;
     overflow: hidden;
@@ -818,17 +839,17 @@
   }
 
   .chart-meta {
-    min-height: 38px;
+    min-height: 34px;
     min-width: 0;
     overflow: hidden;
-    padding: 0 12px;
+    padding: 0 10px;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(250, 247, 241, 0.98);
   }
 
   .market-line {
     color: rgba(24, 24, 27, 0.66);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
@@ -869,7 +890,7 @@
   .feature-console-card {
     min-height: 0;
     overflow: hidden;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-right: 1px solid rgba(24, 24, 27, 0.08);
     background: transparent;
   }
@@ -925,12 +946,12 @@
   }
 
   .readout-bar {
-    padding: 0 12px;
+    padding: 0 10px;
     border-top: 1px solid rgba(24, 24, 27, 0.08);
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(247, 243, 235, 0.96);
     color: rgba(24, 24, 27, 0.72);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -948,7 +969,7 @@
     display: inline-flex;
     gap: 6px;
     align-items: center;
-    padding: 5px 9px;
+    padding: 4px 8px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--series-color) 12%, white);
     color: rgba(24, 24, 27, 0.8);
@@ -964,7 +985,7 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 34px var(--action-strip-height);
+    grid-template-rows: 28px var(--action-strip-height);
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
@@ -973,12 +994,12 @@
   .time-strip {
     display: flex;
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     align-items: center;
-    padding: 0 12px;
+    padding: 0 10px;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
   }
 
@@ -992,8 +1013,8 @@
   }
 
   .action-btn {
-    padding: 9px 14px;
-    border-radius: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
     background: rgba(24, 24, 27, 0.05);
     color: rgba(24, 24, 27, 0.86);
     font: inherit;
@@ -1012,7 +1033,7 @@
 
   .workbench-sidebar {
     display: grid;
-    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     gap: 0;
     min-height: 0;
     overflow: hidden;
@@ -1021,7 +1042,7 @@
   }
 
   .mini-card {
-    padding: 14px;
+    padding: 10px 12px;
     border-radius: 0;
     border: 0;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
@@ -1032,13 +1053,13 @@
   .watch-head,
   .watch-body {
     color: rgba(24, 24, 27, 0.58);
-    font-size: 0.88rem;
+    font-size: 0.8rem;
   }
 
   .watch-body {
     display: grid;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 8px;
     align-content: start;
     overflow: hidden;
   }
@@ -1049,8 +1070,8 @@
 
   .big-price {
     display: block;
-    margin-top: 6px;
-    font-size: 1.7rem;
+    margin-top: 4px;
+    font-size: 1.45rem;
   }
 
   .price-meta {
@@ -1061,12 +1082,12 @@
 
   .metric-list {
     display: grid;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 0;
+    margin-top: 10px;
   }
 
   .metric-list.compact {
-    margin-top: 16px;
+    margin-top: 12px;
   }
 
   .compact-grid {
@@ -1074,25 +1095,55 @@
   }
 
   .metric-list article {
-    padding: 10px 0;
+    padding: 8px 0;
     border-radius: 0;
     border-top: 1px solid rgba(24, 24, 27, 0.08);
-    background: rgba(24, 24, 27, 0.04);
+    background: transparent;
   }
 
   .metric-list small {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     color: rgba(24, 24, 27, 0.5);
+    font-size: 0.72rem;
+  }
+
+  .pane-list {
+    display: grid;
+    gap: 0;
+    margin-top: 8px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .pane-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    color: rgba(24, 24, 27, 0.64);
+    font-size: 0.78rem;
+  }
+
+  .pane-row strong {
+    color: #18181b;
+    font-size: 0.8rem;
+  }
+
+  .pane-row.active {
+    background: linear-gradient(90deg, rgba(24, 24, 27, 0.06), transparent 80%);
   }
 
   .event-log {
-    margin: 12px 0 0;
+    margin: 8px 0 0;
     padding-left: 18px;
     color: rgba(24, 24, 27, 0.72);
     display: grid;
-    gap: 8px;
-    overflow: hidden;
+    gap: 6px;
+    overflow: auto;
+    max-height: 100%;
+    font-size: 0.8rem;
   }
 
   .note-card {
@@ -1123,7 +1174,7 @@
 
   @media (max-width: 1180px) {
     .workbench-shell {
-      grid-template-columns: 40px minmax(0, 1fr) 220px;
+      grid-template-columns: 38px minmax(0, 1fr) 220px;
     }
 
     .feature-console {

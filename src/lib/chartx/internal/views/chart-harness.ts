@@ -146,6 +146,10 @@ export type PhaseOneLineSeriesOptions = {
   lineWidth?: number;
 };
 
+export type PhaseOneCompareSeriesOptions = {
+  affectMainScale?: boolean;
+};
+
 export type PhaseOneAreaSeriesOptions = {
   lineColor?: string;
   lineWidth?: number;
@@ -323,7 +327,10 @@ export type PhaseOneVolumeSeriesApi = {
 };
 
 export type PhaseOneOverlaySeriesApi = PhaseOneLineSeriesApi;
-export type PhaseOneCompareSeriesApi = PhaseOneLineSeriesApi;
+export type PhaseOneCompareSeriesApi = PhaseOneLineSeriesApi & {
+  applyCompareOptions(options: PhaseOneCompareSeriesOptions): void;
+  getCompareOptions(): Required<PhaseOneCompareSeriesOptions>;
+};
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
@@ -461,6 +468,7 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "study";
   studyKind: StudySourceKind;
+  compareOptions?: Required<PhaseOneCompareSeriesOptions>;
 };
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
@@ -553,6 +561,9 @@ export class PhaseOneChartHarness {
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
     color: LINE_COLOR,
     lineWidth: 2,
+  };
+  private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = {
+    affectMainScale: true,
   };
   private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = {
     lineColor: LINE_COLOR,
@@ -920,7 +931,7 @@ export class PhaseOneChartHarness {
 
   public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
     const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    return this.addStudyLineSeries(resolved.kind === "primary" ? "primary" : resolved.paneId, "compare");
+    return this.addCompareStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
   }
 
   public removeSeries(
@@ -1608,6 +1619,69 @@ export class PhaseOneChartHarness {
       },
     };
     this.attachStudySeries(paneId, "line", api, meta, studyKind);
+    return api;
+  }
+
+  private addCompareStudySeries(paneId: string): PhaseOneCompareSeriesApi {
+    const meta = this.createSeriesMeta("line");
+    const api: PhaseOneCompareSeriesApi = {
+      setData: (data) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryData(api, normalizeLineData(data), "line");
+      },
+      update: (bar) => {
+        this.assertSeriesActive(api);
+        this.updateSecondary(api, normalizeLineBar(bar), "line");
+      },
+      applyOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        if (options.color !== undefined) {
+          seriesOptions.color = options.color;
+        }
+        if (options.lineWidth !== undefined) {
+          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      applyCompareOptions: (options) => {
+        this.assertSeriesActive(api);
+        const state = this.getCompareStudyState(api);
+        if (options.affectMainScale !== undefined) {
+          state.compareOptions = {
+            ...(state.compareOptions ?? this.defaultCompareOptions),
+            affectMainScale: options.affectMainScale,
+          };
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      getCompareOptions: () => {
+        this.assertSeriesActive(api);
+        const state = this.getCompareStudyState(api);
+        return { ...(state.compareOptions ?? this.defaultCompareOptions) };
+      },
+      setMarkers: (markers) => {
+        this.assertSeriesActive(api);
+        this.setSecondaryMarkers(api, markers, "line");
+      },
+      createPriceLine: (options = {}) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (line) => {
+        this.assertSeriesActive(api);
+        const state = this.getSourceByApi(api, "line");
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
+    };
+    this.attachStudySeries(paneId, "line", api, meta, "compare");
     return api;
   }
 
@@ -2461,6 +2535,10 @@ export class PhaseOneChartHarness {
       kind,
       role: "study",
       studyKind,
+      compareOptions:
+        studyKind === "compare"
+          ? { ...this.defaultCompareOptions }
+          : undefined,
       paneId,
       priceScaleId,
       visible: true,
@@ -2509,6 +2587,14 @@ export class PhaseOneChartHarness {
     }
     if (kind !== undefined && source.kind !== kind) {
       throw new Error("chartx phase-one series is attached to an unexpected pane/source kind");
+    }
+    return source;
+  }
+
+  private getCompareStudyState(api: PhaseOneCompareSeriesApi): StudySourceState {
+    const source = this.getSourceByApi(api, "line");
+    if (source.role !== "study" || source.studyKind !== "compare") {
+      throw new Error("chartx phase-one compare api is attached to an unexpected source kind");
     }
     return source;
   }
@@ -2927,7 +3013,10 @@ export class PhaseOneChartHarness {
           primaryRows[primaryRows.length - 1].index,
         );
         for (const state of primaryStudies) {
-          if (this.primaryScaleSeriesOnly && state.studyKind === "compare") {
+          if (
+            state.studyKind === "compare" &&
+            (this.primaryScaleSeriesOnly || state.compareOptions?.affectMainScale === false)
+          ) {
             continue;
           }
           const rows = primaryRowSets.get(state.id) ?? [];

@@ -56,6 +56,7 @@ Current `chartx2` status against that model:
 - `PriceScales`
   - pane-local scales exist and public scale control has started
   - the primary price scale now has a first `scaleSeriesOnly` path to exclude compare studies from autoscale
+  - compare studies now also have a first per-series `affectMainScale` option, so exclusion no longer has to be chart-global
   - scales are still narrower than the target pane-level object model with richer identity, modes, and attachments
 - `Sources via entityRegistry`
   - current code now has a first explicit source-registry path for main-series and study sources

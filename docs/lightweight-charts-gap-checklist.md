@@ -57,8 +57,9 @@ Current `chartx2` status against that model:
   - pane-local scales exist and public scale control has started
   - scales are still narrower than the target pane-level object model with richer identity, modes, and attachments
 - `Sources via entityRegistry`
-  - current code supports multiple series and pane attachment
-  - the deeper model is still transitional because sources are not yet promoted into a clearer registry-driven `SourceModel` hierarchy
+  - current code now has a first explicit source-registry path for main-series and study sources
+  - pane attachment, pane snapshots, and active-series lifecycle now read through that registry instead of only through pane-local arrays
+  - the deeper model is still incomplete because `StudySource` and `DrawingSource` are not yet split into richer subtypes and the registry is still harness-owned
 - `StudySource`
   - extra pane series currently act as the bridge
   - overlay / compare / indicator studies are not yet modeled as first-class study entities
@@ -335,14 +336,15 @@ Why this matters:
 
 Must-close items:
 
-- introduce a clearer `SourceModel` / entity-registry path
-- distinguish `MainSeriesSource`, `StudySource`, and future `DrawingSource`
+- widen the first source registry into a fuller `SourceModel` / entity-registry path
+- keep `MainSeriesSource` and `StudySource` explicit and add future `DrawingSource`
 - treat `Overlay` / `Compare` as study-like entities instead of ad-hoc extra series
 
 Why this matters:
 
 - this is the main architectural bridge from lightweight-charts parity into the larger TradingView-style system
-- without it, every new indicator, overlay, compare source, or drawing feature will keep leaking model responsibilities into the harness and demo shell
+- `chartx2` now has the first registry-driven source ownership, which reduces pane-local special cases and gives pane snapshots stable source metadata from one place
+- the remaining gap is turning that first registry into the true owner of study, overlay, compare, and drawing entities rather than leaving those concerns partly embedded in the harness
 
 ## Deferred Beyond Lightweight-Charts
 

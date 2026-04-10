@@ -2,6 +2,7 @@ import {
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
+  ChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -581,6 +582,7 @@ export class PhaseOneChartHarness {
   private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
   private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
+  private readonly chartContext = new ChartContext<number, PhaseOneMainChartType>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
   private readonly barRenderer = new BarRenderer();
@@ -594,7 +596,6 @@ export class PhaseOneChartHarness {
   private nextPaneId = 1;
   private nextSeriesId = 1;
   private nextPriceLineId = 1;
-  private currentMainSourceId: string | null = null;
   private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
   private readonly priceLineHandleIds = new WeakMap<PhaseOnePriceLineApi, string>();
   private canvas: HTMLCanvasElement | null = null;
@@ -900,7 +901,7 @@ export class PhaseOneChartHarness {
       priceLines: Map<string, PriceLineState>;
     },
   ): PhaseOneMainSeriesApi {
-    if (this.currentMainSourceId !== null) {
+    if (this.chartContext.snapshot().mainSourceId !== null) {
       throw new Error("chartx phase-one chart supports only one primary series");
     }
 
@@ -924,7 +925,7 @@ export class PhaseOneChartHarness {
     }
     source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.sourceRegistry.register(source);
-    this.currentMainSourceId = source.id;
+    this.syncChartContextFromMainSource(source);
     return api;
   }
 
@@ -989,6 +990,7 @@ export class PhaseOneChartHarness {
                 : null;
           }
           state.data = applyMainSeriesBuilderData(state.inputData, state);
+          this.syncChartContextFromMainSource(state);
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -1086,7 +1088,7 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart can remove only the currently attached series");
     }
     if (removed.role === "main-series") {
-      this.currentMainSourceId = null;
+      this.chartContext.clearMainSource();
       this.primaryPriceRangeOverride = null;
     }
     this.crosshair = null;
@@ -1325,8 +1327,7 @@ export class PhaseOneChartHarness {
   }
 
   public getChartType(): PhaseOneMainChartType | null {
-    const mainSource = this.getMainSource();
-    return mainSource === null ? null : mainSource.chartType;
+    return this.chartContext.snapshot().chartType;
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
@@ -1340,7 +1341,7 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart could not replace the active main series");
     }
 
-    this.currentMainSourceId = null;
+    this.chartContext.clearMainSource();
     this.primaryPriceRangeOverride = null;
     const nextSeries = this.attachPrimarySeries(type, {
       id: current.id,
@@ -1371,6 +1372,7 @@ export class PhaseOneChartHarness {
     source.inputData = [...data];
     source.data = applyMainSeriesBuilderData(source.inputData, source);
     source.visuals.clear();
+    this.syncChartContextFromMainSource(source);
     this.primaryPriceRangeOverride = null;
     this.barSpacing = null;
     this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -1383,6 +1385,7 @@ export class PhaseOneChartHarness {
     const source = this.getMainSourceOrThrow();
     source.inputData = updateCanonicalData(source.inputData, bar);
     source.data = applyMainSeriesBuilderData(source.inputData, source);
+    this.syncChartContextFromMainSource(source);
     this.primaryPriceRangeOverride = null;
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -2725,10 +2728,33 @@ export class PhaseOneChartHarness {
     };
   }
 
+  private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {
+    if (source === null) {
+      this.chartContext.clearMainSource();
+      return;
+    }
+
+    this.chartContext.bindMainSource(
+      source.id,
+      source.chartType,
+      this.createMainBarSequenceFromSource(source),
+    );
+  }
+
+  private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
+    const rows = source.store.setData(source.data);
+    if (source.builder === "renko") {
+      return createProjectedPriceBasedChartBarSequence(rows, source.inputData);
+    }
+
+    return createTimeBasedChartBarSequence(rows);
+  }
+
   private getMainSource(): MainSeriesSourceState | null {
-    return this.currentMainSourceId === null
+    const mainSourceId = this.chartContext.snapshot().mainSourceId;
+    return mainSourceId === null
       ? null
-      : ((this.sourceRegistry.getById(this.currentMainSourceId) as MainSeriesSourceState | undefined) ?? null);
+      : ((this.sourceRegistry.getById(mainSourceId) as MainSeriesSourceState | undefined) ?? null);
   }
 
   private getMainSourceOrThrow(): MainSeriesSourceState {
@@ -3009,12 +3035,12 @@ export class PhaseOneChartHarness {
       return createTimeBasedChartBarSequence([]);
     }
 
-    const rows = source.store.setData(source.data);
-    if (source.builder === "renko") {
-      return createProjectedPriceBasedChartBarSequence(rows, source.inputData);
+    const context = this.chartContext.snapshot();
+    if (context.mainSourceId === source.id) {
+      return context.barSequence;
     }
 
-    return createTimeBasedChartBarSequence(rows);
+    return this.createMainBarSequenceFromSource(source);
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {

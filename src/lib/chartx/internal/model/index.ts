@@ -1,4 +1,5 @@
 export * from "./chart-bar-sequence";
+export * from "./chart-context";
 export * from "./coordinate";
 export * from "./plot-data";
 export * from "./plot-list";

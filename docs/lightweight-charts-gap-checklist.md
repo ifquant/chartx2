@@ -52,6 +52,7 @@ Current `chartx2` status against that model:
   - there is a real chart-level public API and shared runtime state
   - part of that state still lives in a harness-shaped implementation rather than a fully explicit model layer
   - main-chart routing now has a first explicit `chart type -> input capability -> builder -> renderer -> style schema` registry instead of relying only on scattered switch branches, which is closer to the TradingView-style `one main series, many chart modes` model
+  - that registry now lives in the model layer rather than staying defined inside the harness, which is a better boundary for future reuse by datafeeds, studies, and persistence
 - `TimeScale`
   - already chart-level and shared across panes, which matches the intended direction
   - but the canonical owner of the horizontal domain is still implicit; it should move under an explicit chart-level `ChartContext -> ChartBarSequence` model

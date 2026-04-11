@@ -2,6 +2,12 @@ import {
   getEngineBoundarySummary,
   type EngineBoundarySummary,
 } from "../internal/foundation";
+import type {
+  PhaseOneMainChartType,
+  PhaseOneMainSeriesBuilder,
+  PhaseOneMainSeriesInputCapability,
+  PhaseOneMainSeriesRenderer,
+} from "../internal/model";
 import {
   createPhaseOneChart,
   mountPhaseOneChartHarness,
@@ -28,11 +34,7 @@ import {
   type PhaseOneLineData,
   type PhaseOneLineSeriesApi,
   type PhaseOneLineSeriesOptions,
-  type PhaseOneMainChartType,
   type PhaseOneMainSeriesApi,
-  type PhaseOneMainSeriesBuilder,
-  type PhaseOneMainSeriesInputCapability,
-  type PhaseOneMainSeriesRenderer,
   type PhaseOneMovingAverageStudyApi,
   type PhaseOneMovingAverageStudyOptions,
   type PhaseOneOverlaySeriesApi,

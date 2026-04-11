@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { mainSeriesChartTypeSpec } from "../../src/lib/chartx/internal/model";
 import {
   buildHeikinAshiData,
   buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
-  mainSeriesChartTypeSpec,
 } from "../../src/lib/chartx/internal/views/chart-harness";
 
 describe("chart type builders", () => {

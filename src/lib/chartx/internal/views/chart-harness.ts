@@ -8,6 +8,7 @@ import {
   buildMovingAverageStudyData,
   mainSeriesChartTypeSpec,
   mainSeriesKindForChartType,
+  mainSeriesStyleSchemaSpec,
   mergeStudyDataToChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
@@ -2821,6 +2822,31 @@ export class PhaseOneChartHarness {
     }
   }
 
+  private createMainSeriesOptions(
+    styleSchemaId: PhaseOneMainStyleSchemaId,
+  ):
+    | Required<PhaseOneCandlestickSeriesOptions>
+    | Required<PhaseOneBarSeriesOptions>
+    | Required<PhaseOneLineSeriesOptions>
+    | Required<PhaseOneAreaSeriesOptions>
+    | Required<PhaseOneBaselineSeriesOptions>
+    | Required<PhaseOneHistogramSeriesOptions> {
+    switch (mainSeriesStyleSchemaSpec(styleSchemaId).optionSurface) {
+      case "candlestick":
+        return { ...this.candlestickOptions };
+      case "bar":
+        return { ...this.barOptions };
+      case "line":
+        return { ...this.lineOptions };
+      case "area":
+        return { ...this.areaOptions };
+      case "baseline":
+        return { ...this.baselineOptions };
+      case "histogram":
+        return { ...this.histogramOptions };
+    }
+  }
+
   private createMainSourceState(
     paneId: string,
     chartType: PhaseOneMainChartType,
@@ -2861,7 +2887,7 @@ export class PhaseOneChartHarness {
       visuals: new Map<number, HistogramVisual>(),
       priceLines: new Map<string, PriceLineState>(),
       markers: [],
-      options: this.createSeriesOptions(kind),
+      options: this.createMainSeriesOptions(chartTypeSpec.styleSchemaId),
     };
   }
 

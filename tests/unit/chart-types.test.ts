@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { applyMainSeriesStyleOptions, mainSeriesChartTypeSpec } from "../../src/lib/chartx/internal/model";
+import {
+  applyMainSeriesStyleOptions,
+  mainSeriesChartTypeSpec,
+  mainSeriesStyleSchemaSpec,
+} from "../../src/lib/chartx/internal/model";
 import {
   buildHeikinAshiData,
   buildKagiData,
@@ -66,6 +70,31 @@ describe("chart type builders", () => {
       boxSize: 24,
       boxSizeMode: "fixed",
       reversalBoxes: 5,
+    });
+  });
+
+  it("maps style schemas to explicit option surfaces and type-specific keys", () => {
+    expect(mainSeriesStyleSchemaSpec("renkoStyle")).toEqual({
+      optionSurface: "candlestick",
+      optionKeys: ["upColor", "downColor", "wickColor", "renkoBoxSize", "renkoBoxSizeMode"],
+      typeSpecificOptionKeys: ["renkoBoxSize", "renkoBoxSizeMode"],
+    });
+    expect(mainSeriesStyleSchemaSpec("pnfStyle")).toEqual({
+      optionSurface: "candlestick",
+      optionKeys: [
+        "upColor",
+        "downColor",
+        "wickColor",
+        "pointFigureBoxSize",
+        "pointFigureBoxSizeMode",
+        "pointFigureReversalBoxes",
+      ],
+      typeSpecificOptionKeys: ["pointFigureBoxSize", "pointFigureBoxSizeMode", "pointFigureReversalBoxes"],
+    });
+    expect(mainSeriesStyleSchemaSpec("lineStyle")).toEqual({
+      optionSurface: "line",
+      optionKeys: ["color", "lineWidth"],
+      typeSpecificOptionKeys: [],
     });
   });
 

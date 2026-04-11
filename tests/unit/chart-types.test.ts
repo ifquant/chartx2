@@ -4,6 +4,7 @@ import {
   applyMainSeriesStyleOptions,
   mainSeriesChartTypeSpec,
   mainSeriesStyleSchemaSpec,
+  projectMainSeriesStyleOptions,
 } from "../../src/lib/chartx/internal/model";
 import {
   buildHeikinAshiData,
@@ -95,6 +96,54 @@ describe("chart type builders", () => {
       optionSurface: "line",
       optionKeys: ["color", "lineWidth"],
       typeSpecificOptionKeys: [],
+    });
+  });
+
+  it("projects shared style options across chart-type schema switches while dropping incompatible fields", () => {
+    expect(
+      projectMainSeriesStyleOptions(
+        "candleStyle",
+        "renkoStyle",
+        {
+          upColor: "#11aa66",
+          downColor: "#dd5544",
+          wickColor: "#222222",
+        },
+        {
+          upColor: "#0c8f62",
+          downColor: "#c7543e",
+          wickColor: "rgba(16, 16, 16, 0.72)",
+          renkoBoxSize: null,
+          renkoBoxSizeMode: "auto",
+        },
+      ),
+    ).toEqual({
+      upColor: "#11aa66",
+      downColor: "#dd5544",
+      wickColor: "#222222",
+      renkoBoxSize: null,
+      renkoBoxSizeMode: "auto",
+    });
+
+    expect(
+      projectMainSeriesStyleOptions(
+        "renkoStyle",
+        "lineStyle",
+        {
+          upColor: "#11aa66",
+          downColor: "#dd5544",
+          wickColor: "#222222",
+          renkoBoxSize: 24,
+          renkoBoxSizeMode: "fixed",
+        },
+        {
+          color: "#3f6fd8",
+          lineWidth: 2,
+        },
+      ),
+    ).toEqual({
+      color: "#3f6fd8",
+      lineWidth: 2,
     });
   });
 

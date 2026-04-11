@@ -9,6 +9,7 @@ import {
   mainSeriesChartTypeSpec,
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
+  projectMainSeriesStyleOptions,
   mergeStudyDataToChartContext,
   PlotRowValueIndex,
   PriceRangeImpl,
@@ -938,6 +939,8 @@ export class PhaseOneChartHarness {
       visuals: Map<number, HistogramVisual>;
       markers: readonly SeriesMarkerState[];
       priceLines: Map<string, PriceLineState>;
+      options?: Record<string, unknown>;
+      previousStyleSchemaId?: PhaseOneMainStyleSchemaId;
     },
   ): PhaseOneMainSeriesApi {
     if (this.chartContext.snapshot().mainSourceId !== null) {
@@ -961,6 +964,14 @@ export class PhaseOneChartHarness {
       source.visuals = new Map(preserved.visuals);
       source.markers = [...preserved.markers];
       source.priceLines = clonePriceLines(preserved.priceLines);
+      if (preserved.options !== undefined && preserved.previousStyleSchemaId !== undefined) {
+        source.options = projectMainSeriesStyleOptions(
+          preserved.previousStyleSchemaId,
+          source.styleSchemaId,
+          preserved.options,
+          source.options as Record<string, unknown>,
+        ) as typeof source.options;
+      }
     }
     source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.sourceRegistry.register(source);
@@ -1394,6 +1405,8 @@ export class PhaseOneChartHarness {
       visuals: new Map(current.visuals),
       markers: [...current.markers],
       priceLines: clonePriceLines(current.priceLines),
+      options: { ...(current.options as Record<string, unknown>) },
+      previousStyleSchemaId: current.styleSchemaId,
     });
 
     if (this.canvas !== null) {

@@ -85,6 +85,7 @@ Current `chartx2` status against that model:
   - the main series now has an explicit style-schema identity per chart type and the first type-specific option dispatch path
   - `Renko` and `Point & Figure` now use a model-layer style-option registry instead of keeping those rules inline in the harness
   - style schemas now also have a first explicit registry that describes which option surface a schema uses and which fields are type-specific
+  - main-series chart-type switches now project shared style fields across schemas instead of always resetting all style state to defaults on every mode change
   - the broader schema map is still much narrower than TradingView
 - `MergeEngine`
   - this does not exist yet

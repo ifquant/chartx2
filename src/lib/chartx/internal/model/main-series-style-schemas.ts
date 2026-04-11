@@ -123,3 +123,23 @@ export function mainSeriesStyleSchemaSpec(
 ): MainSeriesStyleSchemaSpec {
   return MAIN_SERIES_STYLE_SCHEMAS[styleSchemaId];
 }
+
+export function projectMainSeriesStyleOptions(
+  fromStyleSchemaId: PhaseOneMainStyleSchemaId,
+  toStyleSchemaId: PhaseOneMainStyleSchemaId,
+  sourceOptions: Record<string, unknown>,
+  targetDefaults: Record<string, unknown>,
+): Record<string, unknown> {
+  const fromSchema = mainSeriesStyleSchemaSpec(fromStyleSchemaId);
+  const toSchema = mainSeriesStyleSchemaSpec(toStyleSchemaId);
+  const projected = { ...targetDefaults };
+  const carryableKeys = toSchema.optionKeys.filter((key) => fromSchema.optionKeys.includes(key));
+
+  for (const key of carryableKeys) {
+    if (key in sourceOptions) {
+      projected[key] = sourceOptions[key];
+    }
+  }
+
+  return projected;
+}

@@ -4,6 +4,7 @@ import {
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
   ChartContext,
+  applyMainSeriesStyleOptions,
   buildMovingAverageStudyData,
   mainSeriesChartTypeSpec,
   mainSeriesKindForChartType,
@@ -20,6 +21,8 @@ import {
   type PhaseOneMainSeriesInputCapability,
   type PhaseOneMainSeriesRenderer,
   type PhaseOneMainStyleSchemaId,
+  type PointFigureStyleOptionsState,
+  type RenkoStyleOptionsState,
   type SourceDescriptor,
   type TimePointIndex,
   type ChartBarSequence,
@@ -527,29 +530,13 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   role: "main-series";
   chartType: PhaseOneMainChartType;
   inputData: readonly PhaseOneCandlestickData[];
-  renkoOptions: Required<PhaseOneRenkoOptions>;
-  pointFigureOptions: Required<PhaseOnePointFigureOptions>;
+  renkoOptions: Required<RenkoStyleOptionsState>;
+  pointFigureOptions: Required<PointFigureStyleOptionsState>;
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
   styleSchemaId: PhaseOneMainStyleSchemaId;
 };
-
-type PhaseOneRenkoOptions = {
-  boxSize: number | null;
-  boxSizeMode: "auto" | "fixed";
-};
-
-type PhaseOnePointFigureOptions = {
-  boxSize: number | null;
-  boxSizeMode: "auto" | "fixed";
-  reversalBoxes: number;
-};
-
-type MainSeriesTypeSpecificOptionsHandler = (
-  source: MainSeriesSourceState,
-  options: PhaseOneCandlestickSeriesOptions,
-) => boolean;
 
 type StudyInputContextState = {
   mode: "chart-context" | "requested-context";
@@ -4022,7 +4009,7 @@ function inferRenkoBoxSize(data: readonly PhaseOneCandlestickData[]): number {
 
 export function buildRenkoData(
   data: readonly PhaseOneCandlestickData[],
-  options: PhaseOneRenkoOptions = { boxSize: null, boxSizeMode: "auto" },
+  options: RenkoStyleOptionsState = { boxSize: null, boxSizeMode: "auto" },
 ): readonly PhaseOneCandlestickData[] {
   if (data.length === 0) {
     return [];
@@ -4126,7 +4113,7 @@ export function buildLineBreakData(
 
 export function buildPointFigureData(
   data: readonly PhaseOneCandlestickData[],
-  options: PhaseOnePointFigureOptions = {
+  options: PointFigureStyleOptionsState = {
     boxSize: null,
     boxSizeMode: "auto",
     reversalBoxes: 3,
@@ -4412,43 +4399,6 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
   }
 }
 
-const MAIN_SERIES_STYLE_OPTION_HANDLERS: Partial<
-  Record<PhaseOneMainStyleSchemaId, MainSeriesTypeSpecificOptionsHandler>
-> = {
-  renkoStyle: (source, options) => {
-    let changed = false;
-    if (options.renkoBoxSizeMode !== undefined) {
-      source.renkoOptions.boxSizeMode = options.renkoBoxSizeMode;
-      changed = true;
-    }
-    if (options.renkoBoxSize !== undefined) {
-      source.renkoOptions.boxSize =
-        options.renkoBoxSize !== null && options.renkoBoxSize > 0 ? options.renkoBoxSize : null;
-      changed = true;
-    }
-    return changed;
-  },
-  pnfStyle: (source, options) => {
-    let changed = false;
-    if (options.pointFigureBoxSizeMode !== undefined) {
-      source.pointFigureOptions.boxSizeMode = options.pointFigureBoxSizeMode;
-      changed = true;
-    }
-    if (options.pointFigureBoxSize !== undefined) {
-      source.pointFigureOptions.boxSize =
-        options.pointFigureBoxSize !== null && options.pointFigureBoxSize > 0
-          ? options.pointFigureBoxSize
-          : null;
-      changed = true;
-    }
-    if (options.pointFigureReversalBoxes !== undefined) {
-      source.pointFigureOptions.reversalBoxes = Math.max(1, Math.floor(options.pointFigureReversalBoxes));
-      changed = true;
-    }
-    return changed;
-  },
-};
-
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
   return mainSeriesKindForChartType(type);
 }
@@ -4457,11 +4407,7 @@ function applyMainSeriesTypeSpecificOptions(
   source: MainSeriesSourceState,
   options: PhaseOneCandlestickSeriesOptions,
 ): boolean {
-  const handler = MAIN_SERIES_STYLE_OPTION_HANDLERS[source.styleSchemaId];
-  if (handler === undefined) {
-    return false;
-  }
-  return handler(source, options);
+  return applyMainSeriesStyleOptions(source.styleSchemaId, source, options);
 }
 
 function buildHistogramVisuals(

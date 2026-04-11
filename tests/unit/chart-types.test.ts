@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mainSeriesChartTypeSpec } from "../../src/lib/chartx/internal/model";
+import { applyMainSeriesStyleOptions, mainSeriesChartTypeSpec } from "../../src/lib/chartx/internal/model";
 import {
   buildHeikinAshiData,
   buildKagiData,
@@ -28,6 +28,44 @@ describe("chart type builders", () => {
       builder: "time-bars",
       renderer: "line-markers",
       styleSchemaId: "lineWithMarkersStyle",
+    });
+  });
+
+  it("applies style-specific main-series options through the model-layer style registry", () => {
+    const styleTarget = {
+      renkoOptions: {
+        boxSize: null,
+        boxSizeMode: "auto" as const,
+      },
+      pointFigureOptions: {
+        boxSize: null,
+        boxSizeMode: "auto" as const,
+        reversalBoxes: 3,
+      },
+    };
+
+    expect(
+      applyMainSeriesStyleOptions("renkoStyle", styleTarget, {
+        renkoBoxSizeMode: "fixed",
+        renkoBoxSize: 12,
+      }),
+    ).toBe(true);
+    expect(styleTarget.renkoOptions).toEqual({
+      boxSize: 12,
+      boxSizeMode: "fixed",
+    });
+
+    expect(
+      applyMainSeriesStyleOptions("pnfStyle", styleTarget, {
+        pointFigureBoxSizeMode: "fixed",
+        pointFigureBoxSize: 24,
+        pointFigureReversalBoxes: 5,
+      }),
+    ).toBe(true);
+    expect(styleTarget.pointFigureOptions).toEqual({
+      boxSize: 24,
+      boxSizeMode: "fixed",
+      reversalBoxes: 5,
     });
   });
 

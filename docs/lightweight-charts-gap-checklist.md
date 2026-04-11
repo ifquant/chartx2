@@ -83,7 +83,8 @@ Current `chartx2` status against that model:
   - study inputs still need a clearer split between `chart-context` and future `requested-context` execution
 - `MainSeries style schemas`
   - the main series now has an explicit style-schema identity per chart type and the first type-specific option dispatch path
-  - only `Renko` and `Point & Figure` currently use dedicated type-specific option handlers; the broader schema map is still much narrower than TradingView
+  - `Renko` and `Point & Figure` now use a model-layer style-option registry instead of keeping those rules inline in the harness
+  - the broader schema map is still much narrower than TradingView
 - `MergeEngine`
   - this does not exist yet
   - it will be required once studies can request a different timeframe or standard-vs-nonstandard source context and then merge those results back onto the current chart sequence

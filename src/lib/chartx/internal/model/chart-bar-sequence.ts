@@ -71,6 +71,18 @@ export function createProjectedPriceBasedChartBarSequence<TTime extends number>(
   };
 }
 
+export function createCompressedPriceBasedChartBarSequence<TTime>(
+  rows: readonly PlotRow<TTime>[],
+): ChartBarSequence<TTime> {
+  return {
+    kind: "price-based",
+    timeDomain: "irregular",
+    bars: rows,
+    axisBars: rows,
+    logicalLength: rows.length,
+  };
+}
+
 export function findNearestRowByLogical<TRow extends { index: number }>(
   rows: readonly TRow[],
   logical: number,

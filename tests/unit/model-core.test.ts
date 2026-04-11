@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ChartContext,
   buildMovingAverageStudyData,
+  createCompressedPriceBasedChartBarSequence,
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
@@ -144,6 +145,28 @@ describe("model core scales and data", () => {
     expect(sequence.axisBars.map((row) => row.index)).toEqual([0, 1, 2]);
     expect(sequence.bars.map((row) => Number(row.index.toFixed(3)))).toEqual([1.333, 1.667, 2.5]);
     expect(sequence.logicalLength).toBe(3);
+  });
+
+  it("chart bar sequence can keep price-based rows compressed as the canonical axis", () => {
+    const sequence = createCompressedPriceBasedChartBarSequence([
+      {
+        index: 0 as never,
+        time: 2,
+        originalTime: 2,
+        value: [11, 12, 11, 12],
+      },
+      {
+        index: 1 as never,
+        time: 2.001,
+        originalTime: 2.001,
+        value: [12, 13, 12, 13],
+      },
+    ]);
+
+    expect(sequence.kind).toBe("price-based");
+    expect(sequence.axisBars.map((row) => row.index)).toEqual([0, 1]);
+    expect(sequence.bars.map((row) => row.index)).toEqual([0, 1]);
+    expect(sequence.logicalLength).toBe(2);
   });
 
   it("finds the nearest projected row by logical index", () => {

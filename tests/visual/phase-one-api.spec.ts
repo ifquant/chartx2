@@ -987,7 +987,7 @@ test("phase-one renko main series can take a fixed box size through series optio
   expect(result.fixedPointCount).toBeGreaterThan(result.autoPointCount);
 });
 
-test("phase-one public api keeps a renko main series aligned with time-based secondary panes", async ({
+test("phase-one public api keeps a compressed renko main series aligned with secondary panes", async ({
   page,
 }) => {
   await page.goto("/");

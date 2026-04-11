@@ -1,4 +1,5 @@
 import {
+  createCompressedPriceBasedChartBarSequence,
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
@@ -2957,11 +2958,11 @@ export class PhaseOneChartHarness {
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
     const rows = source.store.setData(source.data);
-    if (
-      source.builder === "renko" ||
-      source.builder === "point-figure" ||
-      source.builder === "kagi"
-    ) {
+    if (source.builder === "renko") {
+      return createCompressedPriceBasedChartBarSequence(rows);
+    }
+
+    if (source.builder === "point-figure" || source.builder === "kagi") {
       return createProjectedPriceBasedChartBarSequence(rows, source.inputData);
     }
 
@@ -3336,6 +3337,18 @@ export class PhaseOneChartHarness {
   }
 
   private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
+    if (
+      state.studyKind === "series" &&
+      state.inputContext.mode === "chart-context" &&
+      this.chartContext.snapshot().barSequence.kind === "price-based"
+    ) {
+      return mergeStudyDataToChartContext(
+        state.inputData,
+        this.chartContext.snapshot().barSequence.axisBars,
+        "carry-forward",
+      );
+    }
+
     if (state.studyKind === "indicator" && state.indicator?.kind === "moving-average") {
       const input =
         state.inputContext.mode === "requested-context"
@@ -3508,7 +3521,9 @@ export class PhaseOneChartHarness {
         ? (primaryRowSets.get(state.id) ?? state.store.setData(state.data))
         : state.store.setData(state.data);
       secondaryRows.set(seriesId, rows);
-      pointCount = Math.max(pointCount, rows.length);
+      const rowLogicalLength =
+        rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
+      pointCount = Math.max(pointCount, rowLogicalLength);
     }
 
     if (pointCount === 0) {

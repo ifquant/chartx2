@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyMainSeriesBuilder,
   applyMainSeriesStyleOptions,
-  mainSeriesChartTypeSpec,
-  mainSeriesStyleSchemaSpec,
-  projectMainSeriesStyleOptions,
-} from "../../src/lib/chartx/internal/model";
-import {
   buildHeikinAshiData,
   buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
-} from "../../src/lib/chartx/internal/views/chart-harness";
+  mainSeriesChartTypeSpec,
+  mainSeriesStyleSchemaSpec,
+  projectMainSeriesStyleOptions,
+} from "../../src/lib/chartx/internal/model";
 
 describe("chart type builders", () => {
   it("maps main chart types through a unified chart-type registry", () => {
@@ -34,6 +33,28 @@ describe("chart type builders", () => {
       renderer: "line-markers",
       styleSchemaId: "lineWithMarkersStyle",
     });
+  });
+
+  it("routes main-series builder execution through a unified builder registry", () => {
+    const input = [
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+    ] as const;
+
+    expect(
+      applyMainSeriesBuilder("heikin-ashi", input, {
+        renkoOptions: { boxSize: null, boxSizeMode: "auto" },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", reversalBoxes: 3 },
+      }),
+    ).toEqual(buildHeikinAshiData(input));
+
+    expect(
+      applyMainSeriesBuilder("time-bars", input, {
+        renkoOptions: { boxSize: null, boxSizeMode: "auto" },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", reversalBoxes: 3 },
+      }),
+    ).toEqual(input);
   });
 
   it("applies style-specific main-series options through the model-layer style registry", () => {

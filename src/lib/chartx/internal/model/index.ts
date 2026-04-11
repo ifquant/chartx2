@@ -3,6 +3,7 @@ export * from "./chart-context";
 export * from "./coordinate";
 export * from "./indicator-studies";
 export * from "./main-series-chart-types";
+export * from "./main-series-builders";
 export * from "./main-series-style-schemas";
 export * from "./main-series-style-options";
 export * from "./plot-data";

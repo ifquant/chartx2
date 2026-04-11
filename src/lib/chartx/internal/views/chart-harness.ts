@@ -116,6 +116,24 @@ export type PhaseOneMainChartType =
   | "area"
   | "baseline"
   | "histogram";
+export type PhaseOneMainStyleSchemaId =
+  | "candleStyle"
+  | "lineBreakStyle"
+  | "kagiStyle"
+  | "pnfStyle"
+  | "volumeCandleStyle"
+  | "hollowCandleStyle"
+  | "haStyle"
+  | "renkoStyle"
+  | "barStyle"
+  | "hlcBarStyle"
+  | "highLowStyle"
+  | "lineStyle"
+  | "lineWithMarkersStyle"
+  | "steplineStyle"
+  | "areaStyle"
+  | "baselineStyle"
+  | "histogramStyle";
 export type PhaseOneReadoutSeriesDetail = {
   id: string;
   label: string;
@@ -569,7 +587,7 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
-  styleSchemaId: string;
+  styleSchemaId: PhaseOneMainStyleSchemaId;
 };
 
 type PhaseOneRenkoOptions = {
@@ -582,6 +600,18 @@ type PhaseOnePointFigureOptions = {
   boxSizeMode: "auto" | "fixed";
   reversalBoxes: number;
 };
+
+type MainSeriesChartTypeSpec = {
+  inputCapability: PhaseOneMainSeriesInputCapability;
+  builder: PhaseOneMainSeriesBuilder;
+  renderer: PhaseOneMainSeriesRenderer;
+  styleSchemaId: PhaseOneMainStyleSchemaId;
+};
+
+type MainSeriesTypeSpecificOptionsHandler = (
+  source: MainSeriesSourceState,
+  options: PhaseOneCandlestickSeriesOptions,
+) => boolean;
 
 type StudyInputContextState = {
   mode: "chart-context" | "requested-context";
@@ -1071,32 +1101,7 @@ export class PhaseOneChartHarness {
         if (options.wickColor !== undefined) {
           seriesOptions.wickColor = options.wickColor;
         }
-        if (state.role === "main-series" && state.chartType === "renko") {
-          if (options.renkoBoxSizeMode !== undefined) {
-            state.renkoOptions.boxSizeMode = options.renkoBoxSizeMode;
-          }
-          if (options.renkoBoxSize !== undefined) {
-            state.renkoOptions.boxSize =
-              options.renkoBoxSize !== null && options.renkoBoxSize > 0
-                ? options.renkoBoxSize
-                : null;
-          }
-          state.data = applyMainSeriesBuilderData(state.inputData, state);
-          this.syncChartContextFromMainSource(state);
-        }
-        if (state.role === "main-series" && state.chartType === "point-figure") {
-          if (options.pointFigureBoxSizeMode !== undefined) {
-            state.pointFigureOptions.boxSizeMode = options.pointFigureBoxSizeMode;
-          }
-          if (options.pointFigureBoxSize !== undefined) {
-            state.pointFigureOptions.boxSize =
-              options.pointFigureBoxSize !== null && options.pointFigureBoxSize > 0
-                ? options.pointFigureBoxSize
-                : null;
-          }
-          if (options.pointFigureReversalBoxes !== undefined) {
-            state.pointFigureOptions.reversalBoxes = Math.max(1, Math.floor(options.pointFigureReversalBoxes));
-          }
+        if (state.role === "main-series" && applyMainSeriesTypeSpecificOptions(state, options)) {
           state.data = applyMainSeriesBuilderData(state.inputData, state);
           this.syncChartContextFromMainSource(state);
         }
@@ -4469,160 +4474,185 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
   }
 }
 
+const MAIN_SERIES_CHART_TYPE_SPECS: Record<PhaseOneMainChartType, MainSeriesChartTypeSpec> = {
+  candlestick: {
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "candles",
+    styleSchemaId: "candleStyle",
+  },
+  "line-break": {
+    inputCapability: "ohlcv",
+    builder: "line-break",
+    renderer: "candles",
+    styleSchemaId: "lineBreakStyle",
+  },
+  kagi: {
+    inputCapability: "ohlcv",
+    builder: "kagi",
+    renderer: "segment",
+    styleSchemaId: "kagiStyle",
+  },
+  "point-figure": {
+    inputCapability: "ohlcv",
+    builder: "point-figure",
+    renderer: "point-figure",
+    styleSchemaId: "pnfStyle",
+  },
+  "volume-candles": {
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "volume-candles",
+    styleSchemaId: "volumeCandleStyle",
+  },
+  "hollow-candles": {
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "hollow-candles",
+    styleSchemaId: "hollowCandleStyle",
+  },
+  "heikin-ashi": {
+    inputCapability: "ohlcv",
+    builder: "heikin-ashi",
+    renderer: "candles",
+    styleSchemaId: "haStyle",
+  },
+  renko: {
+    inputCapability: "ohlcv",
+    builder: "renko",
+    renderer: "brick",
+    styleSchemaId: "renkoStyle",
+  },
+  bar: {
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "bars",
+    styleSchemaId: "barStyle",
+  },
+  "hlc-bars": {
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "hlc-bars",
+    styleSchemaId: "hlcBarStyle",
+  },
+  "high-low": {
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "high-low",
+    styleSchemaId: "highLowStyle",
+  },
+  line: {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "line",
+    styleSchemaId: "lineStyle",
+  },
+  "line-markers": {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "line-markers",
+    styleSchemaId: "lineWithMarkersStyle",
+  },
+  stepline: {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "stepline",
+    styleSchemaId: "steplineStyle",
+  },
+  area: {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "area",
+    styleSchemaId: "areaStyle",
+  },
+  baseline: {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "baseline",
+    styleSchemaId: "baselineStyle",
+  },
+  histogram: {
+    inputCapability: "c",
+    builder: "time-bars",
+    renderer: "columns",
+    styleSchemaId: "histogramStyle",
+  },
+};
+
+const MAIN_SERIES_KIND_BY_CHART_TYPE: Record<PhaseOneMainChartType, ChartSeriesKind> = {
+  candlestick: "candlestick",
+  "line-break": "candlestick",
+  kagi: "line",
+  "point-figure": "candlestick",
+  "volume-candles": "candlestick",
+  "hollow-candles": "candlestick",
+  "heikin-ashi": "candlestick",
+  renko: "candlestick",
+  bar: "bar",
+  "hlc-bars": "bar",
+  "high-low": "bar",
+  line: "line",
+  "line-markers": "line",
+  stepline: "line",
+  area: "area",
+  baseline: "baseline",
+  histogram: "histogram",
+};
+
+const MAIN_SERIES_STYLE_OPTION_HANDLERS: Partial<
+  Record<PhaseOneMainStyleSchemaId, MainSeriesTypeSpecificOptionsHandler>
+> = {
+  renkoStyle: (source, options) => {
+    let changed = false;
+    if (options.renkoBoxSizeMode !== undefined) {
+      source.renkoOptions.boxSizeMode = options.renkoBoxSizeMode;
+      changed = true;
+    }
+    if (options.renkoBoxSize !== undefined) {
+      source.renkoOptions.boxSize =
+        options.renkoBoxSize !== null && options.renkoBoxSize > 0 ? options.renkoBoxSize : null;
+      changed = true;
+    }
+    return changed;
+  },
+  pnfStyle: (source, options) => {
+    let changed = false;
+    if (options.pointFigureBoxSizeMode !== undefined) {
+      source.pointFigureOptions.boxSizeMode = options.pointFigureBoxSizeMode;
+      changed = true;
+    }
+    if (options.pointFigureBoxSize !== undefined) {
+      source.pointFigureOptions.boxSize =
+        options.pointFigureBoxSize !== null && options.pointFigureBoxSize > 0
+          ? options.pointFigureBoxSize
+          : null;
+      changed = true;
+    }
+    if (options.pointFigureReversalBoxes !== undefined) {
+      source.pointFigureOptions.reversalBoxes = Math.max(1, Math.floor(options.pointFigureReversalBoxes));
+      changed = true;
+    }
+    return changed;
+  },
+};
+
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
-  switch (type) {
-    case "line-break":
-    case "point-figure":
-    case "volume-candles":
-    case "hollow-candles":
-    case "heikin-ashi":
-    case "renko":
-      return "candlestick";
-    case "kagi":
-      return "line";
-    case "hlc-bars":
-    case "high-low":
-      return "bar";
-    case "candlestick":
-    case "bar":
-    case "line":
-    case "area":
-    case "baseline":
-    case "histogram":
-      return type;
-    case "line-markers":
-    case "stepline":
-      return "line";
-  }
+  return MAIN_SERIES_KIND_BY_CHART_TYPE[type];
 }
 
-function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
-  inputCapability: PhaseOneMainSeriesInputCapability;
-  builder: PhaseOneMainSeriesBuilder;
-  renderer: PhaseOneMainSeriesRenderer;
-  styleSchemaId: string;
-} {
-  switch (type) {
-    case "candlestick":
-      return {
-        inputCapability: "ohlcv",
-        builder: "time-bars",
-        renderer: "candles",
-        styleSchemaId: "candleStyle",
-      };
-    case "line-break":
-      return {
-        inputCapability: "ohlcv",
-        builder: "line-break",
-        renderer: "candles",
-        styleSchemaId: "lineBreakStyle",
-      };
-    case "kagi":
-      return {
-        inputCapability: "ohlcv",
-        builder: "kagi",
-        renderer: "segment",
-        styleSchemaId: "kagiStyle",
-      };
-    case "point-figure":
-      return {
-        inputCapability: "ohlcv",
-        builder: "point-figure",
-        renderer: "point-figure",
-        styleSchemaId: "pnfStyle",
-      };
-    case "volume-candles":
-      return {
-        inputCapability: "ohlcv",
-        builder: "time-bars",
-        renderer: "volume-candles",
-        styleSchemaId: "volumeCandleStyle",
-      };
-    case "hollow-candles":
-      return {
-        inputCapability: "ohlcv",
-        builder: "time-bars",
-        renderer: "hollow-candles",
-        styleSchemaId: "hollowCandleStyle",
-      };
-    case "heikin-ashi":
-      return {
-        inputCapability: "ohlcv",
-        builder: "heikin-ashi",
-        renderer: "candles",
-        styleSchemaId: "haStyle",
-      };
-    case "renko":
-      return {
-        inputCapability: "ohlcv",
-        builder: "renko",
-        renderer: "brick",
-        styleSchemaId: "renkoStyle",
-      };
-    case "bar":
-      return {
-        inputCapability: "ohlc",
-        builder: "time-bars",
-        renderer: "bars",
-        styleSchemaId: "barStyle",
-      };
-    case "hlc-bars":
-      return {
-        inputCapability: "ohlc",
-        builder: "time-bars",
-        renderer: "hlc-bars",
-        styleSchemaId: "hlcBarStyle",
-      };
-    case "high-low":
-      return {
-        inputCapability: "ohlc",
-        builder: "time-bars",
-        renderer: "high-low",
-        styleSchemaId: "highLowStyle",
-      };
-    case "line":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "line",
-        styleSchemaId: "lineStyle",
-      };
-    case "line-markers":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "line-markers",
-        styleSchemaId: "lineWithMarkersStyle",
-      };
-    case "stepline":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "stepline",
-        styleSchemaId: "steplineStyle",
-      };
-    case "area":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "area",
-        styleSchemaId: "areaStyle",
-      };
-    case "baseline":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "baseline",
-        styleSchemaId: "baselineStyle",
-      };
-    case "histogram":
-      return {
-        inputCapability: "c",
-        builder: "time-bars",
-        renderer: "columns",
-        styleSchemaId: "histogramStyle",
-      };
+export function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): MainSeriesChartTypeSpec {
+  return MAIN_SERIES_CHART_TYPE_SPECS[type];
+}
+
+function applyMainSeriesTypeSpecificOptions(
+  source: MainSeriesSourceState,
+  options: PhaseOneCandlestickSeriesOptions,
+): boolean {
+  const handler = MAIN_SERIES_STYLE_OPTION_HANDLERS[source.styleSchemaId];
+  if (handler === undefined) {
+    return false;
   }
+  return handler(source, options);
 }
 
 function buildHistogramVisuals(

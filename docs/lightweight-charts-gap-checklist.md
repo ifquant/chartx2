@@ -51,6 +51,7 @@ Current `chartx2` status against that model:
 - `ChartModel`
   - there is a real chart-level public API and shared runtime state
   - part of that state still lives in a harness-shaped implementation rather than a fully explicit model layer
+  - main-chart routing now has a first explicit `chart type -> input capability -> builder -> renderer -> style schema` registry instead of relying only on scattered switch branches, which is closer to the TradingView-style `one main series, many chart modes` model
 - `TimeScale`
   - already chart-level and shared across panes, which matches the intended direction
   - but the canonical owner of the horizontal domain is still implicit; it should move under an explicit chart-level `ChartContext -> ChartBarSequence` model
@@ -79,6 +80,9 @@ Current `chartx2` status against that model:
   - the first `overlay` and `compare` runtime creation paths now exist as primary-pane study subtypes
   - broader indicator studies are not yet modeled as first-class study entities
   - study inputs still need a clearer split between `chart-context` and future `requested-context` execution
+- `MainSeries style schemas`
+  - the main series now has an explicit style-schema identity per chart type and the first type-specific option dispatch path
+  - only `Renko` and `Point & Figure` currently use dedicated type-specific option handlers; the broader schema map is still much narrower than TradingView
 - `MergeEngine`
   - this does not exist yet
   - it will be required once studies can request a different timeframe or standard-vs-nonstandard source context and then merge those results back onto the current chart sequence

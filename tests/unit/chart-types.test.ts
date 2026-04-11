@@ -6,9 +6,31 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
+  mainSeriesChartTypeSpec,
 } from "../../src/lib/chartx/internal/views/chart-harness";
 
 describe("chart type builders", () => {
+  it("maps main chart types through a unified chart-type registry", () => {
+    expect(mainSeriesChartTypeSpec("renko")).toEqual({
+      inputCapability: "ohlcv",
+      builder: "renko",
+      renderer: "brick",
+      styleSchemaId: "renkoStyle",
+    });
+    expect(mainSeriesChartTypeSpec("point-figure")).toEqual({
+      inputCapability: "ohlcv",
+      builder: "point-figure",
+      renderer: "point-figure",
+      styleSchemaId: "pnfStyle",
+    });
+    expect(mainSeriesChartTypeSpec("line-markers")).toEqual({
+      inputCapability: "c",
+      builder: "time-bars",
+      renderer: "line-markers",
+      styleSchemaId: "lineWithMarkersStyle",
+    });
+  });
+
   it("builds heikin-ashi bars from canonical ohlc input without mutating the source", () => {
     const input = [
       { time: 1, open: 100, high: 110, low: 90, close: 104 },

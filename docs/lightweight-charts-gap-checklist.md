@@ -96,6 +96,7 @@ Current `chartx2` status against that model:
 - `LegendViewModel`
   - workbench readouts and pane-aware legend payloads already point in the right direction
   - pane event snapshots now also carry stable source role and price-scale attachment metadata
+  - pane snapshots now also carry main-series style schema metadata, so downstream UI and future persistence code can see option-surface and type-specific style fields without reopening engine internals
   - these should stay projection/viewmodel layers rather than becoming data owners
 - `ToolbarRegistry / CommandBus`
   - the demo shell has command surfaces

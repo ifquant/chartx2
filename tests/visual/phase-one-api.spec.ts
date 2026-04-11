@@ -82,6 +82,9 @@ type PaneSeriesSnapshot = {
   builder: string | null;
   renderer: string | null;
   styleSchemaId: string | null;
+  styleOptionSurface: string | null;
+  styleOptionKeys: readonly string[];
+  styleTypeSpecificOptionKeys: readonly string[];
   pointCount: number;
 };
 
@@ -1639,7 +1642,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; styleOptionSurface: string | null; styleOptionKeys: string[]; styleTypeSpecificOptionKeys: string[]; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -1649,7 +1652,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; styleOptionSurface: string | null; styleOptionKeys: string[]; styleTypeSpecificOptionKeys: string[]; pointCount: number }>;
       }>;
     }> = [];
     const handler = (event: {
@@ -1662,7 +1665,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; styleOptionSurface: string | null; styleOptionKeys: string[]; styleTypeSpecificOptionKeys: string[]; pointCount: number }>;
       };
       panes: Array<{
         paneIndex: number;
@@ -1672,7 +1675,7 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
         hasSeries: boolean;
         seriesCount: number;
         seriesKinds: string[];
-        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; pointCount: number }>;
+        series: Array<{ id: string; label: string; kind: string; chartType: string | null; sourceRole: string; studyKind: string | null; priceScaleId: string; inputCapability: string | null; builder: string | null; renderer: string | null; styleSchemaId: string | null; styleOptionSurface: string | null; styleOptionKeys: string[]; styleTypeSpecificOptionKeys: string[]; pointCount: number }>;
       }>;
     }) => {
       events.push(event);
@@ -1722,6 +1725,9 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     builder: null,
     renderer: null,
     styleSchemaId: null,
+    styleOptionSurface: null,
+    styleOptionKeys: [],
+    styleTypeSpecificOptionKeys: [],
     pointCount: 5,
   }]);
   expect(result.events[2]?.panes[1]?.height).toBe(result.events[2]?.pane.height);
@@ -1739,6 +1745,9 @@ test("phase-one public api exposes a chart-level pane event bus", async ({ page 
     builder: "time-bars",
     renderer: "candles",
     styleSchemaId: "candleStyle",
+    styleOptionSurface: "candlestick",
+    styleOptionKeys: ["upColor", "downColor", "wickColor"],
+    styleTypeSpecificOptionKeys: [],
     pointCount: 4,
   }]);
   expect(result.events[1]?.panes[1]?.series[0]?.id).toBe(result.events[2]?.pane.series[0]?.id);

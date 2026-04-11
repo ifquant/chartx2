@@ -283,6 +283,9 @@ export type PhaseOnePaneSeriesState = {
   builder: PhaseOneMainSeriesBuilder | null;
   renderer: PhaseOneMainSeriesRenderer | null;
   styleSchemaId: string | null;
+  styleOptionSurface: string | null;
+  styleOptionKeys: readonly string[];
+  styleTypeSpecificOptionKeys: readonly string[];
   pointCount: number;
 };
 
@@ -2713,6 +2716,18 @@ export class PhaseOneChartHarness {
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
     return this.sourceRegistry.listByPane(paneId).map((source) => ({
+      ...(source.role === "main-series"
+        ? {
+            styleOptionSurface: mainSeriesStyleSchemaSpec(source.styleSchemaId).optionSurface,
+            styleOptionKeys: mainSeriesStyleSchemaSpec(source.styleSchemaId).optionKeys,
+            styleTypeSpecificOptionKeys:
+              mainSeriesStyleSchemaSpec(source.styleSchemaId).typeSpecificOptionKeys,
+          }
+        : {
+            styleOptionSurface: null,
+            styleOptionKeys: [],
+            styleTypeSpecificOptionKeys: [],
+          }),
       id: source.id,
       label: source.label,
       kind: source.kind,

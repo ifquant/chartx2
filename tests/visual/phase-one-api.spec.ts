@@ -1064,6 +1064,152 @@ test("phase-one public api keeps a compressed renko main series aligned with sec
   await expect(fixture).toHaveScreenshot("phase-one-api-renko-secondary-alignment.png");
 });
 
+test("phase-one public api keeps a compressed point-figure main series aligned with secondary panes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    readout: ReadoutSnapshot | null;
+    panes: Array<{ paneIndex: number; hasSeries: boolean }>;
+  } = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-point-figure-alignment-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-point-figure-alignment-canvas" aria-label="phase-one api point figure alignment chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-point-figure-alignment-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API point-figure alignment fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumePane = chart.addPane({ height: 108 });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+    chart.setChartType("point-figure");
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      readout,
+      panes: chart.panes().map((pane: { paneIndex(): number; hasSeries(): boolean }) => ({
+        paneIndex: pane.paneIndex(),
+        hasSeries: pane.hasSeries(),
+      })),
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    volume: RENKO_ALIGNMENT_VOLUME,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.readout?.paneIndex).toBe(0);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+  expect(result.panes).toEqual([
+    { paneIndex: 0, hasSeries: true },
+    { paneIndex: 1, hasSeries: true },
+  ]);
+});
+
+test("phase-one public api keeps a compressed kagi main series aligned with secondary panes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    readout: ReadoutSnapshot | null;
+    panes: Array<{ paneIndex: number; hasSeries: boolean }>;
+  } = await page.evaluate(async ({ bars, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-kagi-alignment-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-kagi-alignment-canvas" aria-label="phase-one api kagi alignment chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-kagi-alignment-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API kagi alignment fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumePane = chart.addPane({ height: 108 });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+    chart.setChartType("kagi");
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      readout,
+      panes: chart.panes().map((pane: { paneIndex(): number; hasSeries(): boolean }) => ({
+        paneIndex: pane.paneIndex(),
+        hasSeries: pane.hasSeries(),
+      })),
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    volume: RENKO_ALIGNMENT_VOLUME,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.readout?.paneIndex).toBe(0);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+  expect(result.panes).toEqual([
+    { paneIndex: 0, hasSeries: true },
+    { paneIndex: 1, hasSeries: true },
+  ]);
+});
+
 test("phase-one public api renders series-level price lines", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async ({ data, publicEntry }) => {

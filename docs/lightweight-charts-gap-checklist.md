@@ -56,9 +56,9 @@ Current `chartx2` status against that model:
   - but the canonical owner of the horizontal domain is still implicit; it should move under an explicit chart-level `ChartContext -> ChartBarSequence` model
 - `ChartContext / ChartBarSequence`
   - the chart now owns an explicit `ChartBarSequence`
-  - `Renko` now uses a compressed price-based chart sequence instead of being projected back into raw time slots
-  - secondary pane `series` can now carry-forward onto that compressed chart sequence so the shared time scale no longer reintroduces empty Renko columns
-  - the broader model is still incomplete because other non-time builders such as `Kagi` and `Point & Figure` still use transitional projected paths
+  - `Renko`, `Kagi`, and `Point & Figure` now use compressed price-based chart sequences instead of being projected back into raw time slots
+  - secondary pane `series` can now carry-forward onto that compressed chart sequence so the shared time scale no longer reintroduces empty columns on these price-based mains
+  - the broader model is still incomplete because other non-time builders and richer merge policies are still transitional
 - `Panes`
   - pane lifecycle, pane resize, pane event bus, and managed multi-series secondary panes now exist
   - collapse/maximize/move/reorder breadth is still missing

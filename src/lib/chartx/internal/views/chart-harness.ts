@@ -24,12 +24,14 @@ import {
   GridRenderer,
   HistogramRenderer,
   LineRenderer,
+  PointFigureRenderer,
   type AreaItem,
   type BaselineItem,
   type BarItem,
   type CandlestickItem,
   type HistogramItem,
   type LineItem,
+  type PointFigureItem,
 } from "../renderers";
 import type { Coordinate } from "../model";
 
@@ -93,6 +95,7 @@ export type PhaseOneMainSeriesRenderer =
   | "high-low"
   | "columns"
   | "brick"
+  | "point-figure"
   | "segment";
 export type PhaseOneMainChartType =
   | "candlestick"
@@ -640,6 +643,7 @@ export class PhaseOneChartHarness {
   private readonly gridRenderer = new GridRenderer();
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
+  private readonly pointFigureRenderer = new PointFigureRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
@@ -3265,6 +3269,24 @@ export class PhaseOneChartHarness {
       return;
     }
 
+    if (renderer === "point-figure") {
+      const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+      const pointFigureItems = rows.map((row): PointFigureItem => ({
+        x: this.timeScale.indexToCoordinate(row.index),
+        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
+      }));
+
+      this.pointFigureRenderer.draw(context, {
+        items: pointFigureItems,
+        barWidth,
+        upColor: seriesOptions.upColor,
+        downColor: seriesOptions.downColor,
+      });
+      return;
+    }
+
     const seriesOptions =
       (state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>);
     const histogramRangeMin = rangeMin ?? 0;
@@ -4460,7 +4482,7 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
       return {
         inputCapability: "ohlcv",
         builder: "point-figure",
-        renderer: "brick",
+        renderer: "point-figure",
         styleSchemaId: "pnfStyle",
       };
     case "volume-candles":

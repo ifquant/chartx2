@@ -473,7 +473,7 @@ test("phase-one public api can switch the active main chart type to point-figure
     sourceRole: "main-series",
     inputCapability: "ohlcv",
     builder: "point-figure",
-    renderer: "brick",
+    renderer: "point-figure",
     styleSchemaId: "pnfStyle",
     pointCount: 2,
   });

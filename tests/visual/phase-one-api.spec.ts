@@ -475,12 +475,67 @@ test("phase-one public api can switch the active main chart type to point-figure
     builder: "point-figure",
     renderer: "point-figure",
     styleSchemaId: "pnfStyle",
-    pointCount: 2,
+    pointCount: 1,
   });
 
   const fixture = page.locator("#api-point-figure-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-point-figure-series.png");
+});
+
+test("phase-one point-figure main series can take a fixed box size through series options", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-point-figure-options-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-point-figure-options-canvas" aria-label="phase-one api point figure options chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-point-figure-options-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API point figure options fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    const pointFigureSeries = chart.setChartType("point-figure");
+    chart.addPane({ height: 98 });
+    const autoPointCount = paneEvents[0]?.panes[0]?.series[0]?.pointCount ?? 0;
+    pointFigureSeries.applyOptions({
+      pointFigureBoxSizeMode: "fixed",
+      pointFigureBoxSize: 8,
+      pointFigureReversalBoxes: 3,
+    });
+    chart.addPane({ height: 82 });
+
+    return {
+      autoPointCount,
+      fixedPointCount: paneEvents[1]?.panes[0]?.series[0]?.pointCount ?? 0,
+    };
+  }, {
+    data: [
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 113, low: 107, close: 112 },
+      { time: 5, open: 112, high: 113, low: 103, close: 104 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.autoPointCount).toBeGreaterThan(0);
+  expect(result.fixedPointCount).toBeLessThanOrEqual(result.autoPointCount);
 });
 
 test("phase-one public api can switch the active main chart type to kagi", async ({

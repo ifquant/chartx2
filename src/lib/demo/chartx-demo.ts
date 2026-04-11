@@ -33,7 +33,7 @@ export type DemoAction = {
   id: string;
   label: string;
   tone?: DemoActionTone;
-  group?: "chart-type" | "chart-action" | "renko-option";
+  group?: "chart-type" | "chart-action" | "renko-option" | "point-figure-option";
   active?: boolean;
 };
 
@@ -69,6 +69,7 @@ type EventLog = string[];
 type ThemeId = "warm" | "ink";
 type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 type WorkbenchRenkoMode = "auto" | "fixed";
+type WorkbenchPointFigureMode = "auto" | "fixed";
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
@@ -169,6 +170,9 @@ export function mountWorkbenchDemo(
   let mainChartType: WorkbenchMainChartType = "candlestick";
   let renkoMode: WorkbenchRenkoMode = "auto";
   let renkoFixedBoxSize = 4;
+  let pointFigureMode: WorkbenchPointFigureMode = "fixed";
+  let pointFigureFixedBoxSize = 120;
+  let pointFigureReversalBoxes = 3;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let latestReadout: PhaseOneCrosshairMoveEvent | null = null;
@@ -192,6 +196,15 @@ export function mountWorkbenchDemo(
           ? [{
               label: "Renko",
               value: renkoMode === "auto" ? "Auto box" : `Fixed ${renkoFixedBoxSize}`,
+            }]
+          : []),
+        ...(mainChartType === "point-figure"
+          ? [{
+              label: "P&F",
+              value:
+                pointFigureMode === "auto"
+                  ? `Auto box · ${pointFigureReversalBoxes} rev`
+                  : `Fixed ${pointFigureFixedBoxSize} · ${pointFigureReversalBoxes} rev`,
             }]
           : []),
         { label: "Panes", value: String(paneSnapshot.length) },
@@ -262,7 +275,11 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "point-figure") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      chart.setChartType("point-figure");
+      chart.setChartType("point-figure").applyOptions({
+        pointFigureBoxSizeMode: pointFigureMode,
+        pointFigureBoxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
+        pointFigureReversalBoxes,
+      });
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -482,6 +499,34 @@ export function mountWorkbenchDemo(
               },
             ]
           : []),
+        ...(mainChartType === "point-figure"
+          ? [
+              {
+                id: "point-figure-auto",
+                label: "P&F Auto",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "auto",
+              },
+              {
+                id: "point-figure-box-60",
+                label: "Box 60",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 60,
+              },
+              {
+                id: "point-figure-box-120",
+                label: "Box 120",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 120,
+              },
+              {
+                id: "point-figure-box-240",
+                label: "Box 240",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 240,
+              },
+            ]
+          : []),
         { id: "add-pane", label: "Add empty pane", tone: "default", group: "chart-action" },
         { id: "trim-pane", label: "Remove empty pane", tone: "danger", group: "chart-action" },
         { id: "zoom-in", label: "Zoom in", tone: "accent", group: "chart-action" },
@@ -517,7 +562,50 @@ export function mountWorkbenchDemo(
           return;
         case "main-point-figure":
           mainChartType = "point-figure";
-          chart.setChartType("point-figure");
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: pointFigureMode,
+            pointFigureBoxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
+        case "point-figure-auto":
+          pointFigureMode = "auto";
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "auto",
+            pointFigureBoxSize: null,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
+        case "point-figure-box-60":
+          pointFigureMode = "fixed";
+          pointFigureFixedBoxSize = 60;
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: 60,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
+        case "point-figure-box-120":
+          pointFigureMode = "fixed";
+          pointFigureFixedBoxSize = 120;
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: 120,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
+        case "point-figure-box-240":
+          pointFigureMode = "fixed";
+          pointFigureFixedBoxSize = 240;
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: 240,
+            pointFigureReversalBoxes,
+          });
           publishSnapshot();
           return;
         case "main-volume-candles":

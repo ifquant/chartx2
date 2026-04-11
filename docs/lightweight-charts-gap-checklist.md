@@ -61,6 +61,7 @@ Current `chartx2` status against that model:
   - the broader model is still incomplete because other non-time builders and richer merge policies are still transitional
   - `Point & Figure` now also has a first dedicated `X / O` renderer instead of staying on the temporary brick visual path
   - `Point & Figure` now collapses consecutive boxes into direction columns at the chart-sequence level, so the horizontal domain is closer to real OX charts than the earlier box-by-box layout
+  - `Point & Figure` now has its own box-size and reversal option surface instead of reusing Renko-style inference only, which is necessary to stop dense OX over-generation on real-looking price scales
 - `Panes`
   - pane lifecycle, pane resize, pane event bus, and managed multi-series secondary panes now exist
   - collapse/maximize/move/reorder breadth is still missing

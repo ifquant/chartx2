@@ -191,6 +191,9 @@ export type PhaseOneCandlestickSeriesOptions = {
   wickColor?: string;
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
+  pointFigureBoxSize?: number | null;
+  pointFigureBoxSizeMode?: "auto" | "fixed";
+  pointFigureReversalBoxes?: number;
 };
 
 export type PhaseOneBarSeriesOptions = {
@@ -562,6 +565,7 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   chartType: PhaseOneMainChartType;
   inputData: readonly PhaseOneCandlestickData[];
   renkoOptions: Required<PhaseOneRenkoOptions>;
+  pointFigureOptions: Required<PhaseOnePointFigureOptions>;
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
@@ -571,6 +575,12 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
 type PhaseOneRenkoOptions = {
   boxSize: number | null;
   boxSizeMode: "auto" | "fixed";
+};
+
+type PhaseOnePointFigureOptions = {
+  boxSize: number | null;
+  boxSizeMode: "auto" | "fixed";
+  reversalBoxes: number;
 };
 
 type StudyInputContextState = {
@@ -682,6 +692,9 @@ export class PhaseOneChartHarness {
     wickColor: WICK_COLOR,
     renkoBoxSize: null,
     renkoBoxSizeMode: "auto",
+    pointFigureBoxSize: 120,
+    pointFigureBoxSizeMode: "fixed",
+    pointFigureReversalBoxes: 3,
   };
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
     upColor: UP_COLOR,
@@ -1067,6 +1080,22 @@ export class PhaseOneChartHarness {
               options.renkoBoxSize !== null && options.renkoBoxSize > 0
                 ? options.renkoBoxSize
                 : null;
+          }
+          state.data = applyMainSeriesBuilderData(state.inputData, state);
+          this.syncChartContextFromMainSource(state);
+        }
+        if (state.role === "main-series" && state.chartType === "point-figure") {
+          if (options.pointFigureBoxSizeMode !== undefined) {
+            state.pointFigureOptions.boxSizeMode = options.pointFigureBoxSizeMode;
+          }
+          if (options.pointFigureBoxSize !== undefined) {
+            state.pointFigureOptions.boxSize =
+              options.pointFigureBoxSize !== null && options.pointFigureBoxSize > 0
+                ? options.pointFigureBoxSize
+                : null;
+          }
+          if (options.pointFigureReversalBoxes !== undefined) {
+            state.pointFigureOptions.reversalBoxes = Math.max(1, Math.floor(options.pointFigureReversalBoxes));
           }
           state.data = applyMainSeriesBuilderData(state.inputData, state);
           this.syncChartContextFromMainSource(state);
@@ -2883,6 +2912,11 @@ export class PhaseOneChartHarness {
         boxSize: this.candlestickOptions.renkoBoxSize,
         boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
       },
+      pointFigureOptions: {
+        boxSize: this.candlestickOptions.pointFigureBoxSize,
+        boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
+        reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
+      },
       inputCapability: chartTypeSpec.inputCapability,
       builder: chartTypeSpec.builder,
       renderer: chartTypeSpec.renderer,
@@ -4149,14 +4183,22 @@ export function buildLineBreakData(
 
 export function buildPointFigureData(
   data: readonly PhaseOneCandlestickData[],
-  reversalBoxes = 3,
+  options: PhaseOnePointFigureOptions = {
+    boxSize: null,
+    boxSizeMode: "auto",
+    reversalBoxes: 3,
+  },
 ): readonly PhaseOneCandlestickData[] {
   if (data.length === 0) {
     return [];
   }
 
-  const boxSize = inferRenkoBoxSize(data);
-  const reversal = Math.max(1, Math.floor(reversalBoxes));
+  const inferredBoxSize = inferRenkoBoxSize(data);
+  const boxSize =
+    options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
+      ? options.boxSize
+      : inferredBoxSize;
+  const reversal = Math.max(1, Math.floor(options.reversalBoxes));
   const boxes: PhaseOneCandlestickData[] = [];
   let anchor = data[0].close;
   let columnDirection: 1 | -1 | null = null;
@@ -4346,7 +4388,7 @@ export function buildKagiData(
 
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
-  source: Pick<MainSeriesSourceState, "builder" | "renkoOptions">,
+  source: Pick<MainSeriesSourceState, "builder" | "renkoOptions" | "pointFigureOptions">,
 ): readonly PhaseOneCandlestickData[] {
   switch (source.builder) {
     case "heikin-ashi":
@@ -4362,7 +4404,7 @@ function applyMainSeriesBuilderData(
     case "range":
       return [...data];
     case "point-figure":
-      return buildPointFigureData(data);
+      return buildPointFigureData(data, source.pointFigureOptions);
   }
 }
 

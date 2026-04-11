@@ -4,6 +4,7 @@ import {
   ChartContext,
   buildMovingAverageStudyData,
   createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
   createProjectedPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
@@ -166,6 +167,40 @@ describe("model core scales and data", () => {
     expect(sequence.kind).toBe("price-based");
     expect(sequence.axisBars.map((row) => row.index)).toEqual([0, 1]);
     expect(sequence.bars.map((row) => row.index)).toEqual([0, 1]);
+    expect(sequence.logicalLength).toBe(2);
+  });
+
+  it("chart bar sequence can collapse consecutive price-based rows into direction columns", () => {
+    const sequence = createDirectionColumnPriceBasedChartBarSequence([
+      {
+        index: 0 as never,
+        time: 2,
+        originalTime: 2,
+        value: [11, 12, 11, 12],
+      },
+      {
+        index: 1 as never,
+        time: 2.001,
+        originalTime: 2.001,
+        value: [12, 13, 12, 13],
+      },
+      {
+        index: 2 as never,
+        time: 3,
+        originalTime: 3,
+        value: [13, 13, 12, 12],
+      },
+      {
+        index: 3 as never,
+        time: 3.001,
+        originalTime: 3.001,
+        value: [12, 12, 11, 11],
+      },
+    ]);
+
+    expect(sequence.bars.map((row) => row.index)).toEqual([0, 0, 1, 1]);
+    expect(sequence.axisBars.map((row) => row.index)).toEqual([0, 1]);
+    expect(sequence.axisBars.map((row) => row.time)).toEqual([2.001, 3.001]);
     expect(sequence.logicalLength).toBe(2);
   });
 

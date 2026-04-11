@@ -83,6 +83,50 @@ export function createCompressedPriceBasedChartBarSequence<TTime>(
   };
 }
 
+export function createDirectionColumnPriceBasedChartBarSequence<TTime>(
+  rows: readonly PlotRow<TTime>[],
+): ChartBarSequence<TTime> {
+  if (rows.length === 0) {
+    return createCompressedPriceBasedChartBarSequence(rows);
+  }
+
+  const columnRows: PlotRow<TTime>[] = [];
+  const axisBars: PlotRow<TTime>[] = [];
+  let currentDirection: boolean | null = null;
+  let currentColumnIndex = -1;
+  let lastColumnRow: PlotRow<TTime> | null = null;
+
+  for (const row of rows) {
+    const isUp = row.value[3] >= row.value[0];
+    if (currentDirection === null || currentDirection !== isUp) {
+      if (lastColumnRow !== null) {
+        axisBars.push(lastColumnRow);
+      }
+      currentDirection = isUp;
+      currentColumnIndex += 1;
+    }
+
+    const columnRow = {
+      ...row,
+      index: currentColumnIndex as TimePointIndex,
+    };
+    columnRows.push(columnRow);
+    lastColumnRow = columnRow;
+  }
+
+  if (lastColumnRow !== null) {
+    axisBars.push(lastColumnRow);
+  }
+
+  return {
+    kind: "price-based",
+    timeDomain: "irregular",
+    bars: columnRows,
+    axisBars,
+    logicalLength: axisBars.length,
+  };
+}
+
 export function findNearestRowByLogical<TRow extends { index: number }>(
   rows: readonly TRow[],
   logical: number,

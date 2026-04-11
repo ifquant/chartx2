@@ -1,5 +1,6 @@
 import {
   createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
   ChartContext,
@@ -2961,9 +2962,12 @@ export class PhaseOneChartHarness {
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
     const rows = source.store.setData(source.data);
+    if (source.builder === "point-figure") {
+      return createDirectionColumnPriceBasedChartBarSequence(rows);
+    }
+
     if (
       source.builder === "renko" ||
-      source.builder === "point-figure" ||
       source.builder === "kagi"
     ) {
       return createCompressedPriceBasedChartBarSequence(rows);

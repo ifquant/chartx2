@@ -60,6 +60,7 @@ Current `chartx2` status against that model:
   - secondary pane `series` can now carry-forward onto that compressed chart sequence so the shared time scale no longer reintroduces empty columns on these price-based mains
   - the broader model is still incomplete because other non-time builders and richer merge policies are still transitional
   - `Point & Figure` now also has a first dedicated `X / O` renderer instead of staying on the temporary brick visual path
+  - `Point & Figure` now collapses consecutive boxes into direction columns at the chart-sequence level, so the horizontal domain is closer to real OX charts than the earlier box-by-box layout
 - `Panes`
   - pane lifecycle, pane resize, pane event bus, and managed multi-series secondary panes now exist
   - collapse/maximize/move/reorder breadth is still missing

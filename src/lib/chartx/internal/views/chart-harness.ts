@@ -40,17 +40,11 @@ import {
   BaselineRenderer,
   BarRenderer,
   CandlesticksRenderer,
+  drawMainSeriesRenderer,
   GridRenderer,
   HistogramRenderer,
   LineRenderer,
   PointFigureRenderer,
-  type AreaItem,
-  type BaselineItem,
-  type BarItem,
-  type CandlestickItem,
-  type HistogramItem,
-  type LineItem,
-  type PointFigureItem,
 } from "../renderers";
 import type { Coordinate } from "../model";
 
@@ -3133,206 +3127,28 @@ export class PhaseOneChartHarness {
     }
 
     const renderer = state.role === "main-series" ? state.renderer : rendererForSeriesKind(state.kind);
-
-    if (renderer === "line") {
-      const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-      const lineItems = rows.map((row): LineItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-      }));
-
-      this.lineRenderer.draw(context, {
-        items: lineItems,
-        lineColor: seriesOptions.color,
-        lineWidth: seriesOptions.lineWidth,
-        mode: "line",
-        showMarkers: false,
-      });
-      return;
-    }
-
-    if (renderer === "line-markers" || renderer === "stepline" || renderer === "segment") {
-      const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-      const lineItems =
-        renderer === "segment"
-          ? rows.flatMap((row): LineItem[] => {
-              const x = this.timeScale.indexToCoordinate(row.index);
-              return [
-                {
-                  x,
-                  y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-                },
-                {
-                  x,
-                  y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-                },
-              ];
-            })
-          : rows.map((row): LineItem => ({
-              x: this.timeScale.indexToCoordinate(row.index),
-              y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-            }));
-
-      this.lineRenderer.draw(context, {
-        items: lineItems,
-        lineColor: seriesOptions.color,
-        lineWidth: seriesOptions.lineWidth,
-        mode: renderer === "stepline" ? "stepline" : "line",
-        showMarkers: renderer === "line-markers",
-        markerRadius: Math.max(2, seriesOptions.lineWidth + 1),
-      });
-      return;
-    }
-
-    if (renderer === "area") {
-      const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
-      const areaItems = rows.map((row): AreaItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-      }));
-
-      this.areaRenderer.draw(context, {
-        items: areaItems,
-        lineColor: seriesOptions.lineColor,
-        lineWidth: seriesOptions.lineWidth,
-        topColor: seriesOptions.topColor,
-        bottomColor: seriesOptions.bottomColor,
-        baseY: paneHeight,
-      });
-      return;
-    }
-
-    if (renderer === "baseline") {
-      const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
-      const baselineItems = rows.map((row): BaselineItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-      }));
-      const baselineY = toCoordinate(priceScale.priceToCoordinate(seriesOptions.baseValue));
-
-      this.baselineRenderer.draw(context, {
-        items: baselineItems,
-        baseY: baselineY,
-        height: paneHeight,
-        lineWidth: seriesOptions.lineWidth,
-        topLineColor: seriesOptions.topLineColor,
-        topFillTopColor: seriesOptions.topFillTopColor,
-        topFillBottomColor: seriesOptions.topFillBottomColor,
-        bottomLineColor: seriesOptions.bottomLineColor,
-        bottomFillTopColor: seriesOptions.bottomFillTopColor,
-        bottomFillBottomColor: seriesOptions.bottomFillBottomColor,
-      });
-      return;
-    }
-
-    if (renderer === "bars") {
-      const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
-      const barItems = rows.map((row): BarItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-      }));
-
-      this.barRenderer.draw(context, {
-        items: barItems,
-        barWidth,
-        upColor: seriesOptions.upColor,
-        downColor: seriesOptions.downColor,
-        mode: "bars",
-      });
-      return;
-    }
-
-    if (renderer === "hlc-bars" || renderer === "high-low") {
-      const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
-      const barItems = rows.map((row): BarItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-      }));
-
-      this.barRenderer.draw(context, {
-        items: barItems,
-        barWidth,
-        upColor: seriesOptions.upColor,
-        downColor: seriesOptions.downColor,
-        mode: renderer === "hlc-bars" ? "hlc-bars" : "high-low",
-      });
-      return;
-    }
-
-    if (
-      renderer === "candles" ||
-      renderer === "brick" ||
-      renderer === "hollow-candles" ||
-      renderer === "volume-candles"
-    ) {
-      const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
-      const volumeWidthScale =
-        renderer === "volume-candles" ? buildVolumeWidthScale(rows, state.inputData, barWidth) : null;
-      const candleItems = rows.map((row): CandlestickItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-        highY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.High])),
-        lowY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Low])),
-        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-        bodyWidth: volumeWidthScale?.get(row.time),
-      }));
-
-      this.candlesRenderer.draw(context, {
-        items: candleItems,
-        barWidth,
-        upColor: seriesOptions.upColor,
-        downColor: seriesOptions.downColor,
-        wickColor: renderer === "brick" ? "rgba(0, 0, 0, 0)" : seriesOptions.wickColor,
-        bodyMode: renderer === "hollow-candles" ? "hollow" : "filled",
-      });
-      return;
-    }
-
-    if (renderer === "point-figure") {
-      const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
-      const pointFigureItems = rows.map((row): PointFigureItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        openY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
-        closeY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-        isUp: row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-      }));
-
-      this.pointFigureRenderer.draw(context, {
-        items: pointFigureItems,
-        barWidth,
-        upColor: seriesOptions.upColor,
-        downColor: seriesOptions.downColor,
-      });
-      return;
-    }
-
-    const seriesOptions =
-      (state.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>);
-    const histogramRangeMin = rangeMin ?? 0;
-    const histogramItems = rows.map((row): HistogramItem => ({
-      x: this.timeScale.indexToCoordinate(row.index),
-      valueY: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-      baseY: toCoordinate(priceScale.priceToCoordinate(histogramRangeMin)),
-      isUp:
-        state.visuals.get(row.time)?.isUp ??
-        row.value[PlotRowValueIndex.Close] >= row.value[PlotRowValueIndex.Open],
-      color: state.visuals.get(row.time)?.color,
-    }));
-
-    this.histogramRenderer.draw(context, {
-      items: histogramItems,
+    drawMainSeriesRenderer({
+      context,
+      renderer,
+      rows,
+      paneHeight,
       barWidth,
-      upColor: seriesOptions.upColor,
-      downColor: seriesOptions.downColor,
+      priceScale,
+      rangeMin,
+      timeToX: (index) => this.timeScale.indexToCoordinate(index),
+      priceToY: (value) => toCoordinate(priceScale.priceToCoordinate(value)),
+      options: state.options as Record<string, unknown>,
+      inputData: state.inputData,
+      visuals: state.visuals,
+      runtime: {
+        lineRenderer: this.lineRenderer,
+        areaRenderer: this.areaRenderer,
+        baselineRenderer: this.baselineRenderer,
+        barRenderer: this.barRenderer,
+        candlesRenderer: this.candlesRenderer,
+        pointFigureRenderer: this.pointFigureRenderer,
+        histogramRenderer: this.histogramRenderer,
+      },
     });
   }
 
@@ -4123,36 +3939,6 @@ function buildHistogramVisuals(
   }
 
   return visuals;
-}
-
-function buildVolumeWidthScale(
-  rows: readonly { time: number }[],
-  inputData: readonly PhaseOneCandlestickData[],
-  barWidth: number,
-): Map<number, number> {
-  const volumes = inputData
-    .map((item) => item.volume ?? null)
-    .filter((value): value is number => value !== null && Number.isFinite(value) && value > 0);
-
-  if (volumes.length === 0) {
-    return new Map();
-  }
-
-  const minVolume = Math.min(...volumes);
-  const maxVolume = Math.max(...volumes);
-  const minWidth = Math.max(3, Math.floor(barWidth * 0.55));
-  const maxWidth = Math.max(minWidth + 1, Math.floor(barWidth * 1.55));
-  const inputByTime = new Map(inputData.map((item) => [item.time, item] as const));
-
-  return new Map(rows.map((row) => {
-    const volume = inputByTime.get(row.time)?.volume ?? null;
-    if (volume === null || !Number.isFinite(volume) || volume <= 0 || maxVolume === minVolume) {
-      return [row.time, barWidth] as const;
-    }
-
-    const ratio = (volume - minVolume) / (maxVolume - minVolume);
-    return [row.time, minWidth + (maxWidth - minWidth) * ratio] as const;
-  }));
 }
 
 function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {

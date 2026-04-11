@@ -12,6 +12,7 @@ import {
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
 } from "../../src/lib/chartx/internal/model";
+import { MAIN_SERIES_RENDERERS } from "../../src/lib/chartx/internal/renderers";
 
 describe("chart type builders", () => {
   it("maps main chart types through a unified chart-type registry", () => {
@@ -55,6 +56,13 @@ describe("chart type builders", () => {
         pointFigureOptions: { boxSize: null, boxSizeMode: "auto", reversalBoxes: 3 },
       }),
     ).toEqual(input);
+  });
+
+  it("routes main-series renderer lookup through a unified renderer registry", () => {
+    expect(typeof MAIN_SERIES_RENDERERS.candles).toBe("function");
+    expect(typeof MAIN_SERIES_RENDERERS["point-figure"]).toBe("function");
+    expect(typeof MAIN_SERIES_RENDERERS["line-markers"]).toBe("function");
+    expect(typeof MAIN_SERIES_RENDERERS.columns).toBe("function");
   });
 
   it("applies style-specific main-series options through the model-layer style registry", () => {

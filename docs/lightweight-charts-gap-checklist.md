@@ -53,7 +53,8 @@ Current `chartx2` status against that model:
   - part of that state still lives in a harness-shaped implementation rather than a fully explicit model layer
   - main-chart routing now has a first explicit `chart type -> input capability -> builder -> renderer -> style schema` registry instead of relying only on scattered switch branches, which is closer to the TradingView-style `one main series, many chart modes` model
   - that registry now lives in the model layer rather than staying defined inside the harness, which is a better boundary for future reuse by datafeeds, studies, and persistence
-  - the main-series builder execution path now also routes through a model-layer builder registry instead of staying as a harness-local switch, although renderer execution still remains harness-owned
+  - the main-series builder execution path now also routes through a model-layer builder registry instead of staying as a harness-local switch
+  - the main-series renderer execution path now routes through a renderers-layer registry instead of staying as a harness-local conditional chain, although style/runtime specialization is still narrower than the long-term target
 - `TimeScale`
   - already chart-level and shared across panes, which matches the intended direction
   - but the canonical owner of the horizontal domain is still implicit; it should move under an explicit chart-level `ChartContext -> ChartBarSequence` model
@@ -88,6 +89,9 @@ Current `chartx2` status against that model:
   - style schemas now also have a first explicit registry that describes which option surface a schema uses and which fields are type-specific
   - main-series chart-type switches now project shared style fields across schemas instead of always resetting all style state to defaults on every mode change
   - the broader schema map is still much narrower than TradingView
+ - `Renderer registry`
+   - main-series renderer ids are no longer only metadata; the actual draw dispatch now routes through an explicit renderer registry in the renderers layer
+   - renderer execution is still only partially generalized because style-specific transforms and richer non-time visuals remain thin compared with TradingView
 - `MergeEngine`
   - this does not exist yet
   - it will be required once studies can request a different timeframe or standard-vs-nonstandard source context and then merge those results back onto the current chart sequence

@@ -97,6 +97,7 @@ export type PhaseOneMainSeriesRenderer =
 export type PhaseOneMainChartType =
   | "candlestick"
   | "line-break"
+  | "point-figure"
   | "volume-candles"
   | "hollow-candles"
   | "heikin-ashi"
@@ -998,6 +999,7 @@ export class PhaseOneChartHarness {
     switch (kind) {
       case "candlestick":
       case "line-break":
+      case "point-figure":
       case "volume-candles":
       case "hollow-candles":
         return this.createPrimaryCandlestickSeriesApi();
@@ -2953,7 +2955,7 @@ export class PhaseOneChartHarness {
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
     const rows = source.store.setData(source.data);
-    if (source.builder === "renko") {
+    if (source.builder === "renko" || source.builder === "point-figure") {
       return createProjectedPriceBasedChartBarSequence(rows, source.inputData);
     }
 
@@ -4084,6 +4086,94 @@ export function buildLineBreakData(
   return confirmed;
 }
 
+export function buildPointFigureData(
+  data: readonly PhaseOneCandlestickData[],
+  reversalBoxes = 3,
+): readonly PhaseOneCandlestickData[] {
+  if (data.length === 0) {
+    return [];
+  }
+
+  const boxSize = inferRenkoBoxSize(data);
+  const reversal = Math.max(1, Math.floor(reversalBoxes));
+  const boxes: PhaseOneCandlestickData[] = [];
+  let anchor = data[0].close;
+  let columnDirection: 1 | -1 | null = null;
+  let columnHigh = anchor;
+  let columnLow = anchor;
+
+  for (let index = 1; index < data.length; index += 1) {
+    const input = data[index];
+    let syntheticOrdinal = 0;
+
+    const pushBox = (direction: 1 | -1) => {
+      const nextClose = anchor + direction * boxSize;
+      boxes.push({
+        time: input.time + syntheticOrdinal * 0.001,
+        open: anchor,
+        high: Math.max(anchor, nextClose),
+        low: Math.min(anchor, nextClose),
+        close: nextClose,
+        volume: input.volume,
+      });
+      anchor = nextClose;
+      columnHigh = Math.max(columnHigh, nextClose);
+      columnLow = Math.min(columnLow, nextClose);
+      syntheticOrdinal += 1;
+    };
+
+    if (columnDirection === null) {
+      while (Math.abs(input.close - anchor) >= boxSize) {
+        columnDirection = input.close > anchor ? 1 : -1;
+        pushBox(columnDirection);
+      }
+      continue;
+    }
+
+    if (columnDirection === 1) {
+      while (input.close >= columnHigh + boxSize) {
+        pushBox(1);
+      }
+      if (input.close <= columnHigh - reversal * boxSize) {
+        columnDirection = -1;
+        anchor = columnHigh;
+        columnLow = columnHigh;
+        while (input.close <= anchor - boxSize) {
+          pushBox(-1);
+        }
+      }
+      continue;
+    }
+
+    while (input.close <= columnLow - boxSize) {
+      pushBox(-1);
+    }
+    if (input.close >= columnLow + reversal * boxSize) {
+      columnDirection = 1;
+      anchor = columnLow;
+      columnHigh = columnLow;
+      while (input.close >= anchor + boxSize) {
+        pushBox(1);
+      }
+    }
+  }
+
+  if (boxes.length > 0) {
+    return boxes;
+  }
+
+  return [
+    {
+      time: data[0].time,
+      open: data[0].close,
+      high: data[0].close,
+      low: data[0].close,
+      close: data[0].close,
+      volume: data[0].volume,
+    },
+  ];
+}
+
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
   source: Pick<MainSeriesSourceState, "builder" | "renkoOptions">,
@@ -4098,9 +4188,10 @@ function applyMainSeriesBuilderData(
     case "line-break":
       return buildLineBreakData(data);
     case "kagi":
-    case "point-figure":
     case "range":
       return [...data];
+    case "point-figure":
+      return buildPointFigureData(data);
   }
 }
 
@@ -4110,6 +4201,8 @@ function formatSeriesKindLabel(kind: string): string {
       return "Candlestick";
     case "line-break":
       return "Line Break";
+    case "point-figure":
+      return "Point Figure";
     case "volume-candles":
       return "Volume Candles";
     case "hollow-candles":
@@ -4164,6 +4257,7 @@ function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRendere
 function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
   switch (type) {
     case "line-break":
+    case "point-figure":
     case "volume-candles":
     case "hollow-candles":
     case "heikin-ashi":
@@ -4205,6 +4299,13 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "line-break",
         renderer: "candles",
         styleSchemaId: "lineBreakStyle",
+      };
+    case "point-figure":
+      return {
+        inputCapability: "ohlcv",
+        builder: "point-figure",
+        renderer: "brick",
+        styleSchemaId: "pnfStyle",
       };
     case "volume-candles":
       return {

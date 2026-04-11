@@ -255,6 +255,10 @@ export function mountWorkbenchDemo(
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
       chart.setChartType("line-break");
+    } else if (mainChartType === "point-figure") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("point-figure");
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -361,6 +365,12 @@ export function mountWorkbenchDemo(
           label: "Line Break",
           group: "chart-type",
           active: mainChartType === "line-break",
+        },
+        {
+          id: "main-point-figure",
+          label: "P&F",
+          group: "chart-type",
+          active: mainChartType === "point-figure",
         },
         {
           id: "main-volume-candles",
@@ -488,6 +498,11 @@ export function mountWorkbenchDemo(
         case "main-line-break":
           mainChartType = "line-break";
           chart.setChartType("line-break");
+          publishSnapshot();
+          return;
+        case "main-point-figure":
+          mainChartType = "point-figure";
+          chart.setChartType("point-figure");
           publishSnapshot();
           return;
         case "main-volume-candles":
@@ -740,6 +755,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
       return "Candles";
     case "line-break":
       return "Line Break";
+    case "point-figure":
+      return "Point Figure";
     case "volume-candles":
       return "Volume Candles";
     case "hollow-candles":

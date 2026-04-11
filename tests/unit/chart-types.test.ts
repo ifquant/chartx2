@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildHeikinAshiData,
   buildLineBreakData,
+  buildPointFigureData,
   buildRenkoData,
 } from "../../src/lib/chartx/internal/views/chart-harness";
 
@@ -103,6 +104,30 @@ describe("chart type builders", () => {
       { time: 4, open: 108, high: 111, low: 107, close: 110 },
       { time: 5, open: 110, high: 111, low: 102, close: 103 },
       { time: 6, open: 103, high: 104, low: 97, close: 98 },
+    ]);
+  });
+
+  it("builds point-figure boxes from canonical ohlc input without mutating the source", () => {
+    const input = [
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 113, low: 107, close: 112 },
+      { time: 5, open: 112, high: 113, low: 103, close: 104 },
+    ] as const;
+
+    const result = buildPointFigureData(input);
+
+    expect(result).toEqual([
+      { time: 3, open: 100, high: 105, low: 100, close: 105, volume: undefined },
+      { time: 4, open: 105, high: 110, low: 105, close: 110, volume: undefined },
+    ]);
+    expect(input).toEqual([
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 113, low: 107, close: 112 },
+      { time: 5, open: 112, high: 113, low: 103, close: 104 },
     ]);
   });
 });

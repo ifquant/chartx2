@@ -422,6 +422,67 @@ test("phase-one public api can switch the active main chart type to line-break",
   await expect(fixture).toHaveScreenshot("phase-one-api-line-break-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to point-figure", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-point-figure-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-point-figure-canvas" aria-label="phase-one api point figure chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-point-figure-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API point figure fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("point-figure");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, {
+    data: [
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 113, low: 107, close: 112 },
+      { time: 5, open: 112, high: 113, low: 103, close: 104 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.chartType).toBe("point-figure");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "point-figure",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "point-figure",
+    renderer: "brick",
+    styleSchemaId: "pnfStyle",
+    pointCount: 2,
+  });
+
+  const fixture = page.locator("#api-point-figure-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-point-figure-series.png");
+});
+
 test("phase-one public api can switch the active main chart type to volume-candles", async ({
   page,
 }) => {

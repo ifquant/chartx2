@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildHeikinAshiData,
+  buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
@@ -128,6 +129,33 @@ describe("chart type builders", () => {
       { time: 3, open: 104, high: 109, low: 103, close: 108 },
       { time: 4, open: 108, high: 113, low: 107, close: 112 },
       { time: 5, open: 112, high: 113, low: 103, close: 104 },
+    ]);
+  });
+
+  it("builds kagi segments from canonical ohlc input without mutating the source", () => {
+    const input = [
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 109, low: 101, close: 103 },
+      { time: 5, open: 103, high: 104, low: 96, close: 98 },
+      { time: 6, open: 98, high: 106, low: 97, close: 105 },
+    ] as const;
+
+    const result = buildKagiData(input);
+
+    expect(result).toEqual([
+      { time: 3, open: 100, high: 108, low: 100, close: 108, volume: undefined },
+      { time: 5, open: 108, high: 108, low: 98, close: 98, volume: undefined },
+      { time: 6, open: 98, high: 105, low: 98, close: 105, volume: undefined },
+    ]);
+    expect(input).toEqual([
+      { time: 1, open: 100, high: 101, low: 99, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 109, low: 101, close: 103 },
+      { time: 5, open: 103, high: 104, low: 96, close: 98 },
+      { time: 6, open: 98, high: 106, low: 97, close: 105 },
     ]);
   });
 });

@@ -255,6 +255,10 @@ export function mountWorkbenchDemo(
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
       chart.setChartType("line-break");
+    } else if (mainChartType === "kagi") {
+      const mainSeries = chart.addLineSeries();
+      mainSeries.setData(line);
+      chart.setChartType("kagi");
     } else if (mainChartType === "point-figure") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -365,6 +369,12 @@ export function mountWorkbenchDemo(
           label: "Line Break",
           group: "chart-type",
           active: mainChartType === "line-break",
+        },
+        {
+          id: "main-kagi",
+          label: "Kagi",
+          group: "chart-type",
+          active: mainChartType === "kagi",
         },
         {
           id: "main-point-figure",
@@ -498,6 +508,11 @@ export function mountWorkbenchDemo(
         case "main-line-break":
           mainChartType = "line-break";
           chart.setChartType("line-break");
+          publishSnapshot();
+          return;
+        case "main-kagi":
+          mainChartType = "kagi";
+          chart.setChartType("kagi");
           publishSnapshot();
           return;
         case "main-point-figure":
@@ -755,6 +770,8 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
       return "Candles";
     case "line-break":
       return "Line Break";
+    case "kagi":
+      return "Kagi";
     case "point-figure":
       return "Point Figure";
     case "volume-candles":

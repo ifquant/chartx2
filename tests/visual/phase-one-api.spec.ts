@@ -483,6 +483,68 @@ test("phase-one public api can switch the active main chart type to point-figure
   await expect(fixture).toHaveScreenshot("phase-one-api-point-figure-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to kagi", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-kagi-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-kagi-canvas" aria-label="phase-one api kagi chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-kagi-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API kagi fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addLineSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("kagi");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, {
+    data: [
+      { time: 1, value: 100 },
+      { time: 2, value: 104 },
+      { time: 3, value: 108 },
+      { time: 4, value: 103 },
+      { time: 5, value: 98 },
+      { time: 6, value: 105 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.chartType).toBe("kagi");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "line",
+    chartType: "kagi",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "kagi",
+    renderer: "segment",
+    styleSchemaId: "kagiStyle",
+    pointCount: 3,
+  });
+
+  const fixture = page.locator("#api-kagi-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-kagi-series.png");
+});
+
 test("phase-one public api can switch the active main chart type to volume-candles", async ({
   page,
 }) => {

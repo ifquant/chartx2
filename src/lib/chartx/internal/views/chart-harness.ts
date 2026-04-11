@@ -97,6 +97,7 @@ export type PhaseOneMainSeriesRenderer =
 export type PhaseOneMainChartType =
   | "candlestick"
   | "line-break"
+  | "kagi"
   | "point-figure"
   | "volume-candles"
   | "hollow-candles"
@@ -1011,6 +1012,7 @@ export class PhaseOneChartHarness {
       case "hlc-bars":
       case "high-low":
         return this.createPrimaryBarSeriesApi();
+      case "kagi":
       case "line":
       case "line-markers":
       case "stepline":
@@ -2955,7 +2957,11 @@ export class PhaseOneChartHarness {
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
     const rows = source.store.setData(source.data);
-    if (source.builder === "renko" || source.builder === "point-figure") {
+    if (
+      source.builder === "renko" ||
+      source.builder === "point-figure" ||
+      source.builder === "kagi"
+    ) {
       return createProjectedPriceBasedChartBarSequence(rows, source.inputData);
     }
 
@@ -3113,12 +3119,27 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    if (renderer === "line-markers" || renderer === "stepline") {
+    if (renderer === "line-markers" || renderer === "stepline" || renderer === "segment") {
       const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-      const lineItems = rows.map((row): LineItem => ({
-        x: this.timeScale.indexToCoordinate(row.index),
-        y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
-      }));
+      const lineItems =
+        renderer === "segment"
+          ? rows.flatMap((row): LineItem[] => {
+              const x = this.timeScale.indexToCoordinate(row.index);
+              return [
+                {
+                  x,
+                  y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Open])),
+                },
+                {
+                  x,
+                  y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+                },
+              ];
+            })
+          : rows.map((row): LineItem => ({
+              x: this.timeScale.indexToCoordinate(row.index),
+              y: toCoordinate(priceScale.priceToCoordinate(row.value[PlotRowValueIndex.Close])),
+            }));
 
       this.lineRenderer.draw(context, {
         items: lineItems,
@@ -4174,6 +4195,115 @@ export function buildPointFigureData(
   ];
 }
 
+export function buildKagiData(
+  data: readonly PhaseOneCandlestickData[],
+  reversalFactor = 1,
+): readonly PhaseOneCandlestickData[] {
+  if (data.length === 0) {
+    return [];
+  }
+
+  const reversalSize = inferRenkoBoxSize(data) * Math.max(1, Math.floor(reversalFactor));
+  const segments: PhaseOneCandlestickData[] = [];
+  let anchor = data[0].close;
+  let direction: 1 | -1 | null = null;
+
+  for (let index = 1; index < data.length; index += 1) {
+    const input = data[index];
+    const close = input.close;
+
+    if (direction === null) {
+      if (Math.abs(close - anchor) < reversalSize) {
+        continue;
+      }
+
+      direction = close > anchor ? 1 : -1;
+      segments.push({
+        time: input.time,
+        open: anchor,
+        high: Math.max(anchor, close),
+        low: Math.min(anchor, close),
+        close,
+        volume: input.volume,
+      });
+      anchor = close;
+      continue;
+    }
+
+    if (direction === 1) {
+      if (close >= anchor) {
+        const current = segments[segments.length - 1];
+        segments[segments.length - 1] = {
+          ...current,
+          time: input.time,
+          high: Math.max(current.open, close),
+          low: Math.min(current.open, close),
+          close,
+          volume: input.volume,
+        };
+        anchor = close;
+        continue;
+      }
+
+      if (anchor - close >= reversalSize) {
+        direction = -1;
+        segments.push({
+          time: input.time,
+          open: anchor,
+          high: anchor,
+          low: close,
+          close,
+          volume: input.volume,
+        });
+        anchor = close;
+      }
+      continue;
+    }
+
+    if (close <= anchor) {
+      const current = segments[segments.length - 1];
+      segments[segments.length - 1] = {
+        ...current,
+        time: input.time,
+        high: Math.max(current.open, close),
+        low: Math.min(current.open, close),
+        close,
+        volume: input.volume,
+      };
+      anchor = close;
+      continue;
+    }
+
+    if (close - anchor >= reversalSize) {
+      direction = 1;
+      segments.push({
+        time: input.time,
+        open: anchor,
+        high: close,
+        low: anchor,
+        close,
+        volume: input.volume,
+      });
+      anchor = close;
+    }
+  }
+
+  if (segments.length > 0) {
+    return segments;
+  }
+
+  return [
+    {
+      time: data[0].time,
+      open: data[0].close,
+      high: data[0].close,
+      low: data[0].close,
+      close: data[0].close,
+      volume: data[0].volume,
+    },
+  ];
+}
+
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
   source: Pick<MainSeriesSourceState, "builder" | "renkoOptions">,
@@ -4188,6 +4318,7 @@ function applyMainSeriesBuilderData(
     case "line-break":
       return buildLineBreakData(data);
     case "kagi":
+      return buildKagiData(data);
     case "range":
       return [...data];
     case "point-figure":
@@ -4201,6 +4332,8 @@ function formatSeriesKindLabel(kind: string): string {
       return "Candlestick";
     case "line-break":
       return "Line Break";
+    case "kagi":
+      return "Kagi";
     case "point-figure":
       return "Point Figure";
     case "volume-candles":
@@ -4263,6 +4396,8 @@ function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKin
     case "heikin-ashi":
     case "renko":
       return "candlestick";
+    case "kagi":
+      return "line";
     case "hlc-bars":
     case "high-low":
       return "bar";
@@ -4299,6 +4434,13 @@ function mainSeriesChartTypeSpec(type: PhaseOneMainChartType): {
         builder: "line-break",
         renderer: "candles",
         styleSchemaId: "lineBreakStyle",
+      };
+    case "kagi":
+      return {
+        inputCapability: "ohlcv",
+        builder: "kagi",
+        renderer: "segment",
+        styleSchemaId: "kagiStyle",
       };
     case "point-figure":
       return {

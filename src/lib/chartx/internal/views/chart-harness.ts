@@ -398,6 +398,23 @@ export type PhaseOneMainSeriesApi =
   | PhaseOneBaselineSeriesApi
   | PhaseOneHistogramSeriesApi;
 export type PhaseOneMainSeriesStateSnapshot = MainSeriesStateSnapshot;
+export type PhaseOneChartStateSnapshot = {
+  options: PhaseOneChartOptions;
+  timeScale: {
+    barSpacing: number | null;
+    rightOffset: number;
+    visibleLogicalRange: { from: number; to: number } | null;
+  };
+  priceScale: {
+    visibleRange: { minValue: number; maxValue: number } | null;
+    scaleSeriesOnly: boolean;
+  };
+  panes: Array<{
+    height: number | null;
+    resizable: boolean;
+  }>;
+  mainSeries: PhaseOneMainSeriesStateSnapshot | null;
+};
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export type PhaseOneChartApi = {
@@ -418,6 +435,8 @@ export type PhaseOneChartApi = {
   getChartType(): PhaseOneMainChartType | null;
   getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null;
   applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi;
+  getChartState(): PhaseOneChartStateSnapshot;
+  applyChartState(state: PhaseOneChartStateSnapshot): void;
   setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi;
   subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
@@ -1447,6 +1466,86 @@ export class PhaseOneChartHarness {
     }
 
     return nextApi;
+  }
+
+  public getChartState(): PhaseOneChartStateSnapshot {
+    return {
+      options: {
+        layout: { ...this.chartOptions },
+        crosshair: { ...this.crosshairOptions },
+      },
+      timeScale: {
+        barSpacing: this.barSpacing,
+        rightOffset: this.rightOffset,
+        visibleLogicalRange: this.timeScaleApi().getVisibleLogicalRange(),
+      },
+      priceScale: {
+        visibleRange: this.priceScaleApi().getVisibleRange(),
+        scaleSeriesOnly: this.primaryScaleSeriesOnly,
+      },
+      panes: this.panes
+        .filter((pane) => pane.kind === "secondary")
+        .map((pane) => ({
+          height: pane.preferredHeight,
+          resizable: pane.resizable,
+        })),
+      mainSeries: this.getMainSeriesState(),
+    };
+  }
+
+  public applyChartState(state: PhaseOneChartStateSnapshot): void {
+    this.applyOptions(state.options);
+
+    const currentSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
+    const targetPaneCount = state.panes.length;
+
+    for (let index = currentSecondaryPanes.length - 1; index >= targetPaneCount; index -= 1) {
+      const pane = currentSecondaryPanes[index];
+      if (this.getSecondarySeriesForPane(pane.id).length > 0) {
+        throw new Error("chartx phase-one chart cannot remove snapshot-excess panes while series are attached");
+      }
+      this.removePaneById(pane.id);
+    }
+
+    const nextSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
+    while (nextSecondaryPanes.length < targetPaneCount) {
+      const nextPane = this.addPane({
+        height: state.panes[nextSecondaryPanes.length]?.height ?? undefined,
+        resizable: state.panes[nextSecondaryPanes.length]?.resizable ?? true,
+      });
+      nextSecondaryPanes.push(this.getPaneByHandle(nextPane)!);
+    }
+
+    state.panes.forEach((paneState, index) => {
+      const pane = this.panes.filter((entry) => entry.kind === "secondary")[index];
+      if (pane === undefined) {
+        return;
+      }
+      pane.preferredHeight = normalizePaneHeight(paneState.height ?? undefined);
+      pane.resizable = paneState.resizable;
+      this.emitPaneEvent("options", pane.id);
+    });
+
+    if (state.mainSeries !== null) {
+      this.applyMainSeriesState(state.mainSeries);
+    }
+
+    this.timeScaleApi().applyOptions({
+      barSpacing: state.timeScale.barSpacing ?? undefined,
+      rightOffset: state.timeScale.rightOffset,
+    });
+    if (state.timeScale.visibleLogicalRange !== null) {
+      this.timeScaleApi().setVisibleLogicalRange(state.timeScale.visibleLogicalRange);
+    }
+
+    this.priceScaleApi().applyOptions({
+      scaleSeriesOnly: state.priceScale.scaleSeriesOnly,
+    });
+    this.priceScaleApi().setVisibleRange(state.priceScale.visibleRange);
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
@@ -3770,6 +3869,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     applyMainSeriesState(state) {
       return harness.applyMainSeriesState(state);
+    },
+    getChartState() {
+      return harness.getChartState();
+    },
+    applyChartState(state) {
+      harness.applyChartState(state);
     },
     setChartType(type) {
       return harness.setChartType(type);

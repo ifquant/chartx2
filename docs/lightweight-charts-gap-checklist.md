@@ -110,6 +110,7 @@ Current `chartx2` status against that model:
 - `LayoutSnapshot / Templates / UserSettings`
   - this remains largely deferred and must stay separate from runtime chart entities when it appears
   - the new main-series state snapshot is only a first chart-owned persistence primitive, not a full layout/template system yet
+  - the chart API now also has a first chart-owned state snapshot for layout colors, viewport numbers, pane composition, and main-series state, but that is still a narrow runtime persistence slice rather than a full template/workspace model
 
 The capability categories below are intentionally practical:
 
@@ -236,6 +237,7 @@ Why this is still simplified:
 - pane handles now expose a small options surface, a resize callback, a chart-level pane event bus with stable pane/series metadata snapshots, and pane-aware readout payloads, but pane-local APIs are still much narrower than lightweight-charts
 - pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs and full pane management breadth
 - the chart now has a first `getMainSeriesState() / applyMainSeriesState()` path, but only for the main series; panes, studies, and full chart layout persistence are still outside that snapshot
+- the chart now also has a first `getChartState() / applyChartState()` path for chart-owned options, pane composition, and the main-series state, but studies and broader workspace persistence remain out of scope
 
 ### Time and price scales
 

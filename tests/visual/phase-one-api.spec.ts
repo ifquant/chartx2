@@ -2671,6 +2671,124 @@ test("phase-one public api can snapshot and restore unified main-series state", 
   expect(result.restored).toEqual(result.saved);
 });
 
+test("phase-one public api can snapshot and restore chart-owned layout and main-series state", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-chart-state-fixture" style="width: 860px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-chart-state-canvas" aria-label="phase-one api chart state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-chart-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API chart-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+
+    chart.applyOptions({
+      layout: {
+        backgroundColor: "#f2eee2",
+        paneBackgroundColor: "#fff7df",
+        gridColor: "rgba(18, 107, 69, 0.16)",
+      },
+      crosshair: {
+        lineColor: "rgba(18, 107, 69, 0.45)",
+        pointColor: "#126b45",
+      },
+    });
+    chart.timeScale().applyOptions({
+      barSpacing: 15,
+      rightOffset: 1.4,
+    });
+    chart.timeScale().setVisibleLogicalRange({ from: 2.2, to: 6.9 });
+    chart.addPane({ height: 112, resizable: true });
+    chart.addPane({ height: 154, resizable: false });
+    chart.applyMainSeriesState({
+      chartType: "renko",
+      inputCapability: "ohlcv",
+      builder: "renko",
+      renderer: "brick",
+      styleSchemaId: "renkoStyle",
+      styleOptionSurface: "candlestick",
+      styleOptions: {
+        upColor: "#126b45",
+        downColor: "#bd5137",
+        wickColor: "#1f1f1f",
+        renkoBoxSize: 18,
+        renkoBoxSizeMode: "fixed",
+      },
+      renkoOptions: {
+        boxSize: 18,
+        boxSizeMode: "fixed",
+      },
+      pointFigureOptions: {
+        boxSize: 120,
+        boxSizeMode: "fixed",
+        reversalBoxes: 3,
+      },
+    });
+    chart.priceScale().applyOptions({
+      scaleSeriesOnly: true,
+    });
+    chart.priceScale().setVisibleRange({
+      minValue: 118,
+      maxValue: 145,
+    });
+
+    const saved = chart.getChartState();
+
+    chart.applyOptions({
+      layout: {
+        backgroundColor: "#fffdf7",
+        paneBackgroundColor: "#fffaf0",
+        gridColor: "rgba(16, 16, 16, 0.08)",
+      },
+      crosshair: {
+        lineColor: "rgba(16, 16, 16, 0.5)",
+        pointColor: "#101010",
+      },
+    });
+    chart.setChartType("line");
+    chart.priceScale().applyOptions({
+      scaleSeriesOnly: false,
+    });
+    chart.priceScale().setVisibleRange(null);
+    chart.timeScale().applyOptions({
+      barSpacing: 8,
+      rightOffset: 0.5,
+    });
+
+    chart.applyChartState(saved);
+    const restored = chart.getChartState();
+
+    return {
+      chartType: chart.getChartType(),
+      saved,
+      restored,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("renko");
+  expect(result.saved).toEqual(result.restored);
+  expect(result.saved.panes).toEqual([
+    { height: 112, resizable: true },
+    { height: 154, resizable: false },
+  ]);
+  expect(result.saved.priceScale).toEqual({
+    visibleRange: {
+      minValue: 118,
+      maxValue: 145,
+    },
+    scaleSeriesOnly: true,
+  });
+});
+
 test("phase-one public api supports click subscriptions and series-level options", async ({
   page,
 }) => {

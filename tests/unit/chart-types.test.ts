@@ -9,14 +9,12 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
+  createVersionedChartTemplate,
   mainSeriesChartTypeSpec,
   mainSeriesStyleSchemaSpec,
+  normalizeVersionedChartTemplate,
   projectMainSeriesStyleOptions,
 } from "../../src/lib/chartx/internal/model";
-import {
-  createPhaseOneChartTemplate,
-  normalizePhaseOneChartTemplate,
-} from "../../src/lib/chartx/internal/views";
 import { MAIN_SERIES_RENDERERS } from "../../src/lib/chartx/internal/renderers";
 
 describe("chart type builders", () => {
@@ -146,20 +144,20 @@ describe("chart type builders", () => {
       studies: [],
     };
 
-    expect(createPhaseOneChartTemplate(rawState)).toEqual({
+    expect(createVersionedChartTemplate(rawState)).toEqual({
       kind: "chart-template",
       version: 1,
       chart: rawState,
     });
 
-    expect(normalizePhaseOneChartTemplate(rawState)).toEqual({
+    expect(normalizeVersionedChartTemplate(rawState)).toEqual({
       kind: "chart-template",
       version: 1,
       chart: rawState,
     });
 
     expect(
-      normalizePhaseOneChartTemplate({
+      normalizeVersionedChartTemplate({
         kind: "chart-template",
         version: 1,
         chart: rawState,

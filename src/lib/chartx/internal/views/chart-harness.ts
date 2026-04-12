@@ -2,6 +2,7 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
+  createVersionedChartTemplate,
   findNearestRowByLogical,
   ChartContext,
   applyMainSeriesStyleOptions,
@@ -18,6 +19,7 @@ import {
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
   mergeStudyDataToChartContext,
+  normalizeVersionedChartTemplate,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
@@ -25,6 +27,7 @@ import {
   SourceRegistry,
   TimeScale,
   type OhlcDataPoint,
+  type ChartTemplateV1,
   type PhaseOneMainChartType,
   type PhaseOneMainSeriesBuilder,
   type PhaseOneMainSeriesInputCapability,
@@ -36,6 +39,7 @@ import {
   type SourceDescriptor,
   type TimePointIndex,
   type ChartBarSequence,
+  type VersionedChartTemplateInput,
 } from "../model";
 import {
   AreaRenderer,
@@ -468,34 +472,19 @@ export type PhaseOneChartStateSnapshot = {
       }
   >;
 };
-export type PhaseOneChartTemplateV1 = {
-  kind: "chart-template";
-  version: 1;
-  chart: PhaseOneChartStateSnapshot;
-};
+export type PhaseOneChartTemplateV1 = ChartTemplateV1<PhaseOneChartStateSnapshot>;
 export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
-export type PhaseOneChartTemplateInput = PhaseOneChartTemplate | PhaseOneChartStateSnapshot;
+export type PhaseOneChartTemplateInput = VersionedChartTemplateInput<PhaseOneChartStateSnapshot>;
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export function createPhaseOneChartTemplate(chart: PhaseOneChartStateSnapshot): PhaseOneChartTemplateV1 {
-  return {
-    kind: "chart-template",
-    version: 1,
-    chart,
-  };
+  return createVersionedChartTemplate(chart);
 }
 
 export function normalizePhaseOneChartTemplate(
   input: PhaseOneChartTemplateInput,
 ): PhaseOneChartTemplateV1 {
-  if ("version" in input && "kind" in input && input.kind === "chart-template") {
-    if (input.version !== 1) {
-      throw new Error(`chartx phase-one chart template version ${String(input.version)} is not supported`);
-    }
-    return input;
-  }
-
-  return createPhaseOneChartTemplate(input as PhaseOneChartStateSnapshot);
+  return normalizeVersionedChartTemplate(input);
 }
 
 export type PhaseOneChartApi = {

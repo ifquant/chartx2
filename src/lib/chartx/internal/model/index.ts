@@ -1,5 +1,6 @@
 export * from "./chart-bar-sequence";
 export * from "./chart-context";
+export * from "./chart-template";
 export * from "./coordinate";
 export * from "./indicator-studies";
 export * from "./main-series-chart-types";

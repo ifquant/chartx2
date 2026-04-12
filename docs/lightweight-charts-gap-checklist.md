@@ -113,7 +113,7 @@ Current `chartx2` status against that model:
   - this remains largely deferred and must stay separate from runtime chart entities when it appears
   - the new main-series state snapshot is only a first chart-owned persistence primitive, not a full layout/template system yet
   - the chart API now also has a first chart-owned state snapshot for layout colors, viewport numbers, pane composition, and main-series state, but that is still a narrow runtime persistence slice rather than a full template/workspace model
-  - the chart API now also has a first explicit `chart template v1` wrapper with `kind/version/chart` fields and a normalize/apply path, so versioned template evolution can start without immediately breaking the older raw state API
+  - the chart API now also has a first explicit `chart template v1` wrapper with `kind/version/chart` fields and a normalize/apply path, and those version helpers now live in the model layer instead of only inside the harness boundary
 
 The capability categories below are intentionally practical:
 
@@ -243,6 +243,7 @@ Why this is still simplified:
 - the chart now also has a first `getChartState() / applyChartState()` path for chart-owned options, pane composition, the main-series state, managed secondary series, and the current `overlay / compare / moving-average` studies
 - ordinary managed secondary histogram/volume visuals now survive the internal `setData()` path instead of being dropped by an ordering bug in the secondary-series update flow
 - the chart now also has a first `getChartTemplate() / applyChartTemplate()` path that wraps this chart-owned state in a versioned `chart-template` schema and still accepts raw state through a normalize layer for backward compatibility
+- the template create/normalize helpers now live in the model layer, which is a better boundary for future persistence, migration, and non-harness consumers
 - broader indicators, drawings, template versioning, and workspace persistence still remain outside the current persistence boundary
 
 ### Time and price scales

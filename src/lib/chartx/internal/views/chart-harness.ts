@@ -468,7 +468,35 @@ export type PhaseOneChartStateSnapshot = {
       }
   >;
 };
+export type PhaseOneChartTemplateV1 = {
+  kind: "chart-template";
+  version: 1;
+  chart: PhaseOneChartStateSnapshot;
+};
+export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
+export type PhaseOneChartTemplateInput = PhaseOneChartTemplate | PhaseOneChartStateSnapshot;
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
+
+export function createPhaseOneChartTemplate(chart: PhaseOneChartStateSnapshot): PhaseOneChartTemplateV1 {
+  return {
+    kind: "chart-template",
+    version: 1,
+    chart,
+  };
+}
+
+export function normalizePhaseOneChartTemplate(
+  input: PhaseOneChartTemplateInput,
+): PhaseOneChartTemplateV1 {
+  if ("version" in input && "kind" in input && input.kind === "chart-template") {
+    if (input.version !== 1) {
+      throw new Error(`chartx phase-one chart template version ${String(input.version)} is not supported`);
+    }
+    return input;
+  }
+
+  return createPhaseOneChartTemplate(input as PhaseOneChartStateSnapshot);
+}
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
@@ -490,6 +518,8 @@ export type PhaseOneChartApi = {
   applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi;
   getChartState(): PhaseOneChartStateSnapshot;
   applyChartState(state: PhaseOneChartStateSnapshot): void;
+  getChartTemplate(): PhaseOneChartTemplate;
+  applyChartTemplate(template: PhaseOneChartTemplateInput): void;
   setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi;
   subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
@@ -1549,6 +1579,19 @@ export class PhaseOneChartHarness {
   }
 
   public applyChartState(state: PhaseOneChartStateSnapshot): void {
+    this.applyChartStateSnapshot(state);
+  }
+
+  public getChartTemplate(): PhaseOneChartTemplate {
+    return createPhaseOneChartTemplate(this.getChartState());
+  }
+
+  public applyChartTemplate(template: PhaseOneChartTemplateInput): void {
+    const normalized = normalizePhaseOneChartTemplate(template);
+    this.applyChartStateSnapshot(normalized.chart);
+  }
+
+  private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
     this.applyOptions(state.options);
     this.clearRestorableChartStudies();
     this.clearRestorableChartSeries();
@@ -4167,6 +4210,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     applyChartState(state) {
       harness.applyChartState(state);
+    },
+    getChartTemplate() {
+      return harness.getChartTemplate();
+    },
+    applyChartTemplate(template) {
+      harness.applyChartTemplate(template);
     },
     setChartType(type) {
       return harness.setChartType(type);

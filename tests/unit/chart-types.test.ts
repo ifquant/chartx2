@@ -13,6 +13,10 @@ import {
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
 } from "../../src/lib/chartx/internal/model";
+import {
+  createPhaseOneChartTemplate,
+  normalizePhaseOneChartTemplate,
+} from "../../src/lib/chartx/internal/views";
 import { MAIN_SERIES_RENDERERS } from "../../src/lib/chartx/internal/renderers";
 
 describe("chart type builders", () => {
@@ -111,6 +115,59 @@ describe("chart type builders", () => {
         boxSizeMode: "auto",
         reversalBoxes: 3,
       },
+    });
+  });
+
+  it("normalizes versioned chart templates while keeping backward compatibility with raw chart state", () => {
+    const rawState = {
+      options: {
+        layout: {
+          backgroundColor: "#fffdf7",
+          paneBackgroundColor: "#fffaf0",
+          gridColor: "rgba(16, 16, 16, 0.08)",
+        },
+        crosshair: {
+          lineColor: "rgba(16, 16, 16, 0.5)",
+          pointColor: "#101010",
+        },
+      },
+      timeScale: {
+        barSpacing: 12,
+        rightOffset: 1,
+        visibleLogicalRange: { from: 1, to: 8 },
+      },
+      priceScale: {
+        visibleRange: { minValue: 100, maxValue: 140 },
+        scaleSeriesOnly: false,
+      },
+      panes: [{ height: 112, resizable: true }],
+      mainSeries: null,
+      series: [],
+      studies: [],
+    };
+
+    expect(createPhaseOneChartTemplate(rawState)).toEqual({
+      kind: "chart-template",
+      version: 1,
+      chart: rawState,
+    });
+
+    expect(normalizePhaseOneChartTemplate(rawState)).toEqual({
+      kind: "chart-template",
+      version: 1,
+      chart: rawState,
+    });
+
+    expect(
+      normalizePhaseOneChartTemplate({
+        kind: "chart-template",
+        version: 1,
+        chart: rawState,
+      }),
+    ).toEqual({
+      kind: "chart-template",
+      version: 1,
+      chart: rawState,
     });
   });
 

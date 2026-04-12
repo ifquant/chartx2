@@ -2796,6 +2796,100 @@ test("phase-one public api can snapshot and restore chart-owned layout and main-
   });
 });
 
+test("phase-one public api can snapshot and restore a versioned chart template", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, line, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-chart-template-fixture" style="width: 860px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-chart-template-canvas" aria-label="phase-one api chart template chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-chart-template-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API chart-template fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const studyPane = chart.addPane({ height: 128, resizable: true });
+    const volumePane = chart.addPane({ height: 104, resizable: false });
+    const lineSeries = chart.addLineSeries({ pane: studyPane });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    const movingAverage = chart.addMovingAverageStudy({ pane: studyPane });
+
+    mainSeries.setData(data);
+    lineSeries.applyOptions({ color: "#7c3aed", lineWidth: 3 });
+    lineSeries.setData(line);
+    volumeSeries.applyOptions({ upColor: "#0c8f62", downColor: "#c7543e" });
+    volumeSeries.setData(volume);
+    movingAverage.applyOptions({ color: "#2563eb", lineWidth: 2 });
+    movingAverage.applyStudyOptions({ length: 4 });
+    chart.applyOptions({
+      layout: {
+        backgroundColor: "#f2eee2",
+        paneBackgroundColor: "#fff7df",
+        gridColor: "rgba(18, 107, 69, 0.16)",
+      },
+      crosshair: {
+        lineColor: "rgba(18, 107, 69, 0.45)",
+        pointColor: "#126b45",
+      },
+    });
+    chart.timeScale().applyOptions({
+      barSpacing: 14,
+      rightOffset: 1.2,
+    });
+    chart.timeScale().setVisibleLogicalRange({ from: 1.8, to: 7.1 });
+    chart.applyMainSeriesState({
+      chartType: "renko",
+      inputCapability: "ohlcv",
+      builder: "renko",
+      renderer: "brick",
+      styleSchemaId: "renkoStyle",
+      styleOptionSurface: "candlestick",
+      styleOptions: {
+        upColor: "#126b45",
+        downColor: "#bd5137",
+        wickColor: "#1f1f1f",
+        renkoBoxSize: 18,
+        renkoBoxSizeMode: "fixed",
+      },
+      renkoOptions: {
+        boxSize: 18,
+        boxSizeMode: "fixed",
+      },
+      pointFigureOptions: {
+        boxSize: 120,
+        boxSizeMode: "fixed",
+        reversalBoxes: 3,
+      },
+    });
+
+    const savedTemplate = chart.getChartTemplate();
+    chart.setChartType("line");
+    chart.removeSeries(lineSeries);
+    chart.removeSeries(volumeSeries);
+    chart.removeSeries(movingAverage);
+    chart.applyChartTemplate(savedTemplate);
+
+    return {
+      savedTemplate,
+      restoredTemplate: chart.getChartTemplate(),
+      restoredState: chart.getChartState(),
+      restoredChartType: chart.getChartType(),
+    };
+  }, { data: API_DATA, line: LINE_API_DATA, volume: VOLUME_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.savedTemplate.kind).toBe("chart-template");
+  expect(result.savedTemplate.version).toBe(1);
+  expect(result.restoredChartType).toBe("renko");
+  expect(result.restoredTemplate).toEqual(result.savedTemplate);
+  expect(result.restoredState).toEqual(result.savedTemplate.chart);
+});
+
 test("phase-one chart state snapshots can restore overlay compare and moving-average studies", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, requested, publicEntry }) => {

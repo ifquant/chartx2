@@ -81,6 +81,7 @@ Current `chartx2` status against that model:
 - `StudySource`
   - extra pane series now act as the first explicit `StudySource` runtime subtype, currently with `studyKind: "series"`
   - the first `overlay` and `compare` runtime creation paths now exist as primary-pane study subtypes
+  - chart state snapshots can now also persist and restore the current `overlay`, `compare`, and `moving-average` study set as a first study-aware template slice
   - broader indicator studies are not yet modeled as first-class study entities
   - study inputs still need a clearer split between `chart-context` and future `requested-context` execution
 - `MainSeries style schemas`
@@ -238,6 +239,7 @@ Why this is still simplified:
 - pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs and full pane management breadth
 - the chart now has a first `getMainSeriesState() / applyMainSeriesState()` path, but only for the main series; panes, studies, and full chart layout persistence are still outside that snapshot
 - the chart now also has a first `getChartState() / applyChartState()` path for chart-owned options, pane composition, and the main-series state, but studies and broader workspace persistence remain out of scope
+- the chart snapshot now restores `overlay`, `compare`, and `moving-average` studies too, but ordinary managed secondary series, broader indicators, and drawings remain outside the persistence boundary
 
 ### Time and price scales
 

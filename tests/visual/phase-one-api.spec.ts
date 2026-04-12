@@ -20,6 +20,13 @@ const LINE_API_DATA = [
   { time: 4, value: 135 },
   { time: 5, value: 133 },
 ] as const;
+const REQUESTED_COMPARE_API_DATA = [
+  { time: 1, value: 130 },
+  { time: 2, value: 135 },
+  { time: 3, value: 134 },
+  { time: 4, value: 142 },
+  { time: 5, value: 141 },
+] as const;
 const BAR_API_DATA = [
   { time: 1, open: 120, high: 132, low: 118, close: 128 },
   { time: 2, open: 128, high: 136, low: 124, close: 130 },
@@ -2787,6 +2794,126 @@ test("phase-one public api can snapshot and restore chart-owned layout and main-
     },
     scaleSeriesOnly: true,
   });
+});
+
+test("phase-one chart state snapshots can restore overlay compare and moving-average studies", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, line, requested, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-study-chart-state-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-study-chart-state-canvas" aria-label="phase-one api study chart state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-study-chart-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API study chart-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const studyPane = chart.addPane({ height: 112, resizable: true });
+    const overlaySeries = chart.addOverlaySeries();
+    const compareSeries = chart.addCompareSeries();
+    const movingAverage = chart.addMovingAverageStudy({ pane: studyPane });
+    mainSeries.setData(bars);
+    overlaySeries.setData(line);
+    compareSeries.setData(requested);
+    overlaySeries.applyOptions({ color: "#7c3aed", lineWidth: 2 });
+    compareSeries.applyOptions({ color: "#f59e0b", lineWidth: 3 });
+    compareSeries.applyCompareOptions({
+      affectMainScale: false,
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1D",
+      requestedSession: "regular",
+      requestedTimezone: "UTC",
+      mergePolicy: "carry-forward",
+    });
+    movingAverage.applyOptions({ color: "#2563eb", lineWidth: 2 });
+    movingAverage.applyStudyOptions({
+      length: 5,
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1D",
+      requestedSession: "regular",
+      requestedTimezone: "UTC",
+      mergePolicy: "exact",
+    });
+
+    const saved = chart.getChartState();
+
+    chart.removeSeries(overlaySeries);
+    chart.removeSeries(compareSeries);
+    chart.removeSeries(movingAverage);
+    chart.applyChartState(saved);
+
+    const restored = chart.getChartState();
+
+    return {
+      savedStudies: saved.studies,
+      restoredStudies: restored.studies,
+      savedPaneCount: saved.panes.length,
+      restoredPaneCount: restored.panes.length,
+    };
+  }, {
+    bars: API_DATA,
+    line: LINE_API_DATA,
+    requested: REQUESTED_COMPARE_API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.savedPaneCount).toBe(1);
+  expect(result.restoredPaneCount).toBe(1);
+  expect(result.savedStudies).toEqual([
+    {
+      type: "overlay",
+      paneIndex: 0,
+      seriesOptions: {
+        color: "#7c3aed",
+        lineWidth: 2,
+      },
+      data: LINE_API_DATA,
+    },
+    {
+      type: "compare",
+      paneIndex: 0,
+      seriesOptions: {
+        color: "#f59e0b",
+        lineWidth: 3,
+      },
+      compareOptions: {
+        affectMainScale: false,
+        inputContextMode: "requested-context",
+        requestedSymbol: "NASDAQ:NDX",
+        requestedResolution: "1D",
+        requestedSession: "regular",
+        requestedTimezone: "UTC",
+        mergePolicy: "carry-forward",
+      },
+      data: REQUESTED_COMPARE_API_DATA,
+    },
+    {
+      type: "moving-average",
+      paneIndex: 1,
+      seriesOptions: {
+        color: "#2563eb",
+        lineWidth: 2,
+      },
+      studyOptions: {
+        length: 5,
+        inputContextMode: "requested-context",
+        requestedSymbol: "NASDAQ:NDX",
+        requestedResolution: "1D",
+        requestedSession: "regular",
+        requestedTimezone: "UTC",
+        mergePolicy: "exact",
+      },
+    },
+  ]);
+  expect(result.restoredStudies).toEqual(result.savedStudies);
 });
 
 test("phase-one public api supports click subscriptions and series-level options", async ({

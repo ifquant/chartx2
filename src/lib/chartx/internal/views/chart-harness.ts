@@ -414,6 +414,27 @@ export type PhaseOneChartStateSnapshot = {
     resizable: boolean;
   }>;
   mainSeries: PhaseOneMainSeriesStateSnapshot | null;
+  studies: Array<
+    | {
+        type: "overlay";
+        paneIndex: number;
+        seriesOptions: PhaseOneLineSeriesOptions;
+        data: readonly PhaseOneLineData[];
+      }
+    | {
+        type: "compare";
+        paneIndex: number;
+        seriesOptions: PhaseOneLineSeriesOptions;
+        compareOptions: Required<PhaseOneCompareSeriesOptions>;
+        data: readonly PhaseOneLineData[];
+      }
+    | {
+        type: "moving-average";
+        paneIndex: number;
+        seriesOptions: PhaseOneLineSeriesOptions;
+        studyOptions: Required<PhaseOneMovingAverageStudyOptions>;
+      }
+  >;
 };
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
@@ -1490,11 +1511,13 @@ export class PhaseOneChartHarness {
           resizable: pane.resizable,
         })),
       mainSeries: this.getMainSeriesState(),
+      studies: this.buildChartStudyStateSnapshots(),
     };
   }
 
   public applyChartState(state: PhaseOneChartStateSnapshot): void {
     this.applyOptions(state.options);
+    this.clearRestorableChartStudies();
 
     const currentSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
     const targetPaneCount = state.panes.length;
@@ -1530,6 +1553,8 @@ export class PhaseOneChartHarness {
       this.applyMainSeriesState(state.mainSeries);
     }
 
+    this.restoreChartStudies(state.studies);
+
     this.timeScaleApi().applyOptions({
       barSpacing: state.timeScale.barSpacing ?? undefined,
       rightOffset: state.timeScale.rightOffset,
@@ -1545,6 +1570,119 @@ export class PhaseOneChartHarness {
 
     if (this.canvas !== null) {
       this.render(this.canvas);
+    }
+  }
+
+  private buildChartStudyStateSnapshots(): PhaseOneChartStateSnapshot["studies"] {
+    const snapshots: PhaseOneChartStateSnapshot["studies"] = [];
+
+    for (const source of this.sourceRegistry.list()) {
+      if (source.role !== "study") {
+        continue;
+      }
+
+        const paneIndex = this.getPaneIndex(source.paneId);
+        const seriesOptions = {
+          ...(source.options as Required<PhaseOneLineSeriesOptions>),
+        };
+
+        if (source.studyKind === "overlay") {
+          snapshots.push({
+            type: "overlay" as const,
+            paneIndex,
+            seriesOptions,
+            data: source.inputData.map((item) => ({
+              time: item.time,
+              value: item.close,
+            })),
+          });
+          continue;
+        }
+
+        if (source.studyKind === "compare") {
+          snapshots.push({
+            type: "compare" as const,
+            paneIndex,
+            seriesOptions,
+            compareOptions: {
+              ...(source.compareOptions ?? this.defaultCompareOptions),
+              inputContextMode: source.inputContext.mode,
+              requestedSymbol: source.inputContext.symbol,
+              requestedResolution: source.inputContext.resolution,
+              requestedSession: source.inputContext.session,
+              requestedTimezone: source.inputContext.timezone,
+              mergePolicy: source.inputContext.mergePolicy,
+            },
+            data: source.inputData.map((item) => ({
+              time: item.time,
+              value: item.close,
+            })),
+          });
+          continue;
+        }
+
+        if (source.studyKind === "indicator" && source.indicator?.kind === "moving-average") {
+          snapshots.push({
+            type: "moving-average" as const,
+            paneIndex,
+            seriesOptions,
+            studyOptions: {
+              length: source.indicator.length,
+              inputContextMode: source.inputContext.mode,
+              requestedSymbol: source.inputContext.symbol,
+              requestedResolution: source.inputContext.resolution,
+              requestedSession: source.inputContext.session,
+              requestedTimezone: source.inputContext.timezone,
+              mergePolicy: source.inputContext.mergePolicy,
+            },
+          });
+        }
+    }
+
+    return snapshots;
+  }
+
+  private clearRestorableChartStudies(): void {
+    for (const source of this.sourceRegistry.list()) {
+      if (source.role !== "study") {
+        continue;
+      }
+      if (
+        source.studyKind === "overlay" ||
+        source.studyKind === "compare" ||
+        (source.studyKind === "indicator" && source.indicator?.kind === "moving-average")
+      ) {
+        this.sourceRegistry.removeByApi(source.api);
+      }
+    }
+  }
+
+  private restoreChartStudies(studies: PhaseOneChartStateSnapshot["studies"]): void {
+    for (const study of studies) {
+      const pane = this.panes[study.paneIndex];
+      if (pane === undefined) {
+        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+      }
+      const paneId = pane.id;
+
+      if (study.type === "overlay") {
+        const overlay = this.addStudyLineSeries(paneId, "overlay");
+        overlay.applyOptions(study.seriesOptions);
+        overlay.setData(study.data);
+        continue;
+      }
+
+      if (study.type === "compare") {
+        const compare = this.addCompareStudySeries(paneId);
+        compare.applyOptions(study.seriesOptions);
+        compare.applyCompareOptions(study.compareOptions);
+        compare.setData(study.data);
+        continue;
+      }
+
+      const movingAverage = this.addMovingAverageStudySeries(paneId);
+      movingAverage.applyOptions(study.seriesOptions);
+      movingAverage.applyStudyOptions(study.studyOptions);
     }
   }
 

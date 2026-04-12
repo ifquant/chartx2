@@ -82,6 +82,7 @@ Current `chartx2` status against that model:
   - extra pane series now act as the first explicit `StudySource` runtime subtype, currently with `studyKind: "series"`
   - the first `overlay` and `compare` runtime creation paths now exist as primary-pane study subtypes
   - chart state snapshots can now also persist and restore the current `overlay`, `compare`, and `moving-average` study set as a first study-aware template slice
+  - chart state snapshots now also persist and restore ordinary managed secondary series, so chart-owned persistence no longer drops pane content that sits outside the main series and explicit studies
   - broader indicator studies are not yet modeled as first-class study entities
   - study inputs still need a clearer split between `chart-context` and future `requested-context` execution
 - `MainSeries style schemas`
@@ -238,8 +239,9 @@ Why this is still simplified:
 - pane handles now expose a small options surface, a resize callback, a chart-level pane event bus with stable pane/series metadata snapshots, and pane-aware readout payloads, but pane-local APIs are still much narrower than lightweight-charts
 - pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs and full pane management breadth
 - the chart now has a first `getMainSeriesState() / applyMainSeriesState()` path, but only for the main series; panes, studies, and full chart layout persistence are still outside that snapshot
-- the chart now also has a first `getChartState() / applyChartState()` path for chart-owned options, pane composition, and the main-series state, but studies and broader workspace persistence remain out of scope
-- the chart snapshot now restores `overlay`, `compare`, and `moving-average` studies too, but ordinary managed secondary series, broader indicators, and drawings remain outside the persistence boundary
+- the chart now also has a first `getChartState() / applyChartState()` path for chart-owned options, pane composition, the main-series state, managed secondary series, and the current `overlay / compare / moving-average` studies
+- ordinary managed secondary histogram/volume visuals now survive the internal `setData()` path instead of being dropped by an ordering bug in the secondary-series update flow
+- broader indicators, drawings, template versioning, and workspace persistence still remain outside the current persistence boundary
 
 ### Time and price scales
 

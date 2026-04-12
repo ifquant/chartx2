@@ -2916,6 +2916,100 @@ test("phase-one chart state snapshots can restore overlay compare and moving-ave
   expect(result.restoredStudies).toEqual(result.savedStudies);
 });
 
+test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-series-chart-state-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-series-chart-state-canvas" aria-label="phase-one api series chart state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-series-chart-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API series chart-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const linePane = chart.addPane({ height: 108, resizable: true });
+    const volumePane = chart.addPane({ height: 128, resizable: false });
+    const lineSeries = chart.addLineSeries({ pane: linePane });
+    const histogramSeries = chart.addHistogramSeries({ pane: linePane });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    mainSeries.setData(bars);
+    lineSeries.applyOptions({ color: "#7c3aed", lineWidth: 3 });
+    histogramSeries.applyOptions({ upColor: "#f59e0b", downColor: "#b45309" });
+    volumeSeries.applyOptions({ upColor: "#0c8f62", downColor: "#c7543e" });
+    lineSeries.setData(line);
+    histogramSeries.setData(histogram);
+    volumeSeries.setData(volume);
+
+    const saved = chart.getChartState();
+
+    chart.removeSeries(lineSeries);
+    chart.removeSeries(histogramSeries);
+    chart.removeSeries(volumeSeries);
+    chart.applyChartState(saved);
+
+    const restored = chart.getChartState();
+
+    return {
+      savedSeries: saved.series,
+      restoredSeries: restored.series,
+      savedPaneCount: saved.panes.length,
+      restoredPaneCount: restored.panes.length,
+    };
+  }, {
+    bars: API_DATA,
+    line: LINE_API_DATA,
+    histogram: HISTOGRAM_API_DATA,
+    volume: VOLUME_API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.savedPaneCount).toBe(2);
+  expect(result.restoredPaneCount).toBe(2);
+  expect(result.savedSeries).toEqual([
+    {
+      kind: "line",
+      paneIndex: 1,
+      options: {
+        color: "#7c3aed",
+        lineWidth: 3,
+      },
+      data: LINE_API_DATA,
+    },
+    {
+      kind: "histogram",
+      paneIndex: 1,
+      options: {
+        upColor: "#f59e0b",
+        downColor: "#b45309",
+      },
+      data: [
+        { time: 1, value: 24, up: true },
+        { time: 2, value: 38, up: true },
+        { time: 3, value: 31, up: false },
+        { time: 4, value: 44, up: true },
+        { time: 5, value: 29, up: false },
+      ],
+    },
+    {
+      kind: "volume",
+      paneIndex: 2,
+      options: {
+        upColor: "#0c8f62",
+        downColor: "#c7543e",
+      },
+      data: VOLUME_API_DATA,
+    },
+  ]);
+  expect(result.restoredSeries).toEqual(result.savedSeries);
+});
+
 test("phase-one public api supports click subscriptions and series-level options", async ({
   page,
 }) => {

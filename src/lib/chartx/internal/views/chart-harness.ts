@@ -414,6 +414,38 @@ export type PhaseOneChartStateSnapshot = {
     resizable: boolean;
   }>;
   mainSeries: PhaseOneMainSeriesStateSnapshot | null;
+  series: Array<
+    | {
+        kind: "candlestick" | "bar";
+        paneIndex: number;
+        options: PhaseOneCandlestickSeriesOptions | PhaseOneBarSeriesOptions;
+        data: readonly PhaseOneCandlestickData[];
+      }
+    | {
+        kind: "line";
+        paneIndex: number;
+        options: PhaseOneLineSeriesOptions;
+        data: readonly PhaseOneLineData[];
+      }
+    | {
+        kind: "area";
+        paneIndex: number;
+        options: PhaseOneAreaSeriesOptions;
+        data: readonly PhaseOneLineData[];
+      }
+    | {
+        kind: "baseline";
+        paneIndex: number;
+        options: PhaseOneBaselineSeriesOptions;
+        data: readonly PhaseOneLineData[];
+      }
+    | {
+        kind: "histogram" | "volume";
+        paneIndex: number;
+        options: PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions;
+        data: readonly (PhaseOneHistogramData | PhaseOneVolumeData)[];
+      }
+  >;
   studies: Array<
     | {
         type: "overlay";
@@ -1511,6 +1543,7 @@ export class PhaseOneChartHarness {
           resizable: pane.resizable,
         })),
       mainSeries: this.getMainSeriesState(),
+      series: this.buildChartSeriesStateSnapshots(),
       studies: this.buildChartStudyStateSnapshots(),
     };
   }
@@ -1518,6 +1551,7 @@ export class PhaseOneChartHarness {
   public applyChartState(state: PhaseOneChartStateSnapshot): void {
     this.applyOptions(state.options);
     this.clearRestorableChartStudies();
+    this.clearRestorableChartSeries();
 
     const currentSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
     const targetPaneCount = state.panes.length;
@@ -1553,6 +1587,7 @@ export class PhaseOneChartHarness {
       this.applyMainSeriesState(state.mainSeries);
     }
 
+    this.restoreChartSeries(state.series);
     this.restoreChartStudies(state.studies);
 
     this.timeScaleApi().applyOptions({
@@ -1580,63 +1615,116 @@ export class PhaseOneChartHarness {
       if (source.role !== "study") {
         continue;
       }
+      const paneIndex = this.getPaneIndex(source.paneId);
+      const seriesOptions = {
+        ...(source.options as Required<PhaseOneLineSeriesOptions>),
+      };
 
-        const paneIndex = this.getPaneIndex(source.paneId);
-        const seriesOptions = {
-          ...(source.options as Required<PhaseOneLineSeriesOptions>),
-        };
+      if (source.studyKind === "overlay") {
+        snapshots.push({
+          type: "overlay" as const,
+          paneIndex,
+          seriesOptions,
+          data: source.inputData.map((item) => ({
+            time: item.time,
+            value: item.close,
+          })),
+        });
+        continue;
+      }
 
-        if (source.studyKind === "overlay") {
-          snapshots.push({
-            type: "overlay" as const,
-            paneIndex,
-            seriesOptions,
-            data: source.inputData.map((item) => ({
+      if (source.studyKind === "compare") {
+        snapshots.push({
+          type: "compare" as const,
+          paneIndex,
+          seriesOptions,
+          compareOptions: {
+            ...(source.compareOptions ?? this.defaultCompareOptions),
+            inputContextMode: source.inputContext.mode,
+            requestedSymbol: source.inputContext.symbol,
+            requestedResolution: source.inputContext.resolution,
+            requestedSession: source.inputContext.session,
+            requestedTimezone: source.inputContext.timezone,
+            mergePolicy: source.inputContext.mergePolicy,
+          },
+          data: source.inputData.map((item) => ({
+            time: item.time,
+            value: item.close,
+          })),
+        });
+        continue;
+      }
+
+      if (source.studyKind === "indicator" && source.indicator?.kind === "moving-average") {
+        snapshots.push({
+          type: "moving-average" as const,
+          paneIndex,
+          seriesOptions,
+          studyOptions: {
+            length: source.indicator.length,
+            inputContextMode: source.inputContext.mode,
+            requestedSymbol: source.inputContext.symbol,
+            requestedResolution: source.inputContext.resolution,
+            requestedSession: source.inputContext.session,
+            requestedTimezone: source.inputContext.timezone,
+            mergePolicy: source.inputContext.mergePolicy,
+          },
+        });
+      }
+    }
+
+    return snapshots;
+  }
+
+  private buildChartSeriesStateSnapshots(): PhaseOneChartStateSnapshot["series"] {
+    const snapshots: PhaseOneChartStateSnapshot["series"] = [];
+
+    for (const source of this.sourceRegistry.list()) {
+      if (source.role !== "study" || source.studyKind !== "series") {
+        continue;
+      }
+
+      const paneIndex = this.getPaneIndex(source.paneId);
+
+      if (source.kind === "candlestick" || source.kind === "bar") {
+        snapshots.push({
+          kind: source.kind,
+          paneIndex,
+          options: { ...(source.options as Required<PhaseOneCandlestickSeriesOptions | PhaseOneBarSeriesOptions>) },
+          data: [...source.inputData],
+        });
+        continue;
+      }
+
+      if (source.kind === "line" || source.kind === "area" || source.kind === "baseline") {
+        snapshots.push({
+          kind: source.kind,
+          paneIndex,
+          options: { ...(source.options as Required<PhaseOneLineSeriesOptions | PhaseOneAreaSeriesOptions | PhaseOneBaselineSeriesOptions>) } as never,
+          data: source.inputData.map((item) => ({
+            time: item.time,
+            value: item.close,
+          })),
+        } as PhaseOneChartStateSnapshot["series"][number]);
+        continue;
+      }
+
+      if (source.kind === "histogram" || source.kind === "volume") {
+        snapshots.push({
+          kind: source.kind,
+          paneIndex,
+          options: { ...(source.options as Required<PhaseOneHistogramSeriesOptions | PhaseOneVolumeSeriesOptions>) },
+          data: source.inputData.map((item) => {
+            const visual = source.visuals.get(item.time);
+            return {
               time: item.time,
               value: item.close,
-            })),
-          });
-          continue;
-        }
-
-        if (source.studyKind === "compare") {
-          snapshots.push({
-            type: "compare" as const,
-            paneIndex,
-            seriesOptions,
-            compareOptions: {
-              ...(source.compareOptions ?? this.defaultCompareOptions),
-              inputContextMode: source.inputContext.mode,
-              requestedSymbol: source.inputContext.symbol,
-              requestedResolution: source.inputContext.resolution,
-              requestedSession: source.inputContext.session,
-              requestedTimezone: source.inputContext.timezone,
-              mergePolicy: source.inputContext.mergePolicy,
-            },
-            data: source.inputData.map((item) => ({
-              time: item.time,
-              value: item.close,
-            })),
-          });
-          continue;
-        }
-
-        if (source.studyKind === "indicator" && source.indicator?.kind === "moving-average") {
-          snapshots.push({
-            type: "moving-average" as const,
-            paneIndex,
-            seriesOptions,
-            studyOptions: {
-              length: source.indicator.length,
-              inputContextMode: source.inputContext.mode,
-              requestedSymbol: source.inputContext.symbol,
-              requestedResolution: source.inputContext.resolution,
-              requestedSession: source.inputContext.session,
-              requestedTimezone: source.inputContext.timezone,
-              mergePolicy: source.inputContext.mergePolicy,
-            },
-          });
-        }
+              ...(visual?.color !== undefined ? { color: visual.color } : {}),
+              ...(visual?.isUp !== undefined ? { up: visual.isUp } : {}),
+            };
+          }),
+        });
+      }
     }
 
     return snapshots;
@@ -1653,6 +1741,69 @@ export class PhaseOneChartHarness {
         (source.studyKind === "indicator" && source.indicator?.kind === "moving-average")
       ) {
         this.sourceRegistry.removeByApi(source.api);
+      }
+    }
+  }
+
+  private clearRestorableChartSeries(): void {
+    for (const source of this.sourceRegistry.list()) {
+      if (source.role === "study" && source.studyKind === "series") {
+        this.sourceRegistry.removeByApi(source.api);
+      }
+    }
+  }
+
+  private restoreChartSeries(series: PhaseOneChartStateSnapshot["series"]): void {
+    for (const item of series) {
+      const pane = this.panes[item.paneIndex];
+      if (pane === undefined) {
+        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+      }
+      const target = { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
+
+      switch (item.kind) {
+        case "candlestick": {
+          const restored = this.addCandlestickSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data);
+          break;
+        }
+        case "bar": {
+          const restored = this.addBarSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data);
+          break;
+        }
+        case "line": {
+          const restored = this.addLineSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data);
+          break;
+        }
+        case "area": {
+          const restored = this.addAreaSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data);
+          break;
+        }
+        case "baseline": {
+          const restored = this.addBaselineSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data);
+          break;
+        }
+        case "histogram": {
+          const restored = this.addHistogramSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data as readonly PhaseOneHistogramData[]);
+          break;
+        }
+        case "volume": {
+          const restored = this.addVolumeSeries(target);
+          restored.applyOptions(item.options);
+          restored.setData(item.data as readonly PhaseOneVolumeData[]);
+          break;
+        }
       }
     }
   }
@@ -2633,9 +2784,12 @@ export class PhaseOneChartHarness {
     data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
     kind: ChartSeriesKind,
   ): void {
+    this.setSecondaryData(api, normalizeHistogramData(data), kind);
     const state = this.getSourceByApi(api, kind);
     state.visuals = buildHistogramVisuals(data);
-    this.setSecondaryData(api, normalizeHistogramData(data), kind);
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
   }
 
   private updateSecondaryHistogramLike(

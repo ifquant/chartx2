@@ -2593,6 +2593,84 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
   expect(state?.logicalRange?.to).toBeCloseTo(4.6, 1);
 });
 
+test("phase-one public api can snapshot and restore unified main-series state", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-main-series-state-fixture" style="width: 820px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-main-series-state-canvas" aria-label="phase-one api main series state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-main-series-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API main-series state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const baseSeries = chart.addCandlestickSeries();
+    baseSeries.setData(data);
+
+    const renkoSeries = chart.setChartType("renko");
+    renkoSeries.applyOptions({
+      upColor: "#126b45",
+      downColor: "#bd5137",
+      wickColor: "#1f1f1f",
+      renkoBoxSizeMode: "fixed",
+      renkoBoxSize: 18,
+    });
+
+    const saved = chart.getMainSeriesState();
+    if (saved === null) {
+      throw new Error("main-series state snapshot should exist after attaching a primary series");
+    }
+
+    const lineSeries = chart.setChartType("line");
+    lineSeries.applyOptions({
+      color: "#3f6fd8",
+      lineWidth: 5,
+    });
+
+    chart.applyMainSeriesState(saved);
+    const restored = chart.getMainSeriesState();
+
+    return {
+      chartType: chart.getChartType(),
+      saved,
+      restored,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("renko");
+  expect(result.saved).toEqual({
+    chartType: "renko",
+    inputCapability: "ohlcv",
+    builder: "renko",
+    renderer: "brick",
+    styleSchemaId: "renkoStyle",
+    styleOptionSurface: "candlestick",
+    styleOptions: {
+      upColor: "#126b45",
+      downColor: "#bd5137",
+      wickColor: "#1f1f1f",
+      renkoBoxSize: 18,
+      renkoBoxSizeMode: "fixed",
+    },
+    renkoOptions: {
+      boxSize: 18,
+      boxSizeMode: "fixed",
+    },
+    pointFigureOptions: {
+      boxSize: 120,
+      boxSizeMode: "fixed",
+      reversalBoxes: 3,
+    },
+  });
+  expect(result.restored).toEqual(result.saved);
+});
+
 test("phase-one public api supports click subscriptions and series-level options", async ({
   page,
 }) => {

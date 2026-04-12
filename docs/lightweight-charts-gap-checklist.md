@@ -88,6 +88,7 @@ Current `chartx2` status against that model:
   - `Renko` and `Point & Figure` now use a model-layer style-option registry instead of keeping those rules inline in the harness
   - style schemas now also have a first explicit registry that describes which option surface a schema uses and which fields are type-specific
   - main-series chart-type switches now project shared style fields across schemas instead of always resetting all style state to defaults on every mode change
+  - the chart API now also exposes a first unified main-series state snapshot/apply path, so chart type, style options, and builder-specific options can move through one serializable chart-owned object instead of only through scattered imperative calls
   - the broader schema map is still much narrower than TradingView
  - `Renderer registry`
    - main-series renderer ids are no longer only metadata; the actual draw dispatch now routes through an explicit renderer registry in the renderers layer
@@ -108,6 +109,7 @@ Current `chartx2` status against that model:
   - there is no generalized toolbar/command architecture yet
 - `LayoutSnapshot / Templates / UserSettings`
   - this remains largely deferred and must stay separate from runtime chart entities when it appears
+  - the new main-series state snapshot is only a first chart-owned persistence primitive, not a full layout/template system yet
 
 The capability categories below are intentionally practical:
 
@@ -233,6 +235,7 @@ Why this is still simplified:
 - pane targeting is now more explicit, but the primary slot is still special and volume still stays secondary-only
 - pane handles now expose a small options surface, a resize callback, a chart-level pane event bus with stable pane/series metadata snapshots, and pane-aware readout payloads, but pane-local APIs are still much narrower than lightweight-charts
 - pane resize now obeys public pane options and can be observed, but it still lacks richer pane interaction APIs and full pane management breadth
+- the chart now has a first `getMainSeriesState() / applyMainSeriesState()` path, but only for the main series; panes, studies, and full chart layout persistence are still outside that snapshot
 
 ### Time and price scales
 

@@ -12,6 +12,7 @@ import {
   buildPointFigureData,
   buildRenkoData,
   buildMovingAverageStudyData,
+  createMainSeriesStateSnapshot,
   mainSeriesChartTypeSpec,
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
@@ -30,6 +31,7 @@ import {
   type PhaseOneMainSeriesRenderer,
   type PhaseOneMainStyleSchemaId,
   type PointFigureStyleOptionsState,
+  type MainSeriesStateSnapshot,
   type RenkoStyleOptionsState,
   type SourceDescriptor,
   type TimePointIndex,
@@ -395,6 +397,7 @@ export type PhaseOneMainSeriesApi =
   | PhaseOneAreaSeriesApi
   | PhaseOneBaselineSeriesApi
   | PhaseOneHistogramSeriesApi;
+export type PhaseOneMainSeriesStateSnapshot = MainSeriesStateSnapshot;
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export type PhaseOneChartApi = {
@@ -413,6 +416,8 @@ export type PhaseOneChartApi = {
   removePane(pane: PhaseOnePaneApi): void;
   applyOptions(options: PhaseOneChartOptions): void;
   getChartType(): PhaseOneMainChartType | null;
+  getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null;
+  applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi;
   setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi;
   subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
@@ -1386,6 +1391,62 @@ export class PhaseOneChartHarness {
 
   public getChartType(): PhaseOneMainChartType | null {
     return this.chartContext.snapshot().chartType;
+  }
+
+  public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
+    const source = this.getMainSource();
+    if (source === null) {
+      return null;
+    }
+
+    return createMainSeriesStateSnapshot({
+      chartType: source.chartType,
+      options: source.options as Record<string, unknown>,
+      renkoOptions: source.renkoOptions,
+      pointFigureOptions: source.pointFigureOptions,
+    });
+  }
+
+  public applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi {
+    const current = this.getMainSource();
+    const nextApi =
+      current === null
+        ? this.attachPrimarySeries(state.chartType)
+        : current.chartType === state.chartType
+          ? (current.api as PhaseOneMainSeriesApi)
+          : this.setChartType(state.chartType);
+
+    const source = this.getMainSourceOrThrow();
+    source.options = this.createMainSeriesOptions(source.styleSchemaId);
+
+    for (const [key, value] of Object.entries(state.styleOptions)) {
+      (source.options as Record<string, unknown>)[key] = value;
+    }
+
+    source.renkoOptions = {
+      boxSize:
+        state.renkoOptions.boxSize !== null && state.renkoOptions.boxSize > 0
+          ? state.renkoOptions.boxSize
+          : null,
+      boxSizeMode: state.renkoOptions.boxSizeMode,
+    };
+    source.pointFigureOptions = {
+      boxSize:
+        state.pointFigureOptions.boxSize !== null && state.pointFigureOptions.boxSize > 0
+          ? state.pointFigureOptions.boxSize
+          : null,
+      boxSizeMode: state.pointFigureOptions.boxSizeMode,
+      reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
+    };
+    source.data = applyMainSeriesBuilderData(source.inputData, source);
+    this.syncChartContextFromMainSource(source);
+    this.primaryPriceRangeOverride = null;
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+
+    return nextApi;
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
@@ -3703,6 +3764,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     getChartType() {
       return harness.getChartType();
+    },
+    getMainSeriesState() {
+      return harness.getMainSeriesState();
+    },
+    applyMainSeriesState(state) {
+      return harness.applyMainSeriesState(state);
     },
     setChartType(type) {
       return harness.setChartType(type);

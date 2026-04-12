@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyMainSeriesBuilder,
+  createMainSeriesStateSnapshot,
   applyMainSeriesStyleOptions,
   buildHeikinAshiData,
   buildKagiData,
@@ -63,6 +64,54 @@ describe("chart type builders", () => {
     expect(typeof MAIN_SERIES_RENDERERS["point-figure"]).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS["line-markers"]).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS.columns).toBe("function");
+  });
+
+  it("captures main-series chart type, style options, and builder-specific state in one snapshot", () => {
+    expect(
+      createMainSeriesStateSnapshot({
+        chartType: "renko",
+        options: {
+          upColor: "#11aa66",
+          downColor: "#dd5544",
+          wickColor: "#222222",
+          renkoBoxSize: 24,
+          renkoBoxSizeMode: "fixed",
+          ignored: "nope",
+        },
+        renkoOptions: {
+          boxSize: 24,
+          boxSizeMode: "fixed",
+        },
+        pointFigureOptions: {
+          boxSize: null,
+          boxSizeMode: "auto",
+          reversalBoxes: 3,
+        },
+      }),
+    ).toEqual({
+      chartType: "renko",
+      inputCapability: "ohlcv",
+      builder: "renko",
+      renderer: "brick",
+      styleSchemaId: "renkoStyle",
+      styleOptionSurface: "candlestick",
+      styleOptions: {
+        upColor: "#11aa66",
+        downColor: "#dd5544",
+        wickColor: "#222222",
+        renkoBoxSize: 24,
+        renkoBoxSizeMode: "fixed",
+      },
+      renkoOptions: {
+        boxSize: 24,
+        boxSizeMode: "fixed",
+      },
+      pointFigureOptions: {
+        boxSize: null,
+        boxSizeMode: "auto",
+        reversalBoxes: 3,
+      },
+    });
   });
 
   it("applies style-specific main-series options through the model-layer style registry", () => {

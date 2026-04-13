@@ -4,6 +4,8 @@ export type ChartTemplateV1<TChartState> = {
   chart: TChartState;
 };
 
+export const LATEST_CHART_TEMPLATE_VERSION = 1 as const;
+
 export type VersionedChartTemplateInput<TChartState> = ChartTemplateV1<TChartState> | TChartState;
 
 export function createVersionedChartTemplate<TChartState>(
@@ -11,7 +13,7 @@ export function createVersionedChartTemplate<TChartState>(
 ): ChartTemplateV1<TChartState> {
   return {
     kind: "chart-template",
-    version: 1,
+    version: LATEST_CHART_TEMPLATE_VERSION,
     chart,
   };
 }
@@ -19,11 +21,11 @@ export function createVersionedChartTemplate<TChartState>(
 export function normalizeVersionedChartTemplate<TChartState>(
   input: VersionedChartTemplateInput<TChartState>,
 ): ChartTemplateV1<TChartState> {
-  if (isChartTemplateV1(input)) {
-    return input;
+  if (!isVersionedChartTemplateInput(input)) {
+    return createVersionedChartTemplate(input);
   }
 
-  return createVersionedChartTemplate(input);
+  return migrateVersionedChartTemplateToLatest(input);
 }
 
 export function stringifyVersionedChartTemplate<TChartState>(
@@ -32,7 +34,20 @@ export function stringifyVersionedChartTemplate<TChartState>(
   return JSON.stringify(normalizeVersionedChartTemplate(input), null, 2);
 }
 
-function isChartTemplateV1<TChartState>(
+export function migrateVersionedChartTemplateToLatest<TChartState>(
+  input: ChartTemplateV1<TChartState>,
+): ChartTemplateV1<TChartState> {
+  switch (input.version) {
+    case 1:
+      return input;
+    default:
+      throw new Error(
+        `chartx chart template version ${String((input as { version: unknown }).version)} is not supported`,
+      );
+  }
+}
+
+function isVersionedChartTemplateInput<TChartState>(
   input: VersionedChartTemplateInput<TChartState>,
 ): input is ChartTemplateV1<TChartState> {
   if (typeof input !== "object" || input === null) {
@@ -45,10 +60,6 @@ function isChartTemplateV1<TChartState>(
 
   if (input.kind !== "chart-template") {
     return false;
-  }
-
-  if (input.version !== 1) {
-    throw new Error(`chartx chart template version ${String(input.version)} is not supported`);
   }
 
   return true;

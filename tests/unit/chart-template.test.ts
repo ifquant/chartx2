@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LATEST_CHART_TEMPLATE_VERSION,
+  migrateVersionedChartTemplateToLatest,
   normalizeVersionedChartTemplate,
   stringifyVersionedChartTemplate,
 } from "../../src/lib/chartx/internal/model";
@@ -141,9 +143,65 @@ describe("chart template contracts", () => {
 }`);
   });
 
+  it("routes supported versioned templates through an explicit migration pipeline", () => {
+    const v1Template = {
+      kind: "chart-template" as const,
+      version: 1 as const,
+      chart: {
+        options: {
+          layout: {},
+          crosshair: {},
+        },
+        timeScale: {
+          barSpacing: null,
+          rightOffset: 0.8,
+          visibleLogicalRange: null,
+        },
+        priceScale: {
+          visibleRange: null,
+          scaleSeriesOnly: false,
+        },
+        panes: [],
+        mainSeries: null,
+        series: [],
+        studies: [],
+      },
+    };
+
+    expect(LATEST_CHART_TEMPLATE_VERSION).toBe(1);
+    expect(migrateVersionedChartTemplateToLatest(v1Template)).toEqual(v1Template);
+    expect(normalizeVersionedChartTemplate(v1Template)).toEqual(v1Template);
+  });
+
   it("rejects unsupported template versions during normalization", () => {
     expect(() =>
       normalizeVersionedChartTemplate({
+        kind: "chart-template",
+        version: 2,
+        chart: {
+          options: {
+            layout: {},
+            crosshair: {},
+          },
+          timeScale: {
+            barSpacing: null,
+            rightOffset: 0.8,
+            visibleLogicalRange: null,
+          },
+          priceScale: {
+            visibleRange: null,
+            scaleSeriesOnly: false,
+          },
+          panes: [],
+          mainSeries: null,
+          series: [],
+          studies: [],
+        },
+      } as never),
+    ).toThrow("chartx chart template version 2 is not supported");
+
+    expect(() =>
+      migrateVersionedChartTemplateToLatest({
         kind: "chart-template",
         version: 2,
         chart: {

@@ -26,6 +26,12 @@ export function normalizeVersionedChartTemplate<TChartState>(
   return createVersionedChartTemplate(input);
 }
 
+export function stringifyVersionedChartTemplate<TChartState>(
+  input: VersionedChartTemplateInput<TChartState>,
+): string {
+  return JSON.stringify(normalizeVersionedChartTemplate(input), null, 2);
+}
+
 function isChartTemplateV1<TChartState>(
   input: VersionedChartTemplateInput<TChartState>,
 ): input is ChartTemplateV1<TChartState> {

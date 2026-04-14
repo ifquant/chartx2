@@ -203,7 +203,7 @@ export function mountWorkbenchDemo(
   const workbenchSeries = (chartType: WorkbenchMainChartType) => {
     const bars =
       chartType === "point-figure"
-        ? createPointFigureWorkbenchBars(220)
+        ? createPointFigureWorkbenchBars(96)
         : createWorkbenchBars(10_000);
     return {
       bars,
@@ -1801,23 +1801,16 @@ function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
 function createPointFigureWorkbenchBars(count: number): PhaseOneCandlestickData[] {
   const bars: PhaseOneCandlestickData[] = [];
   let close = 16_860;
+  const drifts = [84, 42, -76, -28, 96, 38, -88, -34] as const;
 
   for (let index = 0; index < count; index += 1) {
-    const regimeIndex = Math.floor(index / 22) % 4;
-    const regimeDrift =
-      regimeIndex === 0
-        ? 52
-        : regimeIndex === 1
-          ? 16
-          : regimeIndex === 2
-            ? -58
-            : -18;
-    const openGap = Math.sin(index / 8.5) * 5 + Math.cos(index / 6.8) * 4;
-    const body = regimeDrift + Math.sin(index / 4.8) * 18 + Math.cos(index / 10.2) * 12;
+    const regimeDrift = drifts[Math.floor(index / 12) % drifts.length] ?? 48;
+    const openGap = Math.sin(index / 10.5) * 4 + Math.cos(index / 8.2) * 3;
+    const body = regimeDrift + Math.sin(index / 6.6) * 10 + Math.cos(index / 12.4) * 8;
     const open = close + openGap;
     const nextClose = open + body;
-    const upperShadow = 10 + Math.abs(Math.sin(index / 5.1)) * 7;
-    const lowerShadow = 9 + Math.abs(Math.cos(index / 4.6)) * 7;
+    const upperShadow = 8 + Math.abs(Math.sin(index / 7.4)) * 5;
+    const lowerShadow = 7 + Math.abs(Math.cos(index / 6.7)) * 5;
     const high = Math.max(open, nextClose) + upperShadow;
     const low = Math.min(open, nextClose) - lowerShadow;
 

@@ -179,9 +179,6 @@ export function mountWorkbenchDemo(
   canvas: HTMLCanvasElement,
   publish: SnapshotPublisher,
 ): DemoController {
-  const bars = createWorkbenchBars(10_000);
-  const volume = createVolumeData(bars);
-  const line = createLineData(bars, 6);
   const log: EventLog = [];
   let chart: PhaseOneChartApi | null = null;
   let studyPaneEnabled = true;
@@ -192,7 +189,7 @@ export function mountWorkbenchDemo(
   let renkoFixedBoxSize = 4;
   let pointFigureMode: WorkbenchPointFigureMode = "fixed";
   let pointFigureFixedBoxSize = 360;
-  let pointFigureReversalBoxes = 3;
+  let pointFigureReversalBoxes = 5;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let drawingTool: WorkbenchDrawingTool = "none";
@@ -202,8 +199,20 @@ export function mountWorkbenchDemo(
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
   let teardownChartTypeSubscription: (() => void) | null = null;
-  const visibleTrendStartBar = bars.at(-52) ?? bars[0]!;
-  const visibleTrendEndBar = bars.at(-18) ?? bars.at(-1) ?? bars[0]!;
+
+  const workbenchSeries = (chartType: WorkbenchMainChartType) => {
+    const bars =
+      chartType === "point-figure"
+        ? createPointFigureWorkbenchBars(220)
+        : createWorkbenchBars(10_000);
+    return {
+      bars,
+      volume: createVolumeData(bars),
+      line: createLineData(bars, chartType === "point-figure" ? 18 : 6),
+      visibleTrendStartBar: bars.at(-52) ?? bars[0]!,
+      visibleTrendEndBar: bars.at(-18) ?? bars.at(-1) ?? bars[0]!,
+    };
+  };
 
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
@@ -276,6 +285,14 @@ export function mountWorkbenchDemo(
   };
 
   const rebuild = () => {
+    const {
+      bars,
+      volume,
+      line,
+      visibleTrendStartBar,
+      visibleTrendEndBar,
+    } = workbenchSeries(mainChartType);
+
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
     chart.applyOptions(theme === "warm" ? warmChartOptions() : inkChartOptions());
@@ -1773,6 +1790,44 @@ function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
       low: round(low),
       close: round(nextClose),
       volume: 760_000 + index * 22_000 + Math.round(Math.abs(nextClose - open) * 8_400),
+    });
+
+    close = nextClose;
+  }
+
+  return bars;
+}
+
+function createPointFigureWorkbenchBars(count: number): PhaseOneCandlestickData[] {
+  const bars: PhaseOneCandlestickData[] = [];
+  let close = 16_860;
+
+  for (let index = 0; index < count; index += 1) {
+    const regimeIndex = Math.floor(index / 22) % 4;
+    const regimeDrift =
+      regimeIndex === 0
+        ? 52
+        : regimeIndex === 1
+          ? 16
+          : regimeIndex === 2
+            ? -58
+            : -18;
+    const openGap = Math.sin(index / 8.5) * 5 + Math.cos(index / 6.8) * 4;
+    const body = regimeDrift + Math.sin(index / 4.8) * 18 + Math.cos(index / 10.2) * 12;
+    const open = close + openGap;
+    const nextClose = open + body;
+    const upperShadow = 10 + Math.abs(Math.sin(index / 5.1)) * 7;
+    const lowerShadow = 9 + Math.abs(Math.cos(index / 4.6)) * 7;
+    const high = Math.max(open, nextClose) + upperShadow;
+    const low = Math.min(open, nextClose) - lowerShadow;
+
+    bars.push({
+      time: BASE_TIME + index * DAY,
+      open: round(open),
+      high: round(high),
+      low: round(low),
+      close: round(nextClose),
+      volume: 720_000 + index * 16_000 + Math.round(Math.abs(nextClose - open) * 6_500),
     });
 
     close = nextClose;

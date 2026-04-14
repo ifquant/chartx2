@@ -1079,7 +1079,7 @@ export class PhaseOneChartHarness {
     wickColor: WICK_COLOR,
     renkoBoxSize: null,
     renkoBoxSizeMode: "auto",
-    pointFigureBoxSize: 120,
+    pointFigureBoxSize: 360,
     pointFigureBoxSizeMode: "fixed",
     pointFigureReversalBoxes: 3,
   };

@@ -191,7 +191,7 @@ export function mountWorkbenchDemo(
   let renkoMode: WorkbenchRenkoMode = "auto";
   let renkoFixedBoxSize = 4;
   let pointFigureMode: WorkbenchPointFigureMode = "fixed";
-  let pointFigureFixedBoxSize = 120;
+  let pointFigureFixedBoxSize = 360;
   let pointFigureReversalBoxes = 3;
   let barSpacing = 15;
   let rightOffset = 0.8;
@@ -228,7 +228,7 @@ export function mountWorkbenchDemo(
               value:
                 pointFigureMode === "auto"
                   ? `Auto box · ${pointFigureReversalBoxes} rev`
-                  : `Fixed ${pointFigureFixedBoxSize} · ${pointFigureReversalBoxes} rev`,
+                  : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
             }]
           : []),
         { label: "Panes", value: String(paneSnapshot.length) },
@@ -638,22 +638,22 @@ export function mountWorkbenchDemo(
                 active: pointFigureMode === "auto",
               },
               {
-                id: "point-figure-box-60",
-                label: "Box 60",
+                id: "point-figure-box-180",
+                label: "Box 180",
                 group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 60,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 180,
               },
               {
-                id: "point-figure-box-120",
-                label: "Box 120",
+                id: "point-figure-box-360",
+                label: "Box 360",
                 group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 120,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 360,
               },
               {
-                id: "point-figure-box-240",
-                label: "Box 240",
+                id: "point-figure-box-720",
+                label: "Box 720",
                 group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 240,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 720,
               },
             ]
           : []),
@@ -708,32 +708,32 @@ export function mountWorkbenchDemo(
           });
           publishSnapshot();
           return;
-        case "point-figure-box-60":
+        case "point-figure-box-180":
           pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 60;
+          pointFigureFixedBoxSize = 180;
           chart.setChartType("point-figure").applyOptions({
             pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 60,
+            pointFigureBoxSize: 180,
             pointFigureReversalBoxes,
           });
           publishSnapshot();
           return;
-        case "point-figure-box-120":
+        case "point-figure-box-360":
           pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 120;
+          pointFigureFixedBoxSize = 360;
           chart.setChartType("point-figure").applyOptions({
             pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 120,
+            pointFigureBoxSize: 360,
             pointFigureReversalBoxes,
           });
           publishSnapshot();
           return;
-        case "point-figure-box-240":
+        case "point-figure-box-720":
           pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 240;
+          pointFigureFixedBoxSize = 720;
           chart.setChartType("point-figure").applyOptions({
             pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 240,
+            pointFigureBoxSize: 720,
             pointFigureReversalBoxes,
           });
           publishSnapshot();

@@ -89,6 +89,10 @@ type WorkbenchPointFigureMode = "auto" | "fixed";
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
+const WORKBENCH_PREVIEW_CANVAS_INSET = {
+  left: 18,
+  top: 28,
+} as const;
 
 const WARM_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   Required<NonNullable<PhaseOneChartOptions["crosshair"]>> = {
@@ -434,7 +438,13 @@ export function mountWorkbenchDemo(
           pendingTrendLineStart = {
             time: event.time,
             price: event.price,
-            point: event.point === null ? null : { x: event.point.x, y: event.point.y },
+            point:
+              event.point === null
+                ? null
+                : {
+                    x: event.point.x + WORKBENCH_PREVIEW_CANVAS_INSET.left,
+                    y: event.point.y + WORKBENCH_PREVIEW_CANVAS_INSET.top,
+                  },
           };
           pushLog(log, `tool armed trend-line ${formatTime(event.time)} ${event.price.toFixed(2)}`);
           publishSnapshot();

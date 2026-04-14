@@ -6,6 +6,7 @@ import {
   inferAverageTrueRange,
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
+  inferTraditionalPointFigureBoxSize,
 } from "../internal/model";
 import type {
   PhaseOneMainChartType,
@@ -172,4 +173,9 @@ export function createChartxPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneCh
   return createPhaseOneChart(canvas);
 }
 
-export { inferAverageTrueRange, inferPercentageBoxSize, inferPointFigureBoxSize };
+export {
+  inferAverageTrueRange,
+  inferPercentageBoxSize,
+  inferPointFigureBoxSize,
+  inferTraditionalPointFigureBoxSize,
+};

@@ -224,7 +224,7 @@
     workbenchController?.setPointFigureAutoScale?.(value);
   }
 
-  function setPointFigureMode(value: "auto" | "fixed" | "atr" | "percentage"): void {
+  function setPointFigureMode(value: "auto" | "fixed" | "atr" | "percentage" | "traditional"): void {
     workbenchController?.setPointFigureMode?.(value);
   }
 
@@ -778,6 +778,12 @@
                       on:click={() => setPointFigureMode("percentage")}
                     >
                       %
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.pointFigureControls.mode === "traditional"}
+                      on:click={() => setPointFigureMode("traditional")}
+                    >
+                      Trad
                     </button>
                     <button
                       class:active={workbenchSnapshot.pointFigureControls.mode === "fixed"}

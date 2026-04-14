@@ -139,22 +139,27 @@ export function inferAverageTrueRange(
     return 1;
   }
 
-  const sampleLength = Math.min(data.length, Math.max(2, Math.floor(length)));
-  const sample = data.slice(-sampleLength);
-  let totalTrueRange = 0;
+  const period = Math.min(data.length, Math.max(2, Math.floor(length)));
+  let atr: number | null = null;
 
-  for (let index = 0; index < sample.length; index += 1) {
-    const bar = sample[index];
-    const previousClose = index === 0 ? sample[Math.max(0, index - 1)]?.close ?? bar.close : sample[index - 1].close;
+  for (let index = 0; index < data.length; index += 1) {
+    const bar = data[index];
+    const previousClose = index === 0 ? bar.close : data[index - 1].close;
     const trueRange = Math.max(
       bar.high - bar.low,
       Math.abs(bar.high - previousClose),
       Math.abs(bar.low - previousClose),
     );
-    totalTrueRange += trueRange;
+
+    if (atr === null) {
+      atr = trueRange;
+      continue;
+    }
+
+    atr = ((atr * (period - 1)) + trueRange) / period;
   }
 
-  return roundBoxSize(totalTrueRange / sample.length);
+  return roundBoxSize(atr ?? 1);
 }
 
 export function inferPercentageBoxSize(
@@ -167,6 +172,52 @@ export function inferPercentageBoxSize(
 
   const referenceClose = data[data.length - 1]?.close ?? data[0]?.close ?? 1;
   return roundBoxSize(referenceClose * Math.max(percentageValue, 0.1) / 100);
+}
+
+export function inferTraditionalPointFigureBoxSize(
+  data: readonly MainSeriesBuilderDataPoint[],
+): number {
+  if (data.length === 0) {
+    return 1;
+  }
+
+  const referenceClose = data[data.length - 1]?.close ?? data[0]?.close ?? 1;
+  const magnitude = Math.abs(referenceClose);
+
+  if (magnitude < 1) {
+    return 0.0625;
+  }
+  if (magnitude < 5) {
+    return 0.125;
+  }
+  if (magnitude < 20) {
+    return 0.25;
+  }
+  if (magnitude < 100) {
+    return 0.5;
+  }
+  if (magnitude < 200) {
+    return 1;
+  }
+  if (magnitude < 500) {
+    return 2;
+  }
+  if (magnitude < 1_000) {
+    return 4;
+  }
+  if (magnitude < 5_000) {
+    return 5;
+  }
+  if (magnitude < 10_000) {
+    return 10;
+  }
+  if (magnitude < 25_000) {
+    return 25;
+  }
+  if (magnitude < 100_000) {
+    return 50;
+  }
+  return 100;
 }
 
 export function buildRenkoData(
@@ -289,6 +340,7 @@ export function buildPointFigureData(
   const inferredBoxSize = inferPointFigureBoxSize(data, options.reversalBoxes);
   const atrBoxSize = inferAverageTrueRange(data, options.atrLength);
   const percentageBoxSize = inferPercentageBoxSize(data, options.percentageValue);
+  const traditionalBoxSize = inferTraditionalPointFigureBoxSize(data);
   const boxSizeBase =
     options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
       ? options.boxSize
@@ -296,6 +348,8 @@ export function buildPointFigureData(
         ? atrBoxSize
         : options.boxSizeMode === "percentage"
           ? percentageBoxSize
+          : options.boxSizeMode === "traditional"
+            ? traditionalBoxSize
           : inferredBoxSize;
   const boxSize =
     options.boxSizeMode === "fixed"

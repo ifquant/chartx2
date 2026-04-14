@@ -243,6 +243,9 @@ test("workbench point-figure can switch to ATR and percentage sizing modes", asy
   await workbench.getByRole("button", { name: "%", exact: true }).click();
   await expect(workbench).toContainText("Percent");
   await expect(workbench).toContainText(/%/i);
+
+  await workbench.getByRole("button", { name: "Trad", exact: true }).click();
+  await expect(workbench).toContainText(/Traditional\s+\d+/i);
 });
 
 test("workbench heikin switch changes both the chart image and the main-series label", async ({

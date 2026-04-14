@@ -265,7 +265,7 @@ export type PhaseOneCandlestickSeriesOptions = {
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
-  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage";
+  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage" | "traditional";
   pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
   pointFigureAtrLength?: number;

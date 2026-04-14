@@ -7,6 +7,7 @@ import {
   buildHeikinAshiData,
   inferAverageTrueRange,
   inferPercentageBoxSize,
+  inferTraditionalPointFigureBoxSize,
   buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
@@ -490,6 +491,28 @@ describe("chart type builders", () => {
     expect(atrResult.length).toBeGreaterThan(0);
     expect(percentageResult.length).toBeGreaterThan(0);
     expect(atrResult).not.toEqual(percentageResult);
+  });
+
+  it("derives a traditional point-figure box size from price magnitude", () => {
+    const input = [
+      { time: 1, open: 18_100, high: 18_180, low: 18_020, close: 18_150 },
+      { time: 2, open: 18_150, high: 18_260, low: 18_120, close: 18_240 },
+      { time: 3, open: 18_240, high: 18_420, low: 18_210, close: 18_380 },
+    ] as const;
+
+    expect(inferTraditionalPointFigureBoxSize(input)).toBe(25);
+
+    const traditionalResult = buildPointFigureData(input, {
+      boxSize: null,
+      boxSizeMode: "traditional",
+      boxSizeScale: 1,
+      reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1,
+    });
+
+    expect(traditionalResult.length).toBeGreaterThan(0);
+    expect(traditionalResult[0]?.close).toBeGreaterThan(traditionalResult[0]?.open ?? 0);
   });
 
   it("builds kagi segments from canonical ohlc input without mutating the source", () => {

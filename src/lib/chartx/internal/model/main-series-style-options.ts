@@ -7,7 +7,7 @@ export type RenkoStyleOptionsState = {
 
 export type PointFigureStyleOptionsState = {
   boxSize: number | null;
-  boxSizeMode: "auto" | "fixed" | "atr" | "percentage";
+  boxSizeMode: "auto" | "fixed" | "atr" | "percentage" | "traditional";
   boxSizeScale: number;
   reversalBoxes: number;
   atrLength: number;
@@ -23,7 +23,7 @@ export type MainSeriesStyleOptionsPatch = {
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
-  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage";
+  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage" | "traditional";
   pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
   pointFigureAtrLength?: number;

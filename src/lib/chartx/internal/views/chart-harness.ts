@@ -615,6 +615,13 @@ type DragState = {
   startRightOffset: number;
 };
 
+type DrawingDragHandle = "start" | "end";
+
+type DrawingDragState = {
+  drawingId: string;
+  handle: DrawingDragHandle;
+};
+
 type PaneResizeState = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
@@ -916,6 +923,7 @@ export class PhaseOneChartHarness {
   private selectedDrawingId: string | null = null;
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
+  private drawingDragState: DrawingDragState | null = null;
   private paneResizeState: PaneResizeState | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
@@ -936,6 +944,16 @@ export class PhaseOneChartHarness {
     if (this.paneResizeState !== null) {
       this.applyPaneResize(event.clientY, layout, paneFrames);
       this.crosshair = resolvePanePoint(this.canvas, event, layout);
+      this.render(this.canvas);
+      return;
+    }
+
+    if (this.drawingDragState !== null) {
+      this.crosshair = resolvePanePoint(this.canvas, event, layout);
+      if (this.crosshair !== null) {
+        this.applyDrawingDrag(this.drawingDragState, this.crosshair, layout, paneFrames);
+      }
+      this.canvas.style.cursor = "grabbing";
       this.render(this.canvas);
       return;
     }
@@ -964,6 +982,7 @@ export class PhaseOneChartHarness {
       this.canvas === null ||
       this.crosshair === null ||
       this.dragState !== null ||
+      this.drawingDragState !== null ||
       this.paneResizeState !== null
     ) {
       return;
@@ -996,6 +1015,19 @@ export class PhaseOneChartHarness {
       return;
     }
 
+    if (point !== null) {
+      const hitHandle = this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames);
+      if (hitHandle !== null) {
+        this.canvas.focus({ preventScroll: true });
+        this.crosshair = point;
+        this.drawingDragState = hitHandle;
+        this.canvas.style.cursor = "grabbing";
+        this.canvas.setPointerCapture(event.pointerId);
+        this.render(this.canvas);
+        return;
+      }
+    }
+
     this.canvas.focus({ preventScroll: true });
     this.dragState = {
       startClientX: event.clientX,
@@ -1013,6 +1045,7 @@ export class PhaseOneChartHarness {
       this.canvas.releasePointerCapture(event.pointerId);
     }
     this.dragState = null;
+    this.drawingDragState = null;
     this.paneResizeState = null;
     this.canvas.style.cursor = this.crosshair === null ? "default" : "crosshair";
   };
@@ -1148,6 +1181,7 @@ export class PhaseOneChartHarness {
     this.canvas = null;
     this.crosshair = null;
     this.dragState = null;
+    this.drawingDragState = null;
     this.paneResizeState = null;
     this.crosshairMoveHandlers.clear();
     this.clickHandlers.clear();
@@ -4137,6 +4171,110 @@ export class PhaseOneChartHarness {
     return best?.drawing ?? null;
   }
 
+  private resolveSelectedTrendLineDragHandle(
+    point: PanePoint,
+    layout: Layout,
+    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+  ): DrawingDragState | null {
+    if (this.selectedDrawingId === null) {
+      return null;
+    }
+
+    const drawing = this.getDrawingById(this.selectedDrawingId);
+    if (drawing === undefined || drawing.kind !== "trend-line" || !drawing.visible) {
+      return null;
+    }
+
+    const activePane = resolveActivePane(paneFrames, point.y);
+    if (activePane === null || activePane.id !== drawing.paneId) {
+      return null;
+    }
+    const localPoint = resolveLocalPanePoint(activePane, point);
+    if (localPoint === null) {
+      return null;
+    }
+
+    const priceScale = activePane.kind === "primary"
+      ? this.primaryPriceScale
+      : this.secondaryPanePriceScales.get(activePane.id);
+    if (priceScale === undefined) {
+      return null;
+    }
+
+    const axisBars = this.chartContext.snapshot().barSequence.axisBars;
+    const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, this.timeScale);
+    const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, this.timeScale);
+    const startY = priceScale.priceToCoordinate(drawing.startPrice);
+    const endY = priceScale.priceToCoordinate(drawing.endPrice);
+    if (startY === null || endY === null) {
+      return null;
+    }
+
+    const startDistance = Math.hypot(localPoint.x - startX, localPoint.y - startY);
+    const endDistance = Math.hypot(localPoint.x - endX, localPoint.y - endY);
+    if (startDistance <= DRAWING_HIT_TOLERANCE) {
+      return { drawingId: drawing.id, handle: "start" };
+    }
+    if (endDistance <= DRAWING_HIT_TOLERANCE) {
+      return { drawingId: drawing.id, handle: "end" };
+    }
+
+    const lineDistance = distanceToLineSegment(localPoint.x, localPoint.y, startX, startY, endX, endY);
+    if (lineDistance <= DRAWING_HIT_TOLERANCE) {
+      return {
+        drawingId: drawing.id,
+        handle: startDistance <= endDistance ? "start" : "end",
+      };
+    }
+
+    return null;
+  }
+
+  private applyDrawingDrag(
+    drag: DrawingDragState,
+    point: PanePoint,
+    layout: Layout,
+    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+  ): void {
+    const drawing = this.getDrawingById(drag.drawingId);
+    if (drawing === undefined || drawing.kind !== "trend-line") {
+      return;
+    }
+
+    const pane = this.getPaneById(drawing.paneId);
+    if (pane === undefined) {
+      return;
+    }
+    const paneFrame = paneFrames.find((entry) => entry.id === pane.id);
+    if (paneFrame === undefined) {
+      return;
+    }
+    const localPoint = resolveLocalPanePoint(paneFrame, point);
+    if (localPoint === null) {
+      return;
+    }
+    const priceScale = pane.kind === "primary"
+      ? this.primaryPriceScale
+      : this.secondaryPanePriceScales.get(pane.id);
+    if (priceScale === undefined) {
+      return;
+    }
+
+    const nextTime = resolveDrawingLogicalTime(localPoint.x, this.chartContext.snapshot().barSequence.axisBars, this.timeScale);
+    const nextPrice = priceScale.coordinateToPrice(localPoint.y);
+    if (nextPrice === null) {
+      return;
+    }
+
+    if (drag.handle === "start") {
+      drawing.startTime = nextTime;
+      drawing.startPrice = nextPrice;
+    } else {
+      drawing.endTime = nextTime;
+      drawing.endPrice = nextPrice;
+    }
+  }
+
   private renderSeriesSource(
     context: CanvasRenderingContext2D,
     state: SeriesSourceState,
@@ -5900,6 +6038,29 @@ function resolveDrawingTimeCoordinate(
   }
 
   return timeScale.indexToCoordinate(nearest.index);
+}
+
+function resolveDrawingLogicalTime(
+  x: number,
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
+): number {
+  if (axisBars.length === 0) {
+    return 0;
+  }
+
+  const logical = Math.round(timeScale.coordinateToLogical(x));
+  let nearest = axisBars[0]!;
+  let nearestDistance = Math.abs(nearest.index - logical);
+  for (const bar of axisBars) {
+    const distance = Math.abs(bar.index - logical);
+    if (distance < nearestDistance) {
+      nearest = bar;
+      nearestDistance = distance;
+    }
+  }
+
+  return nearest.time;
 }
 
 function drawingHitDistance(

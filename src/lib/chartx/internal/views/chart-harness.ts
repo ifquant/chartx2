@@ -75,6 +75,7 @@ const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
 const DRAWING_HIT_TOLERANCE = 16;
 const DRAWING_PRICE_SNAP_TOLERANCE = 8;
+const DRAWING_TIME_SNAP_TOLERANCE = 10;
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
@@ -645,9 +646,10 @@ type DrawingDragState = {
 
 type DrawingSnapGuideState = {
   paneId: string;
-  price: number;
   color: string;
-  source: "open" | "high" | "low" | "close";
+  price: number | null;
+  source: "open" | "high" | "low" | "close" | null;
+  time: number | null;
 };
 
 type PaneResizeState = {
@@ -4353,7 +4355,7 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    const nextTime = resolveDrawingLogicalTime(localPoint.x, this.chartContext.snapshot().barSequence.axisBars, this.timeScale);
+    const nextTime = resolveSnappedDrawingTime(localPoint.x, this.chartContext.snapshot().barSequence.axisBars, this.timeScale);
     const nextPrice = resolveSnappedDrawingPrice(
       localPoint.x,
       localPoint.y,
@@ -4367,20 +4369,22 @@ export class PhaseOneChartHarness {
       this.drawingSnapGuide = null;
       return;
     }
-    this.drawingSnapGuide = nextPrice.snapped && this.drawingOptions.magnetGuideVisible
+    const showGuide = this.drawingOptions.magnetGuideVisible && (nextPrice.snapped || nextTime.snapped);
+    this.drawingSnapGuide = showGuide
       ? {
           paneId: drawing.paneId,
-          price: nextPrice.price,
+          price: nextPrice.snapped ? nextPrice.price : null,
           color: drawing.color,
-          source: nextPrice.source,
+          source: nextPrice.snapped ? nextPrice.source : null,
+          time: nextTime.snapped ? nextTime.time : null,
         }
       : null;
 
     if (drag.handle === "start") {
-      drawing.startTime = nextTime;
+      drawing.startTime = nextTime.time;
       drawing.startPrice = nextPrice.price;
     } else {
-      drawing.endTime = nextTime;
+      drawing.endTime = nextTime.time;
       drawing.endPrice = nextPrice.price;
     }
   }
@@ -4759,7 +4763,10 @@ export class PhaseOneChartHarness {
         drawDrawingSnapGuide(
           context,
           paneWidth,
+          pane.height,
           this.primaryPriceScale,
+          this.chartContext.snapshot().barSequence.axisBars,
+          this.timeScale,
           this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
         );
 
@@ -4819,7 +4826,10 @@ export class PhaseOneChartHarness {
           drawDrawingSnapGuide(
             context,
             paneWidth,
+            pane.height,
             panePriceScale,
+            this.chartContext.snapshot().barSequence.axisBars,
+            this.timeScale,
             this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
           );
         }
@@ -4877,7 +4887,9 @@ export class PhaseOneChartHarness {
           this.chartOptions,
           "primary",
           this.priceAxisFormatter,
-          this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.paneId === "primary"
+          this.drawingOptions.magnetLabelVisible
+            && this.drawingSnapGuide?.paneId === "primary"
+            && this.drawingSnapGuide.price !== null
             ? buildMagnetAxisTag(layout, primaryPane.top, this.primaryPriceScale, this.drawingSnapGuide, this.priceAxisFormatter)
             : null,
         );
@@ -4903,7 +4915,9 @@ export class PhaseOneChartHarness {
           this.chartOptions,
           state.kind === "volume" ? "volume" : "primary",
           this.priceAxisFormatter,
-          this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.paneId === pane.id
+          this.drawingOptions.magnetLabelVisible
+            && this.drawingSnapGuide?.paneId === pane.id
+            && this.drawingSnapGuide.price !== null
             ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.drawingSnapGuide, this.priceAxisFormatter)
             : null,
         );
@@ -4919,6 +4933,15 @@ export class PhaseOneChartHarness {
       this.crosshair,
       this.chartOptions,
       this.timeAxisFormatter,
+      this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.time != null
+        ? buildMagnetTimeAxisTag(
+            layout,
+            primaryTimeAxisRows.length > 0 ? primaryTimeAxisRows : (firstSecondaryRows ?? []),
+            this.timeScale,
+            this.drawingSnapGuide!,
+            this.timeAxisFormatter,
+          )
+        : null,
     );
     const readout = this.buildReadout(this.crosshair, layout);
     emitReadout(canvas, readout);
@@ -5836,13 +5859,16 @@ function buildMagnetAxisTag(
   guide: DrawingSnapGuideState,
   formatter: ((value: number) => string) | null,
 ): AxisTag | null {
+  if (guide.price === null) {
+    return null;
+  }
   const y = priceScale.priceToCoordinate(guide.price);
   if (y === null) {
     return null;
   }
 
   return {
-    text: `MAG ${guide.source.toUpperCase()} ${formatPriceAxisLabel(guide.price, formatter)}`,
+    text: `MAG ${guide.source?.toUpperCase() ?? "PRICE"} ${formatPriceAxisLabel(guide.price, formatter)}`,
     x: layout.width - layout.right + 6,
     y: layout.top + paneTop + y - 9,
     backgroundColor: guide.color,
@@ -5859,6 +5885,7 @@ function drawTimeAxis(
   crosshair: PanePoint | null,
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
   formatter: ((time: number) => string) | null,
+  overlayTag: AxisTag | null = null,
 ): void {
   if (rows.length === 0) {
     return;
@@ -5904,7 +5931,34 @@ function drawTimeAxis(
     }, options);
   }
 
+  if (overlayTag !== null) {
+    drawAxisTag(context, overlayTag, options);
+  }
+
   context.restore();
+}
+
+function buildMagnetTimeAxisTag(
+  layout: Layout,
+  rows: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
+  guide: DrawingSnapGuideState,
+  formatter: ((time: number) => string) | null,
+): AxisTag | null {
+  if (guide.time === null || rows.length === 0) {
+    return null;
+  }
+  const x = resolveDrawingTimeCoordinate(guide.time, rows, timeScale);
+  const text = `MAG ${formatTimeAxisLabel(guide.time, formatter)}`;
+  const estimatedWidth = text.length * 7;
+  return {
+    text,
+    x: clampCenterTag(layout.left + x, estimatedWidth, layout.left, layout.width - layout.right),
+    y: layout.top + (layout.height - layout.top - layout.bottom) + 8,
+    backgroundColor: guide.color,
+    borderColor: guide.color,
+    textColor: "#fffdf7",
+  };
 }
 
 function drawAxisTag(
@@ -6193,15 +6247,13 @@ function drawPaneDrawings(
 function drawDrawingSnapGuide(
   context: CanvasRenderingContext2D,
   paneWidth: number,
+  paneHeight: number,
   priceScale: PriceScale,
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
   guide: DrawingSnapGuideState | null,
 ): void {
   if (guide === null) {
-    return;
-  }
-
-  const y = priceScale.priceToCoordinate(guide.price);
-  if (y === null) {
     return;
   }
 
@@ -6209,10 +6261,22 @@ function drawDrawingSnapGuide(
   context.strokeStyle = guide.color;
   context.lineWidth = 1;
   context.setLineDash([6, 4]);
-  context.beginPath();
-  context.moveTo(0, Math.round(y) + 0.5);
-  context.lineTo(paneWidth, Math.round(y) + 0.5);
-  context.stroke();
+  if (guide.price !== null) {
+    const y = priceScale.priceToCoordinate(guide.price);
+    if (y !== null) {
+      context.beginPath();
+      context.moveTo(0, Math.round(y) + 0.5);
+      context.lineTo(paneWidth, Math.round(y) + 0.5);
+      context.stroke();
+    }
+  }
+  if (guide.time !== null) {
+    const x = resolveDrawingTimeCoordinate(guide.time, axisBars, timeScale);
+    context.beginPath();
+    context.moveTo(Math.round(x) + 0.5, 0);
+    context.lineTo(Math.round(x) + 0.5, paneHeight);
+    context.stroke();
+  }
   context.restore();
 }
 
@@ -6238,16 +6302,17 @@ function resolveDrawingTimeCoordinate(
   return timeScale.indexToCoordinate(nearest.index);
 }
 
-function resolveDrawingLogicalTime(
+function resolveSnappedDrawingTime(
   x: number,
   axisBars: readonly { time: number; index: TimePointIndex }[],
   timeScale: TimeScale,
-): number {
+): { time: number; snapped: boolean } {
   if (axisBars.length === 0) {
-    return 0;
+    return { time: 0, snapped: false };
   }
 
-  const logical = Math.round(timeScale.coordinateToLogical(x));
+  const logicalCoordinate = timeScale.coordinateToLogical(x);
+  const logical = Math.round(logicalCoordinate);
   let nearest = axisBars[0]!;
   let nearestDistance = Math.abs(nearest.index - logical);
   for (const bar of axisBars) {
@@ -6258,7 +6323,11 @@ function resolveDrawingLogicalTime(
     }
   }
 
-  return nearest.time;
+  const snappedCoordinate = timeScale.indexToCoordinate(nearest.index);
+  return {
+    time: nearest.time,
+    snapped: Math.abs(snappedCoordinate - x) <= DRAWING_TIME_SNAP_TOLERANCE,
+  };
 }
 
 function resolveSnappedDrawingPrice(

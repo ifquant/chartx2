@@ -446,12 +446,19 @@ export function mountWorkbenchDemo(
         pointFigurePercentageValue: pointFigurePercentageValue,
       });
       if (pointFigureLogicalLength !== null) {
-        const targetVisibleColumns = Math.max(10, Math.min(18, pointFigureLogicalLength));
         const lastLogical = pointFigureLogicalLength - 1;
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.25),
-          to: lastLogical + 0.35,
-        });
+        if (pointFigureLogicalLength <= 14) {
+          chart.timeScale().setVisibleLogicalRange({
+            from: -0.75,
+            to: lastLogical + 0.75,
+          });
+        } else {
+          const targetVisibleColumns = Math.max(10, Math.min(18, pointFigureLogicalLength));
+          chart.timeScale().setVisibleLogicalRange({
+            from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.25),
+            to: lastLogical + 0.35,
+          });
+        }
       }
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();

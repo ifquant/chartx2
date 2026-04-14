@@ -328,39 +328,51 @@ export function buildPointFigureData(
       syntheticOrdinal += 1;
     };
 
+    const extendColumn = (direction: 1 | -1, extremePrice: number) => {
+      if (direction === 1) {
+        while (extremePrice >= columnHigh + boxSize) {
+          pushBox(1);
+        }
+        return;
+      }
+      while (extremePrice <= columnLow - boxSize) {
+        pushBox(-1);
+      }
+    };
+
     if (columnDirection === null) {
-      while (Math.abs(input.close - anchor) >= boxSize) {
-        columnDirection = input.close > anchor ? 1 : -1;
-        pushBox(columnDirection);
+      const upBoxes = Math.floor((input.high - anchor) / boxSize);
+      const downBoxes = Math.floor((anchor - input.low) / boxSize);
+      if (upBoxes <= 0 && downBoxes <= 0) {
+        continue;
+      }
+      columnDirection =
+        upBoxes === downBoxes ? (input.close >= anchor ? 1 : -1) : upBoxes > downBoxes ? 1 : -1;
+      if (columnDirection === 1) {
+        extendColumn(1, input.high);
+      } else {
+        extendColumn(-1, input.low);
       }
       continue;
     }
 
     if (columnDirection === 1) {
-      while (input.close >= columnHigh + boxSize) {
-        pushBox(1);
-      }
-      if (input.close <= columnHigh - reversal * boxSize) {
+      extendColumn(1, input.high);
+      if (input.low <= columnHigh - reversal * boxSize) {
         columnDirection = -1;
         anchor = columnHigh;
         columnLow = columnHigh;
-        while (input.close <= anchor - boxSize) {
-          pushBox(-1);
-        }
+        extendColumn(-1, input.low);
       }
       continue;
     }
 
-    while (input.close <= columnLow - boxSize) {
-      pushBox(-1);
-    }
-    if (input.close >= columnLow + reversal * boxSize) {
+    extendColumn(-1, input.low);
+    if (input.high >= columnLow + reversal * boxSize) {
       columnDirection = 1;
       anchor = columnLow;
       columnHigh = columnLow;
-      while (input.close >= anchor + boxSize) {
-        pushBox(1);
-      }
+      extendColumn(1, input.high);
     }
   }
 

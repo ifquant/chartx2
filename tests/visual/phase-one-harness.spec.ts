@@ -267,7 +267,7 @@ test("workbench heikin switch changes both the chart image and the main-series l
   expect(arrayBuffersEqual(candlesBuffer, heikinBuffer)).toBe(false);
 });
 
-test("workbench line-break opens with a visible compressed main chart and line-count controls", async ({
+test("workbench line-break opens with chart-context lower panes and line-count controls", async ({
   page,
 }) => {
   await page.goto("/");

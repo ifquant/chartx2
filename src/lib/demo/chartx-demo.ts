@@ -403,11 +403,15 @@ export function mountWorkbenchDemo(
       visibleTrendStartBar,
       visibleTrendEndBar,
     } = workbenchSeries(mainChartType);
-    const suppressSecondaryPanes = mainChartType === "point-figure" || mainChartType === "line-break";
+    const suppressSecondaryPanes = mainChartType === "point-figure";
     const lineBreakRows =
       mainChartType === "line-break"
         ? buildLineBreakData(bars, lineBreakCount)
         : null;
+    const lineBreakVolume =
+      lineBreakRows === null ? null : createVolumeData(lineBreakRows);
+    const lineBreakLine =
+      lineBreakRows === null ? null : createLineData(lineBreakRows, 6);
     const lineBreakLogicalLength =
       lineBreakRows === null
         ? null
@@ -455,6 +459,9 @@ export function mountWorkbenchDemo(
       mainChartType === "point-figure" || mainChartType === "line-break"
         ? Math.min(rightOffset, 0.1)
         : rightOffset;
+    const secondaryVolume = mainChartType === "line-break" ? (lineBreakVolume ?? volume) : volume;
+    const secondaryLine = mainChartType === "line-break" ? (lineBreakLine ?? line) : line;
+    const addDefaultDrawings = mainChartType !== "point-figure" && mainChartType !== "line-break";
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
@@ -584,7 +591,7 @@ export function mountWorkbenchDemo(
     if (!suppressSecondaryPanes) {
       const volumePane = chart.addPane({ height: 126 });
       const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
-      volumeSeries.setData(volume);
+      volumeSeries.setData(secondaryVolume);
     }
 
     if (!suppressSecondaryPanes && studyPaneEnabled) {
@@ -594,14 +601,14 @@ export function mountWorkbenchDemo(
         color: theme === "warm" ? "#365cb7" : "#2563eb",
         lineWidth: 3,
       });
-      studySeries.setData(line);
+      studySeries.setData(secondaryLine);
     }
 
     for (let index = 0; index < emptyPaneCount; index += 1) {
       chart.addPane({ height: 88, resizable: true });
     }
 
-    if (!suppressSecondaryPanes) {
+    if (addDefaultDrawings) {
       chart.addHorizontalLineDrawing(undefined, {
         price: 16_940,
         title: "Swing low",

@@ -196,6 +196,11 @@ export type PhaseOneChartOptions = {
     lineColor?: string;
     pointColor?: string;
   };
+  drawings?: {
+    magnetEnabled?: boolean;
+    magnetGuideVisible?: boolean;
+    magnetLabelVisible?: boolean;
+  };
 };
 
 export type PhaseOneCandlestickSeriesOptions = {
@@ -642,6 +647,9 @@ type AxisTag = {
   x: number;
   y: number;
   active?: boolean;
+  backgroundColor?: string;
+  borderColor?: string;
+  textColor?: string;
 };
 
 type HistogramVisual = {
@@ -856,6 +864,11 @@ export class PhaseOneChartHarness {
   private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> = {
     lineColor: CROSSHAIR_COLOR,
     pointColor: CROSSHAIR_POINT_COLOR,
+  };
+  private readonly drawingOptions: Required<NonNullable<PhaseOneChartOptions["drawings"]>> = {
+    magnetEnabled: true,
+    magnetGuideVisible: true,
+    magnetLabelVisible: true,
   };
   private timeAxisFormatter: ((time: number) => string) | null = null;
   private priceAxisFormatter: ((value: number) => string) | null = null;
@@ -1534,6 +1547,21 @@ export class PhaseOneChartHarness {
     }
     if (options.crosshair?.pointColor !== undefined) {
       this.crosshairOptions.pointColor = options.crosshair.pointColor;
+    }
+    if (options.drawings?.magnetEnabled !== undefined) {
+      this.drawingOptions.magnetEnabled = options.drawings.magnetEnabled;
+      if (!this.drawingOptions.magnetEnabled) {
+        this.drawingSnapGuide = null;
+      }
+    }
+    if (options.drawings?.magnetGuideVisible !== undefined) {
+      this.drawingOptions.magnetGuideVisible = options.drawings.magnetGuideVisible;
+      if (!this.drawingOptions.magnetGuideVisible) {
+        this.drawingSnapGuide = null;
+      }
+    }
+    if (options.drawings?.magnetLabelVisible !== undefined) {
+      this.drawingOptions.magnetLabelVisible = options.drawings.magnetLabelVisible;
     }
 
     if (this.canvas !== null) {
@@ -4296,12 +4324,13 @@ export class PhaseOneChartHarness {
       this.chartContext.snapshot().barSequence,
       priceScale,
       this.timeScale,
+      this.drawingOptions.magnetEnabled,
     );
     if (nextPrice === null) {
       this.drawingSnapGuide = null;
       return;
     }
-    this.drawingSnapGuide = nextPrice.snapped
+    this.drawingSnapGuide = nextPrice.snapped && this.drawingOptions.magnetGuideVisible
       ? {
           paneId: drawing.paneId,
           price: nextPrice.price,
@@ -4810,6 +4839,9 @@ export class PhaseOneChartHarness {
           this.chartOptions,
           "primary",
           this.priceAxisFormatter,
+          this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.paneId === "primary"
+            ? buildMagnetAxisTag(layout, primaryPane.top, this.primaryPriceScale, this.drawingSnapGuide, this.priceAxisFormatter)
+            : null,
         );
       }
     }
@@ -4833,6 +4865,9 @@ export class PhaseOneChartHarness {
           this.chartOptions,
           state.kind === "volume" ? "volume" : "primary",
           this.priceAxisFormatter,
+          this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.paneId === pane.id
+            ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.drawingSnapGuide, this.priceAxisFormatter)
+            : null,
         );
       }
     }
@@ -5705,6 +5740,7 @@ function drawPriceAxis(
   options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
   axisType: "primary" | "volume",
   formatter: ((value: number) => string) | null,
+  overlayTag: AxisTag | null = null,
 ): void {
   const range = priceScale.getPriceRange();
   if (range === null) {
@@ -5748,7 +5784,33 @@ function drawPriceAxis(
     }
   }
 
+  if (overlayTag !== null) {
+    drawAxisTag(context, overlayTag, options);
+  }
+
   context.restore();
+}
+
+function buildMagnetAxisTag(
+  layout: Layout,
+  paneTop: number,
+  priceScale: PriceScale,
+  guide: DrawingSnapGuideState,
+  formatter: ((value: number) => string) | null,
+): AxisTag | null {
+  const y = priceScale.priceToCoordinate(guide.price);
+  if (y === null) {
+    return null;
+  }
+
+  return {
+    text: `MAG ${formatPriceAxisLabel(guide.price, formatter)}`,
+    x: layout.width - layout.right + 6,
+    y: layout.top + paneTop + y - 9,
+    backgroundColor: guide.color,
+    borderColor: guide.color,
+    textColor: "#fffdf7",
+  };
 }
 
 function drawTimeAxis(
@@ -5816,12 +5878,12 @@ function drawAxisTag(
   const boxWidth = Math.ceil(textWidth + 12);
   const boxHeight = 18;
 
-  context.fillStyle = tag.active ? options.axisActiveBackground : options.axisLabelBackground;
-  context.strokeStyle = tag.active ? options.axisActiveBackground : options.axisLabelBorder;
+  context.fillStyle = tag.backgroundColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBackground);
+  context.strokeStyle = tag.borderColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBorder);
   context.lineWidth = 1;
   context.fillRect(tag.x, tag.y, boxWidth, boxHeight);
   context.strokeRect(tag.x + 0.5, tag.y + 0.5, boxWidth - 1, boxHeight - 1);
-  context.fillStyle = tag.active ? options.axisActiveText : options.axisTextColor;
+  context.fillStyle = tag.textColor ?? (tag.active ? options.axisActiveText : options.axisTextColor);
   context.fillText(
     tag.text,
     tag.x + 6,
@@ -6167,10 +6229,14 @@ function resolveSnappedDrawingPrice(
   barSequence: ChartBarSequence<number>,
   priceScale: PriceScale,
   timeScale: TimeScale,
+  magnetEnabled: boolean,
 ): { price: number; snapped: boolean } | null {
   const rawPrice = priceScale.coordinateToPrice(localY);
   if (rawPrice === null) {
     return null;
+  }
+  if (!magnetEnabled) {
+    return { price: rawPrice, snapped: false };
   }
 
   const nearestRow = findNearestRowByLogical(

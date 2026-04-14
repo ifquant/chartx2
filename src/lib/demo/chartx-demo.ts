@@ -691,30 +691,34 @@ export function mountWorkbenchDemo(
         return;
       }
 
+      const switchMainChartType = (nextType: WorkbenchMainChartType) => {
+        const currentChart = chart;
+        if (currentChart === null) {
+          return;
+        }
+        const previousType = mainChartType;
+        mainChartType = nextType;
+        if (previousType === "point-figure" || nextType === "point-figure") {
+          rebuild();
+          return;
+        }
+
+        currentChart.setChartType(nextType);
+        publishSnapshot();
+      };
+
       switch (actionId) {
         case "main-candlestick":
-          mainChartType = "candlestick";
-          chart.setChartType("candlestick");
-          publishSnapshot();
+          switchMainChartType("candlestick");
           return;
         case "main-line-break":
-          mainChartType = "line-break";
-          chart.setChartType("line-break");
-          publishSnapshot();
+          switchMainChartType("line-break");
           return;
         case "main-kagi":
-          mainChartType = "kagi";
-          chart.setChartType("kagi");
-          publishSnapshot();
+          switchMainChartType("kagi");
           return;
         case "main-point-figure":
-          mainChartType = "point-figure";
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: pointFigureMode,
-            pointFigureBoxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
+          switchMainChartType("point-figure");
           return;
         case "point-figure-auto":
           pointFigureMode = "auto";
@@ -756,37 +760,22 @@ export function mountWorkbenchDemo(
           publishSnapshot();
           return;
         case "main-volume-candles":
-          mainChartType = "volume-candles";
-          chart.setChartType("volume-candles");
-          publishSnapshot();
+          switchMainChartType("volume-candles");
           return;
         case "main-hollow-candles":
-          mainChartType = "hollow-candles";
-          chart.setChartType("hollow-candles");
-          publishSnapshot();
+          switchMainChartType("hollow-candles");
           return;
         case "main-bar":
-          mainChartType = "bar";
-          chart.setChartType("bar");
-          publishSnapshot();
+          switchMainChartType("bar");
           return;
         case "main-hlc-bars":
-          mainChartType = "hlc-bars";
-          chart.setChartType("hlc-bars");
-          publishSnapshot();
+          switchMainChartType("hlc-bars");
           return;
         case "main-high-low":
-          mainChartType = "high-low";
-          chart.setChartType("high-low");
-          publishSnapshot();
+          switchMainChartType("high-low");
           return;
         case "main-renko":
-          mainChartType = "renko";
-          chart.setChartType("renko").applyOptions({
-            renkoBoxSizeMode: renkoMode,
-            renkoBoxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
-          });
-          publishSnapshot();
+          switchMainChartType("renko");
           return;
         case "renko-auto":
           renkoMode = "auto";
@@ -824,34 +813,22 @@ export function mountWorkbenchDemo(
           publishSnapshot();
           return;
         case "main-heikin-ashi":
-          mainChartType = "heikin-ashi";
-          chart.setChartType("heikin-ashi");
-          publishSnapshot();
+          switchMainChartType("heikin-ashi");
           return;
         case "main-line":
-          mainChartType = "line";
-          chart.setChartType("line");
-          publishSnapshot();
+          switchMainChartType("line");
           return;
         case "main-line-markers":
-          mainChartType = "line-markers";
-          chart.setChartType("line-markers");
-          publishSnapshot();
+          switchMainChartType("line-markers");
           return;
         case "main-stepline":
-          mainChartType = "stepline";
-          chart.setChartType("stepline");
-          publishSnapshot();
+          switchMainChartType("stepline");
           return;
         case "main-area":
-          mainChartType = "area";
-          chart.setChartType("area");
-          publishSnapshot();
+          switchMainChartType("area");
           return;
         case "main-baseline":
-          mainChartType = "baseline";
-          chart.setChartType("baseline");
-          publishSnapshot();
+          switchMainChartType("baseline");
           return;
         case "toggle-study":
           studyPaneEnabled = !studyPaneEnabled;

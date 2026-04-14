@@ -215,6 +215,22 @@ test("workbench exposes a drawing inspector driven by selected drawing schema", 
   await lineWidthInput.fill("0");
   await lineWidthInput.dispatchEvent("change");
   await expect(inspector).toContainText("Must be at least 1.");
+
+  if (selectedKind !== "trend-line") {
+    for (let x = 40; x <= box.width - 40 && selectedKind !== "trend-line"; x += 18) {
+      for (let y = 40; y <= box.height - 40 && selectedKind !== "trend-line"; y += 18) {
+        await page.mouse.click(box.x + x, box.y + y);
+        selectedKind = (await inspectorKind.textContent())?.trim() ?? "None";
+      }
+    }
+  }
+
+  expect(selectedKind).toBe("trend-line");
+  const timeInputs = inspector.locator('input[type="number"][step="60000"]');
+  const startTimeValue = await timeInputs.nth(0).inputValue();
+  await timeInputs.nth(1).fill(startTimeValue);
+  await timeInputs.nth(1).dispatchEvent("change");
+  await expect(inspector).toContainText("Start time must be before end time.");
 });
 
 test("features renders the panes tab as a deterministic grouped example baseline", async ({

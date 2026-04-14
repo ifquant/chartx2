@@ -189,6 +189,8 @@ export function mountWorkbenchDemo(
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
   let teardownChartTypeSubscription: (() => void) | null = null;
+  const visibleTrendStartBar = bars.at(-52) ?? bars[0]!;
+  const visibleTrendEndBar = bars.at(-18) ?? bars.at(-1) ?? bars[0]!;
 
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
@@ -377,10 +379,10 @@ export function mountWorkbenchDemo(
       timeMagnetPolicy: "previous",
     });
     chart.addTrendLineDrawing(undefined, {
-      startTime: bars[12]!.time,
-      startPrice: bars[12]!.low - 18,
-      endTime: bars[36]!.time,
-      endPrice: bars[36]!.high + 14,
+      startTime: visibleTrendStartBar.time,
+      startPrice: visibleTrendStartBar.low - 18,
+      endTime: visibleTrendEndBar.time,
+      endPrice: visibleTrendEndBar.high + 14,
       color: theme === "warm" ? "#ea580c" : "#2563eb",
       lineWidth: 3,
       magnetEnabled: true,

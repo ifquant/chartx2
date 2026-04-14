@@ -264,6 +264,63 @@
     return null;
   }
 
+  function mergeSelectedDrawingOptionsPatch(
+    patch: Record<string, unknown>,
+  ): Record<string, unknown> | null {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return null;
+    }
+
+    const current = selected.state.options as Record<string, unknown>;
+    return {
+      ...current,
+      ...patch,
+      magnetSources: {
+        ...((current.magnetSources as Record<string, unknown> | undefined) ?? {}),
+        ...((patch.magnetSources as Record<string, unknown> | undefined) ?? {}),
+      },
+    };
+  }
+
+  function clearInspectorFieldErrors(fields: readonly PhaseOneDrawingPropertyField[]): void {
+    const nextErrors = { ...workbenchInspectorErrors };
+    for (const field of fields) {
+      nextErrors[field] = undefined;
+    }
+    workbenchInspectorErrors = nextErrors;
+  }
+
+  function validateTrendLineCrossFieldOptions(nextOptions: Record<string, unknown>): boolean {
+    const startTime = Number(nextOptions.startTime);
+    const endTime = Number(nextOptions.endTime);
+    const startPrice = Number(nextOptions.startPrice);
+    const endPrice = Number(nextOptions.endPrice);
+
+    if (startTime === endTime && startPrice === endPrice) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        startTime: "Trend-line endpoints must not overlap.",
+        endTime: "Trend-line endpoints must not overlap.",
+        startPrice: "Trend-line endpoints must not overlap.",
+        endPrice: "Trend-line endpoints must not overlap.",
+      };
+      return false;
+    }
+
+    if (startTime >= endTime) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        startTime: "Start time must be before end time.",
+        endTime: "End time must be after start time.",
+      };
+      return false;
+    }
+
+    clearInspectorFieldErrors(["startTime", "endTime", "startPrice", "endPrice"]);
+    return true;
+  }
+
   function updateSelectedDrawingField(
     field: PhaseOneDrawingPropertyField,
     control: PhaseOneDrawingPropertyFieldSchema["control"],
@@ -332,6 +389,18 @@
           },
         }
       : { [field]: nextValue };
+
+    const mergedOptions = mergeSelectedDrawingOptionsPatch(nextOptions);
+    if (mergedOptions === null) {
+      return;
+    }
+
+    if (
+      workbenchSnapshot.selectedDrawing.state.type === "trend-line"
+      && !validateTrendLineCrossFieldOptions(mergedOptions)
+    ) {
+      return;
+    }
 
     workbenchInspectorErrors = {
       ...workbenchInspectorErrors,

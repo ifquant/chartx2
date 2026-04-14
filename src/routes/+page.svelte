@@ -220,6 +220,10 @@
     workbenchActions = workbenchController?.actions() ?? [];
   }
 
+  function setPointFigureAutoScale(value: number): void {
+    workbenchController?.setPointFigureAutoScale?.(value);
+  }
+
   function handleWorkbenchChartPointerMove(event: PointerEvent): void {
     const frame = event.currentTarget;
     if (!(frame instanceof HTMLElement)) {
@@ -716,6 +720,36 @@
                   {/each}
                 </div>
               </section>
+
+              {#if workbenchSnapshot.pointFigureControls}
+                <section class="mini-card symbol-card">
+                  <div class="sidebar-head">
+                    <h4>P&F</h4>
+                    <span>{workbenchSnapshot.pointFigureControls.visibleColumns ?? "--"} cols</span>
+                  </div>
+                  <div class="metric-list compact">
+                    <article>
+                      <small>Auto box</small>
+                      <strong>{workbenchSnapshot.pointFigureControls.autoBoxSize ?? "--"} pts</strong>
+                    </article>
+                    <article>
+                      <small>Reversal</small>
+                      <strong>{workbenchSnapshot.pointFigureControls.reversalBoxes} boxes</strong>
+                    </article>
+                  </div>
+                  <label class="inspector-field slider-field">
+                    <span>Auto scale {workbenchSnapshot.pointFigureControls.autoScale.toFixed(2)}x</span>
+                    <input
+                      type="range"
+                      min="0.35"
+                      max="2.5"
+                      step="0.05"
+                      value={String(workbenchSnapshot.pointFigureControls.autoScale)}
+                      on:input={(event) => setPointFigureAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
+                    />
+                  </label>
+                </section>
+              {/if}
 
               <section class="mini-card inspector-card">
                 <div class="sidebar-head">
@@ -1667,6 +1701,15 @@
   .inspector-field input[type="checkbox"] {
     width: 16px;
     height: 16px;
+  }
+
+  .slider-field {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .slider-field input[type="range"] {
+    width: 100%;
   }
 
   .inspector-field-error {

@@ -49,14 +49,14 @@ describe("chart type builders", () => {
     expect(
       applyMainSeriesBuilder("heikin-ashi", input, {
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
-        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", reversalBoxes: 3 },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3 },
       }),
     ).toEqual(buildHeikinAshiData(input));
 
     expect(
       applyMainSeriesBuilder("time-bars", input, {
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
-        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", reversalBoxes: 3 },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3 },
       }),
     ).toEqual(input);
   });
@@ -87,6 +87,7 @@ describe("chart type builders", () => {
         pointFigureOptions: {
           boxSize: null,
           boxSizeMode: "auto",
+          boxSizeScale: 1,
           reversalBoxes: 3,
         },
       }),
@@ -111,6 +112,7 @@ describe("chart type builders", () => {
       pointFigureOptions: {
         boxSize: null,
         boxSizeMode: "auto",
+        boxSizeScale: 1,
         reversalBoxes: 3,
       },
     });
@@ -179,6 +181,7 @@ describe("chart type builders", () => {
       pointFigureOptions: {
         boxSize: null,
         boxSizeMode: "auto" as const,
+        boxSizeScale: 1,
         reversalBoxes: 3,
       },
     };
@@ -198,12 +201,14 @@ describe("chart type builders", () => {
       applyMainSeriesStyleOptions("pnfStyle", styleTarget, {
         pointFigureBoxSizeMode: "fixed",
         pointFigureBoxSize: 24,
+        pointFigureBoxSizeScale: 1.5,
         pointFigureReversalBoxes: 5,
       }),
     ).toBe(true);
     expect(styleTarget.pointFigureOptions).toEqual({
       boxSize: 24,
       boxSizeMode: "fixed",
+      boxSizeScale: 1.5,
       reversalBoxes: 5,
     });
   });
@@ -222,9 +227,15 @@ describe("chart type builders", () => {
         "wickColor",
         "pointFigureBoxSize",
         "pointFigureBoxSizeMode",
+        "pointFigureBoxSizeScale",
         "pointFigureReversalBoxes",
       ],
-      typeSpecificOptionKeys: ["pointFigureBoxSize", "pointFigureBoxSizeMode", "pointFigureReversalBoxes"],
+      typeSpecificOptionKeys: [
+        "pointFigureBoxSize",
+        "pointFigureBoxSizeMode",
+        "pointFigureBoxSizeScale",
+        "pointFigureReversalBoxes",
+      ],
     });
     expect(mainSeriesStyleSchemaSpec("lineStyle")).toEqual({
       optionSurface: "line",
@@ -416,6 +427,7 @@ describe("chart type builders", () => {
     const result = buildPointFigureData(input, {
       boxSizeMode: "fixed",
       boxSize: 4,
+      boxSizeScale: 1,
       reversalBoxes: 3,
     });
 

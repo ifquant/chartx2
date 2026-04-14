@@ -66,6 +66,12 @@ export type DemoSnapshot = {
     state: PhaseOneDrawingStateSnapshot;
     schema: PhaseOneDrawingPropertySchema;
   } | null;
+  pointFigureControls?: {
+    autoBoxSize: number | null;
+    autoScale: number;
+    reversalBoxes: number;
+    visibleColumns: number | null;
+  } | null;
 };
 
 export type DemoController = {
@@ -73,6 +79,7 @@ export type DemoController = {
   runAction(actionId: string): void;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
+  setPointFigureAutoScale?(scale: number): void;
   destroy(): void;
 };
 
@@ -193,6 +200,7 @@ export function mountWorkbenchDemo(
   let renkoFixedBoxSize = 4;
   let pointFigureMode: WorkbenchPointFigureMode = "auto";
   let pointFigureFixedBoxSize = 120;
+  let pointFigureAutoScale = 1;
   let pointFigureReversalBoxes = 3;
   let barSpacing = 15;
   let rightOffset = 0.8;
@@ -205,10 +213,7 @@ export function mountWorkbenchDemo(
   let teardownChartTypeSubscription: (() => void) | null = null;
 
   const workbenchSeries = (chartType: WorkbenchMainChartType) => {
-    const bars =
-      chartType === "point-figure"
-        ? createPointFigureWorkbenchBars(160)
-        : createWorkbenchBars(10_000);
+    const bars = createWorkbenchBars(10_000);
     return {
       bars,
       volume: createVolumeData(bars),
@@ -227,6 +232,12 @@ export function mountWorkbenchDemo(
         : null;
     const inferredPointFigureBoxSize =
       pointFigureBars === null ? null : inferPointFigureBoxSize(pointFigureBars, pointFigureReversalBoxes);
+    const effectivePointFigureAutoBoxSize =
+      inferredPointFigureBoxSize === null ? null : Math.max(1, Math.round(inferredPointFigureBoxSize * pointFigureAutoScale));
+    const pointFigureVisibleColumns =
+      mainChartType !== "point-figure" || visibleLogical === null
+        ? null
+        : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
 
     publish({
       title: "Workbench",
@@ -243,12 +254,12 @@ export function mountWorkbenchDemo(
           : []),
         ...(mainChartType === "point-figure"
           ? [{
-              label: "P&F",
-              value:
-                pointFigureMode === "auto"
-                  ? `Auto ${inferredPointFigureBoxSize ?? "--"} pts · ${pointFigureReversalBoxes} rev`
+                label: "P&F",
+                value:
+                  pointFigureMode === "auto"
+                  ? `Auto ${effectivePointFigureAutoBoxSize ?? "--"} pts · ${pointFigureReversalBoxes} rev`
                   : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
-            }]
+              }]
           : []),
         { label: "Panes", value: String(paneSnapshot.length) },
         {
@@ -291,6 +302,15 @@ export function mountWorkbenchDemo(
               const schema = chart.getSelectedDrawingPropertySchema();
               return state === null || schema === null ? null : { state, schema };
             })(),
+      pointFigureControls:
+        mainChartType === "point-figure"
+          ? {
+              autoBoxSize: effectivePointFigureAutoBoxSize,
+              autoScale: pointFigureAutoScale,
+              reversalBoxes: pointFigureReversalBoxes,
+              visibleColumns: pointFigureVisibleColumns,
+            }
+          : null,
     });
   };
 
@@ -308,6 +328,7 @@ export function mountWorkbenchDemo(
         ? buildPointFigureData(bars, {
             boxSizeMode: pointFigureMode,
             boxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
+            boxSizeScale: pointFigureAutoScale,
             reversalBoxes: pointFigureReversalBoxes,
           })
         : null;
@@ -318,12 +339,12 @@ export function mountWorkbenchDemo(
     const effectiveBarSpacing =
       mainChartType === "point-figure"
         ? Math.max(
-            22,
+            18,
             Math.min(
-              46,
+              40,
               Math.floor(
                 (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
-                  Math.max((pointFigureLogicalLength ?? 1) + 1, 1),
+                  Math.max(Math.min(pointFigureLogicalLength ?? 1, 18) + 1, 1),
               ),
             ),
           )
@@ -374,8 +395,17 @@ export function mountWorkbenchDemo(
       chart.setChartType("point-figure").applyOptions({
         pointFigureBoxSizeMode: pointFigureMode,
         pointFigureBoxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
+        pointFigureBoxSizeScale: pointFigureAutoScale,
         pointFigureReversalBoxes,
       });
+      if (pointFigureLogicalLength !== null) {
+        const targetVisibleColumns = Math.max(10, Math.min(18, pointFigureLogicalLength));
+        const lastLogical = pointFigureLogicalLength - 1;
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.25),
+          to: lastLogical + 0.35,
+        });
+      }
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -696,24 +726,6 @@ export function mountWorkbenchDemo(
                 group: "point-figure-option" as const,
                 active: pointFigureMode === "auto",
               },
-              {
-                id: "point-figure-box-80",
-                label: "Box 80",
-                group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 80,
-              },
-              {
-                id: "point-figure-box-120",
-                label: "Box 120",
-                group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 120,
-              },
-              {
-                id: "point-figure-box-180",
-                label: "Box 180",
-                group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 180,
-              },
             ]
           : []),
         { id: "add-pane", label: "Add empty pane", tone: "default", group: "chart-action" },
@@ -767,39 +779,10 @@ export function mountWorkbenchDemo(
           chart.setChartType("point-figure").applyOptions({
             pointFigureBoxSizeMode: "auto",
             pointFigureBoxSize: null,
+            pointFigureBoxSizeScale: pointFigureAutoScale,
             pointFigureReversalBoxes,
           });
-          publishSnapshot();
-          return;
-        case "point-figure-box-80":
-          pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 80;
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 80,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
-          return;
-        case "point-figure-box-120":
-          pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 120;
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 120,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
-          return;
-        case "point-figure-box-180":
-          pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 180;
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 180,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
+          rebuild();
           return;
         case "main-volume-candles":
           switchMainChartType("volume-candles");
@@ -918,6 +901,14 @@ export function mountWorkbenchDemo(
       } else {
         drawingTool = tool;
         pendingTrendLineStart = null;
+      }
+      publishSnapshot();
+    },
+    setPointFigureAutoScale(scale) {
+      pointFigureAutoScale = Math.min(2.5, Math.max(0.35, scale));
+      if (mainChartType === "point-figure") {
+        rebuild();
+        return;
       }
       publishSnapshot();
     },
@@ -1809,37 +1800,6 @@ function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
       low: round(low),
       close: round(nextClose),
       volume: 760_000 + index * 22_000 + Math.round(Math.abs(nextClose - open) * 8_400),
-    });
-
-    close = nextClose;
-  }
-
-  return bars;
-}
-
-function createPointFigureWorkbenchBars(count: number): PhaseOneCandlestickData[] {
-  const bars: PhaseOneCandlestickData[] = [];
-  let close = 16_860;
-  const drifts = [96, -72, 88, -64, 92, -68, 84, -60] as const;
-
-  for (let index = 0; index < count; index += 1) {
-    const regimeDrift = drifts[Math.floor(index / 8) % drifts.length] ?? 48;
-    const openGap = Math.sin(index / 10.5) * 4 + Math.cos(index / 8.2) * 3;
-    const body = regimeDrift + Math.sin(index / 6.6) * 10 + Math.cos(index / 12.4) * 8;
-    const open = close + openGap;
-    const nextClose = open + body;
-    const upperShadow = 8 + Math.abs(Math.sin(index / 7.4)) * 5;
-    const lowerShadow = 7 + Math.abs(Math.cos(index / 6.7)) * 5;
-    const high = Math.max(open, nextClose) + upperShadow;
-    const low = Math.min(open, nextClose) - lowerShadow;
-
-    bars.push({
-      time: BASE_TIME + index * DAY,
-      open: round(open),
-      high: round(high),
-      low: round(low),
-      close: round(nextClose),
-      volume: 720_000 + index * 16_000 + Math.round(Math.abs(nextClose - open) * 6_500),
     });
 
     close = nextClose;

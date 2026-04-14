@@ -81,34 +81,33 @@ export function inferPointFigureBoxSize(
     return 1;
   }
 
-  let minLow = data[0]?.low ?? data[0]?.close ?? 0;
-  let maxHigh = data[0]?.high ?? data[0]?.close ?? 0;
+  const sampleSize = Math.min(data.length, 240);
+  const sample = data.slice(-sampleSize);
+
+  let minLow = sample[0]?.low ?? sample[0]?.close ?? 0;
+  let maxHigh = sample[0]?.high ?? sample[0]?.close ?? 0;
   let totalDelta = 0;
   let totalRange = 0;
 
-  for (let index = 0; index < data.length; index += 1) {
-    const bar = data[index];
+  for (let index = 0; index < sample.length; index += 1) {
+    const bar = sample[index];
     minLow = Math.min(minLow, bar.low);
     maxHigh = Math.max(maxHigh, bar.high);
     totalRange += Math.max(bar.high - bar.low, Math.abs(bar.close - bar.open));
     if (index > 0) {
-      totalDelta += Math.abs(bar.close - data[index - 1].close);
+      totalDelta += Math.abs(bar.close - sample[index - 1].close);
     }
   }
 
-  const averageDelta = totalDelta / (data.length - 1);
-  const averageRange = totalRange / data.length;
+  const averageDelta = totalDelta / Math.max(sample.length - 1, 1);
+  const averageRange = totalRange / sample.length;
   const priceRange = Math.max(maxHigh - minLow, Number.EPSILON);
-  const targetColumns = Math.min(30, Math.max(16, Math.round(Math.sqrt(data.length) * 2.4)));
-  const targetBoxesPerColumn = Math.min(9, Math.max(5, reversalBoxes + 3));
-  const rangeDrivenBox = priceRange / Math.max(targetColumns + targetBoxesPerColumn, 1);
-  const deltaDrivenBox = averageDelta * 0.85;
-  const rangeVolatilityBox = averageRange * 0.6;
-  const inferred = Math.max(
-    Math.min(rangeDrivenBox, rangeVolatilityBox),
-    deltaDrivenBox,
-    Number.EPSILON,
-  );
+  const targetColumns = Math.min(36, Math.max(18, Math.round(Math.sqrt(sample.length) * 1.35)));
+  const targetBoxesPerColumn = Math.min(8, Math.max(4, reversalBoxes + 2));
+  const rangeDrivenBox = priceRange / Math.max(targetColumns * 0.8 + targetBoxesPerColumn, 1);
+  const deltaDrivenBox = averageDelta * 0.55;
+  const rangeVolatilityBox = averageRange * 0.42;
+  const inferred = Math.max(Math.min(rangeDrivenBox, rangeVolatilityBox), deltaDrivenBox, Number.EPSILON);
 
   return Math.max(1, Math.round(inferred));
 }
@@ -220,6 +219,7 @@ export function buildPointFigureData(
   options: PointFigureStyleOptionsState = {
     boxSize: null,
     boxSizeMode: "auto",
+    boxSizeScale: 1,
     reversalBoxes: 3,
   },
 ): readonly MainSeriesBuilderDataPoint[] {
@@ -231,7 +231,7 @@ export function buildPointFigureData(
   const boxSize =
     options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
       ? options.boxSize
-      : inferredBoxSize;
+      : Math.max(inferredBoxSize * options.boxSizeScale, Number.EPSILON);
   const reversal = Math.max(1, Math.floor(options.reversalBoxes));
   const boxes: MainSeriesBuilderDataPoint[] = [];
   let anchor = data[0].close;

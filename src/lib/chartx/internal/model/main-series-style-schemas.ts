@@ -38,9 +38,15 @@ export const MAIN_SERIES_STYLE_SCHEMAS: Record<PhaseOneMainStyleSchemaId, MainSe
       "wickColor",
       "pointFigureBoxSize",
       "pointFigureBoxSizeMode",
+      "pointFigureBoxSizeScale",
       "pointFigureReversalBoxes",
     ],
-    typeSpecificOptionKeys: ["pointFigureBoxSize", "pointFigureBoxSizeMode", "pointFigureReversalBoxes"],
+    typeSpecificOptionKeys: [
+      "pointFigureBoxSize",
+      "pointFigureBoxSizeMode",
+      "pointFigureBoxSizeScale",
+      "pointFigureReversalBoxes",
+    ],
   },
   volumeCandleStyle: {
     optionSurface: "candlestick",

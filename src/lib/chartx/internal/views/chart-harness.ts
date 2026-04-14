@@ -266,6 +266,7 @@ export type PhaseOneCandlestickSeriesOptions = {
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
   pointFigureBoxSizeMode?: "auto" | "fixed";
+  pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
 };
 
@@ -1079,8 +1080,9 @@ export class PhaseOneChartHarness {
     wickColor: WICK_COLOR,
     renkoBoxSize: null,
     renkoBoxSizeMode: "auto",
-    pointFigureBoxSize: 360,
-    pointFigureBoxSizeMode: "fixed",
+    pointFigureBoxSize: null,
+    pointFigureBoxSizeMode: "auto",
+    pointFigureBoxSizeScale: 1,
     pointFigureReversalBoxes: 3,
   };
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
@@ -2066,6 +2068,7 @@ export class PhaseOneChartHarness {
           ? state.pointFigureOptions.boxSize
           : null,
       boxSizeMode: state.pointFigureOptions.boxSizeMode,
+      boxSizeScale: Math.min(4, Math.max(0.25, state.pointFigureOptions.boxSizeScale)),
       reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
     };
     source.data = applyMainSeriesBuilderData(source.inputData, source);
@@ -2600,7 +2603,12 @@ export class PhaseOneChartHarness {
   private getPointCount(): number {
     let pointCount = this.buildMainBarSequence(this.getMainSource()).logicalLength;
     for (const state of this.sourceRegistry.list()) {
-      pointCount = Math.max(pointCount, state.data.length);
+      const rows = state.role === "main-series" && this.chartContext.snapshot().mainSourceId === state.id
+        ? this.chartContext.snapshot().barSequence.bars
+        : state.store.setData(state.data);
+      const logicalLength =
+        rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
+      pointCount = Math.max(pointCount, logicalLength);
     }
     return pointCount;
   }
@@ -4323,6 +4331,7 @@ export class PhaseOneChartHarness {
       pointFigureOptions: {
         boxSize: this.candlestickOptions.pointFigureBoxSize,
         boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
+        boxSizeScale: this.candlestickOptions.pointFigureBoxSizeScale,
         reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
       },
       inputCapability: chartTypeSpec.inputCapability,

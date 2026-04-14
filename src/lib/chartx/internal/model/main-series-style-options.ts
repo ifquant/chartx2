@@ -8,6 +8,7 @@ export type RenkoStyleOptionsState = {
 export type PointFigureStyleOptionsState = {
   boxSize: number | null;
   boxSizeMode: "auto" | "fixed";
+  boxSizeScale: number;
   reversalBoxes: number;
 };
 
@@ -21,6 +22,7 @@ export type MainSeriesStyleOptionsPatch = {
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
   pointFigureBoxSizeMode?: "auto" | "fixed";
+  pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
 };
 
@@ -54,6 +56,10 @@ export const MAIN_SERIES_STYLE_OPTION_APPLIERS: Partial<
     if (patch.pointFigureBoxSize !== undefined) {
       target.pointFigureOptions.boxSize =
         patch.pointFigureBoxSize !== null && patch.pointFigureBoxSize > 0 ? patch.pointFigureBoxSize : null;
+      changed = true;
+    }
+    if (patch.pointFigureBoxSizeScale !== undefined) {
+      target.pointFigureOptions.boxSizeScale = Math.min(4, Math.max(0.25, patch.pointFigureBoxSizeScale));
       changed = true;
     }
     if (patch.pointFigureReversalBoxes !== undefined) {

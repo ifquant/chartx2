@@ -202,7 +202,28 @@ test("workbench point-figure opens with a readable auto box size", async ({ page
   await page.getByRole("button", { name: "P&F", exact: true }).click();
 
   await expect(workbench).toContainText("P&F Auto");
+  await expect(workbench.getByText(/\d+\s+cols/)).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-point-figure-readable.png");
+});
+
+test("workbench point-figure auto scale slider adjusts the inferred box size", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await page.getByRole("button", { name: "P&F", exact: true }).click();
+
+  const slider = workbench.getByLabel(/Auto scale/i);
+  const before = await workbench.locator(".mini-card").filter({ hasText: "Auto box" }).locator("strong").first().textContent();
+
+  await slider.evaluate((input: HTMLInputElement) => {
+    input.value = "1.6";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  const after = await workbench.locator(".mini-card").filter({ hasText: "Auto box" }).locator("strong").first().textContent();
+  expect(before).not.toBeNull();
+  expect(after).not.toBeNull();
+  expect(before).not.toBe(after);
 });
 
 test("workbench heikin switch changes both the chart image and the main-series label", async ({

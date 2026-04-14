@@ -55,6 +55,7 @@ export function createMainSeriesStateSnapshot(
   if (chartTypeSpec.styleSchemaId === "pnfStyle") {
     styleOptions.pointFigureBoxSize = target.pointFigureOptions.boxSize;
     styleOptions.pointFigureBoxSizeMode = target.pointFigureOptions.boxSizeMode;
+    styleOptions.pointFigureBoxSizeScale = target.pointFigureOptions.boxSizeScale;
     styleOptions.pointFigureReversalBoxes = target.pointFigureOptions.reversalBoxes;
   }
 
@@ -73,6 +74,7 @@ export function createMainSeriesStateSnapshot(
     pointFigureOptions: {
       boxSize: target.pointFigureOptions.boxSize,
       boxSizeMode: target.pointFigureOptions.boxSizeMode,
+      boxSizeScale: target.pointFigureOptions.boxSizeScale,
       reversalBoxes: target.pointFigureOptions.reversalBoxes,
     },
   };

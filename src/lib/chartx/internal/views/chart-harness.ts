@@ -623,6 +623,12 @@ type DrawingDragState = {
   handle: DrawingDragHandle;
 };
 
+type DrawingSnapGuideState = {
+  paneId: string;
+  price: number;
+  color: string;
+};
+
 type PaneResizeState = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
@@ -924,6 +930,7 @@ export class PhaseOneChartHarness {
   private selectedDrawingId: string | null = null;
   private hoveredDrawingId: string | null = null;
   private hoveredDrawingHandle: DrawingDragHandle | null = null;
+  private drawingSnapGuide: DrawingSnapGuideState | null = null;
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private drawingDragState: DrawingDragState | null = null;
@@ -945,6 +952,7 @@ export class PhaseOneChartHarness {
     const layout = measureLayout(this.canvas);
     const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
     if (this.paneResizeState !== null) {
+      this.drawingSnapGuide = null;
       this.applyPaneResize(event.clientY, layout, paneFrames);
       this.crosshair = resolvePanePoint(this.canvas, event, layout);
       this.render(this.canvas);
@@ -1002,6 +1010,7 @@ export class PhaseOneChartHarness {
     this.crosshair = null;
     this.hoveredDrawingId = null;
     this.hoveredDrawingHandle = null;
+    this.drawingSnapGuide = null;
     this.canvas.style.cursor = "default";
     this.render(this.canvas);
   };
@@ -1063,6 +1072,7 @@ export class PhaseOneChartHarness {
     this.drawingDragState = null;
     this.paneResizeState = null;
     this.hoveredDrawingHandle = null;
+    this.drawingSnapGuide = null;
     this.canvas.style.cursor = this.crosshair === null ? "default" : "crosshair";
   };
   private readonly handleWheel = (event: WheelEvent) => {
@@ -1198,6 +1208,7 @@ export class PhaseOneChartHarness {
     this.crosshair = null;
     this.hoveredDrawingId = null;
     this.hoveredDrawingHandle = null;
+    this.drawingSnapGuide = null;
     this.dragState = null;
     this.drawingDragState = null;
     this.paneResizeState = null;
@@ -4287,15 +4298,23 @@ export class PhaseOneChartHarness {
       this.timeScale,
     );
     if (nextPrice === null) {
+      this.drawingSnapGuide = null;
       return;
     }
+    this.drawingSnapGuide = nextPrice.snapped
+      ? {
+          paneId: drawing.paneId,
+          price: nextPrice.price,
+          color: drawing.color,
+        }
+      : null;
 
     if (drag.handle === "start") {
       drawing.startTime = nextTime;
-      drawing.startPrice = nextPrice;
+      drawing.startPrice = nextPrice.price;
     } else {
       drawing.endTime = nextTime;
-      drawing.endPrice = nextPrice;
+      drawing.endPrice = nextPrice.price;
     }
   }
 
@@ -4670,6 +4689,12 @@ export class PhaseOneChartHarness {
           this.hoveredDrawingId,
           this.hoveredDrawingHandle,
         );
+        drawDrawingSnapGuide(
+          context,
+          paneWidth,
+          this.primaryPriceScale,
+          this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
+        );
 
         for (const state of primarySources) {
           const rows = primaryRowSets.get(state.id) ?? [];
@@ -4723,6 +4748,12 @@ export class PhaseOneChartHarness {
             this.selectedDrawingId,
             this.hoveredDrawingId,
             this.hoveredDrawingHandle,
+          );
+          drawDrawingSnapGuide(
+            context,
+            paneWidth,
+            panePriceScale,
+            this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
           );
         }
 
@@ -6059,6 +6090,32 @@ function drawPaneDrawings(
   }
 }
 
+function drawDrawingSnapGuide(
+  context: CanvasRenderingContext2D,
+  paneWidth: number,
+  priceScale: PriceScale,
+  guide: DrawingSnapGuideState | null,
+): void {
+  if (guide === null) {
+    return;
+  }
+
+  const y = priceScale.priceToCoordinate(guide.price);
+  if (y === null) {
+    return;
+  }
+
+  context.save();
+  context.strokeStyle = guide.color;
+  context.lineWidth = 1;
+  context.setLineDash([6, 4]);
+  context.beginPath();
+  context.moveTo(0, Math.round(y) + 0.5);
+  context.lineTo(paneWidth, Math.round(y) + 0.5);
+  context.stroke();
+  context.restore();
+}
+
 function resolveDrawingTimeCoordinate(
   time: number,
   axisBars: readonly { time: number; index: TimePointIndex }[],
@@ -6110,7 +6167,7 @@ function resolveSnappedDrawingPrice(
   barSequence: ChartBarSequence<number>,
   priceScale: PriceScale,
   timeScale: TimeScale,
-): number | null {
+): { price: number; snapped: boolean } | null {
   const rawPrice = priceScale.coordinateToPrice(localY);
   if (rawPrice === null) {
     return null;
@@ -6121,7 +6178,7 @@ function resolveSnappedDrawingPrice(
     Math.round(timeScale.coordinateToLogical(localX)),
   );
   if (nearestRow === null) {
-    return rawPrice;
+    return { price: rawPrice, snapped: false };
   }
 
   const candidates = [
@@ -6146,9 +6203,9 @@ function resolveSnappedDrawingPrice(
   }
 
   if (bestDistance <= DRAWING_PRICE_SNAP_TOLERANCE) {
-    return bestPrice;
+    return { price: bestPrice, snapped: true };
   }
-  return rawPrice;
+  return { price: rawPrice, snapped: false };
 }
 
 function drawingHitDistance(

@@ -75,6 +75,10 @@ const RENKO_ALIGNMENT_VOLUME = [
   { time: 11, value: 760_000, up: true },
   { time: 12, value: 805_000, up: true },
 ] as const;
+const LINE_BREAK_ALIGNMENT_LINE = RENKO_ALIGNMENT_BARS.map((bar, index) => ({
+  time: bar.time,
+  value: bar.close - 2 + Math.sin(index / 2.5) * 1.8,
+}));
 
 type PaneSeriesSnapshot = {
   id: string;
@@ -1200,6 +1204,94 @@ test("phase-one public api keeps a compressed point-figure main series aligned w
     { paneIndex: 0, hasSeries: true },
     { paneIndex: 1, hasSeries: true },
   ]);
+});
+
+test("phase-one public api keeps a compressed line-break main series aligned with chart-context secondary panes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    readout: ReadoutSnapshot | null;
+    panes: Array<{ paneIndex: number; hasSeries: boolean }>;
+  } = await page.evaluate(async ({ bars, volume, line, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-line-break-alignment-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-line-break-alignment-canvas" aria-label="phase-one api line-break alignment chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-line-break-alignment-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API line-break alignment fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const volumePane = chart.addPane({ height: 108 });
+    const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+    const studyPane = chart.addPane({ height: 108 });
+    const studySeries = chart.addLineSeries({ pane: studyPane });
+    studySeries.applyOptions({
+      color: "#365cb7",
+      lineWidth: 3,
+    });
+    mainSeries.setData(bars);
+    volumeSeries.setData(volume);
+    studySeries.setData(line);
+    chart.setChartType("line-break").applyOptions({
+      lineBreakCount: 3,
+    });
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      readout,
+      panes: chart.panes().map((pane: { paneIndex(): number; hasSeries(): boolean }) => ({
+        paneIndex: pane.paneIndex(),
+        hasSeries: pane.hasSeries(),
+      })),
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    volume: RENKO_ALIGNMENT_VOLUME,
+    line: LINE_BREAK_ALIGNMENT_LINE,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.readout?.paneIndex).toBe(0);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+  expect(result.panes).toEqual([
+    { paneIndex: 0, hasSeries: true },
+    { paneIndex: 1, hasSeries: true },
+    { paneIndex: 2, hasSeries: true },
+  ]);
+
+  const fixture = page.locator("#api-line-break-alignment-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-line-break-secondary-alignment.png");
 });
 
 test("phase-one public api keeps a compressed kagi main series aligned with secondary panes", async ({

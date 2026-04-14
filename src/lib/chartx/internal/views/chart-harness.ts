@@ -74,6 +74,7 @@ const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
 const DRAWING_HIT_TOLERANCE = 16;
+const DRAWING_PRICE_SNAP_TOLERANCE = 8;
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
@@ -4278,7 +4279,13 @@ export class PhaseOneChartHarness {
     }
 
     const nextTime = resolveDrawingLogicalTime(localPoint.x, this.chartContext.snapshot().barSequence.axisBars, this.timeScale);
-    const nextPrice = priceScale.coordinateToPrice(localPoint.y);
+    const nextPrice = resolveSnappedDrawingPrice(
+      localPoint.x,
+      localPoint.y,
+      this.chartContext.snapshot().barSequence,
+      priceScale,
+      this.timeScale,
+    );
     if (nextPrice === null) {
       return;
     }
@@ -6095,6 +6102,53 @@ function resolveDrawingLogicalTime(
   }
 
   return nearest.time;
+}
+
+function resolveSnappedDrawingPrice(
+  localX: number,
+  localY: number,
+  barSequence: ChartBarSequence<number>,
+  priceScale: PriceScale,
+  timeScale: TimeScale,
+): number | null {
+  const rawPrice = priceScale.coordinateToPrice(localY);
+  if (rawPrice === null) {
+    return null;
+  }
+
+  const nearestRow = findNearestRowByLogical(
+    barSequence.bars,
+    Math.round(timeScale.coordinateToLogical(localX)),
+  );
+  if (nearestRow === null) {
+    return rawPrice;
+  }
+
+  const candidates = [
+    nearestRow.value[PlotRowValueIndex.Open],
+    nearestRow.value[PlotRowValueIndex.High],
+    nearestRow.value[PlotRowValueIndex.Low],
+    nearestRow.value[PlotRowValueIndex.Close],
+  ];
+
+  let bestPrice = rawPrice;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const candidateY = priceScale.priceToCoordinate(candidate);
+    if (candidateY === null) {
+      continue;
+    }
+    const distance = Math.abs(candidateY - localY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestPrice = candidate;
+    }
+  }
+
+  if (bestDistance <= DRAWING_PRICE_SNAP_TOLERANCE) {
+    return bestPrice;
+  }
+  return rawPrice;
 }
 
 function drawingHitDistance(

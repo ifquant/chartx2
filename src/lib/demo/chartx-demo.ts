@@ -53,6 +53,10 @@ export type DemoSnapshot = {
   eventLog: readonly string[];
   note?: string;
   featureGap?: string;
+  drawingTool?: {
+    activeTool: WorkbenchDrawingTool;
+    pendingTrendLineStartTime: number | null;
+  };
   selectedDrawing?: {
     state: PhaseOneDrawingStateSnapshot;
     schema: PhaseOneDrawingPropertySchema;
@@ -63,6 +67,7 @@ export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
+  setDrawingTool?(tool: WorkbenchDrawingTool): void;
   destroy(): void;
 };
 
@@ -77,6 +82,7 @@ type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
 type EventLog = string[];
 type ThemeId = "warm" | "ink";
 type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
+export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed";
 
@@ -184,6 +190,8 @@ export function mountWorkbenchDemo(
   let pointFigureReversalBoxes = 3;
   let barSpacing = 15;
   let rightOffset = 0.8;
+  let drawingTool: WorkbenchDrawingTool = "none";
+  let pendingTrendLineStart: { time: number; price: number } | null = null;
   let latestReadout: PhaseOneCrosshairMoveEvent | null = null;
   let latestClick: PhaseOneClickEvent | null = null;
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
@@ -241,9 +249,15 @@ export function mountWorkbenchDemo(
           ? "Use the buttons below the chart to mutate panes and scales through the public API."
           : `Last pane event: ${latestPaneEvent.type} on pane ${latestPaneEvent.pane.paneIndex + 1}`,
       featureGap:
-        latestClick?.price === null || latestClick === null
-          ? "Click the chart to pin the last inspected price into the right panel."
-          : `Last click: ${latestClick.price.toFixed(2)} at ${formatTime(latestClick.time)}`,
+        pendingTrendLineStart !== null
+          ? `Trend line start armed at ${formatTime(pendingTrendLineStart.time)} · ${pendingTrendLineStart.price.toFixed(2)}`
+          : latestClick?.price === null || latestClick === null
+            ? "Click the chart to pin the last inspected price into the right panel."
+            : `Last click: ${latestClick.price.toFixed(2)} at ${formatTime(latestClick.time)}`,
+      drawingTool: {
+        activeTool: drawingTool,
+        pendingTrendLineStartTime: pendingTrendLineStart?.time ?? null,
+      },
       selectedDrawing:
         chart === null
           ? null
@@ -396,6 +410,63 @@ export function mountWorkbenchDemo(
     });
     chart.subscribeClick((event) => {
       latestClick = event;
+      if (event.time !== null && event.price !== null && drawingTool !== "none") {
+        if (drawingTool === "horizontal-line") {
+          const drawing = chart?.addHorizontalLineDrawing(undefined, {
+            price: event.price,
+            title: `Horizontal line ${formatTime(event.time)}`,
+            color: theme === "warm" ? "#9333ea" : "#7c3aed",
+            lineWidth: 2,
+            magnetEnabled: true,
+            timeMagnetEnabled: false,
+          });
+          drawing?.select();
+          drawingTool = "none";
+          pendingTrendLineStart = null;
+          pushLog(log, `tool created horizontal-line ${event.price.toFixed(2)}`);
+          publishSnapshot();
+          return;
+        }
+
+        if (pendingTrendLineStart === null) {
+          pendingTrendLineStart = { time: event.time, price: event.price };
+          pushLog(log, `tool armed trend-line ${formatTime(event.time)} ${event.price.toFixed(2)}`);
+          publishSnapshot();
+          return;
+        }
+
+        if (pendingTrendLineStart.time === event.time) {
+          pushLog(log, "trend-line tool needs a second click on a different bar");
+          publishSnapshot();
+          return;
+        }
+
+        const start =
+          pendingTrendLineStart.time < event.time
+            ? pendingTrendLineStart
+            : { time: event.time, price: event.price };
+        const end =
+          pendingTrendLineStart.time < event.time
+            ? { time: event.time, price: event.price }
+            : pendingTrendLineStart;
+        const drawing = chart?.addTrendLineDrawing(undefined, {
+          startTime: start.time,
+          startPrice: start.price,
+          endTime: end.time,
+          endPrice: end.price,
+          color: theme === "warm" ? "#ea580c" : "#2563eb",
+          lineWidth: 3,
+          magnetEnabled: true,
+          timeMagnetEnabled: true,
+          timeMagnetPolicy: "nearest",
+        });
+        drawing?.select();
+        drawingTool = "none";
+        pendingTrendLineStart = null;
+        pushLog(log, `tool created trend-line ${formatTime(start.time)} → ${formatTime(end.time)}`);
+        publishSnapshot();
+        return;
+      }
       pushLog(log, `click ${formatTime(event.time)} ${formatMaybeNumber(event.price)}`);
       publishSnapshot();
     });
@@ -786,6 +857,16 @@ export function mountWorkbenchDemo(
       chart.applySelectedDrawingOptions(
         options as PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
       );
+      publishSnapshot();
+    },
+    setDrawingTool(tool) {
+      if (drawingTool === tool) {
+        drawingTool = "none";
+        pendingTrendLineStart = null;
+      } else {
+        drawingTool = tool;
+        pendingTrendLineStart = null;
+      }
       publishSnapshot();
     },
     destroy() {

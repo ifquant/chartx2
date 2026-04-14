@@ -278,6 +278,35 @@ test("workbench exposes a drawing inspector driven by selected drawing schema", 
   await expect(inspector).toContainText("Start time must be before end time.");
 });
 
+test("workbench toolbar can create horizontal-line and trend-line drawings", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  const inspector = workbench.locator(".inspector-card");
+  const inspectorKind = inspector.locator(".sidebar-head span");
+  await expect(canvas).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one harness canvas is missing");
+  }
+
+  await page.getByRole("button", { name: "Horizontal line", exact: true }).click();
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.38);
+  await expect(inspectorKind).toHaveText("horizontal-line");
+  await expect(workbench).toContainText("tool created horizontal-line");
+
+  await page.getByRole("button", { name: "Trend line", exact: true }).click();
+  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.42);
+  await expect(workbench).toContainText("tool armed trend-line");
+  await page.mouse.click(box.x + box.width * 0.78, box.y + box.height * 0.22);
+  await expect(inspectorKind).toHaveText("trend-line");
+  await expect(workbench).toContainText("tool created trend-line");
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

@@ -15,6 +15,7 @@
     type DemoSnapshot,
     type FeatureExampleDescriptor,
     type FeatureTabId,
+    type WorkbenchDrawingTool,
   } from "$lib/demo/chartx-demo";
 
   type TopTabId = "workbench" | FeatureTabId;
@@ -43,6 +44,21 @@
     metrics: [],
     eventLog: [],
   });
+  const workbenchDrawingTools: Array<{
+    id: WorkbenchDrawingTool;
+    label: string;
+    icon: string;
+    enabled: boolean;
+  }> = [
+    { id: "horizontal-line", label: "Horizontal line", icon: "—", enabled: true },
+    { id: "trend-line", label: "Trend line", icon: "／", enabled: true },
+    { id: "none", label: "Clear drawing tool", icon: "⌖", enabled: true },
+    { id: "none", label: "Pitchfork", icon: "⌗", enabled: false },
+    { id: "none", label: "Text", icon: "T", enabled: false },
+    { id: "none", label: "Emoji", icon: "☺", enabled: false },
+    { id: "none", label: "Circle", icon: "⊕", enabled: false },
+    { id: "none", label: "Brush", icon: "⌂", enabled: false },
+  ];
 
   let activeTopTab: TopTabId = "workbench";
 
@@ -196,6 +212,11 @@
   function runFeatureAction(actionId: string): void {
     featureController?.runAction(actionId);
     featureActions = featureController?.actions() ?? [];
+  }
+
+  function setWorkbenchDrawingTool(tool: WorkbenchDrawingTool): void {
+    workbenchController?.setDrawingTool?.(tool);
+    workbenchActions = workbenchController?.actions() ?? [];
   }
 
   function formatValue(value: number | null, digits = 2): string {
@@ -427,6 +448,7 @@
   $: workbenchChartActions = workbenchActions.filter(
     (action) => action.group === "chart-action" || action.group === undefined,
   );
+  $: activeWorkbenchDrawingTool = workbenchSnapshot.drawingTool?.activeTool ?? "none";
 </script>
 
 <svelte:head>
@@ -483,14 +505,24 @@
 
           <div class="workbench-shell">
             <aside class="tool-rail">
-              <button>＋</button>
-              <button>⌖</button>
-              <button>／</button>
-              <button>⌗</button>
-              <button>T</button>
-              <button>☺</button>
-              <button>⊕</button>
-              <button>⌂</button>
+              {#each workbenchDrawingTools as tool}
+                <button
+                  class:active={tool.enabled && tool.id !== "none" && activeWorkbenchDrawingTool === tool.id}
+                  class:disabled={!tool.enabled}
+                  aria-label={tool.label}
+                  aria-disabled={!tool.enabled}
+                  title={tool.label}
+                  disabled={!tool.enabled}
+                  on:click={() => {
+                    if (!tool.enabled) {
+                      return;
+                    }
+                    setWorkbenchDrawingTool(tool.id);
+                  }}
+                >
+                  {tool.icon}
+                </button>
+              {/each}
             </aside>
 
             <div class="workbench-main">
@@ -673,7 +705,19 @@
                     {/each}
                   </div>
                 {:else}
-                  <p class="inspector-empty">Click a horizontal line or trend line on the chart to inspect its properties.</p>
+                  <p class="inspector-empty">
+                    {#if activeWorkbenchDrawingTool === "horizontal-line"}
+                      Click the chart to place a horizontal line.
+                    {:else if activeWorkbenchDrawingTool === "trend-line"}
+                      {#if workbenchSnapshot.drawingTool?.pendingTrendLineStartTime !== null}
+                        Click a second bar to finish the trend line.
+                      {:else}
+                        Click the chart to place the trend-line start point.
+                      {/if}
+                    {:else}
+                      Click a horizontal line or trend line on the chart to inspect its properties.
+                    {/if}
+                  </p>
                 {/if}
               </section>
 
@@ -1136,6 +1180,16 @@
     background: transparent;
     color: rgba(24, 24, 27, 0.84);
     font: inherit;
+  }
+
+  .tool-rail button.active {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .tool-rail button.disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
   }
 
   .workbench-main {

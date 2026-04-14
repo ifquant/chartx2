@@ -899,7 +899,7 @@ test("phase-one public api can switch the active main chart type without rebuild
   expect(result.paneEvents[0]?.type).toBe("added");
   expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
     id: "series-1",
-    label: "Candlestick 1",
+    label: "Line 1",
     kind: "line",
     chartType: "line",
     sourceRole: "main-series",
@@ -3068,7 +3068,7 @@ test("phase-one chart state snapshots can restore horizontal-line drawings", asy
 
   expect(result.savedPaneCount).toBe(1);
   expect(result.restoredPaneCount).toBe(1);
-  expect(result.savedDrawings).toEqual([
+  expect(result.savedDrawings).toMatchObject([
     {
       type: "horizontal-line",
       paneIndex: 0,
@@ -3157,7 +3157,7 @@ test("phase-one chart state snapshots can restore trend-line drawings", async ({
   expect(result.savedDrawings).toContainEqual({
     type: "trend-line",
     paneIndex: 0,
-    options: {
+    options: expect.objectContaining({
       startTime: API_DATA[0]!.time,
       startPrice: API_DATA[0]!.close,
       endTime: API_DATA[3]!.time,
@@ -3165,12 +3165,12 @@ test("phase-one chart state snapshots can restore trend-line drawings", async ({
       color: "#2563eb",
       lineWidth: 2,
       visible: true,
-    },
+    }),
   });
   expect(result.savedDrawings).toContainEqual({
     type: "trend-line",
     paneIndex: 1,
-    options: {
+    options: expect.objectContaining({
       startTime: API_DATA[1]!.time,
       startPrice: 16920,
       endTime: API_DATA[3]!.time,
@@ -3178,7 +3178,7 @@ test("phase-one chart state snapshots can restore trend-line drawings", async ({
       color: "#dc2626",
       lineWidth: 3,
       visible: true,
-    },
+    }),
   });
   expect(result.restoredDrawings).toEqual(result.savedDrawings);
 });

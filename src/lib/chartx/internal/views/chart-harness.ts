@@ -147,6 +147,7 @@ export type PhaseOneHorizontalLineDrawingOptions = PhaseOnePriceLineOptions & Ph
 
 export type PhaseOneHorizontalLineDrawingApi = {
   applyOptions(options: PhaseOneHorizontalLineDrawingOptions): void;
+  select(): void;
   remove(): void;
   paneIndex(): number;
 };
@@ -163,6 +164,7 @@ export type PhaseOneTrendLineDrawingOptions = {
 
 export type PhaseOneTrendLineDrawingApi = {
   applyOptions(options: PhaseOneTrendLineDrawingOptions): void;
+  select(): void;
   remove(): void;
   paneIndex(): number;
 };
@@ -3958,6 +3960,11 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
+      select: () => {
+        this.assertDrawingActive(api);
+        const drawing = this.getDrawingByApi(api);
+        this.selectDrawing(drawing.id);
+      },
       remove: () => {
         this.removeDrawing(api);
       },
@@ -4046,6 +4053,11 @@ export class PhaseOneChartHarness {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
+      },
+      select: () => {
+        this.assertDrawingActive(api);
+        const drawing = this.getDrawingByApi(api);
+        this.selectDrawing(drawing.id);
       },
       remove: () => {
         this.removeDrawing(api);

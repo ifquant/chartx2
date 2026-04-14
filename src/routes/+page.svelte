@@ -85,6 +85,7 @@
   let teardownWorkbenchReadout: (() => void) | null = null;
   let teardownFeatureReadout: (() => void) | null = null;
   let workbenchInspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
+  let workbenchToolPointer: { x: number; y: number } | null = null;
 
   onMount(() => {
     void tick().then(() => {
@@ -217,6 +218,36 @@
   function setWorkbenchDrawingTool(tool: WorkbenchDrawingTool): void {
     workbenchController?.setDrawingTool?.(tool);
     workbenchActions = workbenchController?.actions() ?? [];
+  }
+
+  function handleWorkbenchChartPointerMove(event: PointerEvent): void {
+    const frame = event.currentTarget;
+    if (!(frame instanceof HTMLElement)) {
+      return;
+    }
+    const bounds = frame.getBoundingClientRect();
+    workbenchToolPointer = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+  }
+
+  function clearWorkbenchToolPointer(): void {
+    workbenchToolPointer = null;
+  }
+
+  function handleWindowKeyDown(event: KeyboardEvent): void {
+    if (activeTopTab !== "workbench") {
+      return;
+    }
+    if (event.key !== "Escape") {
+      return;
+    }
+    if ((workbenchSnapshot.drawingTool?.activeTool ?? "none") === "none") {
+      return;
+    }
+    setWorkbenchDrawingTool("none");
+    event.preventDefault();
   }
 
   function formatValue(value: number | null, digits = 2): string {
@@ -449,7 +480,24 @@
     (action) => action.group === "chart-action" || action.group === undefined,
   );
   $: activeWorkbenchDrawingTool = workbenchSnapshot.drawingTool?.activeTool ?? "none";
+  $: workbenchTrendLinePreviewAnchor = workbenchSnapshot.drawingTool?.pendingTrendLineStartPoint ?? null;
+  $: showWorkbenchHorizontalLinePreview =
+    activeTopTab === "workbench"
+    && activeWorkbenchDrawingTool === "horizontal-line"
+    && workbenchToolPointer !== null;
+  $: showWorkbenchTrendLinePreview =
+    activeTopTab === "workbench"
+    && activeWorkbenchDrawingTool === "trend-line"
+    && workbenchTrendLinePreviewAnchor !== null
+    && workbenchToolPointer !== null;
+  $: workbenchHorizontalPreviewY = showWorkbenchHorizontalLinePreview ? workbenchToolPointer?.y ?? null : null;
+  $: workbenchTrendPreviewX1 = showWorkbenchTrendLinePreview ? workbenchTrendLinePreviewAnchor?.x ?? null : null;
+  $: workbenchTrendPreviewY1 = showWorkbenchTrendLinePreview ? workbenchTrendLinePreviewAnchor?.y ?? null : null;
+  $: workbenchTrendPreviewX2 = showWorkbenchTrendLinePreview ? workbenchToolPointer?.x ?? null : null;
+  $: workbenchTrendPreviewY2 = showWorkbenchTrendLinePreview ? workbenchToolPointer?.y ?? null : null;
 </script>
+
+<svelte:window on:keydown={handleWindowKeyDown} />
 
 <svelte:head>
   <title>chartx2 | Demo Shell</title>
@@ -543,7 +591,12 @@
               </div>
 
               <div class="chart-frame-shell">
-                <div class="chart-frame">
+                <div
+                  class="chart-frame"
+                  role="presentation"
+                  on:pointermove={handleWorkbenchChartPointerMove}
+                  on:pointerleave={clearWorkbenchToolPointer}
+                >
                   {#if workbenchError}
                     <div class="error-state">
                       <p class="error-label">chart init failure</p>
@@ -554,6 +607,27 @@
                       bind:this={workbenchCanvas}
                       aria-label="chartx2 phase-one chart harness"
                     ></canvas>
+                    {#if showWorkbenchHorizontalLinePreview}
+                      <svg class="drawing-tool-preview" aria-hidden="true">
+                        <line
+                          class="drawing-tool-preview-line"
+                          x1="0"
+                          x2="100%"
+                          y1={String(workbenchHorizontalPreviewY)}
+                          y2={String(workbenchHorizontalPreviewY)}
+                        ></line>
+                      </svg>
+                    {:else if showWorkbenchTrendLinePreview}
+                      <svg class="drawing-tool-preview" aria-hidden="true">
+                        <line
+                          class="drawing-tool-preview-line"
+                          x1={String(workbenchTrendPreviewX1)}
+                          y1={String(workbenchTrendPreviewY1)}
+                          x2={String(workbenchTrendPreviewX2)}
+                          y2={String(workbenchTrendPreviewY2)}
+                        ></line>
+                      </svg>
+                    {/if}
                   {/if}
                 </div>
               </div>
@@ -710,9 +784,9 @@
                       Click the chart to place a horizontal line.
                     {:else if activeWorkbenchDrawingTool === "trend-line"}
                       {#if workbenchSnapshot.drawingTool?.pendingTrendLineStartTime !== null}
-                        Click a second bar to finish the trend line.
+                        Click a second bar to finish the trend line. Press Escape to cancel.
                       {:else}
-                        Click the chart to place the trend-line start point.
+                        Click the chart to place the trend-line start point. Press Escape to cancel.
                       {/if}
                     {:else}
                       Click a horizontal line or trend line on the chart to inspect its properties.
@@ -1229,12 +1303,27 @@
   }
 
   .chart-frame {
+    position: relative;
     height: 100%;
     min-height: 0;
     border-radius: 0;
     overflow: hidden;
     border: 0;
     background: #fffdf7;
+  }
+
+  .drawing-tool-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .drawing-tool-preview-line {
+    stroke: rgba(147, 51, 234, 0.9);
+    stroke-width: 2;
+    stroke-dasharray: 6 6;
   }
 
   .feature-frame {

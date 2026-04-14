@@ -307,6 +307,38 @@ test("workbench toolbar can create horizontal-line and trend-line drawings", asy
   await expect(workbench).toContainText("tool created trend-line");
 });
 
+test("workbench drawing tools show a preview and let escape cancel an unfinished trend-line", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  const chartFrame = workbench.locator(".chart-frame");
+  const trendTool = page.getByRole("button", { name: "Trend line", exact: true });
+  await expect(canvas).toBeVisible();
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one harness canvas is missing");
+  }
+
+  await trendTool.click();
+  await page.mouse.move(box.x + box.width * 0.22, box.y + box.height * 0.42);
+  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.42);
+  await page.mouse.move(box.x + box.width * 0.72, box.y + box.height * 0.24);
+
+  await expect(chartFrame.locator(".drawing-tool-preview")).toBeVisible();
+  await expect(workbench).toContainText("tool armed trend-line");
+  await expect(workbench).toContainText("Click a second bar to finish the trend line. Press Escape to cancel.");
+
+  await page.keyboard.press("Escape");
+
+  await expect(chartFrame.locator(".drawing-tool-preview")).toHaveCount(0);
+  await expect(trendTool).not.toHaveClass(/active/);
+  await expect(workbench).toContainText("Click a horizontal line or trend line on the chart to inspect its properties.");
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

@@ -56,6 +56,7 @@ export type DemoSnapshot = {
   drawingTool?: {
     activeTool: WorkbenchDrawingTool;
     pendingTrendLineStartTime: number | null;
+    pendingTrendLineStartPoint: { x: number; y: number } | null;
   };
   selectedDrawing?: {
     state: PhaseOneDrawingStateSnapshot;
@@ -191,7 +192,7 @@ export function mountWorkbenchDemo(
   let barSpacing = 15;
   let rightOffset = 0.8;
   let drawingTool: WorkbenchDrawingTool = "none";
-  let pendingTrendLineStart: { time: number; price: number } | null = null;
+  let pendingTrendLineStart: { time: number; price: number; point: { x: number; y: number } | null } | null = null;
   let latestReadout: PhaseOneCrosshairMoveEvent | null = null;
   let latestClick: PhaseOneClickEvent | null = null;
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
@@ -257,6 +258,7 @@ export function mountWorkbenchDemo(
       drawingTool: {
         activeTool: drawingTool,
         pendingTrendLineStartTime: pendingTrendLineStart?.time ?? null,
+        pendingTrendLineStartPoint: pendingTrendLineStart?.point ?? null,
       },
       selectedDrawing:
         chart === null
@@ -429,7 +431,11 @@ export function mountWorkbenchDemo(
         }
 
         if (pendingTrendLineStart === null) {
-          pendingTrendLineStart = { time: event.time, price: event.price };
+          pendingTrendLineStart = {
+            time: event.time,
+            price: event.price,
+            point: event.point === null ? null : { x: event.point.x, y: event.point.y },
+          };
           pushLog(log, `tool armed trend-line ${formatTime(event.time)} ${event.price.toFixed(2)}`);
           publishSnapshot();
           return;

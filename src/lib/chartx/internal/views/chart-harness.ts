@@ -13,6 +13,7 @@ import {
   buildPointFigureData,
   buildRenkoData,
   buildMovingAverageStudyData,
+  assertDrawingTargetValid,
   createMainSeriesStateSnapshot,
   mainSeriesChartTypeSpec,
   mainSeriesKindForChartType,
@@ -889,11 +890,6 @@ type TrendLineDrawingDescriptor = {
 } & TrendLineDrawingState;
 
 type ChartDrawingDescriptor = HorizontalLineDrawingDescriptor | TrendLineDrawingDescriptor;
-
-type TrendLineGeometry = Pick<
-  TrendLineDrawingState,
-  "startTime" | "startPrice" | "endTime" | "endPrice"
->;
 
 type SeriesMarkerState = {
   time: number;
@@ -3888,6 +3884,11 @@ export class PhaseOneChartHarness {
       ...options,
       title: options.title ?? meta.title,
     });
+    assertDrawingTargetValid({
+      kind: "horizontal-line",
+      price: line.price,
+      lineWidth: line.lineWidth,
+    });
     const magnetState = normalizeDrawingMagnetOverrideOptions(options);
 
     const api: PhaseOneHorizontalLineDrawingApi = {
@@ -3897,18 +3898,21 @@ export class PhaseOneChartHarness {
         if (drawing.kind !== "horizontal-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        if (nextOptions.price !== undefined) {
-          drawing.line.price = nextOptions.price;
-        }
-        if (nextOptions.color !== undefined) {
-          drawing.line.color = nextOptions.color;
-        }
-        if (nextOptions.lineWidth !== undefined) {
-          drawing.line.lineWidth = Math.max(1, nextOptions.lineWidth);
-        }
-        if (nextOptions.title !== undefined) {
-          drawing.line.title = nextOptions.title;
-        }
+        const nextLine = {
+          price: nextOptions.price ?? drawing.line.price,
+          color: nextOptions.color ?? drawing.line.color,
+          lineWidth: Math.max(1, nextOptions.lineWidth ?? drawing.line.lineWidth),
+          title: nextOptions.title ?? drawing.line.title,
+        };
+        assertDrawingTargetValid({
+          kind: "horizontal-line",
+          price: nextLine.price,
+          lineWidth: nextLine.lineWidth,
+        });
+        drawing.line.price = nextLine.price;
+        drawing.line.color = nextLine.color;
+        drawing.line.lineWidth = nextLine.lineWidth;
+        drawing.line.title = nextLine.title;
         applyDrawingMagnetOverrideOptions(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
@@ -3963,7 +3967,14 @@ export class PhaseOneChartHarness {
       lineWidth: Math.max(1, options.lineWidth ?? 2),
       ...magnetState,
     };
-    assertTrendLineGeometryValid(state);
+    assertDrawingTargetValid({
+      kind: "trend-line",
+      startTime: state.startTime,
+      startPrice: state.startPrice,
+      endTime: state.endTime,
+      endPrice: state.endPrice,
+      lineWidth: state.lineWidth,
+    });
 
     const api: PhaseOneTrendLineDrawingApi = {
       applyOptions: (nextOptions) => {
@@ -3972,13 +3983,17 @@ export class PhaseOneChartHarness {
         if (drawing.kind !== "trend-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        const nextGeometry: TrendLineGeometry = {
+        const nextGeometry = {
           startTime: nextOptions.startTime ?? drawing.startTime,
           startPrice: nextOptions.startPrice ?? drawing.startPrice,
           endTime: nextOptions.endTime ?? drawing.endTime,
           endPrice: nextOptions.endPrice ?? drawing.endPrice,
+          lineWidth: Math.max(1, nextOptions.lineWidth ?? drawing.lineWidth),
         };
-        assertTrendLineGeometryValid(nextGeometry);
+        assertDrawingTargetValid({
+          kind: "trend-line",
+          ...nextGeometry,
+        });
         drawing.startTime = nextGeometry.startTime;
         drawing.startPrice = nextGeometry.startPrice;
         drawing.endTime = nextGeometry.endTime;
@@ -3986,9 +4001,7 @@ export class PhaseOneChartHarness {
         if (nextOptions.color !== undefined) {
           drawing.color = nextOptions.color;
         }
-        if (nextOptions.lineWidth !== undefined) {
-          drawing.lineWidth = Math.max(1, nextOptions.lineWidth);
-        }
+        drawing.lineWidth = nextGeometry.lineWidth;
         applyDrawingMagnetOverrideOptions(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
@@ -6807,15 +6820,6 @@ function resolveSnappedDrawingPrice(
     return { price: bestPrice, snapped: true, source: bestSource };
   }
   return { price: rawPrice, snapped: false, source: bestSource };
-}
-
-function assertTrendLineGeometryValid(geometry: TrendLineGeometry): void {
-  if (geometry.startTime === geometry.endTime && geometry.startPrice === geometry.endPrice) {
-    throw new Error("chartx phase-one trend-line endpoints must not overlap");
-  }
-  if (geometry.startTime >= geometry.endTime) {
-    throw new Error("chartx phase-one trend-line startTime must be before endTime");
-  }
 }
 
 function drawingHitDistance(

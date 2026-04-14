@@ -584,6 +584,46 @@ export type PhaseOneChartTemplateV1 = ChartTemplateV1<PhaseOneChartStateSnapshot
 export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
 export type PhaseOneChartTemplateInput = VersionedChartTemplateInput<PhaseOneChartStateSnapshot>;
 export type PhaseOneDrawingStateSnapshot = PhaseOneChartStateSnapshot["drawings"][number];
+export type PhaseOneDrawingPropertyField =
+  | "price"
+  | "title"
+  | "color"
+  | "lineWidth"
+  | "startTime"
+  | "startPrice"
+  | "endTime"
+  | "endPrice"
+  | "visible"
+  | "magnetEnabled"
+  | "magnetTolerancePx"
+  | "timeMagnetEnabled"
+  | "timeMagnetPolicy"
+  | "timeMagnetTolerancePx"
+  | "magnetSources.open"
+  | "magnetSources.high"
+  | "magnetSources.low"
+  | "magnetSources.close";
+export type PhaseOneDrawingPropertySectionId = "appearance" | "geometry" | "magnet";
+export type PhaseOneDrawingPropertyFieldSchema = {
+  key: PhaseOneDrawingPropertyField;
+  label: string;
+  control:
+    | "color"
+    | "number"
+    | "text"
+    | "toggle"
+    | "select"
+    | "time";
+};
+export type PhaseOneDrawingPropertySectionSchema = {
+  id: PhaseOneDrawingPropertySectionId;
+  label: string;
+  fields: readonly PhaseOneDrawingPropertyFieldSchema[];
+};
+export type PhaseOneDrawingPropertySchema = {
+  kind: PhaseOneDrawingStateSnapshot["type"];
+  sections: readonly PhaseOneDrawingPropertySectionSchema[];
+};
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export function createPhaseOneChartTemplate(chart: PhaseOneChartStateSnapshot): PhaseOneChartTemplateV1 {
@@ -595,6 +635,78 @@ export function normalizePhaseOneChartTemplate(
 ): PhaseOneChartTemplateV1 {
   return normalizeVersionedChartTemplate(input);
 }
+
+const COMMON_DRAWING_MAGNET_PROPERTY_FIELDS = [
+  { key: "magnetEnabled", label: "Price Magnet", control: "toggle" },
+  { key: "magnetTolerancePx", label: "Price Magnet Tolerance", control: "number" },
+  { key: "timeMagnetEnabled", label: "Time Magnet", control: "toggle" },
+  { key: "timeMagnetPolicy", label: "Time Magnet Policy", control: "select" },
+  { key: "timeMagnetTolerancePx", label: "Time Magnet Tolerance", control: "number" },
+  { key: "magnetSources.open", label: "Snap Open", control: "toggle" },
+  { key: "magnetSources.high", label: "Snap High", control: "toggle" },
+  { key: "magnetSources.low", label: "Snap Low", control: "toggle" },
+  { key: "magnetSources.close", label: "Snap Close", control: "toggle" },
+] as const satisfies readonly PhaseOneDrawingPropertyFieldSchema[];
+
+const DRAWING_PROPERTY_SCHEMAS: Record<
+  PhaseOneDrawingStateSnapshot["type"],
+  PhaseOneDrawingPropertySchema
+> = {
+  "horizontal-line": {
+    kind: "horizontal-line",
+    sections: [
+      {
+        id: "appearance",
+        label: "Appearance",
+        fields: [
+          { key: "title", label: "Title", control: "text" },
+          { key: "color", label: "Color", control: "color" },
+          { key: "lineWidth", label: "Line Width", control: "number" },
+          { key: "visible", label: "Visible", control: "toggle" },
+        ],
+      },
+      {
+        id: "geometry",
+        label: "Geometry",
+        fields: [{ key: "price", label: "Price", control: "number" }],
+      },
+      {
+        id: "magnet",
+        label: "Magnet",
+        fields: COMMON_DRAWING_MAGNET_PROPERTY_FIELDS,
+      },
+    ],
+  },
+  "trend-line": {
+    kind: "trend-line",
+    sections: [
+      {
+        id: "appearance",
+        label: "Appearance",
+        fields: [
+          { key: "color", label: "Color", control: "color" },
+          { key: "lineWidth", label: "Line Width", control: "number" },
+          { key: "visible", label: "Visible", control: "toggle" },
+        ],
+      },
+      {
+        id: "geometry",
+        label: "Geometry",
+        fields: [
+          { key: "startTime", label: "Start Time", control: "time" },
+          { key: "startPrice", label: "Start Price", control: "number" },
+          { key: "endTime", label: "End Time", control: "time" },
+          { key: "endPrice", label: "End Price", control: "number" },
+        ],
+      },
+      {
+        id: "magnet",
+        label: "Magnet",
+        fields: COMMON_DRAWING_MAGNET_PROPERTY_FIELDS,
+      },
+    ],
+  },
+};
 
 export type PhaseOneChartApi = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi;
@@ -617,6 +729,7 @@ export type PhaseOneChartApi = {
   ): PhaseOneTrendLineDrawingApi;
   getSelectedDrawing(): PhaseOneSelectedDrawing;
   getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null;
+  getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null;
   applySelectedDrawingOptions(options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions): void;
   clearSelectedDrawing(): void;
   subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void;
@@ -1835,6 +1948,14 @@ export class PhaseOneChartHarness {
     }
     const drawing = this.getDrawingById(this.selectedDrawingId);
     return drawing === undefined ? null : this.buildDrawingStateSnapshot(drawing);
+  }
+
+  public getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null {
+    const snapshot = this.getSelectedDrawingState();
+    if (snapshot === null) {
+      return null;
+    }
+    return DRAWING_PROPERTY_SCHEMAS[snapshot.type];
   }
 
   public applySelectedDrawingOptions(
@@ -5157,6 +5278,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     getSelectedDrawingState() {
       return harness.getSelectedDrawingState();
+    },
+    getSelectedDrawingPropertySchema() {
+      return harness.getSelectedDrawingPropertySchema();
     },
     applySelectedDrawingOptions(options) {
       harness.applySelectedDrawingOptions(options);

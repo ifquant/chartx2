@@ -5460,6 +5460,7 @@ test("phase-one selected drawing state can drive a minimal property inspector fl
     }));
 
     const selectedHorizontal = chart.getSelectedDrawingState();
+    const selectedHorizontalSchema = chart.getSelectedDrawingPropertySchema();
     chart.applySelectedDrawingOptions({
       title: "Inspector HL",
       magnetEnabled: false,
@@ -5483,6 +5484,7 @@ test("phase-one selected drawing state can drive a minimal property inspector fl
     }
 
     const selectedTrend = chart.getSelectedDrawingState();
+    const selectedTrendSchema = chart.getSelectedDrawingPropertySchema();
     chart.applySelectedDrawingOptions({
       color: "#f97316",
       timeMagnetPolicy: "previous",
@@ -5491,8 +5493,10 @@ test("phase-one selected drawing state can drive a minimal property inspector fl
 
     return {
       selectedHorizontal,
+      selectedHorizontalSchema,
       updatedHorizontal,
       selectedTrend,
+      selectedTrendSchema,
       updatedTrend,
       drawings: chart.getChartState().drawings,
     };
@@ -5502,12 +5506,62 @@ test("phase-one selected drawing state can drive a minimal property inspector fl
   });
 
   expect(result.selectedHorizontal?.type).toBe("horizontal-line");
+  expect(result.selectedHorizontalSchema).toEqual({
+    kind: "horizontal-line",
+    sections: [
+      expect.objectContaining({
+        id: "appearance",
+        fields: expect.arrayContaining([
+          expect.objectContaining({ key: "title", control: "text" }),
+          expect.objectContaining({ key: "color", control: "color" }),
+        ]),
+      }),
+      expect.objectContaining({
+        id: "geometry",
+        fields: [expect.objectContaining({ key: "price", control: "number" })],
+      }),
+      expect.objectContaining({
+        id: "magnet",
+        fields: expect.arrayContaining([
+          expect.objectContaining({ key: "magnetEnabled", control: "toggle" }),
+          expect.objectContaining({ key: "timeMagnetPolicy", control: "select" }),
+          expect.objectContaining({ key: "magnetSources.high", control: "toggle" }),
+        ]),
+      }),
+    ],
+  });
   expect(result.updatedHorizontal?.type).toBe("horizontal-line");
   expect(result.updatedHorizontal?.options.title).toBe("Inspector HL");
   expect(result.updatedHorizontal?.options.magnetEnabled).toBe(false);
   expect(result.updatedHorizontal?.options.timeMagnetPolicy).toBe("next");
 
   expect(result.selectedTrend?.type).toBe("trend-line");
+  expect(result.selectedTrendSchema).toEqual({
+    kind: "trend-line",
+    sections: [
+      expect.objectContaining({
+        id: "appearance",
+        fields: expect.arrayContaining([
+          expect.objectContaining({ key: "color", control: "color" }),
+          expect.objectContaining({ key: "visible", control: "toggle" }),
+        ]),
+      }),
+      expect.objectContaining({
+        id: "geometry",
+        fields: expect.arrayContaining([
+          expect.objectContaining({ key: "startTime", control: "time" }),
+          expect.objectContaining({ key: "endPrice", control: "number" }),
+        ]),
+      }),
+      expect.objectContaining({
+        id: "magnet",
+        fields: expect.arrayContaining([
+          expect.objectContaining({ key: "timeMagnetTolerancePx", control: "number" }),
+          expect.objectContaining({ key: "magnetSources.close", control: "toggle" }),
+        ]),
+      }),
+    ],
+  });
   expect(result.updatedTrend?.type).toBe("trend-line");
   expect(result.updatedTrend?.options.color).toBe("#f97316");
   expect(result.updatedTrend?.options.timeMagnetPolicy).toBe("previous");

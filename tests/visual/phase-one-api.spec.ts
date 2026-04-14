@@ -4721,6 +4721,310 @@ test("phase-one chart magnet tolerance can disable price snapping without disabl
   expect(after?.options.startPrice === 132 || after?.options.endPrice === 132).toBe(false);
 });
 
+test("phase-one chart time magnet policy can snap to the previous bar", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-time-magnet-previous-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-time-magnet-previous-canvas" aria-label="phase-one api drawing time magnet previous chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-time-magnet-previous-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing time-magnet-previous fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.applyOptions({
+      drawings: {
+        timeMagnetEnabled: true,
+        timeMagnetPolicy: "previous",
+        timeMagnetTolerancePx: 999,
+      },
+    });
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    (window as Window & {
+      __chartxTimeMagnetPreviousState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number } }>;
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: typeof bars;
+      };
+    }).__chartxTimeMagnetPreviousState = {
+      chart,
+      canvas,
+      bars,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing time magnet previous chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing time-magnet-previous canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxTimeMagnetPreviousState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: Array<{ time: number }>;
+      };
+    }).__chartxTimeMagnetPreviousState;
+
+    if (!state) {
+      throw new Error("API drawing time-magnet-previous state is missing");
+    }
+
+    const { canvas, chart, bars } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+    const timeScale = chart.getChartState().timeScale;
+    const pointCount = bars.length;
+    const barSpacing = timeScale.barSpacing ?? Math.min(Math.max(paneWidth / Math.max(pointCount + 2, 12), 4), 36);
+    const logicalToX = (logical: number) =>
+      left + paneWidth - (((pointCount - 1) - logical + timeScale.rightOffset) * barSpacing);
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+
+    return {
+      selected,
+      selectionPoint,
+      targetX: logicalToX(1.5),
+      targetY: top + paneHeight * 0.42,
+      expectedTime: bars[1]!.time,
+    };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + setup.targetX, box.y + setup.targetY, { steps: 8 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxTimeMagnetPreviousState?: {
+        chart: {
+          getChartState(): {
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number } }>;
+          };
+        };
+      };
+    }).__chartxTimeMagnetPreviousState;
+    if (!state) {
+      throw new Error("API drawing time-magnet-previous state is missing after drag");
+    }
+    return state.chart.getChartState().drawings.find((entry: { type: string }) => entry.type === "trend-line");
+  });
+
+  const times = [after?.options.startTime, after?.options.endTime].filter((value): value is number => typeof value === "number");
+  expect(times).toContain(setup.expectedTime);
+});
+
+test("phase-one chart time magnet policy can snap to the next bar", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-time-magnet-next-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-time-magnet-next-canvas" aria-label="phase-one api drawing time magnet next chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-time-magnet-next-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing time-magnet-next fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.applyOptions({
+      drawings: {
+        timeMagnetEnabled: true,
+        timeMagnetPolicy: "next",
+        timeMagnetTolerancePx: 999,
+      },
+    });
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    (window as Window & {
+      __chartxTimeMagnetNextState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number } }>;
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: typeof bars;
+      };
+    }).__chartxTimeMagnetNextState = {
+      chart,
+      canvas,
+      bars,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing time magnet next chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing time-magnet-next canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxTimeMagnetNextState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: Array<{ time: number }>;
+      };
+    }).__chartxTimeMagnetNextState;
+
+    if (!state) {
+      throw new Error("API drawing time-magnet-next state is missing");
+    }
+
+    const { canvas, chart, bars } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+    const timeScale = chart.getChartState().timeScale;
+    const pointCount = bars.length;
+    const barSpacing = timeScale.barSpacing ?? Math.min(Math.max(paneWidth / Math.max(pointCount + 2, 12), 4), 36);
+    const logicalToX = (logical: number) =>
+      left + paneWidth - (((pointCount - 1) - logical + timeScale.rightOffset) * barSpacing);
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+
+    return {
+      selected,
+      selectionPoint,
+      targetX: logicalToX(1.5),
+      targetY: top + paneHeight * 0.42,
+      expectedTime: bars[2]!.time,
+    };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + setup.targetX, box.y + setup.targetY, { steps: 8 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxTimeMagnetNextState?: {
+        chart: {
+          getChartState(): {
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number } }>;
+          };
+        };
+      };
+    }).__chartxTimeMagnetNextState;
+    if (!state) {
+      throw new Error("API drawing time-magnet-next state is missing after drag");
+    }
+    return state.chart.getChartState().drawings.find((entry: { type: string }) => entry.type === "trend-line");
+  });
+
+  const times = [after?.options.startTime, after?.options.endTime].filter((value): value is number => typeof value === "number");
+  expect(times).toContain(setup.expectedTime);
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

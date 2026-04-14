@@ -204,6 +204,7 @@ export type PhaseOneChartOptions = {
     magnetLabelVisible?: boolean;
     magnetTolerancePx?: number;
     timeMagnetEnabled?: boolean;
+    timeMagnetPolicy?: "nearest" | "previous" | "next";
     timeMagnetGuideVisible?: boolean;
     timeMagnetLabelVisible?: boolean;
     timeMagnetTolerancePx?: number;
@@ -224,6 +225,7 @@ type RequiredDrawingOptions = {
   magnetLabelVisible: boolean;
   magnetTolerancePx: number;
   timeMagnetEnabled: boolean;
+  timeMagnetPolicy: "nearest" | "previous" | "next";
   timeMagnetGuideVisible: boolean;
   timeMagnetLabelVisible: boolean;
   timeMagnetTolerancePx: number;
@@ -900,6 +902,7 @@ export class PhaseOneChartHarness {
     magnetLabelVisible: true,
     magnetTolerancePx: DRAWING_PRICE_SNAP_TOLERANCE,
     timeMagnetEnabled: true,
+    timeMagnetPolicy: "nearest",
     timeMagnetGuideVisible: true,
     timeMagnetLabelVisible: true,
     timeMagnetTolerancePx: DRAWING_TIME_SNAP_TOLERANCE,
@@ -1616,6 +1619,9 @@ export class PhaseOneChartHarness {
             }
           : null;
       }
+    }
+    if (options.drawings?.timeMagnetPolicy !== undefined) {
+      this.drawingOptions.timeMagnetPolicy = options.drawings.timeMagnetPolicy;
     }
     if (options.drawings?.timeMagnetGuideVisible !== undefined) {
       this.drawingOptions.timeMagnetGuideVisible = options.drawings.timeMagnetGuideVisible;
@@ -4405,6 +4411,7 @@ export class PhaseOneChartHarness {
       this.chartContext.snapshot().barSequence.axisBars,
       this.timeScale,
       this.drawingOptions.timeMagnetEnabled,
+      this.drawingOptions.timeMagnetPolicy,
       this.drawingOptions.timeMagnetTolerancePx,
     );
     const nextPrice = resolveSnappedDrawingPrice(
@@ -6370,6 +6377,7 @@ function resolveSnappedDrawingTime(
   axisBars: readonly { time: number; index: TimePointIndex }[],
   timeScale: TimeScale,
   magnetEnabled: boolean,
+  magnetPolicy: "nearest" | "previous" | "next",
   magnetTolerancePx: number,
 ): { time: number; snapped: boolean } {
   if (axisBars.length === 0) {
@@ -6383,6 +6391,40 @@ function resolveSnappedDrawingTime(
       snapped: false,
     };
   }
+  const targetBar = resolveTimeMagnetTargetBar(axisBars, logicalCoordinate, magnetPolicy);
+
+  const snappedCoordinate = timeScale.indexToCoordinate(targetBar.index);
+  const snapped = Math.abs(snappedCoordinate - x) <= magnetTolerancePx;
+  return {
+    time: snapped ? targetBar.time : logicalCoordinateToInterpolatedTime(logicalCoordinate, axisBars),
+    snapped,
+  };
+}
+
+function resolveTimeMagnetTargetBar(
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  logicalCoordinate: Logical,
+  magnetPolicy: "nearest" | "previous" | "next",
+): { time: number; index: TimePointIndex } {
+  if (magnetPolicy === "previous") {
+    for (let index = axisBars.length - 1; index >= 0; index -= 1) {
+      const bar = axisBars[index]!;
+      if (bar.index <= logicalCoordinate) {
+        return bar;
+      }
+    }
+    return axisBars[0]!;
+  }
+
+  if (magnetPolicy === "next") {
+    for (const bar of axisBars) {
+      if (bar.index >= logicalCoordinate) {
+        return bar;
+      }
+    }
+    return axisBars[axisBars.length - 1]!;
+  }
+
   const logical = Math.round(logicalCoordinate);
   let nearest = axisBars[0]!;
   let nearestDistance = Math.abs(nearest.index - logical);
@@ -6393,13 +6435,7 @@ function resolveSnappedDrawingTime(
       nearestDistance = distance;
     }
   }
-
-  const snappedCoordinate = timeScale.indexToCoordinate(nearest.index);
-  const snapped = Math.abs(snappedCoordinate - x) <= magnetTolerancePx;
-  return {
-    time: snapped ? nearest.time : logicalCoordinateToInterpolatedTime(logicalCoordinate, axisBars),
-    snapped,
-  };
+  return nearest;
 }
 
 function logicalCoordinateToInterpolatedTime(

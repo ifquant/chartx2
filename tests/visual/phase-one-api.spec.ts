@@ -5025,6 +5025,317 @@ test("phase-one chart time magnet policy can snap to the next bar", async ({ pag
   expect(times).toContain(setup.expectedTime);
 });
 
+test("phase-one trend-line can override chart-level price magnet settings", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-local-price-magnet-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-local-price-magnet-canvas" aria-label="phase-one api drawing local price magnet chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-local-price-magnet-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing local-price-magnet fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.applyOptions({
+      drawings: {
+        magnetEnabled: false,
+      },
+    });
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+      magnetEnabled: true,
+      magnetTolerancePx: 999,
+      magnetSources: {
+        open: false,
+        high: true,
+        low: false,
+        close: false,
+      },
+    });
+
+    (window as Window & {
+      __chartxLocalPriceMagnetState?: {
+        chart: {
+          getChartState(): {
+            priceScale: { visibleRange: { minValue: number; maxValue: number } | null };
+            drawings: Array<{ type: string; options: { startPrice?: number; endPrice?: number; magnetEnabled?: boolean } }>;
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxLocalPriceMagnetState = {
+      chart,
+      canvas,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing local price magnet chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing local-price-magnet canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxLocalPriceMagnetState?: {
+        chart: {
+          getChartState(): {
+            priceScale: { visibleRange: { minValue: number; maxValue: number } | null };
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxLocalPriceMagnetState;
+
+    if (!state) {
+      throw new Error("API drawing local-price-magnet state is missing");
+    }
+
+    const { canvas, chart } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+    const visibleRange = chart.getChartState().priceScale.visibleRange;
+    if (visibleRange === null) {
+      throw new Error("API drawing local-price-magnet chart is missing a visible price range");
+    }
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+
+    const priceToY = (price: number) =>
+      top + ((visibleRange.maxValue - price) / (visibleRange.maxValue - visibleRange.minValue)) * paneHeight;
+
+    return {
+      selected,
+      selectionPoint,
+      targetY: priceToY(132) + 3,
+    };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.targetY, { steps: 8 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxLocalPriceMagnetState?: {
+        chart: {
+          getChartState(): {
+            drawings: Array<{ type: string; options: { startPrice?: number; endPrice?: number; magnetEnabled?: boolean } }>;
+          };
+        };
+      };
+    }).__chartxLocalPriceMagnetState;
+    if (!state) {
+      throw new Error("API drawing local-price-magnet state is missing after drag");
+    }
+    return state.chart.getChartState().drawings.find((entry) => entry.type === "trend-line");
+  });
+
+  expect(after?.options.magnetEnabled).toBe(true);
+  expect(after?.options.startPrice === 132 || after?.options.endPrice === 132).toBe(true);
+});
+
+test("phase-one trend-line can override chart-level time magnet policy", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-local-time-policy-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-local-time-policy-canvas" aria-label="phase-one api drawing local time policy chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-local-time-policy-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing local-time-policy fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.applyOptions({
+      drawings: {
+        timeMagnetEnabled: true,
+        timeMagnetPolicy: "next",
+        timeMagnetTolerancePx: 999,
+      },
+    });
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+      timeMagnetEnabled: true,
+      timeMagnetPolicy: "previous",
+      timeMagnetTolerancePx: 999,
+    });
+
+    (window as Window & {
+      __chartxLocalTimePolicyState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number; timeMagnetPolicy?: string } }>;
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: typeof bars;
+      };
+    }).__chartxLocalTimePolicyState = {
+      chart,
+      canvas,
+      bars,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing local time policy chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing local-time-policy canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxLocalTimePolicyState?: {
+        chart: {
+          getChartState(): {
+            timeScale: { barSpacing: number | null; rightOffset: number };
+          };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+        bars: Array<{ time: number }>;
+      };
+    }).__chartxLocalTimePolicyState;
+
+    if (!state) {
+      throw new Error("API drawing local-time-policy state is missing");
+    }
+
+    const { canvas, chart, bars } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+    const timeScale = chart.getChartState().timeScale;
+    const pointCount = bars.length;
+    const barSpacing = timeScale.barSpacing ?? Math.min(Math.max(paneWidth / Math.max(pointCount + 2, 12), 4), 36);
+    const logicalToX = (logical: number) =>
+      left + paneWidth - (((pointCount - 1) - logical + timeScale.rightOffset) * barSpacing);
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+
+    return {
+      selected,
+      selectionPoint,
+      targetX: logicalToX(1.5),
+      targetY: top + paneHeight * 0.42,
+      expectedTime: bars[1]!.time,
+    };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + setup.targetX, box.y + setup.targetY, { steps: 8 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxLocalTimePolicyState?: {
+        chart: {
+          getChartState(): {
+            drawings: Array<{ type: string; options: { startTime?: number; endTime?: number; timeMagnetPolicy?: string } }>;
+          };
+        };
+      };
+    }).__chartxLocalTimePolicyState;
+    if (!state) {
+      throw new Error("API drawing local-time-policy state is missing after drag");
+    }
+    return state.chart.getChartState().drawings.find((entry) => entry.type === "trend-line");
+  });
+
+  expect(after?.options.timeMagnetPolicy).toBe("previous");
+  const times = [after?.options.startTime, after?.options.endTime].filter((value): value is number => typeof value === "number");
+  expect(times).toContain(setup.expectedTime);
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

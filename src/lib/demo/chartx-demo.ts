@@ -168,7 +168,7 @@ export function mountWorkbenchDemo(
   canvas: HTMLCanvasElement,
   publish: SnapshotPublisher,
 ): DemoController {
-  const bars = createBars(10_000);
+  const bars = createWorkbenchBars(10_000);
   const volume = createVolumeData(bars);
   const line = createLineData(bars, 6);
   const log: EventLog = [];
@@ -1638,6 +1638,36 @@ function createBars(count: number): PhaseOneCandlestickData[] {
     const nextClose = open + drift;
     const high = Math.max(open, nextClose) + 18 + (index % 4) * 3;
     const low = Math.min(open, nextClose) - 16 - (index % 3) * 2;
+
+    bars.push({
+      time: BASE_TIME + index * DAY,
+      open: round(open),
+      high: round(high),
+      low: round(low),
+      close: round(nextClose),
+      volume: 760_000 + index * 22_000 + Math.round(Math.abs(nextClose - open) * 8_400),
+    });
+
+    close = nextClose;
+  }
+
+  return bars;
+}
+
+function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
+  const bars: PhaseOneCandlestickData[] = [];
+  let close = 16_860;
+
+  for (let index = 0; index < count; index += 1) {
+    const regime = Math.sin(index / 17) * 42 + Math.cos(index / 29) * 24;
+    const openGap = Math.sin(index / 2.1) * 18 + Math.cos(index / 1.35) * 12 + ((index % 6) - 2.5) * 3;
+    const body = regime + Math.sin(index / 4.4) * 61 + Math.cos(index / 7.3) * 27;
+    const open = close + openGap;
+    const nextClose = open + body;
+    const upperShadow = 14 + (index % 5) * 7 + Math.abs(Math.sin(index / 3.3)) * 12;
+    const lowerShadow = 12 + (index % 4) * 6 + Math.abs(Math.cos(index / 2.8)) * 11;
+    const high = Math.max(open, nextClose) + upperShadow;
+    const low = Math.min(open, nextClose) - lowerShadow;
 
     bars.push({
       time: BASE_TIME + index * DAY,

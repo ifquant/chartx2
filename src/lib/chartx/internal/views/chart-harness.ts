@@ -1456,7 +1456,10 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one chart supports only one primary series");
     }
 
-    const meta = preserved === undefined ? this.createSeriesMeta(kind) : { id: preserved.id, label: preserved.label };
+    const meta =
+      preserved === undefined
+        ? this.createSeriesMeta(kind)
+        : { id: preserved.id, label: this.createSeriesLabel(kind, preserved.id) };
     const api = this.createPrimarySeriesApi(kind);
     const seriesKind = seriesKindForMainChartType(kind);
     const source = this.createMainSourceState(
@@ -3874,8 +3877,13 @@ export class PhaseOneChartHarness {
     this.nextSeriesId += 1;
     return {
       id: `series-${ordinal}`,
-      label: `${formatSeriesKindLabel(kind)} ${ordinal}`,
+      label: this.createSeriesLabel(kind, `series-${ordinal}`),
     };
+  }
+
+  private createSeriesLabel(kind: string, id: string): string {
+    const ordinal = id.startsWith("series-") ? id.slice("series-".length) : id;
+    return `${formatSeriesKindLabel(kind)} ${ordinal}`;
   }
 
   private createPriceLineState(options: PhaseOnePriceLineOptions = {}): PriceLineState {

@@ -4,6 +4,18 @@ function featureTab(page: Page, name: string) {
   return page.locator(".top-tabs").getByRole("button", { name, exact: true });
 }
 
+function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 test("workbench opens by default and renders the baseline chart", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Workbench" })).toHaveClass(/active/);
@@ -180,6 +192,25 @@ test("workbench surfaces renko builder controls when the main chart switches to 
   await modeStrip.getByRole("button", { name: "Box 2" }).click();
   await expect(modeStrip.getByRole("button", { name: "Box 2" })).toHaveClass(/active/);
   await expect(workbench).toContainText("Fixed 2");
+});
+
+test("workbench heikin switch changes both the chart image and the main-series label", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const frame = workbench.locator(".chart-frame");
+  const readout = workbench.locator(".readout-bar").first();
+
+  const candlesBuffer = await frame.screenshot();
+  await page.getByRole("button", { name: "Heikin", exact: true }).click();
+
+  await expect(workbench).toContainText("Heikin Ashi");
+  await expect(readout).toContainText("Heikin Ashi 1");
+
+  const heikinBuffer = await frame.screenshot();
+  expect(arrayBuffersEqual(candlesBuffer, heikinBuffer)).toBe(false);
 });
 
 test("workbench exposes a drawing inspector driven by selected drawing schema", async ({

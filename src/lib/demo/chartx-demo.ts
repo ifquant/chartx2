@@ -403,7 +403,7 @@ export function mountWorkbenchDemo(
       visibleTrendStartBar,
       visibleTrendEndBar,
     } = workbenchSeries(mainChartType);
-    const suppressSecondaryPanes = mainChartType === "point-figure";
+    const suppressSecondaryPanes = false;
     const lineBreakRows =
       mainChartType === "line-break"
         ? buildLineBreakData(bars, lineBreakCount)

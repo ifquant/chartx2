@@ -107,6 +107,7 @@ Current `chartx2` status against that model:
   - pane snapshots now also carry main-series style schema metadata, so downstream UI and future persistence code can see option-surface and type-specific style fields without reopening engine internals
   - `Line Break` now also has a first chart-type-specific option/control surface through `lineBreakCount`, a compressed main-sequence path, and a workbench default viewport that keeps the synthetic main chart visible instead of silently stretching it back across the raw input timeline
   - `Line Break` lower panes now run through the chart engine's own chart-context secondary path instead of a workbench-only synthetic data fork, and API coverage now locks that path in; the remaining gap is a broader engine-level synthetic-study policy for all non-time chart types
+  - `Renko`, `Kagi`, and `Point Figure` now all rely on the engine's own chart-context secondary path in the workbench as well; `Point Figure` no longer needs a workbench-only secondary-pane suppression branch
   - these should stay projection/viewmodel layers rather than becoming data owners
 - `ToolbarRegistry / CommandBus`
   - the demo shell has command surfaces

@@ -2116,6 +2116,7 @@ export class PhaseOneChartHarness {
   }
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
+    this.assertChartDrawingSnapshotsValid(state.drawings, state.panes.length);
     this.applyOptions(state.options);
     this.selectDrawing(null, false);
     this.clearRestorableChartDrawings();
@@ -2475,6 +2476,34 @@ export class PhaseOneChartHarness {
       if (drawing.type === "trend-line") {
         this.addTrendLineDrawing(target, drawing.options);
       }
+    }
+  }
+
+  private assertChartDrawingSnapshotsValid(
+    drawings: PhaseOneChartStateSnapshot["drawings"],
+    secondaryPaneCount: number,
+  ): void {
+    const maxPaneIndex = secondaryPaneCount;
+    for (const drawing of drawings) {
+      if (drawing.paneIndex < 0 || drawing.paneIndex > maxPaneIndex) {
+        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+      }
+      if (drawing.type === "horizontal-line") {
+        assertDrawingTargetValid({
+          kind: "horizontal-line",
+          price: drawing.options.price,
+          lineWidth: drawing.options.lineWidth ?? 1,
+        });
+        continue;
+      }
+      assertDrawingTargetValid({
+        kind: "trend-line",
+        startTime: drawing.options.startTime ?? Number.NaN,
+        startPrice: drawing.options.startPrice ?? Number.NaN,
+        endTime: drawing.options.endTime ?? Number.NaN,
+        endPrice: drawing.options.endPrice ?? Number.NaN,
+        lineWidth: drawing.options.lineWidth ?? 1,
+      });
     }
   }
 

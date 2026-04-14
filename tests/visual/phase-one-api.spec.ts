@@ -3183,6 +3183,71 @@ test("phase-one chart state snapshots can restore trend-line drawings", async ({
   expect(result.restoredDrawings).toEqual(result.savedDrawings);
 });
 
+test("phase-one chart state restore rejects invalid drawing snapshots before mutating current drawings", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-invalid-drawing-restore-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-invalid-drawing-restore-canvas" aria-label="phase-one api invalid drawing restore chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-invalid-drawing-restore-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API invalid drawing restore fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addHorizontalLineDrawing(undefined, {
+      price: 132,
+      color: "#2563eb",
+      lineWidth: 2,
+      title: "Valid support",
+    });
+
+    const before = chart.getChartState().drawings;
+    let error: string | null = null;
+    try {
+      chart.applyChartState({
+        ...chart.getChartState(),
+        drawings: [
+          {
+            type: "trend-line",
+            paneIndex: 0,
+            options: {
+              startTime: bars[3]!.time,
+              startPrice: 132,
+              endTime: bars[3]!.time,
+              endPrice: 132,
+              color: "#dc2626",
+              lineWidth: 2,
+              visible: true,
+            },
+          },
+        ],
+      });
+    } catch (caughtError) {
+      error = caughtError instanceof Error ? caughtError.message : String(caughtError);
+    }
+
+    return {
+      before,
+      after: chart.getChartState().drawings,
+      error,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.error).toBe("chartx phase-one trend-line endpoints must not overlap");
+  expect(result.after).toEqual(result.before);
+});
+
 test("phase-one drawing selection can hit-test and emit selection changes", async ({ page }) => {
   await page.goto("/");
   const selectionState = await page.evaluate(async ({ bars, publicEntry }) => {

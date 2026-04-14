@@ -7,12 +7,16 @@ import {
   type PhaseOneChartOptions,
   type PhaseOneClickEvent,
   type PhaseOneCrosshairMoveEvent,
+  type PhaseOneDrawingPropertySchema,
+  type PhaseOneDrawingStateSnapshot,
+  type PhaseOneHorizontalLineDrawingOptions,
   type PhaseOneHistogramData,
   type PhaseOneLineData,
   type PhaseOneMainChartType,
   type PhaseOnePaneApi,
   type PhaseOnePaneEvent,
   type PhaseOnePaneState,
+  type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
 } from "$lib/chartx/public";
 
@@ -49,11 +53,16 @@ export type DemoSnapshot = {
   eventLog: readonly string[];
   note?: string;
   featureGap?: string;
+  selectedDrawing?: {
+    state: PhaseOneDrawingStateSnapshot;
+    schema: PhaseOneDrawingPropertySchema;
+  } | null;
 };
 
 export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
+  applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   destroy(): void;
 };
 
@@ -233,6 +242,14 @@ export function mountWorkbenchDemo(
         latestClick?.price === null || latestClick === null
           ? "Click the chart to pin the last inspected price into the right panel."
           : `Last click: ${latestClick.price.toFixed(2)} at ${formatTime(latestClick.time)}`,
+      selectedDrawing:
+        chart === null
+          ? null
+          : (() => {
+              const state = chart.getSelectedDrawingState();
+              const schema = chart.getSelectedDrawingPropertySchema();
+              return state === null || schema === null ? null : { state, schema };
+            })(),
     });
   };
 
@@ -351,6 +368,26 @@ export function mountWorkbenchDemo(
       chart.addPane({ height: 88, resizable: true });
     }
 
+    chart.addHorizontalLineDrawing(undefined, {
+      price: 16_940,
+      title: "Swing low",
+      color: theme === "warm" ? "#9333ea" : "#7c3aed",
+      lineWidth: 2,
+      magnetEnabled: true,
+      timeMagnetPolicy: "previous",
+    });
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[12]!.time,
+      startPrice: bars[12]!.low - 18,
+      endTime: bars[36]!.time,
+      endPrice: bars[36]!.high + 14,
+      color: theme === "warm" ? "#ea580c" : "#2563eb",
+      lineWidth: 3,
+      magnetEnabled: true,
+      timeMagnetEnabled: true,
+      timeMagnetPolicy: "nearest",
+    });
+
     chart.subscribeCrosshairMove((event) => {
       latestReadout = event;
       publishSnapshot();
@@ -358,6 +395,10 @@ export function mountWorkbenchDemo(
     chart.subscribeClick((event) => {
       latestClick = event;
       pushLog(log, `click ${formatTime(event.time)} ${formatMaybeNumber(event.price)}`);
+      publishSnapshot();
+    });
+    chart.subscribeDrawingSelectionChange((selection) => {
+      pushLog(log, selection === null ? "drawing cleared" : `drawing ${selection.kind} selected`);
       publishSnapshot();
     });
     paneSnapshot = chart.panes().map(paneStateFromHandle);
@@ -735,6 +776,15 @@ export function mountWorkbenchDemo(
         default:
           return;
       }
+    },
+    applySelectedDrawingOptions(options) {
+      if (chart === null) {
+        return;
+      }
+      chart.applySelectedDrawingOptions(
+        options as PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
+      );
+      publishSnapshot();
     },
     destroy() {
       teardownChartTypeSubscription?.();

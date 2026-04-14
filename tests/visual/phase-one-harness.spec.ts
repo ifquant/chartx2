@@ -182,6 +182,36 @@ test("workbench surfaces renko builder controls when the main chart switches to 
   await expect(workbench).toContainText("Fixed 2");
 });
 
+test("workbench exposes a drawing inspector driven by selected drawing schema", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  const inspector = workbench.locator(".inspector-card");
+  const inspectorKind = inspector.locator(".sidebar-head span");
+  await expect(inspectorKind).toHaveText("None");
+
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one harness canvas is missing");
+  }
+
+  let selectedKind = "None";
+  for (let x = 40; x <= box.width - 40 && selectedKind === "None"; x += 18) {
+    for (let y = 40; y <= box.height - 40 && selectedKind === "None"; y += 18) {
+      await page.mouse.click(box.x + x, box.y + y);
+      selectedKind = (await inspectorKind.textContent())?.trim() ?? "None";
+    }
+  }
+
+  expect(selectedKind).not.toBe("None");
+  await expect(inspector).toContainText("Appearance");
+  await expect(inspector).toContainText("Geometry");
+  await expect(inspector).toContainText("Magnet");
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

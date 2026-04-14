@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { getChartxFoundation, type PhaseOneReadoutDetail } from "$lib/chartx/public";
+  import {
+    getChartxFoundation,
+    type PhaseOneDrawingPropertyField,
+    type PhaseOneDrawingPropertyFieldSchema,
+    type PhaseOneReadoutDetail,
+  } from "$lib/chartx/public";
   import {
     FEATURE_TABS,
     mountFeatureDemo,
@@ -224,6 +229,59 @@
     return "action-btn";
   }
 
+  function selectedDrawingFieldValue(field: PhaseOneDrawingPropertyField): string | number | boolean {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return "";
+    }
+
+    const options = selected.state.options as Record<string, unknown>;
+    if (field.startsWith("magnetSources.")) {
+      const key = field.slice("magnetSources.".length) as "open" | "high" | "low" | "close";
+      return Boolean((options.magnetSources as Record<string, unknown> | undefined)?.[key]);
+    }
+
+    return (options[field] as string | number | boolean | undefined) ?? "";
+  }
+
+  function updateSelectedDrawingField(
+    field: PhaseOneDrawingPropertyField,
+    control: PhaseOneDrawingPropertyFieldSchema["control"],
+    event: Event,
+  ): void {
+    if (activeTopTab !== "workbench" || workbenchSnapshot.selectedDrawing == null) {
+      return;
+    }
+
+    const target = event.currentTarget as HTMLInputElement | HTMLSelectElement | null;
+    if (target === null) {
+      return;
+    }
+
+    let nextValue: string | number | boolean;
+    if (control === "toggle") {
+      nextValue = (target as HTMLInputElement).checked;
+    } else if (control === "number" || control === "time") {
+      const parsed = Number(target.value);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      nextValue = parsed;
+    } else {
+      nextValue = target.value;
+    }
+
+    const nextOptions: Record<string, unknown> = field.startsWith("magnetSources.")
+      ? {
+          magnetSources: {
+            [field.slice("magnetSources.".length)]: nextValue,
+          },
+        }
+      : { [field]: nextValue };
+
+    workbenchController?.applySelectedDrawingOptions?.(nextOptions);
+  }
+
   $: activeSnapshot = activeTopTab === "workbench" ? workbenchSnapshot : featureSnapshot;
   $: activeFeatureSummary =
     activeTopTab === "workbench" ? null : featureDescriptor(activeTopTab);
@@ -421,6 +479,66 @@
                     </article>
                   {/each}
                 </div>
+              </section>
+
+              <section class="mini-card inspector-card">
+                <div class="sidebar-head">
+                  <h4>Drawing</h4>
+                  <span>{workbenchSnapshot.selectedDrawing?.state.type ?? "None"}</span>
+                </div>
+                {#if workbenchSnapshot.selectedDrawing}
+                  <div class="inspector-sections">
+                    {#each workbenchSnapshot.selectedDrawing.schema.sections as section}
+                      <article class="inspector-section">
+                        <strong>{section.label}</strong>
+                        <div class="inspector-fields">
+                          {#each section.fields as field}
+                            <label class="inspector-field">
+                              <span>{field.label}</span>
+                              {#if field.control === "toggle"}
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(selectedDrawingFieldValue(field.key))}
+                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                />
+                              {:else if field.control === "select"}
+                                <select
+                                  value={String(selectedDrawingFieldValue(field.key))}
+                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                >
+                                  <option value="nearest">nearest</option>
+                                  <option value="previous">previous</option>
+                                  <option value="next">next</option>
+                                </select>
+                              {:else if field.control === "color"}
+                                <input
+                                  type="color"
+                                  value={String(selectedDrawingFieldValue(field.key))}
+                                  on:input={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                />
+                              {:else if field.control === "text"}
+                                <input
+                                  type="text"
+                                  value={String(selectedDrawingFieldValue(field.key))}
+                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                />
+                              {:else}
+                                <input
+                                  type="number"
+                                  step={field.control === "time" ? "60000" : "1"}
+                                  value={String(selectedDrawingFieldValue(field.key))}
+                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                />
+                              {/if}
+                            </label>
+                          {/each}
+                        </div>
+                      </article>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="inspector-empty">Click a horizontal line or trend line on the chart to inspect its properties.</p>
+                {/if}
               </section>
 
               <section class="mini-card panes-card">
@@ -1129,7 +1247,7 @@
 
   .workbench-sidebar {
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
     gap: 0;
     min-height: 0;
     overflow: hidden;
@@ -1202,6 +1320,74 @@
     margin-bottom: 2px;
     color: rgba(24, 24, 27, 0.5);
     font-size: 0.72rem;
+  }
+
+  .inspector-card {
+    min-height: 0;
+  }
+
+  .inspector-empty {
+    margin: 10px 0 0;
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .inspector-sections {
+    display: grid;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .inspector-section {
+    display: grid;
+    gap: 8px;
+  }
+
+  .inspector-section strong {
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(24, 24, 27, 0.44);
+  }
+
+  .inspector-fields {
+    display: grid;
+    gap: 8px;
+  }
+
+  .inspector-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    color: rgba(24, 24, 27, 0.74);
+    font-size: 0.78rem;
+  }
+
+  .inspector-field input[type="text"],
+  .inspector-field input[type="number"],
+  .inspector-field input[type="color"],
+  .inspector-field select {
+    width: 112px;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    background: rgba(255, 253, 247, 0.92);
+    color: #18181b;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font: inherit;
+  }
+
+  .inspector-field input[type="color"] {
+    padding: 2px;
+    height: 32px;
+  }
+
+  .inspector-field input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
   }
 
   .pane-list {

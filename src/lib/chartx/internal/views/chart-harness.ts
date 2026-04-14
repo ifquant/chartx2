@@ -38,6 +38,7 @@ import {
   type MainSeriesStateSnapshot,
   type RenkoStyleOptionsState,
   type SourceDescriptor,
+  type Logical,
   type TimePointIndex,
   type ChartBarSequence,
   type VersionedChartTemplateInput,
@@ -201,6 +202,9 @@ export type PhaseOneChartOptions = {
     magnetEnabled?: boolean;
     magnetGuideVisible?: boolean;
     magnetLabelVisible?: boolean;
+    timeMagnetEnabled?: boolean;
+    timeMagnetGuideVisible?: boolean;
+    timeMagnetLabelVisible?: boolean;
     magnetSources?: {
       open?: boolean;
       high?: boolean;
@@ -216,6 +220,9 @@ type RequiredDrawingOptions = {
   magnetEnabled: boolean;
   magnetGuideVisible: boolean;
   magnetLabelVisible: boolean;
+  timeMagnetEnabled: boolean;
+  timeMagnetGuideVisible: boolean;
+  timeMagnetLabelVisible: boolean;
   magnetSources: RequiredDrawingMagnetSources;
 };
 
@@ -887,6 +894,9 @@ export class PhaseOneChartHarness {
     magnetEnabled: true,
     magnetGuideVisible: true,
     magnetLabelVisible: true,
+    timeMagnetEnabled: true,
+    timeMagnetGuideVisible: true,
+    timeMagnetLabelVisible: true,
     magnetSources: {
       open: true,
       high: true,
@@ -1586,6 +1596,29 @@ export class PhaseOneChartHarness {
     }
     if (options.drawings?.magnetLabelVisible !== undefined) {
       this.drawingOptions.magnetLabelVisible = options.drawings.magnetLabelVisible;
+    }
+    if (options.drawings?.timeMagnetEnabled !== undefined) {
+      this.drawingOptions.timeMagnetEnabled = options.drawings.timeMagnetEnabled;
+      if (!this.drawingOptions.timeMagnetEnabled) {
+        this.drawingSnapGuide = this.drawingSnapGuide !== null && this.drawingSnapGuide.price !== null
+          ? {
+              ...this.drawingSnapGuide,
+              time: null,
+            }
+          : null;
+      }
+    }
+    if (options.drawings?.timeMagnetGuideVisible !== undefined) {
+      this.drawingOptions.timeMagnetGuideVisible = options.drawings.timeMagnetGuideVisible;
+      if (!this.drawingOptions.timeMagnetGuideVisible && this.drawingSnapGuide !== null) {
+        this.drawingSnapGuide = {
+          ...this.drawingSnapGuide,
+          time: null,
+        };
+      }
+    }
+    if (options.drawings?.timeMagnetLabelVisible !== undefined) {
+      this.drawingOptions.timeMagnetLabelVisible = options.drawings.timeMagnetLabelVisible;
     }
     if (options.drawings?.magnetSources !== undefined) {
       if (options.drawings.magnetSources.open !== undefined) {
@@ -4355,7 +4388,12 @@ export class PhaseOneChartHarness {
       return;
     }
 
-    const nextTime = resolveSnappedDrawingTime(localPoint.x, this.chartContext.snapshot().barSequence.axisBars, this.timeScale);
+    const nextTime = resolveSnappedDrawingTime(
+      localPoint.x,
+      this.chartContext.snapshot().barSequence.axisBars,
+      this.timeScale,
+      this.drawingOptions.timeMagnetEnabled,
+    );
     const nextPrice = resolveSnappedDrawingPrice(
       localPoint.x,
       localPoint.y,
@@ -4369,14 +4407,16 @@ export class PhaseOneChartHarness {
       this.drawingSnapGuide = null;
       return;
     }
-    const showGuide = this.drawingOptions.magnetGuideVisible && (nextPrice.snapped || nextTime.snapped);
+    const showGuide =
+      (this.drawingOptions.magnetGuideVisible && nextPrice.snapped)
+      || (this.drawingOptions.timeMagnetGuideVisible && nextTime.snapped);
     this.drawingSnapGuide = showGuide
       ? {
           paneId: drawing.paneId,
           price: nextPrice.snapped ? nextPrice.price : null,
           color: drawing.color,
           source: nextPrice.snapped ? nextPrice.source : null,
-          time: nextTime.snapped ? nextTime.time : null,
+          time: this.drawingOptions.timeMagnetGuideVisible && nextTime.snapped ? nextTime.time : null,
         }
       : null;
 
@@ -4933,7 +4973,7 @@ export class PhaseOneChartHarness {
       this.crosshair,
       this.chartOptions,
       this.timeAxisFormatter,
-      this.drawingOptions.magnetLabelVisible && this.drawingSnapGuide?.time != null
+      this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
         ? buildMagnetTimeAxisTag(
             layout,
             primaryTimeAxisRows.length > 0 ? primaryTimeAxisRows : (firstSecondaryRows ?? []),
@@ -6288,30 +6328,46 @@ function resolveDrawingTimeCoordinate(
   if (axisBars.length === 0) {
     return 0;
   }
+  if (time <= axisBars[0]!.time) {
+    return timeScale.indexToCoordinate(axisBars[0]!.index);
+  }
+  if (time >= axisBars[axisBars.length - 1]!.time) {
+    return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index);
+  }
 
-  let nearest = axisBars[0]!;
-  let nearestDistance = Math.abs(nearest.time - time);
-  for (const bar of axisBars) {
-    const distance = Math.abs(bar.time - time);
-    if (distance < nearestDistance) {
-      nearest = bar;
-      nearestDistance = distance;
+  for (let index = 1; index < axisBars.length; index += 1) {
+    const previous = axisBars[index - 1]!;
+    const next = axisBars[index]!;
+    if (time <= next.time) {
+      if (next.time === previous.time) {
+        return timeScale.indexToCoordinate(previous.index);
+      }
+      const ratio = (time - previous.time) / (next.time - previous.time);
+      const logical = previous.index + (next.index - previous.index) * ratio;
+      return timeScale.logicalToCoordinate(logical as Logical);
     }
   }
 
-  return timeScale.indexToCoordinate(nearest.index);
+  return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index);
 }
 
 function resolveSnappedDrawingTime(
   x: number,
   axisBars: readonly { time: number; index: TimePointIndex }[],
   timeScale: TimeScale,
+  magnetEnabled: boolean,
 ): { time: number; snapped: boolean } {
   if (axisBars.length === 0) {
     return { time: 0, snapped: false };
   }
 
   const logicalCoordinate = timeScale.coordinateToLogical(x);
+  if (!magnetEnabled) {
+    return {
+      time: logicalCoordinateToInterpolatedTime(logicalCoordinate, axisBars),
+      snapped: false,
+    };
+  }
   const logical = Math.round(logicalCoordinate);
   let nearest = axisBars[0]!;
   let nearestDistance = Math.abs(nearest.index - logical);
@@ -6328,6 +6384,35 @@ function resolveSnappedDrawingTime(
     time: nearest.time,
     snapped: Math.abs(snappedCoordinate - x) <= DRAWING_TIME_SNAP_TOLERANCE,
   };
+}
+
+function logicalCoordinateToInterpolatedTime(
+  logical: Logical,
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+): number {
+  if (axisBars.length === 0) {
+    return 0;
+  }
+  if (logical <= axisBars[0]!.index) {
+    return axisBars[0]!.time;
+  }
+  if (logical >= axisBars[axisBars.length - 1]!.index) {
+    return axisBars[axisBars.length - 1]!.time;
+  }
+
+  for (let index = 1; index < axisBars.length; index += 1) {
+    const previous = axisBars[index - 1]!;
+    const next = axisBars[index]!;
+    if (logical <= next.index) {
+      if (next.index === previous.index) {
+        return previous.time;
+      }
+      const ratio = (logical - previous.index) / (next.index - previous.index);
+      return previous.time + (next.time - previous.time) * ratio;
+    }
+  }
+
+  return axisBars[axisBars.length - 1]!.time;
 }
 
 function resolveSnappedDrawingPrice(

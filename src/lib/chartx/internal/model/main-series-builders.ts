@@ -120,15 +120,53 @@ export function inferPointFigureBoxSize(
   const averageDelta = totalDelta / Math.max(sample.length - 1, 1);
   const averageTrueRange = totalTrueRange / sample.length;
   const priceRange = Math.max(maxHigh - minLow, Number.EPSILON);
-  const targetColumns = Math.min(28, Math.max(14, Math.round(Math.sqrt(sample.length) * 1.75)));
-  const targetBoxesPerColumn = Math.min(10, Math.max(5, reversalBoxes + 3));
-  const rangeDrivenBox = priceRange / Math.max(targetColumns + targetBoxesPerColumn, 1);
-  const atrDrivenBox = averageTrueRange * 0.9;
-  const deltaDrivenBox = averageDelta * 1.15;
-  const candidates = [rangeDrivenBox, atrDrivenBox, deltaDrivenBox].sort((left, right) => left - right);
-  const inferred = candidates[1] ?? candidates[0] ?? Number.EPSILON;
+  const traditionalBoxSize = inferTraditionalPointFigureBoxSize(sample);
+  const targetColumns = Math.min(30, Math.max(4, Math.round(Math.sqrt(sample.length) * 1.7)));
+  const targetBoxes = targetColumns * Math.min(10, Math.max(6, reversalBoxes + 4));
+  const candidateValues = new Set<number>();
+  const baseCandidates = [
+    traditionalBoxSize,
+    priceRange / Math.max(targetColumns * 1.2, 1),
+    priceRange / Math.max(targetColumns * 1.8, 1),
+    averageTrueRange * 0.45,
+    averageTrueRange * 0.7,
+    averageDelta * 0.55,
+    averageDelta * 0.85,
+  ];
 
-  return roundBoxSize(Math.max(inferred, Number.EPSILON));
+  for (const base of baseCandidates) {
+    if (!Number.isFinite(base) || base <= 0) {
+      continue;
+    }
+    for (const scale of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
+      candidateValues.add(roundBoxSize(Math.max(base * scale, Number.EPSILON)));
+    }
+  }
+
+  let bestBoxSize = roundBoxSize(Math.max(traditionalBoxSize, Number.EPSILON));
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (const candidate of [...candidateValues].sort((left, right) => left - right)) {
+    const result = buildPointFigureBoxes(sample, candidate, reversalBoxes);
+    if (result.columnCount === 0 || result.boxCount === 0) {
+      continue;
+    }
+
+    const columnPenalty = Math.abs(result.columnCount - targetColumns) * 10;
+    const boxPenalty = Math.abs(result.boxCount - targetBoxes) * 0.2;
+    const sparsePenalty = result.columnCount < Math.max(8, Math.floor(targetColumns * 0.6))
+      ? 120
+      : 0;
+    const densePenalty = result.columnCount > targetColumns * 2.2 ? 80 : 0;
+    const score = columnPenalty + boxPenalty + sparsePenalty + densePenalty;
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestBoxSize = candidate;
+    }
+  }
+
+  return roundBoxSize(Math.max(bestBoxSize, Number.EPSILON));
 }
 
 export function inferAverageTrueRange(
@@ -355,12 +393,42 @@ export function buildPointFigureData(
     options.boxSizeMode === "fixed"
       ? Math.max(boxSizeBase, Number.EPSILON)
       : Math.max(boxSizeBase * options.boxSizeScale, Number.EPSILON);
-  const reversal = Math.max(1, Math.floor(options.reversalBoxes));
+  const result = buildPointFigureBoxes(data, boxSize, options.reversalBoxes);
+
+  if (result.boxes.length > 0) {
+    return result.boxes;
+  }
+
+  return [
+    {
+      time: data[0].time,
+      open: data[0].close,
+      high: data[0].close,
+      low: data[0].close,
+      close: data[0].close,
+      volume: data[0].volume,
+    },
+  ];
+}
+
+type PointFigureBuildResult = {
+  readonly boxes: readonly MainSeriesBuilderDataPoint[];
+  readonly columnCount: number;
+  readonly boxCount: number;
+};
+
+function buildPointFigureBoxes(
+  data: readonly MainSeriesBuilderDataPoint[],
+  boxSize: number,
+  reversalBoxes: number,
+): PointFigureBuildResult {
+  const reversal = Math.max(1, Math.floor(reversalBoxes));
   const boxes: MainSeriesBuilderDataPoint[] = [];
-  let anchor = data[0].close;
+  let anchor = data[0]?.close ?? 0;
   let columnDirection: 1 | -1 | null = null;
   let columnHigh = anchor;
   let columnLow = anchor;
+  let columnCount = 0;
 
   for (let index = 1; index < data.length; index += 1) {
     const input = data[index];
@@ -383,15 +451,17 @@ export function buildPointFigureData(
     };
 
     const extendColumn = (direction: 1 | -1, extremePrice: number) => {
+      const previousLength = boxes.length;
       if (direction === 1) {
         while (extremePrice >= columnHigh + boxSize) {
           pushBox(1);
         }
-        return;
+      } else {
+        while (extremePrice <= columnLow - boxSize) {
+          pushBox(-1);
+        }
       }
-      while (extremePrice <= columnLow - boxSize) {
-        pushBox(-1);
-      }
+      return boxes.length > previousLength;
     };
 
     if (columnDirection === null) {
@@ -402,10 +472,11 @@ export function buildPointFigureData(
       }
       columnDirection =
         upBoxes === downBoxes ? (input.close >= anchor ? 1 : -1) : upBoxes > downBoxes ? 1 : -1;
-      if (columnDirection === 1) {
-        extendColumn(1, input.high);
+      const extended = columnDirection === 1 ? extendColumn(1, input.high) : extendColumn(-1, input.low);
+      if (extended) {
+        columnCount = 1;
       } else {
-        extendColumn(-1, input.low);
+        columnDirection = null;
       }
       continue;
     }
@@ -416,7 +487,12 @@ export function buildPointFigureData(
         columnDirection = -1;
         anchor = columnHigh;
         columnLow = columnHigh;
-        extendColumn(-1, input.low);
+        if (extendColumn(-1, input.low)) {
+          columnCount += 1;
+        } else {
+          columnDirection = 1;
+          anchor = columnHigh;
+        }
       }
       continue;
     }
@@ -426,24 +502,20 @@ export function buildPointFigureData(
       columnDirection = 1;
       anchor = columnLow;
       columnHigh = columnLow;
-      extendColumn(1, input.high);
+      if (extendColumn(1, input.high)) {
+        columnCount += 1;
+      } else {
+        columnDirection = -1;
+        anchor = columnLow;
+      }
     }
   }
 
-  if (boxes.length > 0) {
-    return boxes;
-  }
-
-  return [
-    {
-      time: data[0].time,
-      open: data[0].close,
-      high: data[0].close,
-      low: data[0].close,
-      close: data[0].close,
-      volume: data[0].volume,
-    },
-  ];
+  return {
+    boxes,
+    columnCount,
+    boxCount: boxes.length,
+  };
 }
 
 export function buildKagiData(

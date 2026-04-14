@@ -391,12 +391,12 @@ export function mountWorkbenchDemo(
     const effectiveBarSpacing =
       mainChartType === "point-figure"
         ? Math.max(
-            18,
+            12,
             Math.min(
-              40,
+              24,
               Math.floor(
                 (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
-                  Math.max(Math.min(pointFigureLogicalLength ?? 1, 18) + 1, 1),
+                  Math.max(Math.min(pointFigureLogicalLength ?? 1, 24) + 1, 1),
               ),
             ),
           )
@@ -454,16 +454,16 @@ export function mountWorkbenchDemo(
       });
       if (pointFigureLogicalLength !== null) {
         const lastLogical = pointFigureLogicalLength - 1;
-        if (pointFigureLogicalLength <= 14) {
+        if (pointFigureLogicalLength <= 24) {
           chart.timeScale().setVisibleLogicalRange({
-            from: -0.75,
-            to: lastLogical + 0.75,
+            from: -0.5,
+            to: lastLogical + 0.5,
           });
         } else {
-          const targetVisibleColumns = Math.max(10, Math.min(18, pointFigureLogicalLength));
+          const targetVisibleColumns = Math.max(16, Math.min(26, pointFigureLogicalLength));
           chart.timeScale().setVisibleLogicalRange({
-            from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.25),
-            to: lastLogical + 0.35,
+            from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.5),
+            to: lastLogical + 0.5,
           });
         }
       }

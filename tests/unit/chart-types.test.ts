@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyMainSeriesBuilder,
+  createDirectionColumnPriceBasedChartBarSequence,
   createMainSeriesStateSnapshot,
+  createPlotRows,
   applyMainSeriesStyleOptions,
   buildHeikinAshiData,
   inferAverageTrueRange,
@@ -417,7 +419,14 @@ describe("chart type builders", () => {
       { time: 5, open: 112, high: 113, low: 103, close: 104 },
     ] as const;
 
-    const result = buildPointFigureData(input);
+    const result = buildPointFigureData(input, {
+      boxSizeMode: "fixed",
+      boxSize: 5.4,
+      boxSizeScale: 1,
+      reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1,
+    });
 
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({ time: 3, open: 100, low: 100, close: 105.4 });
@@ -491,6 +500,34 @@ describe("chart type builders", () => {
     expect(atrResult.length).toBeGreaterThan(0);
     expect(percentageResult.length).toBeGreaterThan(0);
     expect(atrResult).not.toEqual(percentageResult);
+  });
+
+  it("keeps auto point-figure sizing in a readable default column range", () => {
+    const input = Array.from({ length: 96 }, (_, index) => {
+      const base = 18_000 + Math.sin(index / 4.5) * 260 + Math.cos(index / 8) * 410;
+      const close = base + Math.sin(index / 2.8) * 90;
+      return {
+        time: index + 1,
+        open: close - 55,
+        high: close + 95 + (index % 3) * 12,
+        low: close - 105 - (index % 4) * 10,
+        close,
+      };
+    });
+
+    const result = buildPointFigureData(input, {
+      boxSize: null,
+      boxSizeMode: "auto",
+      boxSizeScale: 1,
+      reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1,
+    });
+    const logicalLength = createDirectionColumnPriceBasedChartBarSequence(createPlotRows(result)).logicalLength;
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(logicalLength).toBeGreaterThanOrEqual(12);
+    expect(logicalLength).toBeLessThanOrEqual(36);
   });
 
   it("derives a traditional point-figure box size from price magnitude", () => {

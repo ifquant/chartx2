@@ -5587,6 +5587,87 @@ test("phase-one selected drawing state can drive a minimal property inspector fl
   );
 });
 
+test("phase-one trend-line runtime validation rejects invalid geometry updates", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-trend-line-validation-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-trend-line-validation-canvas" aria-label="phase-one api trend-line validation chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-trend-line-validation-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API trend-line validation fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    for (let x = 98; x <= rect.width - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = 48; y <= rect.height - 48 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+      }
+    }
+
+    let invalidUpdateError: string | null = null;
+    try {
+      chart.applySelectedDrawingOptions({
+        endTime: bars[0]!.time,
+      });
+    } catch (error) {
+      invalidUpdateError = error instanceof Error ? error.message : String(error);
+    }
+
+    let invalidCreateError: string | null = null;
+    try {
+      chart.addTrendLineDrawing(undefined, {
+        startTime: bars[3]!.time,
+        startPrice: 130,
+        endTime: bars[3]!.time,
+        endPrice: 130,
+      });
+    } catch (error) {
+      invalidCreateError = error instanceof Error ? error.message : String(error);
+    }
+
+    return {
+      selected,
+      invalidUpdateError,
+      invalidCreateError,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.selected?.kind).toBe("trend-line");
+  expect(result.invalidUpdateError).toBe("chartx phase-one trend-line startTime must be before endTime");
+  expect(result.invalidCreateError).toBe("chartx phase-one trend-line endpoints must not overlap");
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

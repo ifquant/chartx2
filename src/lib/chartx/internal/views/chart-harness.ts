@@ -890,6 +890,11 @@ type TrendLineDrawingDescriptor = {
 
 type ChartDrawingDescriptor = HorizontalLineDrawingDescriptor | TrendLineDrawingDescriptor;
 
+type TrendLineGeometry = Pick<
+  TrendLineDrawingState,
+  "startTime" | "startPrice" | "endTime" | "endPrice"
+>;
+
 type SeriesMarkerState = {
   time: number;
   position: PhaseOneSeriesMarkerPosition;
@@ -3958,6 +3963,7 @@ export class PhaseOneChartHarness {
       lineWidth: Math.max(1, options.lineWidth ?? 2),
       ...magnetState,
     };
+    assertTrendLineGeometryValid(state);
 
     const api: PhaseOneTrendLineDrawingApi = {
       applyOptions: (nextOptions) => {
@@ -3966,18 +3972,17 @@ export class PhaseOneChartHarness {
         if (drawing.kind !== "trend-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        if (nextOptions.startTime !== undefined) {
-          drawing.startTime = nextOptions.startTime;
-        }
-        if (nextOptions.startPrice !== undefined) {
-          drawing.startPrice = nextOptions.startPrice;
-        }
-        if (nextOptions.endTime !== undefined) {
-          drawing.endTime = nextOptions.endTime;
-        }
-        if (nextOptions.endPrice !== undefined) {
-          drawing.endPrice = nextOptions.endPrice;
-        }
+        const nextGeometry: TrendLineGeometry = {
+          startTime: nextOptions.startTime ?? drawing.startTime,
+          startPrice: nextOptions.startPrice ?? drawing.startPrice,
+          endTime: nextOptions.endTime ?? drawing.endTime,
+          endPrice: nextOptions.endPrice ?? drawing.endPrice,
+        };
+        assertTrendLineGeometryValid(nextGeometry);
+        drawing.startTime = nextGeometry.startTime;
+        drawing.startPrice = nextGeometry.startPrice;
+        drawing.endTime = nextGeometry.endTime;
+        drawing.endPrice = nextGeometry.endPrice;
         if (nextOptions.color !== undefined) {
           drawing.color = nextOptions.color;
         }
@@ -6802,6 +6807,15 @@ function resolveSnappedDrawingPrice(
     return { price: bestPrice, snapped: true, source: bestSource };
   }
   return { price: rawPrice, snapped: false, source: bestSource };
+}
+
+function assertTrendLineGeometryValid(geometry: TrendLineGeometry): void {
+  if (geometry.startTime === geometry.endTime && geometry.startPrice === geometry.endPrice) {
+    throw new Error("chartx phase-one trend-line endpoints must not overlap");
+  }
+  if (geometry.startTime >= geometry.endTime) {
+    throw new Error("chartx phase-one trend-line startTime must be before endTime");
+  }
 }
 
 function drawingHitDistance(

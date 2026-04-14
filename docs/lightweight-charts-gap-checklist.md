@@ -494,6 +494,39 @@ If the next goal is still `close the gap to lightweight-charts`, the best order 
 6. pane architecture
 7. richer annotation and overlay surfaces
 
+## Deferred Next Step From The Drawing / Template Line
+
+The next persistence-correctness step is now recorded and intentionally deferred while main-chart usability becomes the priority.
+
+Deferred next step:
+
+1. add the same kind of preflight validation to `series` and `studies` restore that drawings now have
+2. reject invalid chart snapshots before restore starts mutating current pane/series/study state
+3. only after that, consider a broader transactional restore model or structured validation errors
+
+Reason for deferring it:
+
+- drawing restore now has the most important correctness guard in place
+- the immediate product problem is not restore correctness anymore
+- the more urgent gap is that the basic main-chart experience still feels too phase-one and not usable enough day to day
+
+## Current Execution Focus: Make The Core Main Charts More Usable
+
+The active priority is now to improve the usability of the main chart types that already exist, not to keep drilling deeper into persistence.
+
+Recommended short-term order:
+
+1. widen the main-series option surface for the core chart types already implemented
+2. make the core main-chart readout/legend/axis behavior feel more complete and less prototype-like
+3. improve the renderer/runtime quality of the existing main chart types before adding more of them
+4. only then return to the deferred restore-validation work above
+
+Concretely, that means the next engine slices should bias toward:
+
+- candlestick / bar / line / area / baseline option breadth
+- more complete style and formatter control on the existing main chart types
+- stronger main-chart visual correctness and usability before more persistence plumbing
+
 ## Current Bottom Line
 
 `chartx2` is no longer just a template shell or a chart toy.

@@ -200,7 +200,22 @@ export type PhaseOneChartOptions = {
     magnetEnabled?: boolean;
     magnetGuideVisible?: boolean;
     magnetLabelVisible?: boolean;
+    magnetSources?: {
+      open?: boolean;
+      high?: boolean;
+      low?: boolean;
+      close?: boolean;
+    };
   };
+};
+
+type RequiredDrawingMagnetSources = Required<NonNullable<NonNullable<PhaseOneChartOptions["drawings"]>["magnetSources"]>>;
+
+type RequiredDrawingOptions = {
+  magnetEnabled: boolean;
+  magnetGuideVisible: boolean;
+  magnetLabelVisible: boolean;
+  magnetSources: RequiredDrawingMagnetSources;
 };
 
 export type PhaseOneCandlestickSeriesOptions = {
@@ -632,6 +647,7 @@ type DrawingSnapGuideState = {
   paneId: string;
   price: number;
   color: string;
+  source: "open" | "high" | "low" | "close";
 };
 
 type PaneResizeState = {
@@ -865,10 +881,16 @@ export class PhaseOneChartHarness {
     lineColor: CROSSHAIR_COLOR,
     pointColor: CROSSHAIR_POINT_COLOR,
   };
-  private readonly drawingOptions: Required<NonNullable<PhaseOneChartOptions["drawings"]>> = {
+  private readonly drawingOptions: RequiredDrawingOptions = {
     magnetEnabled: true,
     magnetGuideVisible: true,
     magnetLabelVisible: true,
+    magnetSources: {
+      open: true,
+      high: true,
+      low: true,
+      close: true,
+    },
   };
   private timeAxisFormatter: ((time: number) => string) | null = null;
   private priceAxisFormatter: ((value: number) => string) | null = null;
@@ -1562,6 +1584,20 @@ export class PhaseOneChartHarness {
     }
     if (options.drawings?.magnetLabelVisible !== undefined) {
       this.drawingOptions.magnetLabelVisible = options.drawings.magnetLabelVisible;
+    }
+    if (options.drawings?.magnetSources !== undefined) {
+      if (options.drawings.magnetSources.open !== undefined) {
+        this.drawingOptions.magnetSources.open = options.drawings.magnetSources.open;
+      }
+      if (options.drawings.magnetSources.high !== undefined) {
+        this.drawingOptions.magnetSources.high = options.drawings.magnetSources.high;
+      }
+      if (options.drawings.magnetSources.low !== undefined) {
+        this.drawingOptions.magnetSources.low = options.drawings.magnetSources.low;
+      }
+      if (options.drawings.magnetSources.close !== undefined) {
+        this.drawingOptions.magnetSources.close = options.drawings.magnetSources.close;
+      }
     }
 
     if (this.canvas !== null) {
@@ -4325,6 +4361,7 @@ export class PhaseOneChartHarness {
       priceScale,
       this.timeScale,
       this.drawingOptions.magnetEnabled,
+      this.drawingOptions.magnetSources,
     );
     if (nextPrice === null) {
       this.drawingSnapGuide = null;
@@ -4335,6 +4372,7 @@ export class PhaseOneChartHarness {
           paneId: drawing.paneId,
           price: nextPrice.price,
           color: drawing.color,
+          source: nextPrice.source,
         }
       : null;
 
@@ -5804,7 +5842,7 @@ function buildMagnetAxisTag(
   }
 
   return {
-    text: `MAG ${formatPriceAxisLabel(guide.price, formatter)}`,
+    text: `MAG ${guide.source.toUpperCase()} ${formatPriceAxisLabel(guide.price, formatter)}`,
     x: layout.width - layout.right + 6,
     y: layout.top + paneTop + y - 9,
     backgroundColor: guide.color,
@@ -6230,13 +6268,14 @@ function resolveSnappedDrawingPrice(
   priceScale: PriceScale,
   timeScale: TimeScale,
   magnetEnabled: boolean,
-): { price: number; snapped: boolean } | null {
+  magnetSources: RequiredDrawingMagnetSources,
+): { price: number; snapped: boolean; source: "open" | "high" | "low" | "close" } | null {
   const rawPrice = priceScale.coordinateToPrice(localY);
   if (rawPrice === null) {
     return null;
   }
   if (!magnetEnabled) {
-    return { price: rawPrice, snapped: false };
+    return { price: rawPrice, snapped: false, source: "close" };
   }
 
   const nearestRow = findNearestRowByLogical(
@@ -6244,34 +6283,46 @@ function resolveSnappedDrawingPrice(
     Math.round(timeScale.coordinateToLogical(localX)),
   );
   if (nearestRow === null) {
-    return { price: rawPrice, snapped: false };
+    return { price: rawPrice, snapped: false, source: "close" };
   }
 
-  const candidates = [
-    nearestRow.value[PlotRowValueIndex.Open],
-    nearestRow.value[PlotRowValueIndex.High],
-    nearestRow.value[PlotRowValueIndex.Low],
-    nearestRow.value[PlotRowValueIndex.Close],
-  ];
+  const candidates: Array<{ price: number; source: "open" | "high" | "low" | "close" }> = [];
+  if (magnetSources.open) {
+    candidates.push({ price: nearestRow.value[PlotRowValueIndex.Open], source: "open" });
+  }
+  if (magnetSources.high) {
+    candidates.push({ price: nearestRow.value[PlotRowValueIndex.High], source: "high" });
+  }
+  if (magnetSources.low) {
+    candidates.push({ price: nearestRow.value[PlotRowValueIndex.Low], source: "low" });
+  }
+  if (magnetSources.close) {
+    candidates.push({ price: nearestRow.value[PlotRowValueIndex.Close], source: "close" });
+  }
+  if (candidates.length === 0) {
+    return { price: rawPrice, snapped: false, source: "close" };
+  }
 
   let bestPrice = rawPrice;
   let bestDistance = Number.POSITIVE_INFINITY;
+  let bestSource: "open" | "high" | "low" | "close" = candidates[0]!.source;
   for (const candidate of candidates) {
-    const candidateY = priceScale.priceToCoordinate(candidate);
+    const candidateY = priceScale.priceToCoordinate(candidate.price);
     if (candidateY === null) {
       continue;
     }
     const distance = Math.abs(candidateY - localY);
     if (distance < bestDistance) {
       bestDistance = distance;
-      bestPrice = candidate;
+      bestPrice = candidate.price;
+      bestSource = candidate.source;
     }
   }
 
   if (bestDistance <= DRAWING_PRICE_SNAP_TOLERANCE) {
-    return { price: bestPrice, snapped: true };
+    return { price: bestPrice, snapped: true, source: bestSource };
   }
-  return { price: rawPrice, snapped: false };
+  return { price: rawPrice, snapped: false, source: bestSource };
 }
 
 function drawingHitDistance(

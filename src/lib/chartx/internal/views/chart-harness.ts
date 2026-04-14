@@ -583,6 +583,7 @@ export type PhaseOneChartStateSnapshot = {
 export type PhaseOneChartTemplateV1 = ChartTemplateV1<PhaseOneChartStateSnapshot>;
 export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
 export type PhaseOneChartTemplateInput = VersionedChartTemplateInput<PhaseOneChartStateSnapshot>;
+export type PhaseOneDrawingStateSnapshot = PhaseOneChartStateSnapshot["drawings"][number];
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export function createPhaseOneChartTemplate(chart: PhaseOneChartStateSnapshot): PhaseOneChartTemplateV1 {
@@ -615,6 +616,8 @@ export type PhaseOneChartApi = {
     options?: PhaseOneTrendLineDrawingOptions,
   ): PhaseOneTrendLineDrawingApi;
   getSelectedDrawing(): PhaseOneSelectedDrawing;
+  getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null;
+  applySelectedDrawingOptions(options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions): void;
   clearSelectedDrawing(): void;
   subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void;
   unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void;
@@ -1826,6 +1829,27 @@ export class PhaseOneChartHarness {
     return this.buildSelectedDrawingState();
   }
 
+  public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
+    if (this.selectedDrawingId === null) {
+      return null;
+    }
+    const drawing = this.getDrawingById(this.selectedDrawingId);
+    return drawing === undefined ? null : this.buildDrawingStateSnapshot(drawing);
+  }
+
+  public applySelectedDrawingOptions(
+    options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
+  ): void {
+    if (this.selectedDrawingId === null) {
+      throw new Error("chartx phase-one chart has no selected drawing to update");
+    }
+    const drawing = this.getDrawingById(this.selectedDrawingId);
+    if (drawing === undefined) {
+      throw new Error("chartx phase-one chart has no selected drawing to update");
+    }
+    drawing.api.applyOptions(options as never);
+  }
+
   public clearSelectedDrawing(): void {
     this.selectDrawing(null);
   }
@@ -2019,39 +2043,20 @@ export class PhaseOneChartHarness {
   }
 
   private buildChartDrawingStateSnapshots(): PhaseOneChartStateSnapshot["drawings"] {
-    return this.drawingRegistry.list().map((drawing) => {
-      if (drawing.kind === "horizontal-line") {
-        const magnetOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
-        return {
-          type: "horizontal-line" as const,
-          paneIndex: this.getPaneIndex(drawing.paneId),
-          options: {
-            price: drawing.line.price,
-            color: drawing.line.color,
-            lineWidth: drawing.line.lineWidth,
-            title: drawing.line.title,
-            visible: drawing.visible,
-            magnetEnabled: magnetOptions.magnetEnabled,
-            magnetTolerancePx: magnetOptions.magnetTolerancePx,
-            timeMagnetEnabled: magnetOptions.timeMagnetEnabled,
-            timeMagnetPolicy: magnetOptions.timeMagnetPolicy,
-            timeMagnetTolerancePx: magnetOptions.timeMagnetTolerancePx,
-            magnetSources: { ...magnetOptions.magnetSources },
-          },
-        };
-      }
+    return this.drawingRegistry.list().map((drawing) => this.buildDrawingStateSnapshot(drawing));
+  }
 
+  private buildDrawingStateSnapshot(drawing: ChartDrawingDescriptor): PhaseOneDrawingStateSnapshot {
+    if (drawing.kind === "horizontal-line") {
       const magnetOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
       return {
-        type: "trend-line" as const,
+        type: "horizontal-line",
         paneIndex: this.getPaneIndex(drawing.paneId),
         options: {
-          startTime: drawing.startTime,
-          startPrice: drawing.startPrice,
-          endTime: drawing.endTime,
-          endPrice: drawing.endPrice,
-          color: drawing.color,
-          lineWidth: drawing.lineWidth,
+          price: drawing.line.price,
+          color: drawing.line.color,
+          lineWidth: drawing.line.lineWidth,
+          title: drawing.line.title,
           visible: drawing.visible,
           magnetEnabled: magnetOptions.magnetEnabled,
           magnetTolerancePx: magnetOptions.magnetTolerancePx,
@@ -2061,7 +2066,28 @@ export class PhaseOneChartHarness {
           magnetSources: { ...magnetOptions.magnetSources },
         },
       };
-    });
+    }
+
+    const magnetOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
+    return {
+      type: "trend-line",
+      paneIndex: this.getPaneIndex(drawing.paneId),
+      options: {
+        startTime: drawing.startTime,
+        startPrice: drawing.startPrice,
+        endTime: drawing.endTime,
+        endPrice: drawing.endPrice,
+        color: drawing.color,
+        lineWidth: drawing.lineWidth,
+        visible: drawing.visible,
+        magnetEnabled: magnetOptions.magnetEnabled,
+        magnetTolerancePx: magnetOptions.magnetTolerancePx,
+        timeMagnetEnabled: magnetOptions.timeMagnetEnabled,
+        timeMagnetPolicy: magnetOptions.timeMagnetPolicy,
+        timeMagnetTolerancePx: magnetOptions.timeMagnetTolerancePx,
+        magnetSources: { ...magnetOptions.magnetSources },
+      },
+    };
   }
 
   private buildChartStudyStateSnapshots(): PhaseOneChartStateSnapshot["studies"] {
@@ -5128,6 +5154,12 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     getSelectedDrawing() {
       return harness.getSelectedDrawing();
+    },
+    getSelectedDrawingState() {
+      return harness.getSelectedDrawingState();
+    },
+    applySelectedDrawingOptions(options) {
+      harness.applySelectedDrawingOptions(options);
     },
     clearSelectedDrawing() {
       harness.clearSelectedDrawing();

@@ -960,7 +960,12 @@ export class PhaseOneChartHarness {
     this.render(this.canvas);
   };
   private readonly handlePointerLeave = () => {
-    if (this.canvas === null || this.crosshair === null || this.dragState !== null || this.paneResizeState !== null) {
+    if (
+      this.canvas === null ||
+      this.crosshair === null ||
+      this.dragState !== null ||
+      this.paneResizeState !== null
+    ) {
       return;
     }
 
@@ -1049,6 +1054,22 @@ export class PhaseOneChartHarness {
     const pointCount = this.getPointCount();
     if (this.canvas === null || pointCount === 0) {
       return;
+    }
+
+    if (this.selectedDrawingId !== null) {
+      switch (event.key) {
+        case "Escape":
+          event.preventDefault();
+          this.selectDrawing(null);
+          return;
+        case "Backspace":
+        case "Delete":
+          event.preventDefault();
+          this.removeSelectedDrawing();
+          return;
+        default:
+          break;
+      }
     }
 
     const layout = measureLayout(this.canvas);
@@ -3755,6 +3776,23 @@ export class PhaseOneChartHarness {
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
+  }
+
+  private removeSelectedDrawing(): void {
+    if (this.selectedDrawingId === null) {
+      return;
+    }
+
+    const drawing = this.getDrawingById(this.selectedDrawingId);
+    if (drawing === undefined) {
+      this.selectDrawing(null, false);
+      if (this.canvas !== null) {
+        this.render(this.canvas);
+      }
+      return;
+    }
+
+    this.removeDrawing(drawing.api);
   }
 
   private createSeriesOptions(

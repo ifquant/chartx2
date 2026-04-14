@@ -3302,6 +3302,166 @@ test("phase-one drawing selection can hit-test and emit selection changes", asyn
   expect(selectionState.countAfterUnsubscribe).toBe(selectionState.countBeforeUnsubscribe);
 });
 
+test("phase-one drawing selection responds to escape and delete keys", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-command-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-command-canvas" aria-label="phase-one api drawing command chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-command-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing command fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addHorizontalLineDrawing(undefined, {
+      price: 132,
+      color: "#16a34a",
+    });
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    (window as Window & {
+      __chartxDrawingCommandState?: {
+        chart: {
+          getChartState(): { drawings: Array<unknown> };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxDrawingCommandState = {
+      chart,
+      canvas,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing command chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing command canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxDrawingCommandState?: {
+        chart: {
+          getChartState(): { drawings: Array<any> };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxDrawingCommandState;
+
+    if (!state) {
+      throw new Error("API drawing command state is missing");
+    }
+
+    const { canvas, chart } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+    const before = chart.getChartState().drawings;
+    return { before, selected, selectionPoint };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+  expect(setup.before).toHaveLength(2);
+
+  await page.mouse.click(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.keyboard.press("Escape");
+
+  const afterEscape = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxDrawingCommandState?: {
+        chart: {
+          getChartState(): { drawings: Array<any> };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+      };
+    }).__chartxDrawingCommandState;
+
+    if (!state) {
+      throw new Error("API drawing command state is missing");
+    }
+
+    return {
+      drawings: state.chart.getChartState().drawings,
+      selected: state.chart.getSelectedDrawing(),
+    };
+  });
+
+  expect(afterEscape.selected).toBeNull();
+  expect(afterEscape.drawings).toHaveLength(2);
+
+  await page.mouse.click(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+  await page.keyboard.press("Delete");
+
+  const afterDelete = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxDrawingCommandState?: {
+        chart: {
+          getChartState(): { drawings: Array<any> };
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+      };
+    }).__chartxDrawingCommandState;
+
+    if (!state) {
+      throw new Error("API drawing command state is missing");
+    }
+
+    return {
+      drawings: state.chart.getChartState().drawings,
+      selected: state.chart.getSelectedDrawing(),
+    };
+  });
+
+  expect(afterDelete.selected).toBeNull();
+  expect(afterDelete.drawings).toHaveLength(1);
+  expect(afterDelete.drawings[0]?.type).toBe("horizontal-line");
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

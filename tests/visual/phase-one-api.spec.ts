@@ -3010,6 +3010,91 @@ test("phase-one chart state snapshots can restore overlay compare and moving-ave
   expect(result.restoredStudies).toEqual(result.savedStudies);
 });
 
+test("phase-one chart state snapshots can restore horizontal-line drawings", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-chart-state-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-chart-state-canvas" aria-label="phase-one api drawing chart state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-chart-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing chart-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const studyPane = chart.addPane({ height: 112, resizable: true });
+    mainSeries.setData(bars);
+
+    const primaryLine = chart.addHorizontalLineDrawing(undefined, {
+      price: 17020,
+      color: "#f59e0b",
+      lineWidth: 2,
+      title: "Primary guide",
+    });
+    const secondaryLine = chart.addHorizontalLineDrawing(
+      { pane: studyPane },
+      {
+        price: 17080,
+        color: "#7c3aed",
+        lineWidth: 3,
+        title: "Secondary guide",
+      },
+    );
+
+    const saved = chart.getChartState();
+
+    primaryLine.remove();
+    secondaryLine.remove();
+    chart.applyChartState(saved);
+
+    const restored = chart.getChartState();
+
+    return {
+      savedDrawings: saved.drawings,
+      restoredDrawings: restored.drawings,
+      savedPaneCount: saved.panes.length,
+      restoredPaneCount: restored.panes.length,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.savedPaneCount).toBe(1);
+  expect(result.restoredPaneCount).toBe(1);
+  expect(result.savedDrawings).toEqual([
+    {
+      type: "horizontal-line",
+      paneIndex: 0,
+      options: {
+        price: 17020,
+        color: "#f59e0b",
+        lineWidth: 2,
+        title: "Primary guide",
+        visible: true,
+      },
+    },
+    {
+      type: "horizontal-line",
+      paneIndex: 1,
+      options: {
+        price: 17080,
+        color: "#7c3aed",
+        lineWidth: 3,
+        title: "Secondary guide",
+        visible: true,
+      },
+    },
+  ]);
+  expect(result.restoredDrawings).toEqual(result.savedDrawings);
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

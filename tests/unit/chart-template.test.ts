@@ -65,6 +65,7 @@ describe("chart template contracts", () => {
           },
         },
       ],
+      drawings: [],
     };
 
     expect(stringifyVersionedChartTemplate(rawState)).toBe(`{
@@ -138,7 +139,8 @@ describe("chart template contracts", () => {
           "mergePolicy": "exact"
         }
       }
-    ]
+    ],
+    "drawings": []
   }
 }`);
   });
@@ -165,6 +167,7 @@ describe("chart template contracts", () => {
         mainSeries: null,
         series: [],
         studies: [],
+        drawings: [],
       },
     };
 
@@ -196,6 +199,7 @@ describe("chart template contracts", () => {
           mainSeries: null,
           series: [],
           studies: [],
+          drawings: [],
         },
       } as never),
     ).toThrow("chartx chart template version 2 is not supported");
@@ -222,6 +226,7 @@ describe("chart template contracts", () => {
           mainSeries: null,
           series: [],
           studies: [],
+          drawings: [],
         },
       } as never),
     ).toThrow("chartx chart template version 2 is not supported");

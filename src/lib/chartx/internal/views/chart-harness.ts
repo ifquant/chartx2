@@ -18,6 +18,7 @@ import {
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
+  DrawingRegistry,
   mergeStudyDataToChartContext,
   normalizeVersionedChartTemplate,
   PlotRowValueIndex,
@@ -119,6 +120,16 @@ export type PhaseOnePriceLineOptions = {
 export type PhaseOnePriceLineApi = {
   applyOptions(options: PhaseOnePriceLineOptions): void;
   remove(): void;
+};
+
+export type PhaseOneHorizontalLineDrawingOptions = PhaseOnePriceLineOptions & {
+  visible?: boolean;
+};
+
+export type PhaseOneHorizontalLineDrawingApi = {
+  applyOptions(options: PhaseOneHorizontalLineDrawingOptions): void;
+  remove(): void;
+  paneIndex(): number;
 };
 
 export type PhaseOneSeriesMarkerPosition = "aboveBar" | "belowBar" | "inBar";
@@ -471,6 +482,11 @@ export type PhaseOneChartStateSnapshot = {
         studyOptions: Required<PhaseOneMovingAverageStudyOptions>;
       }
   >;
+  drawings: Array<{
+    type: "horizontal-line";
+    paneIndex: number;
+    options: Required<PhaseOneHorizontalLineDrawingOptions>;
+  }>;
 };
 export type PhaseOneChartTemplateV1 = ChartTemplateV1<PhaseOneChartStateSnapshot>;
 export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
@@ -498,6 +514,10 @@ export type PhaseOneChartApi = {
   addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi;
   addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi;
   addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi;
+  addHorizontalLineDrawing(
+    target?: PhaseOneSeriesTarget,
+    options?: PhaseOneHorizontalLineDrawingOptions,
+  ): PhaseOneHorizontalLineDrawingApi;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
@@ -580,6 +600,19 @@ type PriceLineState = {
   lineWidth: number;
   title: string;
 };
+
+type ChartDrawingKind = "horizontal-line";
+
+type HorizontalLineDrawingState = {
+  kind: "horizontal-line";
+  line: PriceLineState;
+};
+
+type ChartDrawingApi = PhaseOneHorizontalLineDrawingApi;
+
+type ChartDrawingState = {
+  api: PhaseOneHorizontalLineDrawingApi;
+} & HorizontalLineDrawingState;
 
 type SeriesMarkerState = {
   time: number;
@@ -702,6 +735,13 @@ export class PhaseOneChartHarness {
   private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
   private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
+  private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, {
+    id: string;
+    kind: ChartDrawingKind;
+    paneId: string;
+    visible: boolean;
+    api: ChartDrawingApi;
+  } & ChartDrawingState>();
   private readonly chartContext = new ChartContext<number, PhaseOneMainChartType>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
@@ -717,6 +757,7 @@ export class PhaseOneChartHarness {
   private nextPaneId = 1;
   private nextSeriesId = 1;
   private nextPriceLineId = 1;
+  private nextDrawingId = 1;
   private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
   private readonly priceLineHandleIds = new WeakMap<PhaseOnePriceLineApi, string>();
   private canvas: HTMLCanvasElement | null = null;
@@ -1227,6 +1268,15 @@ export class PhaseOneChartHarness {
     return this.addMovingAverageStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
   }
 
+  public addHorizontalLineDrawing(
+    target?: PhaseOneSeriesTarget,
+    options: PhaseOneHorizontalLineDrawingOptions = {},
+  ): PhaseOneHorizontalLineDrawingApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    const paneId = resolved.kind === "primary" ? "primary" : resolved.paneId;
+    return this.createHorizontalLineDrawing(paneId, options);
+  }
+
   public removeSeries(
     series:
       | PhaseOneCandlestickSeriesApi
@@ -1564,6 +1614,7 @@ export class PhaseOneChartHarness {
       mainSeries: this.getMainSeriesState(),
       series: this.buildChartSeriesStateSnapshots(),
       studies: this.buildChartStudyStateSnapshots(),
+      drawings: this.buildChartDrawingStateSnapshots(),
     };
   }
 
@@ -1582,6 +1633,7 @@ export class PhaseOneChartHarness {
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
     this.applyOptions(state.options);
+    this.clearRestorableChartDrawings();
     this.clearRestorableChartStudies();
     this.clearRestorableChartSeries();
 
@@ -1621,6 +1673,7 @@ export class PhaseOneChartHarness {
 
     this.restoreChartSeries(state.series);
     this.restoreChartStudies(state.studies);
+    this.restoreChartDrawings(state.drawings);
 
     this.timeScaleApi().applyOptions({
       barSpacing: state.timeScale.barSpacing ?? undefined,
@@ -1638,6 +1691,20 @@ export class PhaseOneChartHarness {
     if (this.canvas !== null) {
       this.render(this.canvas);
     }
+  }
+
+  private buildChartDrawingStateSnapshots(): PhaseOneChartStateSnapshot["drawings"] {
+    return this.drawingRegistry.list().map((drawing) => ({
+      type: "horizontal-line" as const,
+      paneIndex: this.getPaneIndex(drawing.paneId),
+      options: {
+        price: drawing.line.price,
+        color: drawing.line.color,
+        lineWidth: drawing.line.lineWidth,
+        title: drawing.line.title,
+        visible: drawing.visible,
+      },
+    }));
   }
 
   private buildChartStudyStateSnapshots(): PhaseOneChartStateSnapshot["studies"] {
@@ -1785,6 +1852,12 @@ export class PhaseOneChartHarness {
     }
   }
 
+  private clearRestorableChartDrawings(): void {
+    for (const drawing of this.drawingRegistry.list()) {
+      this.drawingRegistry.removeByApi(drawing.api);
+    }
+  }
+
   private restoreChartSeries(series: PhaseOneChartStateSnapshot["series"]): void {
     for (const item of series) {
       const pane = this.panes[item.paneIndex];
@@ -1866,6 +1939,19 @@ export class PhaseOneChartHarness {
       const movingAverage = this.addMovingAverageStudySeries(paneId);
       movingAverage.applyOptions(study.seriesOptions);
       movingAverage.applyStudyOptions(study.studyOptions);
+    }
+  }
+
+  private restoreChartDrawings(drawings: PhaseOneChartStateSnapshot["drawings"]): void {
+    for (const drawing of drawings) {
+      const pane = this.panes[drawing.paneIndex];
+      if (pane === undefined) {
+        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+      }
+      const target = { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
+      if (drawing.type === "horizontal-line") {
+        this.addHorizontalLineDrawing(target, drawing.options);
+      }
     }
   }
 
@@ -3054,7 +3140,7 @@ export class PhaseOneChartHarness {
   }
 
   private paneHasSeries(paneId: string): boolean {
-    return this.sourceRegistry.listByPane(paneId).length > 0;
+    return this.sourceRegistry.listByPane(paneId).length > 0 || this.drawingRegistry.listByPane(paneId).length > 0;
   }
 
   private resolveSeriesTarget(
@@ -3118,6 +3204,9 @@ export class PhaseOneChartHarness {
     }
     if (this.getSecondarySeriesForPane(paneId).length > 0) {
       throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
+    }
+    if (this.drawingRegistry.listByPane(paneId).length > 0) {
+      throw new Error("chartx phase-one chart cannot remove a pane while a drawing is still attached");
     }
 
     const removedPaneState = this.buildPaneState(paneId);
@@ -3250,6 +3339,77 @@ export class PhaseOneChartHarness {
     };
   }
 
+  private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
+    const ordinal = this.nextDrawingId;
+    this.nextDrawingId += 1;
+    return {
+      id: `drawing-${ordinal}`,
+      title: `${formatSeriesKindLabel(kind)} ${ordinal}`,
+    };
+  }
+
+  private createHorizontalLineDrawing(
+    paneId: string,
+    options: PhaseOneHorizontalLineDrawingOptions = {},
+  ): PhaseOneHorizontalLineDrawingApi {
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      throw new Error("chartx phase-one drawing target pane has been removed");
+    }
+    const meta = this.createDrawingMeta("horizontal-line");
+    const line = this.createPriceLineState({
+      ...options,
+      title: options.title ?? meta.title,
+    });
+
+    const api: PhaseOneHorizontalLineDrawingApi = {
+      applyOptions: (nextOptions) => {
+        this.assertDrawingActive(api);
+        const drawing = this.getDrawingByApi(api);
+        if (nextOptions.price !== undefined) {
+          drawing.line.price = nextOptions.price;
+        }
+        if (nextOptions.color !== undefined) {
+          drawing.line.color = nextOptions.color;
+        }
+        if (nextOptions.lineWidth !== undefined) {
+          drawing.line.lineWidth = Math.max(1, nextOptions.lineWidth);
+        }
+        if (nextOptions.title !== undefined) {
+          drawing.line.title = nextOptions.title;
+        }
+        if (nextOptions.visible !== undefined) {
+          this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      remove: () => {
+        this.removeDrawing(api);
+      },
+      paneIndex: () => {
+        const drawing = this.getDrawingByApi(api);
+        return drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId);
+      },
+    };
+
+    this.drawingRegistry.register({
+      id: meta.id,
+      kind: "horizontal-line",
+      paneId,
+      visible: options.visible ?? true,
+      api,
+      line,
+    });
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+
+    return api;
+  }
+
   private createPriceLineApi(
     lines: Map<string, PriceLineState>,
     lineState: PriceLineState,
@@ -3303,6 +3463,30 @@ export class PhaseOneChartHarness {
     const lineId = this.priceLineHandleIds.get(line);
     if (lineId === undefined || !lines.has(lineId)) {
       throw new Error("chartx phase-one price line has been removed");
+    }
+  }
+
+  private getDrawingByApi(api: PhaseOneHorizontalLineDrawingApi) {
+    const drawing = this.drawingRegistry.getByApi(api);
+    if (drawing === undefined) {
+      throw new Error("chartx phase-one drawing has been removed");
+    }
+    return drawing;
+  }
+
+  private assertDrawingActive(api: PhaseOneHorizontalLineDrawingApi): void {
+    if (!this.drawingRegistry.hasApi(api)) {
+      throw new Error("chartx phase-one drawing has been removed");
+    }
+  }
+
+  private removeDrawing(api: PhaseOneHorizontalLineDrawingApi): void {
+    const removed = this.drawingRegistry.removeByApi(api);
+    if (removed === undefined) {
+      throw new Error("chartx phase-one drawing has been removed");
+    }
+    if (this.canvas !== null) {
+      this.render(this.canvas);
     }
   }
 
@@ -3592,6 +3776,19 @@ export class PhaseOneChartHarness {
     for (const source of sources) {
       for (const [lineId, line] of source.priceLines.entries()) {
         lines.set(lineId, line);
+      }
+    }
+    return lines;
+  }
+
+  private collectPanePriceLines(
+    paneId: string,
+    sources: readonly SeriesSourceState[],
+  ): Map<string, PriceLineState> {
+    const lines = this.collectPriceLines(sources);
+    for (const drawing of this.drawingRegistry.listByPane(paneId)) {
+      if (drawing.visible) {
+        lines.set(drawing.line.id, drawing.line);
       }
     }
     return lines;
@@ -3954,7 +4151,7 @@ export class PhaseOneChartHarness {
           paneWidth,
           pane.height,
           this.primaryPriceScale,
-          this.collectPriceLines(primarySources),
+          this.collectPanePriceLines("primary", primarySources),
           this.chartOptions,
           this.priceAxisFormatter,
         );
@@ -3993,19 +4190,12 @@ export class PhaseOneChartHarness {
         }
 
         if (panePriceScale !== undefined) {
-          const panePriceLines = new Map<string, PriceLineState>();
-          for (const state of paneSeries) {
-            for (const [lineId, line] of state.priceLines.entries()) {
-              panePriceLines.set(lineId, line);
-            }
-          }
-
           drawPriceLines(
             context,
             paneWidth,
             pane.height,
             panePriceScale,
-            panePriceLines,
+            this.collectPanePriceLines(pane.id, paneSeries),
             this.chartOptions,
             this.priceAxisFormatter,
           );
@@ -4172,6 +4362,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addMovingAverageStudy(target) {
       return harness.addMovingAverageStudy(target);
+    },
+    addHorizontalLineDrawing(target, options) {
+      return harness.addHorizontalLineDrawing(target, options);
     },
     panes() {
       return harness.panesApi();

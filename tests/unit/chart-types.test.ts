@@ -142,6 +142,7 @@ describe("chart type builders", () => {
       mainSeries: null,
       series: [],
       studies: [],
+      drawings: [],
     };
 
     expect(createVersionedChartTemplate(rawState)).toEqual({

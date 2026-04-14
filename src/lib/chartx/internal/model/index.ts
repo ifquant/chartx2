@@ -2,6 +2,7 @@ export * from "./chart-bar-sequence";
 export * from "./chart-context";
 export * from "./chart-template";
 export * from "./coordinate";
+export * from "./drawing-registry";
 export * from "./indicator-studies";
 export * from "./main-series-chart-types";
 export * from "./main-series-builders";

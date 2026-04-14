@@ -27,7 +27,12 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
 } from "$lib/chartx/internal/model/chart-bar-sequence";
-import { buildLineBreakData, buildPointFigureData } from "$lib/chartx/internal/model/main-series-builders";
+import {
+  buildKagiData,
+  buildLineBreakData,
+  buildPointFigureData,
+  buildRenkoData,
+} from "$lib/chartx/internal/model/main-series-builders";
 import { createPlotRows } from "$lib/chartx/internal/model/series-data";
 
 export type DemoTabId = "workbench" | "features";
@@ -114,6 +119,14 @@ type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
+
+type DefaultDrawingAnchors = {
+  horizontalPrice: number;
+  trendStartTime: number;
+  trendStartPrice: number;
+  trendEndTime: number;
+  trendEndPrice: number;
+};
 
 function formatPointFigureBoxSize(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
@@ -250,6 +263,81 @@ export function mountWorkbenchDemo(
       line: createLineData(bars, chartType === "point-figure" ? 18 : 6),
       visibleTrendStartBar: bars.at(-52) ?? bars[0]!,
       visibleTrendEndBar: bars.at(-18) ?? bars.at(-1) ?? bars[0]!,
+    };
+  };
+
+  const resolveMainDrawingRows = (
+    bars: readonly PhaseOneCandlestickData[],
+    lineBreakRows: readonly PhaseOneCandlestickData[] | null,
+    pointFigureRows: readonly PhaseOneCandlestickData[] | null,
+  ): readonly PhaseOneCandlestickData[] => {
+    if (mainChartType === "line-break") {
+      return lineBreakRows ?? bars;
+    }
+    if (mainChartType === "point-figure") {
+      return pointFigureRows ?? bars;
+    }
+    if (mainChartType === "renko") {
+      return buildRenkoData(bars, {
+        boxSizeMode: renkoMode,
+        boxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
+      });
+    }
+    if (mainChartType === "kagi") {
+      return buildKagiData(bars);
+    }
+    return bars;
+  };
+
+  const resolveDefaultDrawingAnchors = (
+    rows: readonly PhaseOneCandlestickData[],
+  ): DefaultDrawingAnchors | null => {
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const windowSize = Math.min(Math.max(rows.length, 1), 24);
+    const visibleRows = rows.slice(Math.max(0, rows.length - windowSize));
+    if (visibleRows.length === 0) {
+      return null;
+    }
+
+    const lows = visibleRows.map((row) => row.low);
+    const highs = visibleRows.map((row) => row.high);
+    const minLow = Math.min(...lows);
+    const maxHigh = Math.max(...highs);
+    const priceRange = Math.max(maxHigh - minLow, 1);
+    const pad = Math.max(priceRange * 0.06, 8);
+    const horizontalPrice = minLow + priceRange * 0.18;
+
+    const startIndex = Math.max(0, Math.floor((visibleRows.length - 1) * 0.18));
+    let endIndex = Math.max(startIndex + 1, Math.floor((visibleRows.length - 1) * 0.8));
+    if (endIndex >= visibleRows.length) {
+      endIndex = visibleRows.length - 1;
+    }
+
+    const startRow = visibleRows[startIndex] ?? visibleRows[0]!;
+    let endRow = visibleRows[endIndex] ?? visibleRows[visibleRows.length - 1]!;
+    if (endRow.time === startRow.time) {
+      endRow = visibleRows.findLast((row) => row.time !== startRow.time) ?? endRow;
+    }
+
+    if (endRow.time === startRow.time) {
+      return {
+        horizontalPrice,
+        trendStartTime: startRow.time,
+        trendStartPrice: startRow.low - pad,
+        trendEndTime: endRow.time + 1,
+        trendEndPrice: endRow.high + pad,
+      };
+    }
+
+    return {
+      horizontalPrice,
+      trendStartTime: startRow.time,
+      trendStartPrice: startRow.low - pad,
+      trendEndTime: endRow.time,
+      trendEndPrice: endRow.high + pad,
     };
   };
 
@@ -400,8 +488,6 @@ export function mountWorkbenchDemo(
       bars,
       volume,
       line,
-      visibleTrendStartBar,
-      visibleTrendEndBar,
     } = workbenchSeries(mainChartType);
     const suppressSecondaryPanes = false;
     const lineBreakRows =
@@ -455,7 +541,8 @@ export function mountWorkbenchDemo(
       mainChartType === "point-figure" || mainChartType === "line-break"
         ? Math.min(rightOffset, 0.1)
         : rightOffset;
-    const addDefaultDrawings = mainChartType !== "point-figure" && mainChartType !== "line-break";
+    const defaultDrawingRows = resolveMainDrawingRows(bars, lineBreakRows, pointFigureRows);
+    const defaultDrawingAnchors = resolveDefaultDrawingAnchors(defaultDrawingRows);
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
@@ -602,9 +689,9 @@ export function mountWorkbenchDemo(
       chart.addPane({ height: 88, resizable: true });
     }
 
-    if (addDefaultDrawings) {
+    if (defaultDrawingAnchors !== null) {
       chart.addHorizontalLineDrawing(undefined, {
-        price: 16_940,
+        price: defaultDrawingAnchors.horizontalPrice,
         title: "Swing low",
         color: theme === "warm" ? "#9333ea" : "#7c3aed",
         lineWidth: 2,
@@ -612,10 +699,10 @@ export function mountWorkbenchDemo(
         timeMagnetPolicy: "previous",
       });
       chart.addTrendLineDrawing(undefined, {
-        startTime: visibleTrendStartBar.time,
-        startPrice: visibleTrendStartBar.low - 18,
-        endTime: visibleTrendEndBar.time,
-        endPrice: visibleTrendEndBar.high + 14,
+        startTime: defaultDrawingAnchors.trendStartTime,
+        startPrice: defaultDrawingAnchors.trendStartPrice,
+        endTime: defaultDrawingAnchors.trendEndTime,
+        endPrice: defaultDrawingAnchors.trendEndPrice,
         color: theme === "warm" ? "#ea580c" : "#2563eb",
         lineWidth: 3,
         magnetEnabled: true,

@@ -3095,6 +3095,94 @@ test("phase-one chart state snapshots can restore horizontal-line drawings", asy
   expect(result.restoredDrawings).toEqual(result.savedDrawings);
 });
 
+test("phase-one chart state snapshots can restore trend-line drawings", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-trend-drawing-chart-state-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-trend-drawing-chart-state-canvas" aria-label="phase-one api trend drawing chart state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-trend-drawing-chart-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API trend drawing chart-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const pane = chart.addPane({ height: 112, resizable: true });
+    mainSeries.setData(bars);
+    const start = bars[0];
+    const pivot = bars[1];
+    const end = bars[3];
+    if (start === undefined || pivot === undefined || end === undefined) {
+      throw new Error("API trend drawing fixture requires at least four bars");
+    }
+
+    const primaryTrend = chart.addTrendLineDrawing(undefined, {
+      startTime: start.time,
+      startPrice: start.close,
+      endTime: end.time,
+      endPrice: end.close + 120,
+      color: "#2563eb",
+      lineWidth: 2,
+    });
+    const secondaryTrend = chart.addTrendLineDrawing({ pane }, {
+      startTime: pivot.time,
+      startPrice: 16920,
+      endTime: end.time,
+      endPrice: 17110,
+      color: "#dc2626",
+      lineWidth: 3,
+    });
+
+    const saved = chart.getChartState();
+    primaryTrend.remove();
+    secondaryTrend.remove();
+    chart.applyChartState(saved);
+    const restored = chart.getChartState();
+
+    return {
+      savedDrawings: saved.drawings,
+      restoredDrawings: restored.drawings,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.savedDrawings).toContainEqual({
+    type: "trend-line",
+    paneIndex: 0,
+    options: {
+      startTime: API_DATA[0]!.time,
+      startPrice: API_DATA[0]!.close,
+      endTime: API_DATA[3]!.time,
+      endPrice: API_DATA[3]!.close + 120,
+      color: "#2563eb",
+      lineWidth: 2,
+      visible: true,
+    },
+  });
+  expect(result.savedDrawings).toContainEqual({
+    type: "trend-line",
+    paneIndex: 1,
+    options: {
+      startTime: API_DATA[1]!.time,
+      startPrice: 16920,
+      endTime: API_DATA[3]!.time,
+      endPrice: 17110,
+      color: "#dc2626",
+      lineWidth: 3,
+      visible: true,
+    },
+  });
+  expect(result.restoredDrawings).toEqual(result.savedDrawings);
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

@@ -100,7 +100,7 @@ Current `chartx2` status against that model:
   - it will be required once studies can request a different timeframe or standard-vs-nonstandard source context and then merge those results back onto the current chart sequence
 - `DrawingSource`
 - markers and price lines exist as early annotation paths
-- chart-owned drawings now have a first independent registry and snapshot path through a minimal `horizontal-line` object, but drawings are still far from a full entity system with grouping, hit-testing, and z-order control
+- chart-owned drawings now have a first independent registry and snapshot path through minimal `horizontal-line` and `trend-line` objects, but drawings are still far from a full entity system with grouping, hit-testing, and z-order control
 - `LegendViewModel`
   - workbench readouts and pane-aware legend payloads already point in the right direction
   - pane event snapshots now also carry stable source role and price-scale attachment metadata
@@ -248,7 +248,7 @@ Why this is still simplified:
 - the template create/normalize helpers now live in the model layer, which is a better boundary for future persistence, migration, and non-harness consumers
 - the template path now also has a first stable JSON contract test and explicit unsupported-version rejection, which is the start of real schema-discipline rather than ad hoc snapshot growth
 - the template path now also exposes a first explicit migration function and latest-version constant, so later schema upgrades no longer need to overload the normalize helper with hidden branching
-- chart snapshots/templates now also persist a first chart-owned drawing object (`horizontal-line`), but broader drawing tools, richer template versioning, and workspace persistence still remain outside the current persistence boundary
+- chart snapshots/templates now also persist first chart-owned drawing objects (`horizontal-line` and `trend-line`), but broader drawing tools, richer template versioning, and workspace persistence still remain outside the current persistence boundary
 
 ### Time and price scales
 

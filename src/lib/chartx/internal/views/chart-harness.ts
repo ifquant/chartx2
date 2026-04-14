@@ -132,6 +132,22 @@ export type PhaseOneHorizontalLineDrawingApi = {
   paneIndex(): number;
 };
 
+export type PhaseOneTrendLineDrawingOptions = {
+  startTime?: number;
+  startPrice?: number;
+  endTime?: number;
+  endPrice?: number;
+  color?: string;
+  lineWidth?: number;
+  visible?: boolean;
+};
+
+export type PhaseOneTrendLineDrawingApi = {
+  applyOptions(options: PhaseOneTrendLineDrawingOptions): void;
+  remove(): void;
+  paneIndex(): number;
+};
+
 export type PhaseOneSeriesMarkerPosition = "aboveBar" | "belowBar" | "inBar";
 export type PhaseOneSeriesMarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
 
@@ -482,11 +498,18 @@ export type PhaseOneChartStateSnapshot = {
         studyOptions: Required<PhaseOneMovingAverageStudyOptions>;
       }
   >;
-  drawings: Array<{
-    type: "horizontal-line";
-    paneIndex: number;
-    options: Required<PhaseOneHorizontalLineDrawingOptions>;
-  }>;
+  drawings: Array<
+    | {
+        type: "horizontal-line";
+        paneIndex: number;
+        options: Required<PhaseOneHorizontalLineDrawingOptions>;
+      }
+    | {
+        type: "trend-line";
+        paneIndex: number;
+        options: Required<PhaseOneTrendLineDrawingOptions>;
+      }
+  >;
 };
 export type PhaseOneChartTemplateV1 = ChartTemplateV1<PhaseOneChartStateSnapshot>;
 export type PhaseOneChartTemplate = PhaseOneChartTemplateV1;
@@ -518,6 +541,10 @@ export type PhaseOneChartApi = {
     target?: PhaseOneSeriesTarget,
     options?: PhaseOneHorizontalLineDrawingOptions,
   ): PhaseOneHorizontalLineDrawingApi;
+  addTrendLineDrawing(
+    target?: PhaseOneSeriesTarget,
+    options?: PhaseOneTrendLineDrawingOptions,
+  ): PhaseOneTrendLineDrawingApi;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
@@ -601,18 +628,46 @@ type PriceLineState = {
   title: string;
 };
 
-type ChartDrawingKind = "horizontal-line";
+type ChartDrawingKind = "horizontal-line" | "trend-line";
 
 type HorizontalLineDrawingState = {
   kind: "horizontal-line";
   line: PriceLineState;
 };
 
-type ChartDrawingApi = PhaseOneHorizontalLineDrawingApi;
+type TrendLineDrawingState = {
+  kind: "trend-line";
+  startTime: number;
+  startPrice: number;
+  endTime: number;
+  endPrice: number;
+  color: string;
+  lineWidth: number;
+};
+
+type ChartDrawingApi = PhaseOneHorizontalLineDrawingApi | PhaseOneTrendLineDrawingApi;
 
 type ChartDrawingState = {
+  api: ChartDrawingApi;
+} & (HorizontalLineDrawingState | TrendLineDrawingState);
+
+type HorizontalLineDrawingDescriptor = {
+  id: string;
+  kind: "horizontal-line";
+  paneId: string;
+  visible: boolean;
   api: PhaseOneHorizontalLineDrawingApi;
 } & HorizontalLineDrawingState;
+
+type TrendLineDrawingDescriptor = {
+  id: string;
+  kind: "trend-line";
+  paneId: string;
+  visible: boolean;
+  api: PhaseOneTrendLineDrawingApi;
+} & TrendLineDrawingState;
+
+type ChartDrawingDescriptor = HorizontalLineDrawingDescriptor | TrendLineDrawingDescriptor;
 
 type SeriesMarkerState = {
   time: number;
@@ -735,13 +790,7 @@ export class PhaseOneChartHarness {
   private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
   private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
-  private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, {
-    id: string;
-    kind: ChartDrawingKind;
-    paneId: string;
-    visible: boolean;
-    api: ChartDrawingApi;
-  } & ChartDrawingState>();
+  private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, ChartDrawingDescriptor>();
   private readonly chartContext = new ChartContext<number, PhaseOneMainChartType>();
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
@@ -1277,6 +1326,15 @@ export class PhaseOneChartHarness {
     return this.createHorizontalLineDrawing(paneId, options);
   }
 
+  public addTrendLineDrawing(
+    target?: PhaseOneSeriesTarget,
+    options: PhaseOneTrendLineDrawingOptions = {},
+  ): PhaseOneTrendLineDrawingApi {
+    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
+    const paneId = resolved.kind === "primary" ? "primary" : resolved.paneId;
+    return this.createTrendLineDrawing(paneId, options);
+  }
+
   public removeSeries(
     series:
       | PhaseOneCandlestickSeriesApi
@@ -1694,17 +1752,35 @@ export class PhaseOneChartHarness {
   }
 
   private buildChartDrawingStateSnapshots(): PhaseOneChartStateSnapshot["drawings"] {
-    return this.drawingRegistry.list().map((drawing) => ({
-      type: "horizontal-line" as const,
-      paneIndex: this.getPaneIndex(drawing.paneId),
-      options: {
-        price: drawing.line.price,
-        color: drawing.line.color,
-        lineWidth: drawing.line.lineWidth,
-        title: drawing.line.title,
-        visible: drawing.visible,
-      },
-    }));
+    return this.drawingRegistry.list().map((drawing) => {
+      if (drawing.kind === "horizontal-line") {
+        return {
+          type: "horizontal-line" as const,
+          paneIndex: this.getPaneIndex(drawing.paneId),
+          options: {
+            price: drawing.line.price,
+            color: drawing.line.color,
+            lineWidth: drawing.line.lineWidth,
+            title: drawing.line.title,
+            visible: drawing.visible,
+          },
+        };
+      }
+
+      return {
+        type: "trend-line" as const,
+        paneIndex: this.getPaneIndex(drawing.paneId),
+        options: {
+          startTime: drawing.startTime,
+          startPrice: drawing.startPrice,
+          endTime: drawing.endTime,
+          endPrice: drawing.endPrice,
+          color: drawing.color,
+          lineWidth: drawing.lineWidth,
+          visible: drawing.visible,
+        },
+      };
+    });
   }
 
   private buildChartStudyStateSnapshots(): PhaseOneChartStateSnapshot["studies"] {
@@ -1951,6 +2027,10 @@ export class PhaseOneChartHarness {
       const target = { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
       if (drawing.type === "horizontal-line") {
         this.addHorizontalLineDrawing(target, drawing.options);
+        continue;
+      }
+      if (drawing.type === "trend-line") {
+        this.addTrendLineDrawing(target, drawing.options);
       }
     }
   }
@@ -3366,6 +3446,9 @@ export class PhaseOneChartHarness {
       applyOptions: (nextOptions) => {
         this.assertDrawingActive(api);
         const drawing = this.getDrawingByApi(api);
+        if (drawing.kind !== "horizontal-line") {
+          throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
+        }
         if (nextOptions.price !== undefined) {
           drawing.line.price = nextOptions.price;
         }
@@ -3408,6 +3491,106 @@ export class PhaseOneChartHarness {
     }
 
     return api;
+  }
+
+  private createTrendLineDrawing(
+    paneId: string,
+    options: PhaseOneTrendLineDrawingOptions = {},
+  ): PhaseOneTrendLineDrawingApi {
+    const pane = this.getPaneById(paneId);
+    if (pane === undefined) {
+      throw new Error("chartx phase-one drawing target pane has been removed");
+    }
+    const meta = this.createDrawingMeta("trend-line");
+    const defaults = this.resolveTrendLineDefaults();
+    const state = {
+      startTime: options.startTime ?? defaults.startTime,
+      startPrice: options.startPrice ?? defaults.startPrice,
+      endTime: options.endTime ?? defaults.endTime,
+      endPrice: options.endPrice ?? defaults.endPrice,
+      color: options.color ?? LINE_COLOR,
+      lineWidth: Math.max(1, options.lineWidth ?? 2),
+    };
+
+    const api: PhaseOneTrendLineDrawingApi = {
+      applyOptions: (nextOptions) => {
+        this.assertDrawingActive(api);
+        const drawing = this.getDrawingByApi(api);
+        if (drawing.kind !== "trend-line") {
+          throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
+        }
+        if (nextOptions.startTime !== undefined) {
+          drawing.startTime = nextOptions.startTime;
+        }
+        if (nextOptions.startPrice !== undefined) {
+          drawing.startPrice = nextOptions.startPrice;
+        }
+        if (nextOptions.endTime !== undefined) {
+          drawing.endTime = nextOptions.endTime;
+        }
+        if (nextOptions.endPrice !== undefined) {
+          drawing.endPrice = nextOptions.endPrice;
+        }
+        if (nextOptions.color !== undefined) {
+          drawing.color = nextOptions.color;
+        }
+        if (nextOptions.lineWidth !== undefined) {
+          drawing.lineWidth = Math.max(1, nextOptions.lineWidth);
+        }
+        if (nextOptions.visible !== undefined) {
+          this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
+        }
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      remove: () => {
+        this.removeDrawing(api);
+      },
+      paneIndex: () => {
+        const drawing = this.getDrawingByApi(api);
+        return drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId);
+      },
+    };
+
+    this.drawingRegistry.register({
+      id: meta.id,
+      kind: "trend-line",
+      paneId,
+      visible: options.visible ?? true,
+      api,
+      ...state,
+    });
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+
+    return api;
+  }
+
+  private resolveTrendLineDefaults(): Required<Pick<
+    PhaseOneTrendLineDrawingOptions,
+    "startTime" | "startPrice" | "endTime" | "endPrice"
+  >> {
+    const mainBars = this.chartContext.snapshot().barSequence.axisBars;
+    if (mainBars.length >= 2) {
+      const first = mainBars[0]!;
+      const last = mainBars[mainBars.length - 1]!;
+      return {
+        startTime: first.time as number,
+        startPrice: first.value[PlotRowValueIndex.Close],
+        endTime: last.time as number,
+        endPrice: last.value[PlotRowValueIndex.Close],
+      };
+    }
+
+    return {
+      startTime: 0,
+      startPrice: 0,
+      endTime: 1,
+      endPrice: 1,
+    };
   }
 
   private createPriceLineApi(
@@ -3466,7 +3649,7 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private getDrawingByApi(api: PhaseOneHorizontalLineDrawingApi) {
+  private getDrawingByApi(api: ChartDrawingApi) {
     const drawing = this.drawingRegistry.getByApi(api);
     if (drawing === undefined) {
       throw new Error("chartx phase-one drawing has been removed");
@@ -3474,13 +3657,13 @@ export class PhaseOneChartHarness {
     return drawing;
   }
 
-  private assertDrawingActive(api: PhaseOneHorizontalLineDrawingApi): void {
+  private assertDrawingActive(api: ChartDrawingApi): void {
     if (!this.drawingRegistry.hasApi(api)) {
       throw new Error("chartx phase-one drawing has been removed");
     }
   }
 
-  private removeDrawing(api: PhaseOneHorizontalLineDrawingApi): void {
+  private removeDrawing(api: ChartDrawingApi): void {
     const removed = this.drawingRegistry.removeByApi(api);
     if (removed === undefined) {
       throw new Error("chartx phase-one drawing has been removed");
@@ -3787,7 +3970,7 @@ export class PhaseOneChartHarness {
   ): Map<string, PriceLineState> {
     const lines = this.collectPriceLines(sources);
     for (const drawing of this.drawingRegistry.listByPane(paneId)) {
-      if (drawing.visible) {
+      if (drawing.visible && drawing.kind === "horizontal-line") {
         lines.set(drawing.line.id, drawing.line);
       }
     }
@@ -4155,6 +4338,13 @@ export class PhaseOneChartHarness {
           this.chartOptions,
           this.priceAxisFormatter,
         );
+        drawPaneDrawings(
+          context,
+          this.drawingRegistry.listByPane("primary"),
+          this.chartContext.snapshot().barSequence.axisBars,
+          this.timeScale,
+          this.primaryPriceScale,
+        );
 
         for (const state of primarySources) {
           const rows = primaryRowSets.get(state.id) ?? [];
@@ -4198,6 +4388,13 @@ export class PhaseOneChartHarness {
             this.collectPanePriceLines(pane.id, paneSeries),
             this.chartOptions,
             this.priceAxisFormatter,
+          );
+          drawPaneDrawings(
+            context,
+            this.drawingRegistry.listByPane(pane.id),
+            this.chartContext.snapshot().barSequence.axisBars,
+            this.timeScale,
+            panePriceScale,
           );
         }
 
@@ -4365,6 +4562,9 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addHorizontalLineDrawing(target, options) {
       return harness.addHorizontalLineDrawing(target, options);
+    },
+    addTrendLineDrawing(target, options) {
+      return harness.addTrendLineDrawing(target, options);
     },
     panes() {
       return harness.panesApi();
@@ -5447,6 +5647,60 @@ function resolveSeriesColor(state: SeriesSourceState): string {
       return visual?.color ?? (visual?.isUp ?? (last.close >= last.open) ? options.upColor : options.downColor);
     }
   }
+}
+
+function drawPaneDrawings(
+  context: CanvasRenderingContext2D,
+  drawings: readonly ChartDrawingDescriptor[],
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  for (const drawing of drawings) {
+    if (!drawing.visible) {
+      continue;
+    }
+
+    if (drawing.kind === "horizontal-line") {
+      continue;
+    }
+
+    const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, timeScale);
+    const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, timeScale);
+    const startY = toCoordinate(priceScale.priceToCoordinate(drawing.startPrice));
+    const endY = toCoordinate(priceScale.priceToCoordinate(drawing.endPrice));
+
+    context.save();
+    context.strokeStyle = drawing.color;
+    context.lineWidth = drawing.lineWidth;
+    context.beginPath();
+    context.moveTo(startX, startY);
+    context.lineTo(endX, endY);
+    context.stroke();
+    context.restore();
+  }
+}
+
+function resolveDrawingTimeCoordinate(
+  time: number,
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
+): number {
+  if (axisBars.length === 0) {
+    return 0;
+  }
+
+  let nearest = axisBars[0]!;
+  let nearestDistance = Math.abs(nearest.time - time);
+  for (const bar of axisBars) {
+    const distance = Math.abs(bar.time - time);
+    if (distance < nearestDistance) {
+      nearest = bar;
+      nearestDistance = distance;
+    }
+  }
+
+  return timeScale.indexToCoordinate(nearest.index);
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

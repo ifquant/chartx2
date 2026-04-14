@@ -262,6 +262,7 @@ export type PhaseOneCandlestickSeriesOptions = {
   upColor?: string;
   downColor?: string;
   wickColor?: string;
+  lineBreakCount?: number;
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
@@ -946,6 +947,7 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   role: "main-series";
   chartType: PhaseOneMainChartType;
   inputData: readonly PhaseOneCandlestickData[];
+  lineBreakOptions: { lineCount: number };
   renkoOptions: Required<RenkoStyleOptionsState>;
   pointFigureOptions: Required<PointFigureStyleOptionsState>;
   inputCapability: PhaseOneMainSeriesInputCapability;
@@ -1080,6 +1082,7 @@ export class PhaseOneChartHarness {
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
     wickColor: WICK_COLOR,
+    lineBreakCount: 3,
     renkoBoxSize: null,
     renkoBoxSizeMode: "auto",
     pointFigureBoxSize: null,
@@ -2038,6 +2041,7 @@ export class PhaseOneChartHarness {
     return createMainSeriesStateSnapshot({
       chartType: source.chartType,
       options: source.options as Record<string, unknown>,
+      lineBreakOptions: source.lineBreakOptions,
       renkoOptions: source.renkoOptions,
       pointFigureOptions: source.pointFigureOptions,
     });
@@ -2059,6 +2063,9 @@ export class PhaseOneChartHarness {
       (source.options as Record<string, unknown>)[key] = value;
     }
 
+    source.lineBreakOptions = {
+      lineCount: Math.max(1, Math.floor(state.lineBreakOptions.lineCount)),
+    };
     source.renkoOptions = {
       boxSize:
         state.renkoOptions.boxSize !== null && state.renkoOptions.boxSize > 0
@@ -4330,6 +4337,9 @@ export class PhaseOneChartHarness {
       role: "main-series",
       chartType,
       inputData: [],
+      lineBreakOptions: {
+        lineCount: this.candlestickOptions.lineBreakCount,
+      },
       renkoOptions: {
         boxSize: this.candlestickOptions.renkoBoxSize,
         boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
@@ -4426,6 +4436,7 @@ export class PhaseOneChartHarness {
     }
 
     if (
+      source.builder === "line-break" ||
       source.builder === "renko" ||
       source.builder === "kagi"
     ) {
@@ -5565,9 +5576,10 @@ function updateCanonicalData(
 
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
-  source: Pick<MainSeriesSourceState, "builder" | "renkoOptions" | "pointFigureOptions">,
+  source: Pick<MainSeriesSourceState, "builder" | "lineBreakOptions" | "renkoOptions" | "pointFigureOptions">,
 ): readonly PhaseOneCandlestickData[] {
   return applyMainSeriesBuilder(source.builder, data, {
+    lineBreakOptions: source.lineBreakOptions,
     renkoOptions: source.renkoOptions,
     pointFigureOptions: source.pointFigureOptions,
   });

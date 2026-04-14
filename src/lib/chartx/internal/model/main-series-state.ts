@@ -11,6 +11,7 @@ import {
   type MainSeriesStyleOptionSurfaceKind,
 } from "./main-series-style-schemas";
 import type {
+  LineBreakStyleOptionsState,
   PointFigureStyleOptionsState,
   RenkoStyleOptionsState,
 } from "./main-series-style-options";
@@ -20,6 +21,7 @@ export type MainSeriesStyleOptionsSnapshot = Record<string, unknown>;
 export type MainSeriesStateTarget = {
   chartType: PhaseOneMainChartType;
   options: Record<string, unknown>;
+  lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
 };
@@ -32,6 +34,7 @@ export type MainSeriesStateSnapshot = {
   styleSchemaId: PhaseOneMainStyleSchemaId;
   styleOptionSurface: MainSeriesStyleOptionSurfaceKind;
   styleOptions: MainSeriesStyleOptionsSnapshot;
+  lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
 };
@@ -46,6 +49,10 @@ export function createMainSeriesStateSnapshot(
       .filter((key) => key in target.options)
       .map((key) => [key, target.options[key]]),
   );
+
+  if (chartTypeSpec.styleSchemaId === "lineBreakStyle") {
+    styleOptions.lineBreakCount = target.lineBreakOptions.lineCount;
+  }
 
   if (chartTypeSpec.styleSchemaId === "renkoStyle") {
     styleOptions.renkoBoxSize = target.renkoOptions.boxSize;
@@ -69,6 +76,9 @@ export function createMainSeriesStateSnapshot(
     styleSchemaId: chartTypeSpec.styleSchemaId,
     styleOptionSurface: styleSchema.optionSurface,
     styleOptions,
+    lineBreakOptions: {
+      lineCount: target.lineBreakOptions.lineCount,
+    },
     renkoOptions: {
       boxSize: target.renkoOptions.boxSize,
       boxSizeMode: target.renkoOptions.boxSizeMode,

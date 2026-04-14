@@ -267,6 +267,21 @@ test("workbench heikin switch changes both the chart image and the main-series l
   expect(arrayBuffersEqual(candlesBuffer, heikinBuffer)).toBe(false);
 });
 
+test("workbench line-break opens with a visible compressed main chart and line-count controls", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const frame = workbench.locator(".chart-frame");
+
+  await page.getByRole("button", { name: "Line Break", exact: true }).click();
+
+  await expect(workbench).toContainText(/3 lines/i);
+  await expect(workbench.locator(".workbench-footer").getByRole("button", { name: "3-Line" })).toHaveClass(/active/);
+  await expect(frame).toHaveScreenshot("phase-one-harness-line-break-readable.png");
+});
+
 test("workbench can switch from heikin back to candles", async ({ page }) => {
   await page.goto("/");
 

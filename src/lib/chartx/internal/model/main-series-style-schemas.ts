@@ -22,8 +22,8 @@ export const MAIN_SERIES_STYLE_SCHEMAS: Record<PhaseOneMainStyleSchemaId, MainSe
   },
   lineBreakStyle: {
     optionSurface: "candlestick",
-    optionKeys: ["upColor", "downColor", "wickColor"],
-    typeSpecificOptionKeys: [],
+    optionKeys: ["upColor", "downColor", "wickColor", "lineBreakCount"],
+    typeSpecificOptionKeys: ["lineBreakCount"],
   },
   kagiStyle: {
     optionSurface: "line",

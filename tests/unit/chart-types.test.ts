@@ -53,6 +53,7 @@ describe("chart type builders", () => {
 
     expect(
       applyMainSeriesBuilder("heikin-ashi", input, {
+        lineBreakOptions: { lineCount: 3 },
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
         pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
       }),
@@ -60,6 +61,7 @@ describe("chart type builders", () => {
 
     expect(
       applyMainSeriesBuilder("time-bars", input, {
+        lineBreakOptions: { lineCount: 3 },
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
         pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
       }),
@@ -84,6 +86,9 @@ describe("chart type builders", () => {
           renkoBoxSize: 24,
           renkoBoxSizeMode: "fixed",
           ignored: "nope",
+        },
+        lineBreakOptions: {
+          lineCount: 3,
         },
         renkoOptions: {
           boxSize: 24,
@@ -111,6 +116,9 @@ describe("chart type builders", () => {
         wickColor: "#222222",
         renkoBoxSize: 24,
         renkoBoxSizeMode: "fixed",
+      },
+      lineBreakOptions: {
+        lineCount: 3,
       },
       renkoOptions: {
         boxSize: 24,
@@ -183,6 +191,9 @@ describe("chart type builders", () => {
 
   it("applies style-specific main-series options through the model-layer style registry", () => {
     const styleTarget = {
+      lineBreakOptions: {
+        lineCount: 3,
+      },
       renkoOptions: {
         boxSize: null,
         boxSizeMode: "auto" as const,
@@ -206,6 +217,15 @@ describe("chart type builders", () => {
     expect(styleTarget.renkoOptions).toEqual({
       boxSize: 12,
       boxSizeMode: "fixed",
+    });
+
+    expect(
+      applyMainSeriesStyleOptions("lineBreakStyle", styleTarget, {
+        lineBreakCount: 5,
+      }),
+    ).toBe(true);
+    expect(styleTarget.lineBreakOptions).toEqual({
+      lineCount: 5,
     });
 
     expect(

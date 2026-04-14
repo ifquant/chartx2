@@ -1,10 +1,15 @@
 import type { OhlcDataPoint } from "./series-data";
 import type { PhaseOneMainSeriesBuilder } from "./main-series-chart-types";
-import type { PointFigureStyleOptionsState, RenkoStyleOptionsState } from "./main-series-style-options";
+import type {
+  LineBreakStyleOptionsState,
+  PointFigureStyleOptionsState,
+  RenkoStyleOptionsState,
+} from "./main-series-style-options";
 
 export type MainSeriesBuilderDataPoint = OhlcDataPoint<number>;
 
 export type MainSeriesBuilderContext = {
+  lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
 };
@@ -18,7 +23,7 @@ export const MAIN_SERIES_BUILDERS: Record<PhaseOneMainSeriesBuilder, MainSeriesB
   "time-bars": (data) => [...data],
   "heikin-ashi": (data) => buildHeikinAshiData(data),
   renko: (data, context) => buildRenkoData(data, context.renkoOptions),
-  "line-break": (data) => buildLineBreakData(data),
+  "line-break": (data, context) => buildLineBreakData(data, context.lineBreakOptions.lineCount),
   kagi: (data) => buildKagiData(data),
   "point-figure": (data, context) => buildPointFigureData(data, context.pointFigureOptions),
   range: (data) => [...data],

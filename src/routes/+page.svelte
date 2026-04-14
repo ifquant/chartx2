@@ -496,6 +496,9 @@
   $: workbenchChartTypeActions = workbenchActions.filter(
     (action) => action.group === "chart-type",
   );
+  $: workbenchLineBreakActions = workbenchActions.filter(
+    (action) => action.group === "line-break-option",
+  );
   $: workbenchRenkoActions = workbenchActions.filter(
     (action) => action.group === "renko-option",
   );
@@ -692,6 +695,18 @@
                     {/each}
                   </div>
                 {/if}
+                {#if workbenchLineBreakActions.length > 0}
+                  <div class="mode-strip">
+                    {#each workbenchLineBreakActions as action}
+                      <button
+                        class:active={action.active}
+                        on:click={() => runWorkbenchAction(action.id)}
+                      >
+                        {action.label}
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
                 <div class="action-strip">
                   {#each workbenchChartActions as action}
                     <button
@@ -831,6 +846,35 @@
                       />
                     </label>
                   {/if}
+                </section>
+              {/if}
+
+              {#if workbenchSnapshot.lineBreakControls}
+                <section class="mini-card symbol-card">
+                  <div class="sidebar-head">
+                    <h4>Line Break</h4>
+                    <span>{workbenchSnapshot.lineBreakControls.visibleColumns ?? "--"} cols</span>
+                  </div>
+                  <div class="metric-list compact">
+                    <article>
+                      <small>Mode</small>
+                      <strong>{workbenchSnapshot.lineBreakControls.lineCount}-line</strong>
+                    </article>
+                    <article>
+                      <small>Visible</small>
+                      <strong>{workbenchSnapshot.lineBreakControls.visibleColumns ?? "--"} cols</strong>
+                    </article>
+                  </div>
+                  <div class="mode-strip compact">
+                    {#each workbenchLineBreakActions as action}
+                      <button
+                        class:active={action.active}
+                        on:click={() => runWorkbenchAction(action.id)}
+                      >
+                        {action.label}
+                      </button>
+                    {/each}
+                  </div>
                 </section>
               {/if}
 

@@ -105,6 +105,8 @@ Current `chartx2` status against that model:
   - workbench readouts and pane-aware legend payloads already point in the right direction
   - pane event snapshots now also carry stable source role and price-scale attachment metadata
   - pane snapshots now also carry main-series style schema metadata, so downstream UI and future persistence code can see option-surface and type-specific style fields without reopening engine internals
+  - `Line Break` now also has a first chart-type-specific option/control surface through `lineBreakCount`, a compressed main-sequence path, and a workbench default viewport that keeps the synthetic main chart visible instead of silently stretching it back across the raw input timeline
+  - workbench still temporarily suppresses secondary panes for `Line Break`, because those panes still run on raw time-based demo data instead of a true chart-context synthetic sequence
   - these should stay projection/viewmodel layers rather than becoming data owners
 - `ToolbarRegistry / CommandBus`
   - the demo shell has command surfaces

@@ -5,6 +5,10 @@ export type RenkoStyleOptionsState = {
   boxSizeMode: "auto" | "fixed";
 };
 
+export type LineBreakStyleOptionsState = {
+  lineCount: number;
+};
+
 export type PointFigureStyleOptionsState = {
   boxSize: number | null;
   boxSizeMode: "auto" | "fixed" | "atr" | "percentage" | "traditional";
@@ -15,11 +19,13 @@ export type PointFigureStyleOptionsState = {
 };
 
 export type MainSeriesStyleOptionsTarget = {
+  lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
 };
 
 export type MainSeriesStyleOptionsPatch = {
+  lineBreakCount?: number;
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
@@ -38,6 +44,14 @@ type MainSeriesStyleOptionApplier = (
 export const MAIN_SERIES_STYLE_OPTION_APPLIERS: Partial<
   Record<PhaseOneMainStyleSchemaId, MainSeriesStyleOptionApplier>
 > = {
+  lineBreakStyle: (target, patch) => {
+    let changed = false;
+    if (patch.lineBreakCount !== undefined) {
+      target.lineBreakOptions.lineCount = Math.max(1, Math.floor(patch.lineBreakCount));
+      changed = true;
+    }
+    return changed;
+  },
   renkoStyle: (target, patch) => {
     let changed = false;
     if (patch.renkoBoxSizeMode !== undefined) {

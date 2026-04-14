@@ -23,8 +23,11 @@ import {
   type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
 } from "$lib/chartx/public";
-import { createDirectionColumnPriceBasedChartBarSequence } from "$lib/chartx/internal/model/chart-bar-sequence";
-import { buildPointFigureData } from "$lib/chartx/internal/model/main-series-builders";
+import {
+  createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
+} from "$lib/chartx/internal/model/chart-bar-sequence";
+import { buildLineBreakData, buildPointFigureData } from "$lib/chartx/internal/model/main-series-builders";
 import { createPlotRows } from "$lib/chartx/internal/model/series-data";
 
 export type DemoTabId = "workbench" | "features";
@@ -44,7 +47,7 @@ export type DemoAction = {
   id: string;
   label: string;
   tone?: DemoActionTone;
-  group?: "chart-type" | "chart-action" | "renko-option" | "point-figure-option";
+  group?: "chart-type" | "chart-action" | "renko-option" | "point-figure-option" | "line-break-option";
   active?: boolean;
 };
 
@@ -78,6 +81,10 @@ export type DemoSnapshot = {
     visibleColumns: number | null;
     atrLength: number;
     percentageValue: number;
+  } | null;
+  lineBreakControls?: {
+    lineCount: number;
+    visibleColumns: number | null;
   } | null;
 };
 
@@ -218,6 +225,7 @@ export function mountWorkbenchDemo(
   let mainChartType: WorkbenchMainChartType = "candlestick";
   let renkoMode: WorkbenchRenkoMode = "auto";
   let renkoFixedBoxSize = 4;
+  let lineBreakCount = 3;
   let pointFigureMode: WorkbenchPointFigureMode = "auto";
   let pointFigureFixedBoxSize = 120;
   let pointFigureAutoScale = 1;
@@ -248,6 +256,16 @@ export function mountWorkbenchDemo(
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
     const visiblePrice = chart?.priceScale().getVisibleRange() ?? null;
+    const lineBreakBars =
+      mainChartType === "line-break"
+        ? workbenchSeries("line-break").bars
+        : null;
+    const effectiveLineBreakRows =
+      lineBreakBars === null ? null : buildLineBreakData(lineBreakBars, lineBreakCount);
+    const lineBreakVisibleColumns =
+      mainChartType !== "line-break" || visibleLogical === null
+        ? null
+        : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
     const pointFigureBars =
       mainChartType === "point-figure"
         ? workbenchSeries("point-figure").bars
@@ -307,6 +325,12 @@ export function mountWorkbenchDemo(
                           : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
               }]
           : []),
+        ...(mainChartType === "line-break"
+          ? [{
+              label: "Line Break",
+              value: `${lineBreakCount} lines · ${effectiveLineBreakRows?.length ?? 0} bricks`,
+            }]
+          : []),
         { label: "Panes", value: String(paneSnapshot.length) },
         {
           label: "Visible bars",
@@ -361,6 +385,13 @@ export function mountWorkbenchDemo(
               percentageValue: pointFigurePercentageValue,
             }
           : null,
+      lineBreakControls:
+        mainChartType === "line-break"
+          ? {
+              lineCount: lineBreakCount,
+              visibleColumns: lineBreakVisibleColumns,
+            }
+          : null,
     });
   };
 
@@ -372,7 +403,15 @@ export function mountWorkbenchDemo(
       visibleTrendStartBar,
       visibleTrendEndBar,
     } = workbenchSeries(mainChartType);
-    const suppressSecondaryPanes = mainChartType === "point-figure";
+    const suppressSecondaryPanes = mainChartType === "point-figure" || mainChartType === "line-break";
+    const lineBreakRows =
+      mainChartType === "line-break"
+        ? buildLineBreakData(bars, lineBreakCount)
+        : null;
+    const lineBreakLogicalLength =
+      lineBreakRows === null
+        ? null
+        : createCompressedPriceBasedChartBarSequence(createPlotRows(lineBreakRows)).logicalLength;
     const pointFigureRows =
       mainChartType === "point-figure"
         ? buildPointFigureData(bars, {
@@ -400,8 +439,22 @@ export function mountWorkbenchDemo(
               ),
             ),
           )
+        : mainChartType === "line-break"
+          ? Math.max(
+              12,
+              Math.min(
+                24,
+                Math.floor(
+                  (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
+                    Math.max(Math.min(lineBreakLogicalLength ?? 1, 24) + 1, 1),
+                ),
+              ),
+            )
         : barSpacing;
-    const effectiveRightOffset = mainChartType === "point-figure" ? Math.min(rightOffset, 0.1) : rightOffset;
+    const effectiveRightOffset =
+      mainChartType === "point-figure" || mainChartType === "line-break"
+        ? Math.min(rightOffset, 0.1)
+        : rightOffset;
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
@@ -436,7 +489,17 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "line-break") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      chart.setChartType("line-break");
+      chart.setChartType("line-break").applyOptions({
+        lineBreakCount,
+      });
+      if (lineBreakLogicalLength !== null) {
+        const lastLogical = lineBreakLogicalLength - 1;
+        const targetVisibleColumns = Math.max(14, Math.min(24, lineBreakLogicalLength));
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.5),
+          to: lastLogical + 0.5,
+        });
+      }
     } else if (mainChartType === "kagi") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
@@ -667,6 +730,28 @@ export function mountWorkbenchDemo(
           group: "chart-type",
           active: mainChartType === "line-break",
         },
+        ...(mainChartType === "line-break"
+          ? [
+              {
+                id: "line-break-2",
+                label: "2-Line",
+                group: "line-break-option" as const,
+                active: lineBreakCount === 2,
+              },
+              {
+                id: "line-break-3",
+                label: "3-Line",
+                group: "line-break-option" as const,
+                active: lineBreakCount === 3,
+              },
+              {
+                id: "line-break-5",
+                label: "5-Line",
+                group: "line-break-option" as const,
+                active: lineBreakCount === 5,
+              },
+            ]
+          : []),
         {
           id: "main-kagi",
           label: "Kagi",
@@ -837,7 +922,12 @@ export function mountWorkbenchDemo(
         }
         const previousType = mainChartType;
         mainChartType = nextType;
-        if (previousType === "point-figure" || nextType === "point-figure") {
+        if (
+          previousType === "point-figure" ||
+          nextType === "point-figure" ||
+          previousType === "line-break" ||
+          nextType === "line-break"
+        ) {
           rebuild();
           return;
         }
@@ -852,6 +942,18 @@ export function mountWorkbenchDemo(
           return;
         case "main-line-break":
           switchMainChartType("line-break");
+          return;
+        case "line-break-2":
+          lineBreakCount = 2;
+          rebuild();
+          return;
+        case "line-break-3":
+          lineBreakCount = 3;
+          rebuild();
+          return;
+        case "line-break-5":
+          lineBreakCount = 5;
+          rebuild();
           return;
         case "main-kagi":
           switchMainChartType("kagi");

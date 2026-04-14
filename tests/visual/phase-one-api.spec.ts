@@ -3597,6 +3597,122 @@ test("phase-one selected trend-line can drag the nearest endpoint from the line 
   ).toBe(true);
 });
 
+test("phase-one selected trend-line shows move cursor over the nearest endpoint handle", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-hover-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-hover-canvas" aria-label="phase-one api drawing hover chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-hover-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing hover fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    (window as Window & {
+      __chartxDrawingHoverState?: {
+        chart: {
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxDrawingHoverState = {
+      chart,
+      canvas,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  const canvas = page.getByLabel("phase-one api drawing hover chart");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("API drawing hover canvas is missing");
+  }
+
+  const setup = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxDrawingHoverState?: {
+        chart: {
+          getSelectedDrawing(): { kind: string; paneIndex: number; id: string } | null;
+        };
+        canvas: HTMLCanvasElement;
+      };
+    }).__chartxDrawingHoverState;
+
+    if (!state) {
+      throw new Error("API drawing hover state is missing");
+    }
+
+    const { canvas, chart } = state;
+    const rect = canvas.getBoundingClientRect();
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = rect.width - left - right;
+    const paneHeight = rect.height - top - bottom;
+
+    const dispatchClick = (clientX: number, clientY: number) => {
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX,
+        clientY,
+      }));
+    };
+
+    let selected = chart.getSelectedDrawing();
+    let selectionPoint: { x: number; y: number } | null = null;
+    for (let x = left + 80; x <= left + paneWidth - 40 && selected?.kind !== "trend-line"; x += 8) {
+      for (let y = top + 20; y <= top + paneHeight - 20 && selected?.kind !== "trend-line"; y += 8) {
+        dispatchClick(rect.left + x, rect.top + y);
+        selected = chart.getSelectedDrawing();
+        if (selected?.kind === "trend-line") {
+          selectionPoint = { x, y };
+        }
+      }
+    }
+
+    return { selected, selectionPoint };
+  });
+
+  expect(setup.selected).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(setup.selectionPoint).not.toBeNull();
+
+  await page.mouse.move(box.x + setup.selectionPoint!.x, box.y + setup.selectionPoint!.y);
+
+  const cursor = await page.evaluate(() => {
+    const state = (window as Window & {
+      __chartxDrawingHoverState?: { canvas: HTMLCanvasElement };
+    }).__chartxDrawingHoverState;
+
+    if (!state) {
+      throw new Error("API drawing hover state is missing");
+    }
+
+    return state.canvas.style.cursor;
+  });
+
+  expect(cursor).toBe("move");
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

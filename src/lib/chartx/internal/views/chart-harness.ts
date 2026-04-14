@@ -921,6 +921,8 @@ export class PhaseOneChartHarness {
     title: "Price line",
   };
   private selectedDrawingId: string | null = null;
+  private hoveredDrawingId: string | null = null;
+  private hoveredDrawingHandle: DrawingDragHandle | null = null;
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private drawingDragState: DrawingDragState | null = null;
@@ -972,8 +974,16 @@ export class PhaseOneChartHarness {
       divider === null && this.dragState === null && this.crosshair !== null
         ? this.resolveHitDrawing(this.crosshair, layout, paneFrames)
         : null;
+    const hoveredHandle =
+      divider === null && this.dragState === null && this.crosshair !== null
+        ? this.resolveSelectedTrendLineDragHandle(this.crosshair, layout, paneFrames)
+        : null;
+    this.hoveredDrawingId = hoveredDrawing?.id ?? null;
+    this.hoveredDrawingHandle = hoveredHandle?.handle ?? null;
     this.canvas.style.cursor = divider === null
-      ? (this.dragState === null ? (hoveredDrawing === null ? "crosshair" : "pointer") : "grabbing")
+      ? (this.dragState === null
+        ? (hoveredHandle !== null ? "move" : hoveredDrawing === null ? "crosshair" : "pointer")
+        : "grabbing")
       : "row-resize";
     this.render(this.canvas);
   };
@@ -989,6 +999,8 @@ export class PhaseOneChartHarness {
     }
 
     this.crosshair = null;
+    this.hoveredDrawingId = null;
+    this.hoveredDrawingHandle = null;
     this.canvas.style.cursor = "default";
     this.render(this.canvas);
   };
@@ -1021,6 +1033,8 @@ export class PhaseOneChartHarness {
         this.canvas.focus({ preventScroll: true });
         this.crosshair = point;
         this.drawingDragState = hitHandle;
+        this.hoveredDrawingId = hitHandle.drawingId;
+        this.hoveredDrawingHandle = hitHandle.handle;
         this.canvas.style.cursor = "grabbing";
         this.canvas.setPointerCapture(event.pointerId);
         this.render(this.canvas);
@@ -1047,6 +1061,7 @@ export class PhaseOneChartHarness {
     this.dragState = null;
     this.drawingDragState = null;
     this.paneResizeState = null;
+    this.hoveredDrawingHandle = null;
     this.canvas.style.cursor = this.crosshair === null ? "default" : "crosshair";
   };
   private readonly handleWheel = (event: WheelEvent) => {
@@ -1180,6 +1195,8 @@ export class PhaseOneChartHarness {
     this.resizeObserver = null;
     this.canvas = null;
     this.crosshair = null;
+    this.hoveredDrawingId = null;
+    this.hoveredDrawingHandle = null;
     this.dragState = null;
     this.drawingDragState = null;
     this.paneResizeState = null;
@@ -4643,6 +4660,8 @@ export class PhaseOneChartHarness {
           this.timeScale,
           this.primaryPriceScale,
           this.selectedDrawingId,
+          this.hoveredDrawingId,
+          this.hoveredDrawingHandle,
         );
 
         for (const state of primarySources) {
@@ -4695,6 +4714,8 @@ export class PhaseOneChartHarness {
             this.timeScale,
             panePriceScale,
             this.selectedDrawingId,
+            this.hoveredDrawingId,
+            this.hoveredDrawingHandle,
           );
         }
 
@@ -5968,6 +5989,8 @@ function drawPaneDrawings(
   timeScale: TimeScale,
   priceScale: PriceScale,
   selectedDrawingId: string | null,
+  hoveredDrawingId: string | null,
+  hoveredDrawingHandle: DrawingDragHandle | null,
 ): void {
   for (const drawing of drawings) {
     if (!drawing.visible) {
@@ -6013,6 +6036,17 @@ function drawPaneDrawings(
       context.arc(startX, startY, 3.5, 0, Math.PI * 2);
       context.arc(endX, endY, 3.5, 0, Math.PI * 2);
       context.fill();
+      if (hoveredDrawingId === drawing.id && hoveredDrawingHandle !== null) {
+        const hoveredX = hoveredDrawingHandle === "start" ? startX : endX;
+        const hoveredY = hoveredDrawingHandle === "start" ? startY : endY;
+        context.fillStyle = "#fffdf7";
+        context.strokeStyle = drawing.color;
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(hoveredX, hoveredY, 6, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+      }
     }
     context.restore();
   }

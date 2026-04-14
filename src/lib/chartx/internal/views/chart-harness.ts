@@ -2512,7 +2512,7 @@ export class PhaseOneChartHarness {
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
     const current = this.getMainSourceOrThrow();
-    if (current.kind === type) {
+    if (current.chartType === type) {
       return current.api as PhaseOneMainSeriesApi;
     }
 

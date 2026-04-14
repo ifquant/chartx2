@@ -213,6 +213,20 @@ test("workbench heikin switch changes both the chart image and the main-series l
   expect(arrayBuffersEqual(candlesBuffer, heikinBuffer)).toBe(false);
 });
 
+test("workbench can switch from heikin back to candles", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const readout = workbench.locator(".readout-bar").first();
+
+  await page.getByRole("button", { name: "Heikin", exact: true }).click();
+  await expect(readout).toContainText("Heikin Ashi 1");
+
+  await page.getByRole("button", { name: "Candles", exact: true }).click();
+  await expect(readout).toContainText("Candlestick 1");
+  await expect(readout).not.toContainText("Heikin Ashi 1");
+});
+
 test("workbench exposes a drawing inspector driven by selected drawing schema", async ({
   page,
 }) => {

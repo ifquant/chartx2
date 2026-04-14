@@ -73,6 +73,7 @@ const AXIS_ACTIVE_TEXT = "#fffdf7";
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
+const DRAWING_HIT_TOLERANCE = 16;
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
@@ -147,6 +148,16 @@ export type PhaseOneTrendLineDrawingApi = {
   remove(): void;
   paneIndex(): number;
 };
+
+export type PhaseOneSelectedDrawing =
+  | {
+      id: string;
+      kind: "horizontal-line" | "trend-line";
+      paneIndex: number;
+    }
+  | null;
+
+export type PhaseOneDrawingSelectionChangeHandler = (selection: PhaseOneSelectedDrawing) => void;
 
 export type PhaseOneSeriesMarkerPosition = "aboveBar" | "belowBar" | "inBar";
 export type PhaseOneSeriesMarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
@@ -545,6 +556,10 @@ export type PhaseOneChartApi = {
     target?: PhaseOneSeriesTarget,
     options?: PhaseOneTrendLineDrawingOptions,
   ): PhaseOneTrendLineDrawingApi;
+  getSelectedDrawing(): PhaseOneSelectedDrawing;
+  clearSelectedDrawing(): void;
+  subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void;
+  unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void;
   panes(): readonly PhaseOnePaneApi[];
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
@@ -898,12 +913,14 @@ export class PhaseOneChartHarness {
     lineWidth: 1,
     title: "Price line",
   };
+  private selectedDrawingId: string | null = null;
   private manualLayout: Pick<Layout, "width" | "height"> | null = null;
   private dragState: DragState | null = null;
   private paneResizeState: PaneResizeState | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
   private readonly clickHandlers = new Set<PhaseOneClickHandler>();
+  private readonly drawingSelectionHandlers = new Set<PhaseOneDrawingSelectionChangeHandler>();
   private readonly handleResize = () => {
     if (this.canvas !== null && this.manualLayout === null) {
       this.render(this.canvas);
@@ -932,9 +949,14 @@ export class PhaseOneChartHarness {
     }
 
     const divider = resolvePaneDivider(this.panes, paneFrames, resolvePanePoint(this.canvas, event, layout)?.y ?? null);
-    this.canvas.style.cursor = divider === null ? (this.dragState === null ? "crosshair" : "grabbing") : "row-resize";
-
     this.crosshair = resolvePanePoint(this.canvas, event, layout);
+    const hoveredDrawing =
+      divider === null && this.dragState === null && this.crosshair !== null
+        ? this.resolveHitDrawing(this.crosshair, layout, paneFrames)
+        : null;
+    this.canvas.style.cursor = divider === null
+      ? (this.dragState === null ? (hoveredDrawing === null ? "crosshair" : "pointer") : "grabbing")
+      : "row-resize";
     this.render(this.canvas);
   };
   private readonly handlePointerLeave = () => {
@@ -1011,6 +1033,9 @@ export class PhaseOneChartHarness {
 
     const layout = measureLayout(this.canvas, this.manualLayout);
     const point = resolvePanePoint(this.canvas, event, layout);
+    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const hitDrawing = point === null ? null : this.resolveHitDrawing(point, layout, paneFrames);
+    this.selectDrawing(hitDrawing?.id ?? null);
     const readout = this.buildReadout(point, layout);
 
     for (const handler of this.clickHandlers) {
@@ -1105,6 +1130,7 @@ export class PhaseOneChartHarness {
     this.paneResizeState = null;
     this.crosshairMoveHandlers.clear();
     this.clickHandlers.clear();
+    this.drawingSelectionHandlers.clear();
     this.paneResizeHandlers.clear();
     this.paneEventHandlers.clear();
     this.chartTypeChangeHandlers.clear();
@@ -1572,6 +1598,22 @@ export class PhaseOneChartHarness {
     this.clickHandlers.delete(handler);
   }
 
+  public getSelectedDrawing(): PhaseOneSelectedDrawing {
+    return this.buildSelectedDrawingState();
+  }
+
+  public clearSelectedDrawing(): void {
+    this.selectDrawing(null);
+  }
+
+  public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
+    this.drawingSelectionHandlers.add(handler);
+  }
+
+  public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
+    this.drawingSelectionHandlers.delete(handler);
+  }
+
   public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
     this.paneEventHandlers.add(handler);
   }
@@ -1691,6 +1733,7 @@ export class PhaseOneChartHarness {
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
     this.applyOptions(state.options);
+    this.selectDrawing(null, false);
     this.clearRestorableChartDrawings();
     this.clearRestorableChartStudies();
     this.clearRestorableChartSeries();
@@ -3657,6 +3700,44 @@ export class PhaseOneChartHarness {
     return drawing;
   }
 
+  private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
+    return this.drawingRegistry.list().find((drawing) => drawing.id === id);
+  }
+
+  private buildSelectedDrawingState(): PhaseOneSelectedDrawing {
+    if (this.selectedDrawingId === null) {
+      return null;
+    }
+
+    const drawing = this.getDrawingById(this.selectedDrawingId);
+    if (drawing === undefined) {
+      return null;
+    }
+
+    return {
+      id: drawing.id,
+      kind: drawing.kind,
+      paneIndex: drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId),
+    };
+  }
+
+  private selectDrawing(id: string | null, shouldRender = true): void {
+    const nextId = id !== null && this.getDrawingById(id) !== undefined ? id : null;
+    if (this.selectedDrawingId === nextId) {
+      return;
+    }
+
+    this.selectedDrawingId = nextId;
+    const selection = this.buildSelectedDrawingState();
+    for (const handler of this.drawingSelectionHandlers) {
+      handler(selection);
+    }
+
+    if (shouldRender && this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
   private assertDrawingActive(api: ChartDrawingApi): void {
     if (!this.drawingRegistry.hasApi(api)) {
       throw new Error("chartx phase-one drawing has been removed");
@@ -3667,6 +3748,9 @@ export class PhaseOneChartHarness {
     const removed = this.drawingRegistry.removeByApi(api);
     if (removed === undefined) {
       throw new Error("chartx phase-one drawing has been removed");
+    }
+    if (this.selectedDrawingId === removed.id) {
+      this.selectDrawing(null, false);
     }
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -3975,6 +4059,44 @@ export class PhaseOneChartHarness {
       }
     }
     return lines;
+  }
+
+  private resolveHitDrawing(
+    point: PanePoint,
+    layout: Layout,
+    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+  ): ChartDrawingDescriptor | null {
+    const activePane = resolveActivePane(paneFrames, point.y);
+    if (activePane === null) {
+      return null;
+    }
+    const localPoint = resolveLocalPanePoint(activePane, point);
+    if (localPoint === null) {
+      return null;
+    }
+    const priceScale = activePane.kind === "primary"
+      ? this.primaryPriceScale
+      : this.secondaryPanePriceScales.get(activePane.id);
+    if (priceScale === undefined) {
+      return null;
+    }
+
+    const axisBars = this.chartContext.snapshot().barSequence.axisBars;
+    let best: { drawing: ChartDrawingDescriptor; distance: number } | null = null;
+    for (const drawing of this.drawingRegistry.listByPane(activePane.id)) {
+      if (!drawing.visible) {
+        continue;
+      }
+      const distance = drawingHitDistance(localPoint, drawing, axisBars, this.timeScale, priceScale);
+      if (distance === null || distance > DRAWING_HIT_TOLERANCE) {
+        continue;
+      }
+      if (best === null || distance < best.distance) {
+        best = { drawing, distance };
+      }
+    }
+
+    return best?.drawing ?? null;
   }
 
   private renderSeriesSource(
@@ -4344,6 +4466,7 @@ export class PhaseOneChartHarness {
           this.chartContext.snapshot().barSequence.axisBars,
           this.timeScale,
           this.primaryPriceScale,
+          this.selectedDrawingId,
         );
 
         for (const state of primarySources) {
@@ -4395,6 +4518,7 @@ export class PhaseOneChartHarness {
             this.chartContext.snapshot().barSequence.axisBars,
             this.timeScale,
             panePriceScale,
+            this.selectedDrawingId,
           );
         }
 
@@ -4565,6 +4689,18 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     addTrendLineDrawing(target, options) {
       return harness.addTrendLineDrawing(target, options);
+    },
+    getSelectedDrawing() {
+      return harness.getSelectedDrawing();
+    },
+    clearSelectedDrawing() {
+      harness.clearSelectedDrawing();
+    },
+    subscribeDrawingSelectionChange(handler) {
+      harness.subscribeDrawingSelectionChange(handler);
+    },
+    unsubscribeDrawingSelectionChange(handler) {
+      harness.unsubscribeDrawingSelectionChange(handler);
     },
     panes() {
       return harness.panesApi();
@@ -5655,6 +5791,7 @@ function drawPaneDrawings(
   axisBars: readonly { time: number; index: TimePointIndex }[],
   timeScale: TimeScale,
   priceScale: PriceScale,
+  selectedDrawingId: string | null,
 ): void {
   for (const drawing of drawings) {
     if (!drawing.visible) {
@@ -5662,6 +5799,17 @@ function drawPaneDrawings(
     }
 
     if (drawing.kind === "horizontal-line") {
+      if (selectedDrawingId === drawing.id) {
+        const y = toCoordinate(priceScale.priceToCoordinate(drawing.line.price));
+        context.save();
+        context.strokeStyle = "rgba(16, 16, 16, 0.18)";
+        context.lineWidth = drawing.line.lineWidth + 6;
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(context.canvas.width, y);
+        context.stroke();
+        context.restore();
+      }
       continue;
     }
 
@@ -5677,6 +5825,19 @@ function drawPaneDrawings(
     context.moveTo(startX, startY);
     context.lineTo(endX, endY);
     context.stroke();
+    if (selectedDrawingId === drawing.id) {
+      context.strokeStyle = "rgba(16, 16, 16, 0.18)";
+      context.lineWidth = drawing.lineWidth + 6;
+      context.beginPath();
+      context.moveTo(startX, startY);
+      context.lineTo(endX, endY);
+      context.stroke();
+      context.fillStyle = drawing.color;
+      context.beginPath();
+      context.arc(startX, startY, 3.5, 0, Math.PI * 2);
+      context.arc(endX, endY, 3.5, 0, Math.PI * 2);
+      context.fill();
+    }
     context.restore();
   }
 }
@@ -5701,6 +5862,49 @@ function resolveDrawingTimeCoordinate(
   }
 
   return timeScale.indexToCoordinate(nearest.index);
+}
+
+function drawingHitDistance(
+  point: PanePoint,
+  drawing: ChartDrawingDescriptor,
+  axisBars: readonly { time: number; index: TimePointIndex }[],
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): number | null {
+  if (drawing.kind === "horizontal-line") {
+    const y = priceScale.priceToCoordinate(drawing.line.price);
+    return y === null ? null : Math.abs(point.y - y);
+  }
+
+  const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, timeScale);
+  const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, timeScale);
+  const startY = priceScale.priceToCoordinate(drawing.startPrice);
+  const endY = priceScale.priceToCoordinate(drawing.endPrice);
+  if (startY === null || endY === null) {
+    return null;
+  }
+
+  return distanceToLineSegment(point.x, point.y, startX, startY, endX, endY);
+}
+
+function distanceToLineSegment(
+  pointX: number,
+  pointY: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number {
+  const dx = endX - startX;
+  const dy = endY - startY;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(pointX - startX, pointY - startY);
+  }
+
+  const t = clamp(((pointX - startX) * dx + (pointY - startY) * dy) / (dx * dx + dy * dy), 0, 1);
+  const projectionX = startX + dx * t;
+  const projectionY = startY + dy * t;
+  return Math.hypot(pointX - projectionX, pointY - projectionY);
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

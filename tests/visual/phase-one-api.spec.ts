@@ -3183,6 +3183,125 @@ test("phase-one chart state snapshots can restore trend-line drawings", async ({
   expect(result.restoredDrawings).toEqual(result.savedDrawings);
 });
 
+test("phase-one drawing selection can hit-test and emit selection changes", async ({ page }) => {
+  await page.goto("/");
+  const selectionState = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-drawing-selection-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-drawing-selection-canvas" aria-label="phase-one api drawing selection chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-drawing-selection-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API drawing selection fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+
+    chart.addHorizontalLineDrawing(undefined, {
+      price: 134,
+      color: "#f59e0b",
+      lineWidth: 2,
+      title: "Selectable horizontal",
+    });
+    chart.addTrendLineDrawing(undefined, {
+      startTime: bars[0]!.time,
+      startPrice: 128,
+      endTime: bars[3]!.time,
+      endPrice: 136,
+      color: "#2563eb",
+      lineWidth: 3,
+    });
+
+    const events: Array<{ kind: string | null; paneIndex: number | null }> = [];
+    const handler = (selection: { kind: string; paneIndex: number } | null) => {
+      events.push({
+        kind: selection?.kind ?? null,
+        paneIndex: selection?.paneIndex ?? null,
+      });
+    };
+    chart.subscribeDrawingSelectionChange(handler);
+
+    (window as Window & {
+      __chartxDrawingSelectionState?: {
+        canvas: HTMLCanvasElement;
+        chart: {
+          getSelectedDrawing(): { kind: string; paneIndex: number } | null;
+          clearSelectedDrawing(): void;
+          unsubscribeDrawingSelectionChange(handler: unknown): void;
+        };
+        events: Array<{ kind: string | null; paneIndex: number | null }>;
+        handler: unknown;
+      };
+    }).__chartxDrawingSelectionState = {
+      canvas,
+      chart,
+      events,
+      handler,
+    };
+
+    const clickLocal = (localX: number, localY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new MouseEvent("click", {
+        bubbles: true,
+        clientX: rect.left + localX,
+        clientY: rect.top + localY,
+      }));
+    };
+
+    const left = 18;
+    const top = 28;
+    const right = 18;
+    const bottom = 34;
+    const paneWidth = canvas.width - left - right;
+    const paneHeight = canvas.height - top - bottom;
+    const horizontalY = top + ((140 - 134) / (140 - 118)) * paneHeight;
+    clickLocal(left + paneWidth * 0.3, horizontalY);
+
+    let trendHit = false;
+    for (let x = left + 120; x <= left + paneWidth - 40 && !trendHit; x += 8) {
+      for (let y = top + 30; y <= top + paneHeight - 20 && !trendHit; y += 8) {
+        clickLocal(x, y);
+        if (chart.getSelectedDrawing()?.kind === "trend-line") {
+          trendHit = true;
+        }
+      }
+    }
+
+    const selectedBeforeClear = chart.getSelectedDrawing();
+    chart.clearSelectedDrawing();
+    const selectedAfterClear = chart.getSelectedDrawing();
+    const countBeforeUnsubscribe = events.length;
+    chart.unsubscribeDrawingSelectionChange(handler);
+    clickLocal(left + paneWidth * 0.3, horizontalY);
+    const countAfterUnsubscribe = events.length;
+
+    return {
+      trendHit,
+      selectedBeforeClear,
+      selectedAfterClear,
+      events,
+      countBeforeUnsubscribe,
+      countAfterUnsubscribe,
+    };
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(selectionState.events).toContainEqual({ kind: "horizontal-line", paneIndex: 0 });
+  expect(selectionState.events).toContainEqual({ kind: "trend-line", paneIndex: 0 });
+  expect(selectionState.trendHit).toBe(true);
+  expect(selectionState.selectedBeforeClear).toEqual({ kind: "trend-line", paneIndex: 0, id: expect.any(String) });
+  expect(selectionState.selectedAfterClear).toBeNull();
+  expect(selectionState.countAfterUnsubscribe).toBe(selectionState.countBeforeUnsubscribe);
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

@@ -5336,6 +5336,72 @@ test("phase-one trend-line can override chart-level time magnet policy", async (
   expect(times).toContain(setup.expectedTime);
 });
 
+test("phase-one chart state snapshots preserve horizontal-line drawing properties", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ bars, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-horizontal-line-drawing-state-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-horizontal-line-drawing-state-canvas" aria-label="phase-one api horizontal-line drawing state chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-horizontal-line-drawing-state-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API horizontal-line drawing-state fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    mainSeries.setData(bars);
+    chart.addHorizontalLineDrawing(undefined, {
+      price: 132,
+      color: "#9333ea",
+      lineWidth: 2,
+      title: "Mag HL",
+      magnetEnabled: true,
+      magnetTolerancePx: 999,
+      timeMagnetEnabled: true,
+      timeMagnetPolicy: "previous",
+      timeMagnetTolerancePx: 999,
+      magnetSources: {
+        open: false,
+        high: true,
+        low: false,
+        close: false,
+      },
+    });
+
+    const saved = chart.getChartState();
+    chart.applyChartState({
+      ...saved,
+      drawings: [],
+    });
+    chart.applyChartState(saved);
+
+    return chart.getChartState().drawings.find((entry: { type: string }) => entry.type === "horizontal-line");
+  }, {
+    bars: API_DATA,
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result?.options.price).toBe(132);
+  expect(result?.options.color).toBe("#9333ea");
+  expect(result?.options.title).toBe("Mag HL");
+  expect(result?.options.magnetEnabled).toBe(true);
+  expect(result?.options.magnetTolerancePx).toBe(999);
+  expect(result?.options.timeMagnetEnabled).toBe(true);
+  expect(result?.options.timeMagnetPolicy).toBe("previous");
+  expect(result?.options.timeMagnetTolerancePx).toBe(999);
+  expect(result?.options.magnetSources).toEqual({
+    open: false,
+    high: true,
+    low: false,
+    close: false,
+  });
+});
+
 test("phase-one chart state snapshots can restore managed secondary series", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, line, histogram, volume, publicEntry }) => {

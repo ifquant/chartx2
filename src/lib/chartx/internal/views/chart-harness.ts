@@ -126,7 +126,21 @@ export type PhaseOnePriceLineApi = {
   remove(): void;
 };
 
-export type PhaseOneHorizontalLineDrawingOptions = PhaseOnePriceLineOptions & {
+export type PhaseOneDrawingMagnetOverrides = {
+  magnetEnabled?: boolean;
+  magnetTolerancePx?: number;
+  timeMagnetEnabled?: boolean;
+  timeMagnetPolicy?: "nearest" | "previous" | "next";
+  timeMagnetTolerancePx?: number;
+  magnetSources?: {
+    open?: boolean;
+    high?: boolean;
+    low?: boolean;
+    close?: boolean;
+  };
+};
+
+export type PhaseOneHorizontalLineDrawingOptions = PhaseOnePriceLineOptions & PhaseOneDrawingMagnetOverrides & {
   visible?: boolean;
 };
 
@@ -144,18 +158,7 @@ export type PhaseOneTrendLineDrawingOptions = {
   color?: string;
   lineWidth?: number;
   visible?: boolean;
-  magnetEnabled?: boolean;
-  magnetTolerancePx?: number;
-  timeMagnetEnabled?: boolean;
-  timeMagnetPolicy?: "nearest" | "previous" | "next";
-  timeMagnetTolerancePx?: number;
-  magnetSources?: {
-    open?: boolean;
-    high?: boolean;
-    low?: boolean;
-    close?: boolean;
-  };
-};
+} & PhaseOneDrawingMagnetOverrides;
 
 export type PhaseOneTrendLineDrawingApi = {
   applyOptions(options: PhaseOneTrendLineDrawingOptions): void;
@@ -241,6 +244,15 @@ type RequiredDrawingOptions = {
   timeMagnetLabelVisible: boolean;
   timeMagnetTolerancePx: number;
   magnetSources: RequiredDrawingMagnetSources;
+};
+
+type DrawingMagnetOverrideState = {
+  magnetEnabled?: boolean;
+  magnetTolerancePx?: number;
+  timeMagnetEnabled?: boolean;
+  timeMagnetPolicy?: "nearest" | "previous" | "next";
+  timeMagnetTolerancePx?: number;
+  magnetSources?: Partial<RequiredDrawingMagnetSources>;
 };
 
 export type PhaseOneCandlestickSeriesOptions = {
@@ -712,7 +724,7 @@ type ChartDrawingKind = "horizontal-line" | "trend-line";
 type HorizontalLineDrawingState = {
   kind: "horizontal-line";
   line: PriceLineState;
-};
+} & DrawingMagnetOverrideState;
 
 type TrendLineDrawingState = {
   kind: "trend-line";
@@ -722,13 +734,7 @@ type TrendLineDrawingState = {
   endPrice: number;
   color: string;
   lineWidth: number;
-  magnetEnabled?: boolean;
-  magnetTolerancePx?: number;
-  timeMagnetEnabled?: boolean;
-  timeMagnetPolicy?: "nearest" | "previous" | "next";
-  timeMagnetTolerancePx?: number;
-  magnetSources?: Partial<RequiredDrawingMagnetSources>;
-};
+} & DrawingMagnetOverrideState;
 
 type ChartDrawingApi = PhaseOneHorizontalLineDrawingApi | PhaseOneTrendLineDrawingApi;
 
@@ -2015,6 +2021,7 @@ export class PhaseOneChartHarness {
   private buildChartDrawingStateSnapshots(): PhaseOneChartStateSnapshot["drawings"] {
     return this.drawingRegistry.list().map((drawing) => {
       if (drawing.kind === "horizontal-line") {
+        const magnetOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
         return {
           type: "horizontal-line" as const,
           paneIndex: this.getPaneIndex(drawing.paneId),
@@ -2024,11 +2031,17 @@ export class PhaseOneChartHarness {
             lineWidth: drawing.line.lineWidth,
             title: drawing.line.title,
             visible: drawing.visible,
+            magnetEnabled: magnetOptions.magnetEnabled,
+            magnetTolerancePx: magnetOptions.magnetTolerancePx,
+            timeMagnetEnabled: magnetOptions.timeMagnetEnabled,
+            timeMagnetPolicy: magnetOptions.timeMagnetPolicy,
+            timeMagnetTolerancePx: magnetOptions.timeMagnetTolerancePx,
+            magnetSources: { ...magnetOptions.magnetSources },
           },
         };
       }
 
-      const magnetOptions = resolveTrendLineDrawingMagnetOptions(drawing, this.drawingOptions);
+      const magnetOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
       return {
         type: "trend-line" as const,
         paneIndex: this.getPaneIndex(drawing.paneId),
@@ -3709,6 +3722,7 @@ export class PhaseOneChartHarness {
       ...options,
       title: options.title ?? meta.title,
     });
+    const magnetState = normalizeDrawingMagnetOverrideOptions(options);
 
     const api: PhaseOneHorizontalLineDrawingApi = {
       applyOptions: (nextOptions) => {
@@ -3729,6 +3743,7 @@ export class PhaseOneChartHarness {
         if (nextOptions.title !== undefined) {
           drawing.line.title = nextOptions.title;
         }
+        applyDrawingMagnetOverrideOptions(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }
@@ -3752,6 +3767,7 @@ export class PhaseOneChartHarness {
       visible: options.visible ?? true,
       api,
       line,
+      ...magnetState,
     });
 
     if (this.canvas !== null) {
@@ -3771,6 +3787,7 @@ export class PhaseOneChartHarness {
     }
     const meta = this.createDrawingMeta("trend-line");
     const defaults = this.resolveTrendLineDefaults();
+    const magnetState = normalizeDrawingMagnetOverrideOptions(options);
     const state = {
       startTime: options.startTime ?? defaults.startTime,
       startPrice: options.startPrice ?? defaults.startPrice,
@@ -3778,12 +3795,7 @@ export class PhaseOneChartHarness {
       endPrice: options.endPrice ?? defaults.endPrice,
       color: options.color ?? LINE_COLOR,
       lineWidth: Math.max(1, options.lineWidth ?? 2),
-      magnetEnabled: options.magnetEnabled,
-      magnetTolerancePx: options.magnetTolerancePx !== undefined ? Math.max(0, options.magnetTolerancePx) : undefined,
-      timeMagnetEnabled: options.timeMagnetEnabled,
-      timeMagnetPolicy: options.timeMagnetPolicy,
-      timeMagnetTolerancePx: options.timeMagnetTolerancePx !== undefined ? Math.max(0, options.timeMagnetTolerancePx) : undefined,
-      magnetSources: options.magnetSources !== undefined ? { ...options.magnetSources } : undefined,
+      ...magnetState,
     };
 
     const api: PhaseOneTrendLineDrawingApi = {
@@ -3811,27 +3823,7 @@ export class PhaseOneChartHarness {
         if (nextOptions.lineWidth !== undefined) {
           drawing.lineWidth = Math.max(1, nextOptions.lineWidth);
         }
-        if (nextOptions.magnetEnabled !== undefined) {
-          drawing.magnetEnabled = nextOptions.magnetEnabled;
-        }
-        if (nextOptions.magnetTolerancePx !== undefined) {
-          drawing.magnetTolerancePx = Math.max(0, nextOptions.magnetTolerancePx);
-        }
-        if (nextOptions.timeMagnetEnabled !== undefined) {
-          drawing.timeMagnetEnabled = nextOptions.timeMagnetEnabled;
-        }
-        if (nextOptions.timeMagnetPolicy !== undefined) {
-          drawing.timeMagnetPolicy = nextOptions.timeMagnetPolicy;
-        }
-        if (nextOptions.timeMagnetTolerancePx !== undefined) {
-          drawing.timeMagnetTolerancePx = Math.max(0, nextOptions.timeMagnetTolerancePx);
-        }
-        if (nextOptions.magnetSources !== undefined) {
-          drawing.magnetSources = {
-            ...(drawing.magnetSources ?? {}),
-            ...nextOptions.magnetSources,
-          };
-        }
+        applyDrawingMagnetOverrideOptions(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }
@@ -4456,7 +4448,7 @@ export class PhaseOneChartHarness {
     if (priceScale === undefined) {
       return;
     }
-    const drawingOptions = resolveTrendLineDrawingMagnetOptions(drawing, this.drawingOptions);
+    const drawingOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
 
     const nextTime = resolveSnappedDrawingTime(
       localPoint.x,
@@ -6453,8 +6445,48 @@ function resolveSnappedDrawingTime(
   };
 }
 
-function resolveTrendLineDrawingMagnetOptions(
-  drawing: TrendLineDrawingDescriptor,
+function normalizeDrawingMagnetOverrideOptions(
+  options: PhaseOneDrawingMagnetOverrides,
+): DrawingMagnetOverrideState {
+  return {
+    magnetEnabled: options.magnetEnabled,
+    magnetTolerancePx: options.magnetTolerancePx !== undefined ? Math.max(0, options.magnetTolerancePx) : undefined,
+    timeMagnetEnabled: options.timeMagnetEnabled,
+    timeMagnetPolicy: options.timeMagnetPolicy,
+    timeMagnetTolerancePx: options.timeMagnetTolerancePx !== undefined ? Math.max(0, options.timeMagnetTolerancePx) : undefined,
+    magnetSources: options.magnetSources !== undefined ? { ...options.magnetSources } : undefined,
+  };
+}
+
+function applyDrawingMagnetOverrideOptions(
+  drawing: ChartDrawingDescriptor,
+  options: PhaseOneDrawingMagnetOverrides,
+): void {
+  if (options.magnetEnabled !== undefined) {
+    drawing.magnetEnabled = options.magnetEnabled;
+  }
+  if (options.magnetTolerancePx !== undefined) {
+    drawing.magnetTolerancePx = Math.max(0, options.magnetTolerancePx);
+  }
+  if (options.timeMagnetEnabled !== undefined) {
+    drawing.timeMagnetEnabled = options.timeMagnetEnabled;
+  }
+  if (options.timeMagnetPolicy !== undefined) {
+    drawing.timeMagnetPolicy = options.timeMagnetPolicy;
+  }
+  if (options.timeMagnetTolerancePx !== undefined) {
+    drawing.timeMagnetTolerancePx = Math.max(0, options.timeMagnetTolerancePx);
+  }
+  if (options.magnetSources !== undefined) {
+    drawing.magnetSources = {
+      ...(drawing.magnetSources ?? {}),
+      ...options.magnetSources,
+    };
+  }
+}
+
+function resolveDrawingMagnetOptions(
+  drawing: ChartDrawingDescriptor,
   chartOptions: RequiredDrawingOptions,
 ): RequiredDrawingOptions {
   return {

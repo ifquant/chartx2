@@ -73,6 +73,46 @@ function inferRenkoBoxSize(data: readonly MainSeriesBuilderDataPoint[]): number 
   return Math.max(totalDelta / (data.length - 1), Number.EPSILON);
 }
 
+export function inferPointFigureBoxSize(
+  data: readonly MainSeriesBuilderDataPoint[],
+  reversalBoxes = 3,
+): number {
+  if (data.length < 2) {
+    return 1;
+  }
+
+  let minLow = data[0]?.low ?? data[0]?.close ?? 0;
+  let maxHigh = data[0]?.high ?? data[0]?.close ?? 0;
+  let totalDelta = 0;
+  let totalRange = 0;
+
+  for (let index = 0; index < data.length; index += 1) {
+    const bar = data[index];
+    minLow = Math.min(minLow, bar.low);
+    maxHigh = Math.max(maxHigh, bar.high);
+    totalRange += Math.max(bar.high - bar.low, Math.abs(bar.close - bar.open));
+    if (index > 0) {
+      totalDelta += Math.abs(bar.close - data[index - 1].close);
+    }
+  }
+
+  const averageDelta = totalDelta / (data.length - 1);
+  const averageRange = totalRange / data.length;
+  const priceRange = Math.max(maxHigh - minLow, Number.EPSILON);
+  const targetColumns = Math.min(30, Math.max(16, Math.round(Math.sqrt(data.length) * 2.4)));
+  const targetBoxesPerColumn = Math.min(9, Math.max(5, reversalBoxes + 3));
+  const rangeDrivenBox = priceRange / Math.max(targetColumns + targetBoxesPerColumn, 1);
+  const deltaDrivenBox = averageDelta * 0.85;
+  const rangeVolatilityBox = averageRange * 0.6;
+  const inferred = Math.max(
+    Math.min(rangeDrivenBox, rangeVolatilityBox),
+    deltaDrivenBox,
+    Number.EPSILON,
+  );
+
+  return Math.max(1, Math.round(inferred));
+}
+
 export function buildRenkoData(
   data: readonly MainSeriesBuilderDataPoint[],
   options: RenkoStyleOptionsState = { boxSize: null, boxSizeMode: "auto" },
@@ -187,7 +227,7 @@ export function buildPointFigureData(
     return [];
   }
 
-  const inferredBoxSize = inferRenkoBoxSize(data);
+  const inferredBoxSize = inferPointFigureBoxSize(data, options.reversalBoxes);
   const boxSize =
     options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
       ? options.boxSize

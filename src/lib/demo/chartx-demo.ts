@@ -1,5 +1,6 @@
 import {
   createChartxPhaseOneChart,
+  inferPointFigureBoxSize,
   type PhaseOneCandlestickData,
   type PhaseOneCandlestickSeriesApi,
   type PhaseOneChartApi,
@@ -19,6 +20,9 @@ import {
   type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
 } from "$lib/chartx/public";
+import { createDirectionColumnPriceBasedChartBarSequence } from "$lib/chartx/internal/model/chart-bar-sequence";
+import { buildPointFigureData } from "$lib/chartx/internal/model/main-series-builders";
+import { createPlotRows } from "$lib/chartx/internal/model/series-data";
 
 export type DemoTabId = "workbench" | "features";
 export type FeatureTabId =
@@ -187,9 +191,9 @@ export function mountWorkbenchDemo(
   let mainChartType: WorkbenchMainChartType = "candlestick";
   let renkoMode: WorkbenchRenkoMode = "auto";
   let renkoFixedBoxSize = 4;
-  let pointFigureMode: WorkbenchPointFigureMode = "fixed";
-  let pointFigureFixedBoxSize = 360;
-  let pointFigureReversalBoxes = 5;
+  let pointFigureMode: WorkbenchPointFigureMode = "auto";
+  let pointFigureFixedBoxSize = 120;
+  let pointFigureReversalBoxes = 3;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let drawingTool: WorkbenchDrawingTool = "none";
@@ -203,7 +207,7 @@ export function mountWorkbenchDemo(
   const workbenchSeries = (chartType: WorkbenchMainChartType) => {
     const bars =
       chartType === "point-figure"
-        ? createPointFigureWorkbenchBars(96)
+        ? createPointFigureWorkbenchBars(160)
         : createWorkbenchBars(10_000);
     return {
       bars,
@@ -217,6 +221,12 @@ export function mountWorkbenchDemo(
   const publishSnapshot = () => {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
     const visiblePrice = chart?.priceScale().getVisibleRange() ?? null;
+    const pointFigureBars =
+      mainChartType === "point-figure"
+        ? workbenchSeries("point-figure").bars
+        : null;
+    const inferredPointFigureBoxSize =
+      pointFigureBars === null ? null : inferPointFigureBoxSize(pointFigureBars, pointFigureReversalBoxes);
 
     publish({
       title: "Workbench",
@@ -236,7 +246,7 @@ export function mountWorkbenchDemo(
               label: "P&F",
               value:
                 pointFigureMode === "auto"
-                  ? `Auto box · ${pointFigureReversalBoxes} rev`
+                  ? `Auto ${inferredPointFigureBoxSize ?? "--"} pts · ${pointFigureReversalBoxes} rev`
                   : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
             }]
           : []),
@@ -292,11 +302,41 @@ export function mountWorkbenchDemo(
       visibleTrendStartBar,
       visibleTrendEndBar,
     } = workbenchSeries(mainChartType);
+    const suppressSecondaryPanes = mainChartType === "point-figure";
+    const pointFigureRows =
+      mainChartType === "point-figure"
+        ? buildPointFigureData(bars, {
+            boxSizeMode: pointFigureMode,
+            boxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
+            reversalBoxes: pointFigureReversalBoxes,
+          })
+        : null;
+    const pointFigureLogicalLength =
+      pointFigureRows === null
+        ? null
+        : createDirectionColumnPriceBasedChartBarSequence(createPlotRows(pointFigureRows)).logicalLength;
+    const effectiveBarSpacing =
+      mainChartType === "point-figure"
+        ? Math.max(
+            22,
+            Math.min(
+              46,
+              Math.floor(
+                (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
+                  Math.max((pointFigureLogicalLength ?? 1) + 1, 1),
+              ),
+            ),
+          )
+        : barSpacing;
+    const effectiveRightOffset = mainChartType === "point-figure" ? Math.min(rightOffset, 0.1) : rightOffset;
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
     chart.applyOptions(theme === "warm" ? warmChartOptions() : inkChartOptions());
-    chart.timeScale().applyOptions({ barSpacing, rightOffset });
+    chart.timeScale().applyOptions({
+      rightOffset: effectiveRightOffset,
+      barSpacing: effectiveBarSpacing,
+    });
     teardownChartTypeSubscription?.();
     const handleChartTypeChange: PhaseOneChartTypeChangeHandler = (type) => {
       if (type !== "histogram") {
@@ -387,13 +427,13 @@ export function mountWorkbenchDemo(
       mainSeries.setData(line);
     }
 
-    {
+    if (!suppressSecondaryPanes) {
       const volumePane = chart.addPane({ height: 126 });
       const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
       volumeSeries.setData(volume);
     }
 
-    if (studyPaneEnabled) {
+    if (!suppressSecondaryPanes && studyPaneEnabled) {
       const studyPane = chart.addPane({ height: 126 });
       const studySeries = chart.addLineSeries({ pane: studyPane });
       studySeries.applyOptions({
@@ -407,25 +447,27 @@ export function mountWorkbenchDemo(
       chart.addPane({ height: 88, resizable: true });
     }
 
-    chart.addHorizontalLineDrawing(undefined, {
-      price: 16_940,
-      title: "Swing low",
-      color: theme === "warm" ? "#9333ea" : "#7c3aed",
-      lineWidth: 2,
-      magnetEnabled: true,
-      timeMagnetPolicy: "previous",
-    });
-    chart.addTrendLineDrawing(undefined, {
-      startTime: visibleTrendStartBar.time,
-      startPrice: visibleTrendStartBar.low - 18,
-      endTime: visibleTrendEndBar.time,
-      endPrice: visibleTrendEndBar.high + 14,
-      color: theme === "warm" ? "#ea580c" : "#2563eb",
-      lineWidth: 3,
-      magnetEnabled: true,
-      timeMagnetEnabled: true,
-      timeMagnetPolicy: "nearest",
-    });
+    if (!suppressSecondaryPanes) {
+      chart.addHorizontalLineDrawing(undefined, {
+        price: 16_940,
+        title: "Swing low",
+        color: theme === "warm" ? "#9333ea" : "#7c3aed",
+        lineWidth: 2,
+        magnetEnabled: true,
+        timeMagnetPolicy: "previous",
+      });
+      chart.addTrendLineDrawing(undefined, {
+        startTime: visibleTrendStartBar.time,
+        startPrice: visibleTrendStartBar.low - 18,
+        endTime: visibleTrendEndBar.time,
+        endPrice: visibleTrendEndBar.high + 14,
+        color: theme === "warm" ? "#ea580c" : "#2563eb",
+        lineWidth: 3,
+        magnetEnabled: true,
+        timeMagnetEnabled: true,
+        timeMagnetPolicy: "nearest",
+      });
+    }
 
     chart.subscribeCrosshairMove((event) => {
       latestReadout = event;
@@ -655,22 +697,22 @@ export function mountWorkbenchDemo(
                 active: pointFigureMode === "auto",
               },
               {
+                id: "point-figure-box-80",
+                label: "Box 80",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 80,
+              },
+              {
+                id: "point-figure-box-120",
+                label: "Box 120",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 120,
+              },
+              {
                 id: "point-figure-box-180",
                 label: "Box 180",
                 group: "point-figure-option" as const,
                 active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 180,
-              },
-              {
-                id: "point-figure-box-360",
-                label: "Box 360",
-                group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 360,
-              },
-              {
-                id: "point-figure-box-720",
-                label: "Box 720",
-                group: "point-figure-option" as const,
-                active: pointFigureMode === "fixed" && pointFigureFixedBoxSize === 720,
               },
             ]
           : []),
@@ -729,32 +771,32 @@ export function mountWorkbenchDemo(
           });
           publishSnapshot();
           return;
+        case "point-figure-box-80":
+          pointFigureMode = "fixed";
+          pointFigureFixedBoxSize = 80;
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: 80,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
+        case "point-figure-box-120":
+          pointFigureMode = "fixed";
+          pointFigureFixedBoxSize = 120;
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: 120,
+            pointFigureReversalBoxes,
+          });
+          publishSnapshot();
+          return;
         case "point-figure-box-180":
           pointFigureMode = "fixed";
           pointFigureFixedBoxSize = 180;
           chart.setChartType("point-figure").applyOptions({
             pointFigureBoxSizeMode: "fixed",
             pointFigureBoxSize: 180,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
-          return;
-        case "point-figure-box-360":
-          pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 360;
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 360,
-            pointFigureReversalBoxes,
-          });
-          publishSnapshot();
-          return;
-        case "point-figure-box-720":
-          pointFigureMode = "fixed";
-          pointFigureFixedBoxSize = 720;
-          chart.setChartType("point-figure").applyOptions({
-            pointFigureBoxSizeMode: "fixed",
-            pointFigureBoxSize: 720,
             pointFigureReversalBoxes,
           });
           publishSnapshot();
@@ -1778,10 +1820,10 @@ function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
 function createPointFigureWorkbenchBars(count: number): PhaseOneCandlestickData[] {
   const bars: PhaseOneCandlestickData[] = [];
   let close = 16_860;
-  const drifts = [84, 42, -76, -28, 96, 38, -88, -34] as const;
+  const drifts = [96, -72, 88, -64, 92, -68, 84, -60] as const;
 
   for (let index = 0; index < count; index += 1) {
-    const regimeDrift = drifts[Math.floor(index / 12) % drifts.length] ?? 48;
+    const regimeDrift = drifts[Math.floor(index / 8) % drifts.length] ?? 48;
     const openGap = Math.sin(index / 10.5) * 4 + Math.cos(index / 8.2) * 3;
     const body = regimeDrift + Math.sin(index / 6.6) * 10 + Math.cos(index / 12.4) * 8;
     const open = close + openGap;

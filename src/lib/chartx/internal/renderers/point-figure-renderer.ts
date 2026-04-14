@@ -19,19 +19,19 @@ export class PointFigureRenderer {
     context: CanvasRenderingContext2D,
     data: PointFigureRendererData,
   ): void {
-    const size = Math.max(6, Math.floor(data.barWidth));
-    const half = size / 2;
-
     context.save();
-    context.lineWidth = Math.max(1.25, Math.floor(size / 5));
     context.lineCap = "round";
 
     for (const item of data.items) {
       const top = Math.min(item.openY, item.closeY);
       const bottom = Math.max(item.openY, item.closeY);
       const centerY = (top + bottom) / 2;
+      const cellHeight = Math.max(6, Math.abs(bottom - top));
+      const size = Math.max(6, Math.min(18, Math.floor(Math.min(data.barWidth * 0.6, cellHeight * 0.78))));
+      const half = size / 2;
       const x = Math.round(item.x) + 0.5;
       const y = Math.round(centerY) + 0.5;
+      context.lineWidth = Math.max(1.25, Math.min(3.5, size / 5.5));
 
       if (item.isUp) {
         context.strokeStyle = data.upColor;

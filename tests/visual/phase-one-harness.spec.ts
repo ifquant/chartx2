@@ -194,14 +194,14 @@ test("workbench surfaces renko builder controls when the main chart switches to 
   await expect(workbench).toContainText("Fixed 2");
 });
 
-test("workbench point-figure opens with a larger default box size", async ({ page }) => {
+test("workbench point-figure opens with a readable auto box size", async ({ page }) => {
   await page.goto("/");
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   const frame = workbench.locator(".chart-frame");
   await page.getByRole("button", { name: "P&F", exact: true }).click();
 
-  await expect(workbench).toContainText("Fixed 360 pts");
+  await expect(workbench).toContainText("P&F Auto");
   await expect(frame).toHaveScreenshot("phase-one-harness-point-figure-readable.png");
 });
 

@@ -2,6 +2,9 @@ import {
   getEngineBoundarySummary,
   type EngineBoundarySummary,
 } from "../internal/foundation";
+import {
+  inferPointFigureBoxSize,
+} from "../internal/model";
 import type {
   PhaseOneMainChartType,
   PhaseOneMainSeriesBuilder,
@@ -166,3 +169,5 @@ export function mountChartxPhaseOneHarness(canvas: HTMLCanvasElement): () => voi
 export function createChartxPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {
   return createPhaseOneChart(canvas);
 }
+
+export { inferPointFigureBoxSize };

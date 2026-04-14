@@ -68,6 +68,7 @@
   let featureError = "";
   let teardownWorkbenchReadout: (() => void) | null = null;
   let teardownFeatureReadout: (() => void) | null = null;
+  let workbenchInspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
 
   onMount(() => {
     void tick().then(() => {
@@ -138,6 +139,7 @@
     teardownWorkbench();
     workbenchError = "";
     workbenchReadout = emptyReadout();
+    workbenchInspectorErrors = {};
 
     if (!workbenchCanvas) {
       return;
@@ -244,6 +246,24 @@
     return (options[field] as string | number | boolean | undefined) ?? "";
   }
 
+  function selectedDrawingFieldSchema(
+    field: PhaseOneDrawingPropertyField,
+  ): PhaseOneDrawingPropertyFieldSchema | null {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return null;
+    }
+
+    for (const section of selected.schema.sections) {
+      const match = section.fields.find((entry) => entry.key === field);
+      if (match !== undefined) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
   function updateSelectedDrawingField(
     field: PhaseOneDrawingPropertyField,
     control: PhaseOneDrawingPropertyFieldSchema["control"],
@@ -258,17 +278,51 @@
       return;
     }
 
+    const fieldSchema = selectedDrawingFieldSchema(field);
     let nextValue: string | number | boolean;
     if (control === "toggle") {
       nextValue = (target as HTMLInputElement).checked;
     } else if (control === "number" || control === "time") {
       const parsed = Number(target.value);
       if (!Number.isFinite(parsed)) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: "Enter a valid number.",
+        };
+        return;
+      }
+      if (fieldSchema?.min !== undefined && parsed < fieldSchema.min) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: `Must be at least ${fieldSchema.min}.`,
+        };
+        return;
+      }
+      if (fieldSchema?.max !== undefined && parsed > fieldSchema.max) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: `Must be at most ${fieldSchema.max}.`,
+        };
         return;
       }
       nextValue = parsed;
     } else {
       nextValue = target.value;
+      if (fieldSchema?.required && String(nextValue).trim().length === 0) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: "This field is required.",
+        };
+        return;
+      }
+    }
+
+    if (fieldSchema?.options !== undefined && !fieldSchema.options.some((option) => option.value === String(nextValue))) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        [field]: "Select a valid option.",
+      };
+      return;
     }
 
     const nextOptions: Record<string, unknown> = field.startsWith("magnetSources.")
@@ -279,10 +333,17 @@
         }
       : { [field]: nextValue };
 
+    workbenchInspectorErrors = {
+      ...workbenchInspectorErrors,
+      [field]: undefined,
+    };
     workbenchController?.applySelectedDrawingOptions?.(nextOptions);
   }
 
   $: activeSnapshot = activeTopTab === "workbench" ? workbenchSnapshot : featureSnapshot;
+  $: if (activeTopTab === "workbench" && workbenchSnapshot.selectedDrawing == null && Object.keys(workbenchInspectorErrors).length > 0) {
+    workbenchInspectorErrors = {};
+  }
   $: activeFeatureSummary =
     activeTopTab === "workbench" ? null : featureDescriptor(activeTopTab);
   $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
@@ -506,9 +567,9 @@
                                   value={String(selectedDrawingFieldValue(field.key))}
                                   on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
                                 >
-                                  <option value="nearest">nearest</option>
-                                  <option value="previous">previous</option>
-                                  <option value="next">next</option>
+                                  {#each field.options ?? [] as option}
+                                    <option value={option.value}>{option.label}</option>
+                                  {/each}
                                 </select>
                               {:else if field.control === "color"}
                                 <input
@@ -520,15 +581,21 @@
                                 <input
                                   type="text"
                                   value={String(selectedDrawingFieldValue(field.key))}
+                                  required={field.required ?? false}
                                   on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
                                 />
                               {:else}
                                 <input
                                   type="number"
-                                  step={field.control === "time" ? "60000" : "1"}
+                                  min={field.min}
+                                  max={field.max}
+                                  step={field.step ?? (field.control === "time" ? "60000" : "1")}
                                   value={String(selectedDrawingFieldValue(field.key))}
                                   on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
                                 />
+                              {/if}
+                              {#if workbenchInspectorErrors[field.key]}
+                                <small class="inspector-field-error">{workbenchInspectorErrors[field.key]}</small>
                               {/if}
                             </label>
                           {/each}
@@ -1388,6 +1455,13 @@
   .inspector-field input[type="checkbox"] {
     width: 16px;
     height: 16px;
+  }
+
+  .inspector-field-error {
+    grid-column: 1 / -1;
+    color: #9f2f1c;
+    font-size: 0.72rem;
+    line-height: 1.35;
   }
 
   .pane-list {

@@ -210,6 +210,11 @@ test("workbench exposes a drawing inspector driven by selected drawing schema", 
   await expect(inspector).toContainText("Appearance");
   await expect(inspector).toContainText("Geometry");
   await expect(inspector).toContainText("Magnet");
+
+  const lineWidthInput = inspector.locator('input[type="number"][min="1"]').first();
+  await lineWidthInput.fill("0");
+  await lineWidthInput.dispatchEvent("change");
+  await expect(inspector).toContainText("Must be at least 1.");
 });
 
 test("features renders the panes tab as a deterministic grouped example baseline", async ({

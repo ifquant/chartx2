@@ -614,6 +614,11 @@ export type PhaseOneDrawingPropertyFieldSchema = {
     | "toggle"
     | "select"
     | "time";
+  required?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: ReadonlyArray<{ value: string; label: string }>;
 };
 export type PhaseOneDrawingPropertySectionSchema = {
   id: PhaseOneDrawingPropertySectionId;
@@ -638,10 +643,19 @@ export function normalizePhaseOneChartTemplate(
 
 const COMMON_DRAWING_MAGNET_PROPERTY_FIELDS = [
   { key: "magnetEnabled", label: "Price Magnet", control: "toggle" },
-  { key: "magnetTolerancePx", label: "Price Magnet Tolerance", control: "number" },
+  { key: "magnetTolerancePx", label: "Price Magnet Tolerance", control: "number", min: 0, step: 1 },
   { key: "timeMagnetEnabled", label: "Time Magnet", control: "toggle" },
-  { key: "timeMagnetPolicy", label: "Time Magnet Policy", control: "select" },
-  { key: "timeMagnetTolerancePx", label: "Time Magnet Tolerance", control: "number" },
+  {
+    key: "timeMagnetPolicy",
+    label: "Time Magnet Policy",
+    control: "select",
+    options: [
+      { value: "nearest", label: "nearest" },
+      { value: "previous", label: "previous" },
+      { value: "next", label: "next" },
+    ],
+  },
+  { key: "timeMagnetTolerancePx", label: "Time Magnet Tolerance", control: "number", min: 0, step: 1 },
   { key: "magnetSources.open", label: "Snap Open", control: "toggle" },
   { key: "magnetSources.high", label: "Snap High", control: "toggle" },
   { key: "magnetSources.low", label: "Snap Low", control: "toggle" },
@@ -659,16 +673,16 @@ const DRAWING_PROPERTY_SCHEMAS: Record<
         id: "appearance",
         label: "Appearance",
         fields: [
-          { key: "title", label: "Title", control: "text" },
+          { key: "title", label: "Title", control: "text", required: true },
           { key: "color", label: "Color", control: "color" },
-          { key: "lineWidth", label: "Line Width", control: "number" },
+          { key: "lineWidth", label: "Line Width", control: "number", min: 1, step: 1 },
           { key: "visible", label: "Visible", control: "toggle" },
         ],
       },
       {
         id: "geometry",
         label: "Geometry",
-        fields: [{ key: "price", label: "Price", control: "number" }],
+        fields: [{ key: "price", label: "Price", control: "number", step: 0.01 }],
       },
       {
         id: "magnet",
@@ -685,7 +699,7 @@ const DRAWING_PROPERTY_SCHEMAS: Record<
         label: "Appearance",
         fields: [
           { key: "color", label: "Color", control: "color" },
-          { key: "lineWidth", label: "Line Width", control: "number" },
+          { key: "lineWidth", label: "Line Width", control: "number", min: 1, step: 1 },
           { key: "visible", label: "Visible", control: "toggle" },
         ],
       },
@@ -693,10 +707,10 @@ const DRAWING_PROPERTY_SCHEMAS: Record<
         id: "geometry",
         label: "Geometry",
         fields: [
-          { key: "startTime", label: "Start Time", control: "time" },
-          { key: "startPrice", label: "Start Price", control: "number" },
-          { key: "endTime", label: "End Time", control: "time" },
-          { key: "endPrice", label: "End Price", control: "number" },
+          { key: "startTime", label: "Start Time", control: "time", step: 60000 },
+          { key: "startPrice", label: "Start Price", control: "number", step: 0.01 },
+          { key: "endTime", label: "End Time", control: "time", step: 60000 },
+          { key: "endPrice", label: "End Price", control: "number", step: 0.01 },
         ],
       },
       {

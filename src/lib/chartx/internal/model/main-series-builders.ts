@@ -73,6 +73,19 @@ function inferRenkoBoxSize(data: readonly MainSeriesBuilderDataPoint[]): number 
   return Math.max(totalDelta / (data.length - 1), Number.EPSILON);
 }
 
+function roundBoxSize(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    return 1;
+  }
+  if (value >= 100) {
+    return Math.round(value);
+  }
+  if (value >= 10) {
+    return Math.round(value * 2) / 2;
+  }
+  return Math.round(value * 10) / 10;
+}
+
 export function inferPointFigureBoxSize(
   data: readonly MainSeriesBuilderDataPoint[],
   reversalBoxes = 3,
@@ -87,29 +100,73 @@ export function inferPointFigureBoxSize(
   let minLow = sample[0]?.low ?? sample[0]?.close ?? 0;
   let maxHigh = sample[0]?.high ?? sample[0]?.close ?? 0;
   let totalDelta = 0;
-  let totalRange = 0;
+  let totalTrueRange = 0;
 
   for (let index = 0; index < sample.length; index += 1) {
     const bar = sample[index];
     minLow = Math.min(minLow, bar.low);
     maxHigh = Math.max(maxHigh, bar.high);
-    totalRange += Math.max(bar.high - bar.low, Math.abs(bar.close - bar.open));
+    const previousClose = index === 0 ? sample[0]?.open ?? bar.close : sample[index - 1].close;
+    totalTrueRange += Math.max(
+      bar.high - bar.low,
+      Math.abs(bar.high - previousClose),
+      Math.abs(bar.low - previousClose),
+    );
     if (index > 0) {
       totalDelta += Math.abs(bar.close - sample[index - 1].close);
     }
   }
 
   const averageDelta = totalDelta / Math.max(sample.length - 1, 1);
-  const averageRange = totalRange / sample.length;
+  const averageTrueRange = totalTrueRange / sample.length;
   const priceRange = Math.max(maxHigh - minLow, Number.EPSILON);
-  const targetColumns = Math.min(36, Math.max(18, Math.round(Math.sqrt(sample.length) * 1.35)));
-  const targetBoxesPerColumn = Math.min(8, Math.max(4, reversalBoxes + 2));
-  const rangeDrivenBox = priceRange / Math.max(targetColumns * 0.8 + targetBoxesPerColumn, 1);
-  const deltaDrivenBox = averageDelta * 0.55;
-  const rangeVolatilityBox = averageRange * 0.42;
-  const inferred = Math.max(Math.min(rangeDrivenBox, rangeVolatilityBox), deltaDrivenBox, Number.EPSILON);
+  const targetColumns = Math.min(28, Math.max(14, Math.round(Math.sqrt(sample.length) * 1.75)));
+  const targetBoxesPerColumn = Math.min(10, Math.max(5, reversalBoxes + 3));
+  const rangeDrivenBox = priceRange / Math.max(targetColumns + targetBoxesPerColumn, 1);
+  const atrDrivenBox = averageTrueRange * 0.9;
+  const deltaDrivenBox = averageDelta * 1.15;
+  const candidates = [rangeDrivenBox, atrDrivenBox, deltaDrivenBox].sort((left, right) => left - right);
+  const inferred = candidates[1] ?? candidates[0] ?? Number.EPSILON;
 
-  return Math.max(1, Math.round(inferred));
+  return roundBoxSize(Math.max(inferred, Number.EPSILON));
+}
+
+export function inferAverageTrueRange(
+  data: readonly MainSeriesBuilderDataPoint[],
+  length = 14,
+): number {
+  if (data.length === 0) {
+    return 1;
+  }
+
+  const sampleLength = Math.min(data.length, Math.max(2, Math.floor(length)));
+  const sample = data.slice(-sampleLength);
+  let totalTrueRange = 0;
+
+  for (let index = 0; index < sample.length; index += 1) {
+    const bar = sample[index];
+    const previousClose = index === 0 ? sample[Math.max(0, index - 1)]?.close ?? bar.close : sample[index - 1].close;
+    const trueRange = Math.max(
+      bar.high - bar.low,
+      Math.abs(bar.high - previousClose),
+      Math.abs(bar.low - previousClose),
+    );
+    totalTrueRange += trueRange;
+  }
+
+  return roundBoxSize(totalTrueRange / sample.length);
+}
+
+export function inferPercentageBoxSize(
+  data: readonly MainSeriesBuilderDataPoint[],
+  percentageValue = 1,
+): number {
+  if (data.length === 0) {
+    return 1;
+  }
+
+  const referenceClose = data[data.length - 1]?.close ?? data[0]?.close ?? 1;
+  return roundBoxSize(referenceClose * Math.max(percentageValue, 0.1) / 100);
 }
 
 export function buildRenkoData(
@@ -221,6 +278,8 @@ export function buildPointFigureData(
     boxSizeMode: "auto",
     boxSizeScale: 1,
     reversalBoxes: 3,
+    atrLength: 14,
+    percentageValue: 1,
   },
 ): readonly MainSeriesBuilderDataPoint[] {
   if (data.length === 0) {
@@ -228,10 +287,20 @@ export function buildPointFigureData(
   }
 
   const inferredBoxSize = inferPointFigureBoxSize(data, options.reversalBoxes);
-  const boxSize =
+  const atrBoxSize = inferAverageTrueRange(data, options.atrLength);
+  const percentageBoxSize = inferPercentageBoxSize(data, options.percentageValue);
+  const boxSizeBase =
     options.boxSizeMode === "fixed" && options.boxSize !== null && options.boxSize > 0
       ? options.boxSize
-      : Math.max(inferredBoxSize * options.boxSizeScale, Number.EPSILON);
+      : options.boxSizeMode === "atr"
+        ? atrBoxSize
+        : options.boxSizeMode === "percentage"
+          ? percentageBoxSize
+          : inferredBoxSize;
+  const boxSize =
+    options.boxSizeMode === "fixed"
+      ? Math.max(boxSizeBase, Number.EPSILON)
+      : Math.max(boxSizeBase * options.boxSizeScale, Number.EPSILON);
   const reversal = Math.max(1, Math.floor(options.reversalBoxes));
   const boxes: MainSeriesBuilderDataPoint[] = [];
   let anchor = data[0].close;

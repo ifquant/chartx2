@@ -212,18 +212,37 @@ test("workbench point-figure auto scale slider adjusts the inferred box size", a
   const workbench = page.locator('[data-demo-tab="workbench"]');
   await page.getByRole("button", { name: "P&F", exact: true }).click();
 
-  const slider = workbench.getByLabel(/Auto scale/i);
-  const before = await workbench.locator(".mini-card").filter({ hasText: "Auto box" }).locator("strong").first().textContent();
+  const slider = workbench.getByLabel(/Scale/i);
+  const boxSizeMetric = workbench
+    .getByText("Box size", { exact: true })
+    .locator("xpath=ancestor::article[1]")
+    .locator("strong");
+  const before = await boxSizeMetric.textContent();
 
   await slider.evaluate((input: HTMLInputElement) => {
     input.value = "1.6";
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 
-  const after = await workbench.locator(".mini-card").filter({ hasText: "Auto box" }).locator("strong").first().textContent();
+  const after = await boxSizeMetric.textContent();
   expect(before).not.toBeNull();
   expect(after).not.toBeNull();
   expect(before).not.toBe(after);
+});
+
+test("workbench point-figure can switch to ATR and percentage sizing modes", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await page.getByRole("button", { name: "P&F", exact: true }).click();
+
+  await workbench.getByRole("button", { name: "ATR", exact: true }).click();
+  await expect(workbench).toContainText("ATR length");
+  await expect(workbench).toContainText(/ATR\s+\d+\s+pts/i);
+
+  await workbench.getByRole("button", { name: "%", exact: true }).click();
+  await expect(workbench).toContainText("Percent");
+  await expect(workbench).toContainText(/%/i);
 });
 
 test("workbench heikin switch changes both the chart image and the main-series label", async ({

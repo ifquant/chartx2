@@ -1,5 +1,7 @@
 import {
   createChartxPhaseOneChart,
+  inferAverageTrueRange,
+  inferPercentageBoxSize,
   inferPointFigureBoxSize,
   type PhaseOneCandlestickData,
   type PhaseOneCandlestickSeriesApi,
@@ -67,10 +69,14 @@ export type DemoSnapshot = {
     schema: PhaseOneDrawingPropertySchema;
   } | null;
   pointFigureControls?: {
+    mode: WorkbenchPointFigureMode;
     autoBoxSize: number | null;
+    effectiveBoxSize: number | null;
     autoScale: number;
     reversalBoxes: number;
     visibleColumns: number | null;
+    atrLength: number;
+    percentageValue: number;
   } | null;
 };
 
@@ -80,6 +86,9 @@ export type DemoController = {
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
   setPointFigureAutoScale?(scale: number): void;
+  setPointFigureMode?(mode: WorkbenchPointFigureMode): void;
+  setPointFigureAtrLength?(length: number): void;
+  setPointFigurePercentageValue?(value: number): void;
   destroy(): void;
 };
 
@@ -96,7 +105,17 @@ type ThemeId = "warm" | "ink";
 type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
-type WorkbenchPointFigureMode = "auto" | "fixed";
+type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage";
+
+function formatPointFigureBoxSize(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) {
+    return "--";
+  }
+  if (Math.abs(value - Math.round(value)) < 0.05) {
+    return String(Math.round(value));
+  }
+  return value.toFixed(1);
+}
 
 const DAY = 60_000;
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
@@ -202,6 +221,8 @@ export function mountWorkbenchDemo(
   let pointFigureFixedBoxSize = 120;
   let pointFigureAutoScale = 1;
   let pointFigureReversalBoxes = 3;
+  let pointFigureAtrLength = 14;
+  let pointFigurePercentageValue = 1;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let drawingTool: WorkbenchDrawingTool = "none";
@@ -234,6 +255,20 @@ export function mountWorkbenchDemo(
       pointFigureBars === null ? null : inferPointFigureBoxSize(pointFigureBars, pointFigureReversalBoxes);
     const effectivePointFigureAutoBoxSize =
       inferredPointFigureBoxSize === null ? null : Math.max(1, Math.round(inferredPointFigureBoxSize * pointFigureAutoScale));
+    const effectivePointFigureAtrBoxSize =
+      pointFigureBars === null
+        ? null
+        : Math.max(1, Math.round(inferAverageTrueRange(pointFigureBars, pointFigureAtrLength) * pointFigureAutoScale));
+    const effectivePointFigurePercentageBoxSize =
+      pointFigureBars === null ? null : inferPercentageBoxSize(pointFigureBars, pointFigurePercentageValue);
+    const effectivePointFigureBoxSize =
+      pointFigureMode === "fixed"
+        ? pointFigureFixedBoxSize
+        : pointFigureMode === "atr"
+          ? effectivePointFigureAtrBoxSize
+          : pointFigureMode === "percentage"
+            ? effectivePointFigurePercentageBoxSize
+            : effectivePointFigureAutoBoxSize;
     const pointFigureVisibleColumns =
       mainChartType !== "point-figure" || visibleLogical === null
         ? null
@@ -257,8 +292,12 @@ export function mountWorkbenchDemo(
                 label: "P&F",
                 value:
                   pointFigureMode === "auto"
-                  ? `Auto ${effectivePointFigureAutoBoxSize ?? "--"} pts · ${pointFigureReversalBoxes} rev`
-                  : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
+                    ? `Auto ${formatPointFigureBoxSize(effectivePointFigureAutoBoxSize)} pts · ${pointFigureReversalBoxes} rev`
+                    : pointFigureMode === "atr"
+                      ? `ATR ${formatPointFigureBoxSize(effectivePointFigureAtrBoxSize)} pts · ${pointFigureAtrLength} len`
+                      : pointFigureMode === "percentage"
+                        ? `${pointFigurePercentageValue.toFixed(1)}% · ${formatPointFigureBoxSize(effectivePointFigurePercentageBoxSize)} pts`
+                        : `Fixed ${pointFigureFixedBoxSize} pts · ${pointFigureReversalBoxes} rev`,
               }]
           : []),
         { label: "Panes", value: String(paneSnapshot.length) },
@@ -306,9 +345,13 @@ export function mountWorkbenchDemo(
         mainChartType === "point-figure"
           ? {
               autoBoxSize: effectivePointFigureAutoBoxSize,
+              effectiveBoxSize: effectivePointFigureBoxSize,
+              mode: pointFigureMode,
               autoScale: pointFigureAutoScale,
               reversalBoxes: pointFigureReversalBoxes,
               visibleColumns: pointFigureVisibleColumns,
+              atrLength: pointFigureAtrLength,
+              percentageValue: pointFigurePercentageValue,
             }
           : null,
     });
@@ -330,6 +373,8 @@ export function mountWorkbenchDemo(
             boxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
             boxSizeScale: pointFigureAutoScale,
             reversalBoxes: pointFigureReversalBoxes,
+            atrLength: pointFigureAtrLength,
+            percentageValue: pointFigurePercentageValue,
           })
         : null;
     const pointFigureLogicalLength =
@@ -397,6 +442,8 @@ export function mountWorkbenchDemo(
         pointFigureBoxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
         pointFigureBoxSizeScale: pointFigureAutoScale,
         pointFigureReversalBoxes,
+        pointFigureAtrLength: pointFigureAtrLength,
+        pointFigurePercentageValue: pointFigurePercentageValue,
       });
       if (pointFigureLogicalLength !== null) {
         const targetVisibleColumns = Math.max(10, Math.min(18, pointFigureLogicalLength));
@@ -726,6 +773,24 @@ export function mountWorkbenchDemo(
                 group: "point-figure-option" as const,
                 active: pointFigureMode === "auto",
               },
+              {
+                id: "point-figure-atr",
+                label: "P&F ATR",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "atr",
+              },
+              {
+                id: "point-figure-percentage",
+                label: "P&F %",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "percentage",
+              },
+              {
+                id: "point-figure-fixed",
+                label: "P&F Fixed",
+                group: "point-figure-option" as const,
+                active: pointFigureMode === "fixed",
+              },
             ]
           : []),
         { id: "add-pane", label: "Add empty pane", tone: "default", group: "chart-action" },
@@ -781,6 +846,44 @@ export function mountWorkbenchDemo(
             pointFigureBoxSize: null,
             pointFigureBoxSizeScale: pointFigureAutoScale,
             pointFigureReversalBoxes,
+            pointFigureAtrLength: pointFigureAtrLength,
+            pointFigurePercentageValue: pointFigurePercentageValue,
+          });
+          rebuild();
+          return;
+        case "point-figure-atr":
+          pointFigureMode = "atr";
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "atr",
+            pointFigureBoxSize: null,
+            pointFigureBoxSizeScale: pointFigureAutoScale,
+            pointFigureReversalBoxes,
+            pointFigureAtrLength: pointFigureAtrLength,
+            pointFigurePercentageValue: pointFigurePercentageValue,
+          });
+          rebuild();
+          return;
+        case "point-figure-percentage":
+          pointFigureMode = "percentage";
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "percentage",
+            pointFigureBoxSize: null,
+            pointFigureBoxSizeScale: 1,
+            pointFigureReversalBoxes,
+            pointFigureAtrLength: pointFigureAtrLength,
+            pointFigurePercentageValue: pointFigurePercentageValue,
+          });
+          rebuild();
+          return;
+        case "point-figure-fixed":
+          pointFigureMode = "fixed";
+          chart.setChartType("point-figure").applyOptions({
+            pointFigureBoxSizeMode: "fixed",
+            pointFigureBoxSize: pointFigureFixedBoxSize,
+            pointFigureBoxSizeScale: 1,
+            pointFigureReversalBoxes,
+            pointFigureAtrLength: pointFigureAtrLength,
+            pointFigurePercentageValue: pointFigurePercentageValue,
           });
           rebuild();
           return;
@@ -906,6 +1009,30 @@ export function mountWorkbenchDemo(
     },
     setPointFigureAutoScale(scale) {
       pointFigureAutoScale = Math.min(2.5, Math.max(0.35, scale));
+      if (mainChartType === "point-figure") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setPointFigureMode(mode) {
+      pointFigureMode = mode;
+      if (mainChartType === "point-figure") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setPointFigureAtrLength(length) {
+      pointFigureAtrLength = Math.min(60, Math.max(2, Math.round(length)));
+      if (mainChartType === "point-figure") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setPointFigurePercentageValue(value) {
+      pointFigurePercentageValue = Math.min(10, Math.max(0.1, value));
       if (mainChartType === "point-figure") {
         rebuild();
         return;

@@ -5,6 +5,8 @@ import {
   createMainSeriesStateSnapshot,
   applyMainSeriesStyleOptions,
   buildHeikinAshiData,
+  inferAverageTrueRange,
+  inferPercentageBoxSize,
   buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
@@ -49,14 +51,14 @@ describe("chart type builders", () => {
     expect(
       applyMainSeriesBuilder("heikin-ashi", input, {
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
-        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3 },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
       }),
     ).toEqual(buildHeikinAshiData(input));
 
     expect(
       applyMainSeriesBuilder("time-bars", input, {
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
-        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3 },
+        pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
       }),
     ).toEqual(input);
   });
@@ -89,6 +91,8 @@ describe("chart type builders", () => {
           boxSizeMode: "auto",
           boxSizeScale: 1,
           reversalBoxes: 3,
+          atrLength: 14,
+          percentageValue: 1,
         },
       }),
     ).toEqual({
@@ -114,6 +118,8 @@ describe("chart type builders", () => {
         boxSizeMode: "auto",
         boxSizeScale: 1,
         reversalBoxes: 3,
+        atrLength: 14,
+        percentageValue: 1,
       },
     });
   });
@@ -183,6 +189,8 @@ describe("chart type builders", () => {
         boxSizeMode: "auto" as const,
         boxSizeScale: 1,
         reversalBoxes: 3,
+        atrLength: 14,
+        percentageValue: 1,
       },
     };
 
@@ -203,6 +211,8 @@ describe("chart type builders", () => {
         pointFigureBoxSize: 24,
         pointFigureBoxSizeScale: 1.5,
         pointFigureReversalBoxes: 5,
+        pointFigureAtrLength: 21,
+        pointFigurePercentageValue: 1.8,
       }),
     ).toBe(true);
     expect(styleTarget.pointFigureOptions).toEqual({
@@ -210,6 +220,8 @@ describe("chart type builders", () => {
       boxSizeMode: "fixed",
       boxSizeScale: 1.5,
       reversalBoxes: 5,
+      atrLength: 21,
+      percentageValue: 1.8,
     });
   });
 
@@ -229,12 +241,16 @@ describe("chart type builders", () => {
         "pointFigureBoxSizeMode",
         "pointFigureBoxSizeScale",
         "pointFigureReversalBoxes",
+        "pointFigureAtrLength",
+        "pointFigurePercentageValue",
       ],
       typeSpecificOptionKeys: [
         "pointFigureBoxSize",
         "pointFigureBoxSizeMode",
         "pointFigureBoxSizeScale",
         "pointFigureReversalBoxes",
+        "pointFigureAtrLength",
+        "pointFigurePercentageValue",
       ],
     });
     expect(mainSeriesStyleSchemaSpec("lineStyle")).toEqual({
@@ -402,10 +418,12 @@ describe("chart type builders", () => {
 
     const result = buildPointFigureData(input);
 
-    expect(result).toEqual([
-      { time: 3, open: 100, high: 105, low: 100, close: 105, volume: undefined },
-      { time: 4, open: 105, high: 110, low: 105, close: 110, volume: undefined },
-    ]);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ time: 3, open: 100, low: 100, close: 105.4 });
+    expect(result[0]?.high).toBeCloseTo(105.4, 6);
+    expect(result[1]).toMatchObject({ time: 4, open: 105.4, low: 105.4 });
+    expect(result[1]?.high).toBeCloseTo(110.8, 6);
+    expect(result[1]?.close).toBeCloseTo(110.8, 6);
     expect(input).toEqual([
       { time: 1, open: 100, high: 101, low: 99, close: 100 },
       { time: 2, open: 100, high: 105, low: 99, close: 104 },
@@ -429,6 +447,8 @@ describe("chart type builders", () => {
       boxSize: 4,
       boxSizeScale: 1,
       reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1,
     });
 
     expect(result).toEqual([
@@ -436,6 +456,40 @@ describe("chart type builders", () => {
       { time: 3, open: 104, high: 108, low: 104, close: 108, volume: undefined },
       { time: 4, open: 108, high: 112, low: 108, close: 112, volume: undefined },
     ]);
+  });
+
+  it("derives point-figure box sizes from ATR and percentage modes", () => {
+    const input = [
+      { time: 1, open: 100, high: 106, low: 99, close: 104 },
+      { time: 2, open: 104, high: 112, low: 103, close: 110 },
+      { time: 3, open: 110, high: 118, low: 108, close: 116 },
+      { time: 4, open: 116, high: 117, low: 104, close: 106 },
+      { time: 5, open: 106, high: 108, low: 97, close: 100 },
+    ] as const;
+
+    expect(inferAverageTrueRange(input, 3)).toBeGreaterThan(0);
+    expect(inferPercentageBoxSize(input, 1.5)).toBe(1.5);
+
+    const atrResult = buildPointFigureData(input, {
+      boxSize: null,
+      boxSizeMode: "atr",
+      boxSizeScale: 1,
+      reversalBoxes: 3,
+      atrLength: 3,
+      percentageValue: 1,
+    });
+    const percentageResult = buildPointFigureData(input, {
+      boxSize: null,
+      boxSizeMode: "percentage",
+      boxSizeScale: 1,
+      reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1.5,
+    });
+
+    expect(atrResult.length).toBeGreaterThan(0);
+    expect(percentageResult.length).toBeGreaterThan(0);
+    expect(atrResult).not.toEqual(percentageResult);
   });
 
   it("builds kagi segments from canonical ohlc input without mutating the source", () => {

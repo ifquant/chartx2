@@ -57,6 +57,8 @@ export function createMainSeriesStateSnapshot(
     styleOptions.pointFigureBoxSizeMode = target.pointFigureOptions.boxSizeMode;
     styleOptions.pointFigureBoxSizeScale = target.pointFigureOptions.boxSizeScale;
     styleOptions.pointFigureReversalBoxes = target.pointFigureOptions.reversalBoxes;
+    styleOptions.pointFigureAtrLength = target.pointFigureOptions.atrLength;
+    styleOptions.pointFigurePercentageValue = target.pointFigureOptions.percentageValue;
   }
 
   return {
@@ -76,6 +78,8 @@ export function createMainSeriesStateSnapshot(
       boxSizeMode: target.pointFigureOptions.boxSizeMode,
       boxSizeScale: target.pointFigureOptions.boxSizeScale,
       reversalBoxes: target.pointFigureOptions.reversalBoxes,
+      atrLength: target.pointFigureOptions.atrLength,
+      percentageValue: target.pointFigureOptions.percentageValue,
     },
   };
 }

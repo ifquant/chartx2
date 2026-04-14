@@ -3,6 +3,8 @@ import {
   type EngineBoundarySummary,
 } from "../internal/foundation";
 import {
+  inferAverageTrueRange,
+  inferPercentageBoxSize,
   inferPointFigureBoxSize,
 } from "../internal/model";
 import type {
@@ -170,4 +172,4 @@ export function createChartxPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneCh
   return createPhaseOneChart(canvas);
 }
 
-export { inferPointFigureBoxSize };
+export { inferAverageTrueRange, inferPercentageBoxSize, inferPointFigureBoxSize };

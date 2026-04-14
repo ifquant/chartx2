@@ -485,8 +485,8 @@ test("phase-one public api can switch the active main chart type to point-figure
     builder: "point-figure",
     renderer: "point-figure",
     styleSchemaId: "pnfStyle",
-    pointCount: 1,
   });
+  expect(result.paneEvents[0]?.panes[0]?.series[0]?.pointCount).toBeGreaterThan(0);
 
   const fixture = page.locator("#api-point-figure-fixture");
   await expect(fixture).toBeVisible();
@@ -2672,7 +2672,10 @@ test("phase-one public api can snapshot and restore unified main-series state", 
     pointFigureOptions: {
       boxSize: 120,
       boxSizeMode: "fixed",
+      boxSizeScale: 1,
       reversalBoxes: 3,
+      atrLength: 14,
+      percentageValue: 1,
     },
   });
   expect(result.restored).toEqual(result.saved);
@@ -2737,7 +2740,10 @@ test("phase-one public api can snapshot and restore chart-owned layout and main-
       pointFigureOptions: {
         boxSize: 120,
         boxSizeMode: "fixed",
+        boxSizeScale: 1,
         reversalBoxes: 3,
+        atrLength: 14,
+        percentageValue: 1,
       },
     });
     chart.priceScale().applyOptions({
@@ -2864,7 +2870,10 @@ test("phase-one public api can snapshot and restore a versioned chart template",
       pointFigureOptions: {
         boxSize: 120,
         boxSizeMode: "fixed",
+        boxSizeScale: 1,
         reversalBoxes: 3,
+        atrLength: 14,
+        percentageValue: 1,
       },
     });
 

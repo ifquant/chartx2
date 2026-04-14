@@ -7,9 +7,11 @@ export type RenkoStyleOptionsState = {
 
 export type PointFigureStyleOptionsState = {
   boxSize: number | null;
-  boxSizeMode: "auto" | "fixed";
+  boxSizeMode: "auto" | "fixed" | "atr" | "percentage";
   boxSizeScale: number;
   reversalBoxes: number;
+  atrLength: number;
+  percentageValue: number;
 };
 
 export type MainSeriesStyleOptionsTarget = {
@@ -21,9 +23,11 @@ export type MainSeriesStyleOptionsPatch = {
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
-  pointFigureBoxSizeMode?: "auto" | "fixed";
+  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage";
   pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
+  pointFigureAtrLength?: number;
+  pointFigurePercentageValue?: number;
 };
 
 type MainSeriesStyleOptionApplier = (
@@ -64,6 +68,14 @@ export const MAIN_SERIES_STYLE_OPTION_APPLIERS: Partial<
     }
     if (patch.pointFigureReversalBoxes !== undefined) {
       target.pointFigureOptions.reversalBoxes = Math.max(1, Math.floor(patch.pointFigureReversalBoxes));
+      changed = true;
+    }
+    if (patch.pointFigureAtrLength !== undefined) {
+      target.pointFigureOptions.atrLength = Math.max(2, Math.floor(patch.pointFigureAtrLength));
+      changed = true;
+    }
+    if (patch.pointFigurePercentageValue !== undefined) {
+      target.pointFigureOptions.percentageValue = Math.min(25, Math.max(0.1, patch.pointFigurePercentageValue));
       changed = true;
     }
     return changed;

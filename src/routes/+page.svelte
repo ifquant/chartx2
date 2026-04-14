@@ -224,6 +224,18 @@
     workbenchController?.setPointFigureAutoScale?.(value);
   }
 
+  function setPointFigureMode(value: "auto" | "fixed" | "atr" | "percentage"): void {
+    workbenchController?.setPointFigureMode?.(value);
+  }
+
+  function setPointFigureAtrLength(value: number): void {
+    workbenchController?.setPointFigureAtrLength?.(value);
+  }
+
+  function setPointFigurePercentageValue(value: number): void {
+    workbenchController?.setPointFigurePercentageValue?.(value);
+  }
+
   function handleWorkbenchChartPointerMove(event: PointerEvent): void {
     const frame = event.currentTarget;
     if (!(frame instanceof HTMLElement)) {
@@ -261,6 +273,13 @@
           minimumFractionDigits: 0,
           maximumFractionDigits: digits,
         });
+  }
+
+  function formatPointFigureBoxSize(value: number | null): string {
+    if (value === null) {
+      return "--";
+    }
+    return Math.abs(value - Math.round(value)) < 0.05 ? String(Math.round(value)) : value.toFixed(1);
   }
 
   function formatTime(value: number | null): string {
@@ -729,25 +748,83 @@
                   </div>
                   <div class="metric-list compact">
                     <article>
-                      <small>Auto box</small>
-                      <strong>{workbenchSnapshot.pointFigureControls.autoBoxSize ?? "--"} pts</strong>
+                      <small>Mode</small>
+                      <strong>{workbenchSnapshot.pointFigureControls.mode}</strong>
+                    </article>
+                    <article>
+                      <small>Box size</small>
+                      <strong>{formatPointFigureBoxSize(workbenchSnapshot.pointFigureControls.effectiveBoxSize)} pts</strong>
                     </article>
                     <article>
                       <small>Reversal</small>
                       <strong>{workbenchSnapshot.pointFigureControls.reversalBoxes} boxes</strong>
                     </article>
                   </div>
-                  <label class="inspector-field slider-field">
-                    <span>Auto scale {workbenchSnapshot.pointFigureControls.autoScale.toFixed(2)}x</span>
-                    <input
-                      type="range"
-                      min="0.35"
-                      max="2.5"
-                      step="0.05"
-                      value={String(workbenchSnapshot.pointFigureControls.autoScale)}
-                      on:input={(event) => setPointFigureAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
-                    />
-                  </label>
+                  <div class="mode-strip compact">
+                    <button
+                      class:active={workbenchSnapshot.pointFigureControls.mode === "auto"}
+                      on:click={() => setPointFigureMode("auto")}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.pointFigureControls.mode === "atr"}
+                      on:click={() => setPointFigureMode("atr")}
+                    >
+                      ATR
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.pointFigureControls.mode === "percentage"}
+                      on:click={() => setPointFigureMode("percentage")}
+                    >
+                      %
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.pointFigureControls.mode === "fixed"}
+                      on:click={() => setPointFigureMode("fixed")}
+                    >
+                      Fixed
+                    </button>
+                  </div>
+                  {#if workbenchSnapshot.pointFigureControls.mode === "auto" || workbenchSnapshot.pointFigureControls.mode === "atr"}
+                    <label class="inspector-field slider-field">
+                      <span>Scale {workbenchSnapshot.pointFigureControls.autoScale.toFixed(2)}x</span>
+                      <input
+                        type="range"
+                        min="0.35"
+                        max="2.5"
+                        step="0.05"
+                        value={String(workbenchSnapshot.pointFigureControls.autoScale)}
+                        on:input={(event) => setPointFigureAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
+                  {#if workbenchSnapshot.pointFigureControls.mode === "atr"}
+                    <label class="inspector-field slider-field">
+                      <span>ATR length {workbenchSnapshot.pointFigureControls.atrLength}</span>
+                      <input
+                        type="range"
+                        min="2"
+                        max="60"
+                        step="1"
+                        value={String(workbenchSnapshot.pointFigureControls.atrLength)}
+                        on:input={(event) => setPointFigureAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
+                  {#if workbenchSnapshot.pointFigureControls.mode === "percentage"}
+                    <label class="inspector-field slider-field">
+                      <span>Percent {workbenchSnapshot.pointFigureControls.percentageValue.toFixed(1)}%</span>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value={String(workbenchSnapshot.pointFigureControls.percentageValue)}
+                        on:input={(event) => setPointFigurePercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
                 </section>
               {/if}
 

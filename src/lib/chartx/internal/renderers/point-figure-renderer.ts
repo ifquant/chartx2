@@ -27,11 +27,11 @@ export class PointFigureRenderer {
       const bottom = Math.max(item.openY, item.closeY);
       const centerY = (top + bottom) / 2;
       const cellHeight = Math.max(6, Math.abs(bottom - top));
-      const size = Math.max(5, Math.min(14, Math.floor(Math.min(data.barWidth * 0.42, cellHeight * 0.58))));
+      const size = Math.max(4, Math.min(10, Math.floor(Math.min(data.barWidth * 0.28, cellHeight * 0.42))));
       const half = size / 2;
       const x = Math.round(item.x) + 0.5;
       const y = Math.round(centerY) + 0.5;
-      context.lineWidth = Math.max(1, Math.min(2.4, size / 6));
+      context.lineWidth = Math.max(1, Math.min(1.8, size / 7));
 
       if (item.isUp) {
         context.strokeStyle = data.upColor;

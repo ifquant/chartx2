@@ -40,12 +40,16 @@ export const MAIN_SERIES_STYLE_SCHEMAS: Record<PhaseOneMainStyleSchemaId, MainSe
       "pointFigureBoxSizeMode",
       "pointFigureBoxSizeScale",
       "pointFigureReversalBoxes",
+      "pointFigureAtrLength",
+      "pointFigurePercentageValue",
     ],
     typeSpecificOptionKeys: [
       "pointFigureBoxSize",
       "pointFigureBoxSizeMode",
       "pointFigureBoxSizeScale",
       "pointFigureReversalBoxes",
+      "pointFigureAtrLength",
+      "pointFigurePercentageValue",
     ],
   },
   volumeCandleStyle: {

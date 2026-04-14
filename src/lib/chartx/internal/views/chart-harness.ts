@@ -265,9 +265,11 @@ export type PhaseOneCandlestickSeriesOptions = {
   renkoBoxSize?: number | null;
   renkoBoxSizeMode?: "auto" | "fixed";
   pointFigureBoxSize?: number | null;
-  pointFigureBoxSizeMode?: "auto" | "fixed";
+  pointFigureBoxSizeMode?: "auto" | "fixed" | "atr" | "percentage";
   pointFigureBoxSizeScale?: number;
   pointFigureReversalBoxes?: number;
+  pointFigureAtrLength?: number;
+  pointFigurePercentageValue?: number;
 };
 
 export type PhaseOneBarSeriesOptions = {
@@ -1084,6 +1086,8 @@ export class PhaseOneChartHarness {
     pointFigureBoxSizeMode: "auto",
     pointFigureBoxSizeScale: 1,
     pointFigureReversalBoxes: 3,
+    pointFigureAtrLength: 14,
+    pointFigurePercentageValue: 1,
   };
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
     upColor: UP_COLOR,
@@ -2070,6 +2074,8 @@ export class PhaseOneChartHarness {
       boxSizeMode: state.pointFigureOptions.boxSizeMode,
       boxSizeScale: Math.min(4, Math.max(0.25, state.pointFigureOptions.boxSizeScale)),
       reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
+      atrLength: Math.max(2, Math.floor(state.pointFigureOptions.atrLength)),
+      percentageValue: Math.min(25, Math.max(0.1, state.pointFigureOptions.percentageValue)),
     };
     source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.syncChartContextFromMainSource(source);
@@ -4333,6 +4339,8 @@ export class PhaseOneChartHarness {
         boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
         boxSizeScale: this.candlestickOptions.pointFigureBoxSizeScale,
         reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
+        atrLength: this.candlestickOptions.pointFigureAtrLength,
+        percentageValue: this.candlestickOptions.pointFigurePercentageValue,
       },
       inputCapability: chartTypeSpec.inputCapability,
       builder: chartTypeSpec.builder,

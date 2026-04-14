@@ -834,117 +834,119 @@
                 </section>
               {/if}
 
-              <section class="mini-card inspector-card">
-                <div class="sidebar-head">
-                  <h4>Drawing</h4>
-                  <span>{workbenchSnapshot.selectedDrawing?.state.type ?? "None"}</span>
-                </div>
-                {#if workbenchSnapshot.selectedDrawing}
-                  <div class="inspector-sections">
-                    {#each workbenchSnapshot.selectedDrawing.schema.sections as section}
-                      <article class="inspector-section">
-                        <strong>{section.label}</strong>
-                        <div class="inspector-fields">
-                          {#each section.fields as field}
-                            <label class="inspector-field">
-                              <span>{field.label}</span>
-                              {#if field.control === "toggle"}
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(selectedDrawingFieldValue(field.key))}
-                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
-                                />
-                              {:else if field.control === "select"}
-                                <select
-                                  value={String(selectedDrawingFieldValue(field.key))}
-                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
-                                >
-                                  {#each field.options ?? [] as option}
-                                    <option value={option.value}>{option.label}</option>
-                                  {/each}
-                                </select>
-                              {:else if field.control === "color"}
-                                <input
-                                  type="color"
-                                  value={String(selectedDrawingFieldValue(field.key))}
-                                  on:input={(event) => updateSelectedDrawingField(field.key, field.control, event)}
-                                />
-                              {:else if field.control === "text"}
-                                <input
-                                  type="text"
-                                  value={String(selectedDrawingFieldValue(field.key))}
-                                  required={field.required ?? false}
-                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
-                                />
-                              {:else}
-                                <input
-                                  type="number"
-                                  min={field.min}
-                                  max={field.max}
-                                  step={field.step ?? (field.control === "time" ? "60000" : "1")}
-                                  value={String(selectedDrawingFieldValue(field.key))}
-                                  on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
-                                />
-                              {/if}
-                              {#if workbenchInspectorErrors[field.key]}
-                                <small class="inspector-field-error">{workbenchInspectorErrors[field.key]}</small>
-                              {/if}
-                            </label>
-                          {/each}
-                        </div>
-                      </article>
-                    {/each}
+              <div class="workbench-sidebar-scroll">
+                <section class="mini-card inspector-card">
+                  <div class="sidebar-head">
+                    <h4>Drawing</h4>
+                    <span>{workbenchSnapshot.selectedDrawing?.state.type ?? "None"}</span>
                   </div>
-                {:else}
-                  <p class="inspector-empty">
-                    {#if activeWorkbenchDrawingTool === "horizontal-line"}
-                      Click the chart to place a horizontal line.
-                    {:else if activeWorkbenchDrawingTool === "trend-line"}
-                      {#if workbenchSnapshot.drawingTool?.pendingTrendLineStartTime !== null}
-                        Click a second bar to finish the trend line. Press Escape to cancel.
-                      {:else}
-                        Click the chart to place the trend-line start point. Press Escape to cancel.
-                      {/if}
-                    {:else}
-                      Click a horizontal line or trend line on the chart to inspect its properties.
-                    {/if}
-                  </p>
-                {/if}
-              </section>
-
-              <section class="mini-card panes-card">
-                <div class="sidebar-head">
-                  <h4>Panes</h4>
-                  <span>{workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1} active</span>
-                </div>
-                <div class="pane-list">
-                  <article class="pane-row active">
-                    <strong>Pane 1</strong>
-                    <span>Price</span>
-                  </article>
-                  <article class="pane-row">
-                    <strong>Pane 2</strong>
-                    <span>Volume</span>
-                  </article>
-                  <article class="pane-row">
-                    <strong>Pane 3</strong>
-                    <span>Study</span>
-                  </article>
-                </div>
-              </section>
-
-              <section class="mini-card action-card">
-                <h4>Activity</h4>
-                <ul class="event-log">
-                  {#if workbenchSnapshot.eventLog.length === 0}
-                    <li>Waiting for the first chart event.</li>
+                  {#if workbenchSnapshot.selectedDrawing}
+                    <div class="inspector-sections">
+                      {#each workbenchSnapshot.selectedDrawing.schema.sections as section}
+                        <article class="inspector-section">
+                          <strong>{section.label}</strong>
+                          <div class="inspector-fields">
+                            {#each section.fields as field}
+                              <label class="inspector-field">
+                                <span>{field.label}</span>
+                                {#if field.control === "toggle"}
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(selectedDrawingFieldValue(field.key))}
+                                    on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                  />
+                                {:else if field.control === "select"}
+                                  <select
+                                    value={String(selectedDrawingFieldValue(field.key))}
+                                    on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                  >
+                                    {#each field.options ?? [] as option}
+                                      <option value={option.value}>{option.label}</option>
+                                    {/each}
+                                  </select>
+                                {:else if field.control === "color"}
+                                  <input
+                                    type="color"
+                                    value={String(selectedDrawingFieldValue(field.key))}
+                                    on:input={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                  />
+                                {:else if field.control === "text"}
+                                  <input
+                                    type="text"
+                                    value={String(selectedDrawingFieldValue(field.key))}
+                                    required={field.required ?? false}
+                                    on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                  />
+                                {:else}
+                                  <input
+                                    type="number"
+                                    min={field.min}
+                                    max={field.max}
+                                    step={field.step ?? (field.control === "time" ? "60000" : "1")}
+                                    value={String(selectedDrawingFieldValue(field.key))}
+                                    on:change={(event) => updateSelectedDrawingField(field.key, field.control, event)}
+                                  />
+                                {/if}
+                                {#if workbenchInspectorErrors[field.key]}
+                                  <small class="inspector-field-error">{workbenchInspectorErrors[field.key]}</small>
+                                {/if}
+                              </label>
+                            {/each}
+                          </div>
+                        </article>
+                      {/each}
+                    </div>
                   {:else}
-                    {#each workbenchSnapshot.eventLog as entry}
-                      <li>{entry}</li>
-                    {/each}
+                    <p class="inspector-empty">
+                      {#if activeWorkbenchDrawingTool === "horizontal-line"}
+                        Click the chart to place a horizontal line.
+                      {:else if activeWorkbenchDrawingTool === "trend-line"}
+                        {#if workbenchSnapshot.drawingTool?.pendingTrendLineStartTime !== null}
+                          Click a second bar to finish the trend line. Press Escape to cancel.
+                        {:else}
+                          Click the chart to place the trend-line start point. Press Escape to cancel.
+                        {/if}
+                      {:else}
+                        Click a horizontal line or trend line on the chart to inspect its properties.
+                      {/if}
+                    </p>
                   {/if}
-                </ul>
-              </section>
+                </section>
+
+                <section class="mini-card panes-card">
+                  <div class="sidebar-head">
+                    <h4>Panes</h4>
+                    <span>{workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1} active</span>
+                  </div>
+                  <div class="pane-list">
+                    <article class="pane-row active">
+                      <strong>Pane 1</strong>
+                      <span>Price</span>
+                    </article>
+                    <article class="pane-row">
+                      <strong>Pane 2</strong>
+                      <span>Volume</span>
+                    </article>
+                    <article class="pane-row">
+                      <strong>Pane 3</strong>
+                      <span>Study</span>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="mini-card action-card">
+                  <h4>Activity</h4>
+                  <ul class="event-log">
+                    {#if workbenchSnapshot.eventLog.length === 0}
+                      <li>Waiting for the first chart event.</li>
+                    {:else}
+                      {#each workbenchSnapshot.eventLog as entry}
+                        <li>{entry}</li>
+                      {/each}
+                    {/if}
+                  </ul>
+                </section>
+              </div>
             </aside>
           </div>
         </article>
@@ -1643,12 +1645,19 @@
 
   .workbench-sidebar {
     display: grid;
-    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     gap: 0;
     min-height: 0;
     overflow: hidden;
     border-left: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(244, 240, 232, 0.96);
+  }
+
+  .workbench-sidebar-scroll {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
   }
 
   .mini-card {
@@ -1835,8 +1844,8 @@
     color: rgba(24, 24, 27, 0.72);
     display: grid;
     gap: 6px;
-    overflow: auto;
-    max-height: 100%;
+    overflow: visible;
+    max-height: none;
     font-size: 0.8rem;
   }
 

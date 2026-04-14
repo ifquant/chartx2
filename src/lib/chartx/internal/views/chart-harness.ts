@@ -202,9 +202,11 @@ export type PhaseOneChartOptions = {
     magnetEnabled?: boolean;
     magnetGuideVisible?: boolean;
     magnetLabelVisible?: boolean;
+    magnetTolerancePx?: number;
     timeMagnetEnabled?: boolean;
     timeMagnetGuideVisible?: boolean;
     timeMagnetLabelVisible?: boolean;
+    timeMagnetTolerancePx?: number;
     magnetSources?: {
       open?: boolean;
       high?: boolean;
@@ -220,9 +222,11 @@ type RequiredDrawingOptions = {
   magnetEnabled: boolean;
   magnetGuideVisible: boolean;
   magnetLabelVisible: boolean;
+  magnetTolerancePx: number;
   timeMagnetEnabled: boolean;
   timeMagnetGuideVisible: boolean;
   timeMagnetLabelVisible: boolean;
+  timeMagnetTolerancePx: number;
   magnetSources: RequiredDrawingMagnetSources;
 };
 
@@ -894,9 +898,11 @@ export class PhaseOneChartHarness {
     magnetEnabled: true,
     magnetGuideVisible: true,
     magnetLabelVisible: true,
+    magnetTolerancePx: DRAWING_PRICE_SNAP_TOLERANCE,
     timeMagnetEnabled: true,
     timeMagnetGuideVisible: true,
     timeMagnetLabelVisible: true,
+    timeMagnetTolerancePx: DRAWING_TIME_SNAP_TOLERANCE,
     magnetSources: {
       open: true,
       high: true,
@@ -1597,6 +1603,9 @@ export class PhaseOneChartHarness {
     if (options.drawings?.magnetLabelVisible !== undefined) {
       this.drawingOptions.magnetLabelVisible = options.drawings.magnetLabelVisible;
     }
+    if (options.drawings?.magnetTolerancePx !== undefined) {
+      this.drawingOptions.magnetTolerancePx = Math.max(0, options.drawings.magnetTolerancePx);
+    }
     if (options.drawings?.timeMagnetEnabled !== undefined) {
       this.drawingOptions.timeMagnetEnabled = options.drawings.timeMagnetEnabled;
       if (!this.drawingOptions.timeMagnetEnabled) {
@@ -1619,6 +1628,9 @@ export class PhaseOneChartHarness {
     }
     if (options.drawings?.timeMagnetLabelVisible !== undefined) {
       this.drawingOptions.timeMagnetLabelVisible = options.drawings.timeMagnetLabelVisible;
+    }
+    if (options.drawings?.timeMagnetTolerancePx !== undefined) {
+      this.drawingOptions.timeMagnetTolerancePx = Math.max(0, options.drawings.timeMagnetTolerancePx);
     }
     if (options.drawings?.magnetSources !== undefined) {
       if (options.drawings.magnetSources.open !== undefined) {
@@ -4393,6 +4405,7 @@ export class PhaseOneChartHarness {
       this.chartContext.snapshot().barSequence.axisBars,
       this.timeScale,
       this.drawingOptions.timeMagnetEnabled,
+      this.drawingOptions.timeMagnetTolerancePx,
     );
     const nextPrice = resolveSnappedDrawingPrice(
       localPoint.x,
@@ -4401,6 +4414,7 @@ export class PhaseOneChartHarness {
       priceScale,
       this.timeScale,
       this.drawingOptions.magnetEnabled,
+      this.drawingOptions.magnetTolerancePx,
       this.drawingOptions.magnetSources,
     );
     if (nextPrice === null) {
@@ -6356,6 +6370,7 @@ function resolveSnappedDrawingTime(
   axisBars: readonly { time: number; index: TimePointIndex }[],
   timeScale: TimeScale,
   magnetEnabled: boolean,
+  magnetTolerancePx: number,
 ): { time: number; snapped: boolean } {
   if (axisBars.length === 0) {
     return { time: 0, snapped: false };
@@ -6380,9 +6395,10 @@ function resolveSnappedDrawingTime(
   }
 
   const snappedCoordinate = timeScale.indexToCoordinate(nearest.index);
+  const snapped = Math.abs(snappedCoordinate - x) <= magnetTolerancePx;
   return {
-    time: nearest.time,
-    snapped: Math.abs(snappedCoordinate - x) <= DRAWING_TIME_SNAP_TOLERANCE,
+    time: snapped ? nearest.time : logicalCoordinateToInterpolatedTime(logicalCoordinate, axisBars),
+    snapped,
   };
 }
 
@@ -6422,6 +6438,7 @@ function resolveSnappedDrawingPrice(
   priceScale: PriceScale,
   timeScale: TimeScale,
   magnetEnabled: boolean,
+  magnetTolerancePx: number,
   magnetSources: RequiredDrawingMagnetSources,
 ): { price: number; snapped: boolean; source: "open" | "high" | "low" | "close" } | null {
   const rawPrice = priceScale.coordinateToPrice(localY);
@@ -6473,7 +6490,7 @@ function resolveSnappedDrawingPrice(
     }
   }
 
-  if (bestDistance <= DRAWING_PRICE_SNAP_TOLERANCE) {
+  if (bestDistance <= magnetTolerancePx) {
     return { price: bestPrice, snapped: true, source: bestSource };
   }
   return { price: rawPrice, snapped: false, source: bestSource };

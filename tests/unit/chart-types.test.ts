@@ -14,9 +14,11 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
+  buildMovingAverageStudyData,
   createVersionedChartTemplate,
   mainSeriesChartTypeSpec,
   mainSeriesStyleSchemaSpec,
+  mergeStudyDataToChartContext,
   normalizeVersionedChartTemplate,
   projectMainSeriesStyleOptions,
 } from "../../src/lib/chartx/internal/model";
@@ -397,6 +399,48 @@ describe("chart type builders", () => {
       { time: 4, open: 108, high: 112, low: 108, close: 112 },
       { time: 5, open: 112, high: 112, low: 108, close: 108 },
       { time: 5.001, open: 108, high: 108, low: 104, close: 104 },
+    ]);
+  });
+
+  it("merges requested-context moving-average data onto renko chart bars with deterministic parity", () => {
+    const input = [
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 109, low: 99, close: 108 },
+      { time: 3, open: 108, high: 113, low: 107, close: 112 },
+      { time: 4, open: 112, high: 113, low: 103, close: 104 },
+    ] as const;
+    const requested = [
+      { time: 2, open: 200, high: 200, low: 200, close: 200 },
+      { time: 3, open: 260, high: 260, low: 260, close: 260 },
+      { time: 4, open: 300, high: 300, low: 300, close: 300 },
+    ] as const;
+
+    const renkoBars = buildRenkoData(input, {
+      boxSizeMode: "fixed",
+      boxSize: 4,
+    });
+    const merged = mergeStudyDataToChartContext(requested, createPlotRows(renkoBars), "carry-forward");
+    const movingAverage = buildMovingAverageStudyData(merged, 2);
+
+    expect(renkoBars).toEqual([
+      { time: 2, open: 100, high: 104, low: 100, close: 104 },
+      { time: 2.001, open: 104, high: 108, low: 104, close: 108 },
+      { time: 3, open: 108, high: 112, low: 108, close: 112 },
+      { time: 4, open: 112, high: 112, low: 108, close: 108 },
+      { time: 4.001, open: 108, high: 108, low: 104, close: 104 },
+    ]);
+    expect(merged).toEqual([
+      { time: 2, open: 200, high: 200, low: 200, close: 200 },
+      { time: 2.001, open: 200, high: 200, low: 200, close: 200 },
+      { time: 3, open: 260, high: 260, low: 260, close: 260 },
+      { time: 4, open: 300, high: 300, low: 300, close: 300 },
+      { time: 4.001, open: 300, high: 300, low: 300, close: 300 },
+    ]);
+    expect(movingAverage).toEqual([
+      { time: 2.001, open: 200, high: 200, low: 200, close: 200 },
+      { time: 3, open: 230, high: 230, low: 230, close: 230 },
+      { time: 4, open: 280, high: 280, low: 280, close: 280 },
+      { time: 4.001, open: 300, high: 300, low: 300, close: 300 },
     ]);
   });
 

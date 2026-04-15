@@ -1828,11 +1828,13 @@ test("phase-one public api merges requested-context moving-average data onto com
     const paneGap = 10;
     const plotHeight = 448 - layoutTop - 34;
     const studyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap * 2 - 112 - 84) + paneGap + 56;
-    canvas.dispatchEvent(new PointerEvent("pointermove", {
-      clientX: rect.left + rect.width * 0.82,
-      clientY: studyPaneCenterY,
-      bubbles: true,
-    }));
+    for (const fraction of [0.86, 0.92, 0.97]) {
+      canvas.dispatchEvent(new PointerEvent("pointermove", {
+        clientX: rect.left + rect.width * fraction,
+        clientY: studyPaneCenterY,
+        bubbles: true,
+      }));
+    }
 
     return {
       studyOptions: movingAverage.getStudyOptions(),
@@ -1840,11 +1842,16 @@ test("phase-one public api merges requested-context moving-average data onto com
       readout,
     };
   }, {
-    bars: RENKO_ALIGNMENT_BARS,
+    bars: [
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 109, low: 99, close: 108 },
+      { time: 3, open: 108, high: 113, low: 107, close: 112 },
+      { time: 4, open: 112, high: 113, low: 103, close: 104 },
+    ],
     requested: [
       { time: 2, value: 200 },
-      { time: 4, value: 240 },
-      { time: 7, value: 280 },
+      { time: 3, value: 260 },
+      { time: 4, value: 300 },
     ],
     publicEntry: PUBLIC_ENTRY,
   });
@@ -1864,6 +1871,7 @@ test("phase-one public api merges requested-context moving-average data onto com
   });
   expect(result.readout?.paneIndex).toBe(1);
   expect(result.readout?.series).toHaveLength(1);
+  expect(result.readout?.series[0]?.value).toBe(300);
 });
 
 test("phase-one public api merges requested-context compare data onto compressed kagi chart bars", async ({

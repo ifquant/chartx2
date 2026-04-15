@@ -13,7 +13,8 @@ This contract keeps chart display values deterministic across the canvas axis, p
 
 - `timeScale().applyOptions({ tickMarkFormatter })` controls time axis labels, magnet time labels, and readout time strings.
 - `priceScale().applyOptions({ priceFormatter })` controls primary price axis labels, price-line labels, magnet price labels, OHLC readout strings, and non-volume series legend/readout values.
-- Volume series ignore the primary price formatter and use compact volume formatting (`K`, `M`, `B`) for both volume axis and legend/readout values.
+- `series.applyOptions({ valueFormatter })` overrides the chart-wide price formatter for that series' legend/readout value.
+- Volume series ignore the primary price formatter and use compact volume formatting (`K`, `M`, `B`) for both volume axis and legend/readout values unless the volume series defines its own `valueFormatter`.
 
 ## Chart-context behavior
 
@@ -23,6 +24,6 @@ This contract keeps chart display values deterministic across the canvas axis, p
 
 ## Current limitations
 
-- There is no separate per-series formatter registry yet.
-- The primary `priceFormatter` is chart-wide for price-like values.
+- The first per-series formatter policy only covers legend/readout values; it does not yet affect pane price-axis ticks for that series.
+- The primary `priceFormatter` remains chart-wide for top-level OHLC/price readout values and axis labels.
 - `gaps` merge behavior is still equivalent to `exact`; formatter output does not currently distinguish whitespace bars.

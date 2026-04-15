@@ -105,6 +105,7 @@ Current `chartx2` status against that model:
 - `LegendViewModel`
   - workbench readouts and pane-aware legend payloads already point in the right direction
   - readout, legend, axis, and formatter behavior now has an explicit contract: event payloads expose both raw numeric values and formatted display strings, pane legends consume the same per-series formatted values as readout UI, and custom time/price formatters now flow through axis labels, magnet labels, readout, and non-volume legend values
+  - series options now also expose a first per-series `valueFormatter` override for legend/readout values, so compare/study/volume-like lines can display with their own units without replacing the chart-wide price formatter
   - pane event snapshots now also carry stable source role and price-scale attachment metadata
   - pane snapshots now also carry main-series style schema metadata, so downstream UI and future persistence code can see option-surface and type-specific style fields without reopening engine internals
   - `Line Break` now also has a first chart-type-specific option/control surface through `lineBreakCount`, a compressed main-sequence path, and a workbench default viewport that keeps the synthetic main chart visible instead of silently stretching it back across the raw input timeline

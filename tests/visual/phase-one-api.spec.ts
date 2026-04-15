@@ -6844,6 +6844,7 @@ test("phase-one public api supports click subscriptions and series-level options
 
     const chart = createChartxPhaseOneChart(canvas);
     const events: Array<{ active: boolean; hasPoint: boolean; time: number | null }> = [];
+    let latestReadout: { series: Array<{ formattedValue: string }> } | null = null;
     const clickHandler = (event: {
       active: boolean;
       point: { x: number; y: number } | null;
@@ -6857,6 +6858,25 @@ test("phase-one public api supports click subscriptions and series-level options
     };
 
     chart.subscribeClick(clickHandler);
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        active: boolean;
+        series: Array<{ formattedValue: string }>;
+      }>).detail;
+      if (detail.active) {
+        latestReadout = {
+          series: detail.series.map((series) => ({ formattedValue: series.formattedValue })),
+        };
+        const state = (window as Window & {
+          __chartxSeriesOptionsState?: {
+            latestReadout: typeof latestReadout;
+          };
+        }).__chartxSeriesOptionsState;
+        if (state !== undefined) {
+          state.latestReadout = latestReadout;
+        }
+      }
+    });
     chart.applyOptions({
       layout: {
         backgroundColor: "#f7f4ea",
@@ -6879,6 +6899,7 @@ test("phase-one public api supports click subscriptions and series-level options
     series.applyOptions({
       color: "#c7543e",
       lineWidth: 4,
+      valueFormatter: (value: number) => `$${value.toFixed(1)}`,
     });
     series.setData([
       { time: 1, value: 126 },
@@ -6891,11 +6912,13 @@ test("phase-one public api supports click subscriptions and series-level options
     (window as Window & {
       __chartxSeriesOptionsState?: {
         events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+        latestReadout: typeof latestReadout;
         chart: { unsubscribeClick(handler: unknown): void };
         clickHandler: typeof clickHandler;
       };
     }).__chartxSeriesOptionsState = {
       events,
+      latestReadout,
       chart,
       clickHandler,
     };
@@ -6911,23 +6934,29 @@ test("phase-one public api supports click subscriptions and series-level options
   }
 
   await page.mouse.click(box.x + box.width * 0.54, box.y + box.height * 0.42);
+  await page.mouse.move(box.x + box.width * 0.54, box.y + box.height * 0.42);
   await expect(fixture).toHaveScreenshot("phase-one-api-series-options.png");
 
   const clickEvent = await page.evaluate(() => {
     const state = (window as Window & {
       __chartxSeriesOptionsState?: {
         events: Array<{ active: boolean; hasPoint: boolean; time: number | null }>;
+        latestReadout: { series: Array<{ formattedValue: string }> } | null;
       };
     }).__chartxSeriesOptionsState;
 
-    return state?.events.at(-1) ?? null;
+    return {
+      click: state?.events.at(-1) ?? null,
+      readout: state?.latestReadout ?? null,
+    };
   });
 
-  expect(clickEvent).toEqual({
+  expect(clickEvent.click).toEqual({
     active: true,
     hasPoint: true,
     time: expect.any(Number),
   });
+  expect(clickEvent.readout?.series[0]?.formattedValue).toMatch(/^\$\d+\.\d$/);
 
   const unsubscribeCount = await page.evaluate(() => {
     const state = (window as Window & {

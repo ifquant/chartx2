@@ -273,7 +273,13 @@ type DrawingMagnetOverrideState = {
   magnetSources?: Partial<RequiredDrawingMagnetSources>;
 };
 
-export type PhaseOneCandlestickSeriesOptions = {
+export type PhaseOneSeriesValueFormatter = (value: number) => string;
+
+type PhaseOneSeriesFormatterOptions = {
+  valueFormatter?: PhaseOneSeriesValueFormatter | null;
+};
+
+export type PhaseOneCandlestickSeriesOptions = PhaseOneSeriesFormatterOptions & {
   upColor?: string;
   downColor?: string;
   wickColor?: string;
@@ -288,12 +294,12 @@ export type PhaseOneCandlestickSeriesOptions = {
   pointFigurePercentageValue?: number;
 };
 
-export type PhaseOneBarSeriesOptions = {
+export type PhaseOneBarSeriesOptions = PhaseOneSeriesFormatterOptions & {
   upColor?: string;
   downColor?: string;
 };
 
-export type PhaseOneLineSeriesOptions = {
+export type PhaseOneLineSeriesOptions = PhaseOneSeriesFormatterOptions & {
   color?: string;
   lineWidth?: number;
   kagiYangColor?: string;
@@ -327,14 +333,14 @@ export type PhaseOneMovingAverageStudyOptions = {
   mergePolicy?: "carry-forward" | "gaps" | "exact";
 };
 
-export type PhaseOneAreaSeriesOptions = {
+export type PhaseOneAreaSeriesOptions = PhaseOneSeriesFormatterOptions & {
   lineColor?: string;
   lineWidth?: number;
   topColor?: string;
   bottomColor?: string;
 };
 
-export type PhaseOneBaselineSeriesOptions = {
+export type PhaseOneBaselineSeriesOptions = PhaseOneSeriesFormatterOptions & {
   baseValue?: number;
   lineWidth?: number;
   topLineColor?: string;
@@ -345,12 +351,12 @@ export type PhaseOneBaselineSeriesOptions = {
   bottomFillBottomColor?: string;
 };
 
-export type PhaseOneHistogramSeriesOptions = {
+export type PhaseOneHistogramSeriesOptions = PhaseOneSeriesFormatterOptions & {
   upColor?: string;
   downColor?: string;
 };
 
-export type PhaseOneVolumeSeriesOptions = {
+export type PhaseOneVolumeSeriesOptions = PhaseOneSeriesFormatterOptions & {
   upColor?: string;
   downColor?: string;
 };
@@ -1106,6 +1112,7 @@ export class PhaseOneChartHarness {
   private primaryScaleSeriesOnly = false;
   private primaryPriceRangeOverride: PriceRangeImpl | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
+    valueFormatter: null,
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
     wickColor: WICK_COLOR,
@@ -1120,10 +1127,12 @@ export class PhaseOneChartHarness {
     pointFigurePercentageValue: 1,
   };
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
+    valueFormatter: null,
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
   };
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
+    valueFormatter: null,
     color: LINE_COLOR,
     lineWidth: 2,
     kagiYangColor: "#0c8f62",
@@ -1155,12 +1164,14 @@ export class PhaseOneChartHarness {
     mergePolicy: "carry-forward",
   };
   private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = {
+    valueFormatter: null,
     lineColor: LINE_COLOR,
     lineWidth: 2,
     topColor: "rgba(63, 111, 216, 0.28)",
     bottomColor: "rgba(63, 111, 216, 0.02)",
   };
   private readonly baselineOptions: Required<PhaseOneBaselineSeriesOptions> = {
+    valueFormatter: null,
     baseValue: 130,
     lineWidth: 2,
     topLineColor: "#0c8f62",
@@ -1171,10 +1182,12 @@ export class PhaseOneChartHarness {
     bottomFillBottomColor: "rgba(199, 84, 62, 0.24)",
   };
   private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = {
+    valueFormatter: null,
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
   };
   private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = {
+    valueFormatter: null,
     upColor: UP_COLOR,
     downColor: DOWN_COLOR,
   };
@@ -1590,6 +1603,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "candlestick");
         const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -2675,6 +2689,15 @@ export class PhaseOneChartHarness {
     return pointCount;
   }
 
+  private applySeriesFormatterOptions(
+    seriesOptions: PhaseOneSeriesFormatterOptions,
+    options: PhaseOneSeriesFormatterOptions,
+  ): void {
+    if (options.valueFormatter !== undefined) {
+      seriesOptions.valueFormatter = options.valueFormatter;
+    }
+  }
+
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
     return this.attachPrimarySeries("line") as PhaseOneLineSeriesApi;
   }
@@ -2693,6 +2716,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "line");
         const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.color !== undefined) {
           seriesOptions.color = options.color;
         }
@@ -2756,6 +2780,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "area");
         const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.lineColor !== undefined) {
           seriesOptions.lineColor = options.lineColor;
         }
@@ -2809,6 +2834,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "baseline");
         const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.baseValue !== undefined) {
           seriesOptions.baseValue = options.baseValue;
         }
@@ -2874,6 +2900,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "bar");
         const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -2921,6 +2948,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "histogram");
         const seriesOptions = state.options as Required<PhaseOneHistogramSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -2965,6 +2993,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "candlestick");
         const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -3020,6 +3049,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "line");
         const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.color !== undefined) {
           seriesOptions.color = options.color;
         }
@@ -3065,6 +3095,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "line");
         const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.color !== undefined) {
           seriesOptions.color = options.color;
         }
@@ -3159,6 +3190,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "line");
         const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.color !== undefined) {
           seriesOptions.color = options.color;
         }
@@ -3245,6 +3277,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "area");
         const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.lineColor !== undefined) {
           seriesOptions.lineColor = options.lineColor;
         }
@@ -3296,6 +3329,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "baseline");
         const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.baseValue !== undefined) {
           seriesOptions.baseValue = options.baseValue;
         }
@@ -3359,6 +3393,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "bar");
         const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -3404,6 +3439,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "histogram");
         const seriesOptions = state.options as Required<PhaseOneHistogramSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -3449,6 +3485,7 @@ export class PhaseOneChartHarness {
         this.assertSeriesActive(api);
         const state = this.getSourceByApi(api, "volume");
         const seriesOptions = state.options as Required<PhaseOneVolumeSeriesOptions>;
+        this.applySeriesFormatterOptions(seriesOptions, options);
         if (options.upColor !== undefined) {
           seriesOptions.upColor = options.upColor;
         }
@@ -4878,7 +4915,7 @@ export class PhaseOneChartHarness {
         label: source.label,
         kind: source.kind,
         value,
-        formattedValue: this.formatSeriesReadoutValue(source.kind, value),
+        formattedValue: this.formatSeriesReadoutValueForState(source, value),
         color: resolveSeriesColor(source),
       }];
     });
@@ -4896,7 +4933,7 @@ export class PhaseOneChartHarness {
         label: state.label,
         kind: state.kind,
         value,
-        formattedValue: this.formatSeriesReadoutValue(state.kind, value),
+        formattedValue: this.formatSeriesReadoutValueForState(state, value),
         color: resolveSeriesColor(state),
       };
     });
@@ -5084,11 +5121,15 @@ export class PhaseOneChartHarness {
     return value === null ? "--" : formatTimeAxisLabel(value, this.timeAxisFormatter);
   }
 
-  private formatSeriesReadoutValue(kind: string, value: number | null): string {
+  private formatSeriesReadoutValueForState(state: SeriesSourceState, value: number | null): string {
     if (value === null) {
       return "--";
     }
-    return kind === "volume"
+    const formatter = state.options.valueFormatter;
+    if (formatter !== null) {
+      return formatter(value);
+    }
+    return state.kind === "volume"
       ? formatVolumeAxisLabel(value)
       : formatPriceAxisLabel(value, this.priceAxisFormatter);
   }

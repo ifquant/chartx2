@@ -343,15 +343,9 @@ test("workbench exposes a drawing inspector driven by selected drawing schema", 
     throw new Error("phase-one harness canvas is missing");
   }
 
-  let selectedKind = "None";
-  for (let x = 40; x <= box.width - 40 && selectedKind === "None"; x += 18) {
-    for (let y = 40; y <= box.height - 40 && selectedKind === "None"; y += 18) {
-      await page.mouse.click(box.x + x, box.y + y);
-      selectedKind = (await inspectorKind.textContent())?.trim() ?? "None";
-    }
-  }
-
-  expect(selectedKind).not.toBe("None");
+  await page.getByRole("button", { name: "Horizontal line" }).click();
+  await page.mouse.click(box.x + box.width * 0.34, box.y + box.height * 0.46);
+  await expect(inspectorKind).toHaveText("horizontal-line");
   await expect(inspector).toContainText("Appearance");
   await expect(inspector).toContainText("Geometry");
   await expect(inspector).toContainText("Magnet");
@@ -361,16 +355,10 @@ test("workbench exposes a drawing inspector driven by selected drawing schema", 
   await lineWidthInput.dispatchEvent("change");
   await expect(inspector).toContainText("Must be at least 1.");
 
-  if (selectedKind !== "trend-line") {
-    for (let x = 40; x <= box.width - 40 && selectedKind !== "trend-line"; x += 18) {
-      for (let y = 40; y <= box.height - 40 && selectedKind !== "trend-line"; y += 18) {
-        await page.mouse.click(box.x + x, box.y + y);
-        selectedKind = (await inspectorKind.textContent())?.trim() ?? "None";
-      }
-    }
-  }
-
-  expect(selectedKind).toBe("trend-line");
+  await page.getByRole("button", { name: "Trend line" }).click();
+  await page.mouse.click(box.x + box.width * 0.58, box.y + box.height * 0.60);
+  await page.mouse.click(box.x + box.width * 0.74, box.y + box.height * 0.38);
+  await expect(inspectorKind).toHaveText("trend-line");
   const timeInputs = inspector.locator('input[type="number"][step="60000"]');
   const startTimeValue = await timeInputs.nth(0).inputValue();
   await timeInputs.nth(1).fill(startTimeValue);

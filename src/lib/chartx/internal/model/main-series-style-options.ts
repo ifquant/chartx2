@@ -18,10 +18,19 @@ export type PointFigureStyleOptionsState = {
   percentageValue: number;
 };
 
+export type KagiStyleOptionsState = {
+  reversalMode: "auto" | "fixed" | "atr" | "percentage";
+  reversalSize: number | null;
+  reversalScale: number;
+  atrLength: number;
+  percentageValue: number;
+};
+
 export type MainSeriesStyleOptionsTarget = {
   lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
+  kagiOptions: KagiStyleOptionsState;
 };
 
 export type MainSeriesStyleOptionsPatch = {
@@ -34,6 +43,11 @@ export type MainSeriesStyleOptionsPatch = {
   pointFigureReversalBoxes?: number;
   pointFigureAtrLength?: number;
   pointFigurePercentageValue?: number;
+  kagiReversalMode?: "auto" | "fixed" | "atr" | "percentage";
+  kagiReversalSize?: number | null;
+  kagiReversalScale?: number;
+  kagiAtrLength?: number;
+  kagiPercentageValue?: number;
 };
 
 type MainSeriesStyleOptionApplier = (
@@ -61,6 +75,31 @@ export const MAIN_SERIES_STYLE_OPTION_APPLIERS: Partial<
     if (patch.renkoBoxSize !== undefined) {
       target.renkoOptions.boxSize =
         patch.renkoBoxSize !== null && patch.renkoBoxSize > 0 ? patch.renkoBoxSize : null;
+      changed = true;
+    }
+    return changed;
+  },
+  kagiStyle: (target, patch) => {
+    let changed = false;
+    if (patch.kagiReversalMode !== undefined) {
+      target.kagiOptions.reversalMode = patch.kagiReversalMode;
+      changed = true;
+    }
+    if (patch.kagiReversalSize !== undefined) {
+      target.kagiOptions.reversalSize =
+        patch.kagiReversalSize !== null && patch.kagiReversalSize > 0 ? patch.kagiReversalSize : null;
+      changed = true;
+    }
+    if (patch.kagiReversalScale !== undefined) {
+      target.kagiOptions.reversalScale = Math.min(4, Math.max(0.25, patch.kagiReversalScale));
+      changed = true;
+    }
+    if (patch.kagiAtrLength !== undefined) {
+      target.kagiOptions.atrLength = Math.max(2, Math.floor(patch.kagiAtrLength));
+      changed = true;
+    }
+    if (patch.kagiPercentageValue !== undefined) {
+      target.kagiOptions.percentageValue = Math.min(25, Math.max(0.1, patch.kagiPercentageValue));
       changed = true;
     }
     return changed;

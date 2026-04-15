@@ -32,6 +32,7 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
+  inferKagiReversalSize,
 } from "$lib/chartx/internal/model/main-series-builders";
 import { createPlotRows } from "$lib/chartx/internal/model/series-data";
 
@@ -52,7 +53,13 @@ export type DemoAction = {
   id: string;
   label: string;
   tone?: DemoActionTone;
-  group?: "chart-type" | "chart-action" | "renko-option" | "point-figure-option" | "line-break-option";
+  group?:
+    | "chart-type"
+    | "chart-action"
+    | "renko-option"
+    | "point-figure-option"
+    | "line-break-option"
+    | "kagi-option";
   active?: boolean;
 };
 
@@ -92,6 +99,13 @@ export type DemoSnapshot = {
     visibleColumns: number | null;
   } | null;
   kagiControls?: {
+    mode: WorkbenchKagiMode;
+    autoReversalSize: number | null;
+    effectiveReversalSize: number | null;
+    fixedReversalSize: number;
+    autoScale: number;
+    atrLength: number;
+    percentageValue: number;
     visibleColumns: number | null;
   } | null;
 };
@@ -105,6 +119,11 @@ export type DemoController = {
   setPointFigureMode?(mode: WorkbenchPointFigureMode): void;
   setPointFigureAtrLength?(length: number): void;
   setPointFigurePercentageValue?(value: number): void;
+  setKagiMode?(mode: WorkbenchKagiMode): void;
+  setKagiFixedReversalSize?(value: number): void;
+  setKagiAutoScale?(scale: number): void;
+  setKagiAtrLength?(length: number): void;
+  setKagiPercentageValue?(value: number): void;
   destroy(): void;
 };
 
@@ -122,6 +141,7 @@ type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
+type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
 
 type DefaultDrawingAnchors = {
   horizontalPrice: number;
@@ -248,6 +268,11 @@ export function mountWorkbenchDemo(
   let pointFigureReversalBoxes = 3;
   let pointFigureAtrLength = 14;
   let pointFigurePercentageValue = 1;
+  let kagiMode: WorkbenchKagiMode = "auto";
+  let kagiFixedReversalSize = 120;
+  let kagiAutoScale = 1;
+  let kagiAtrLength = 14;
+  let kagiPercentageValue = 1;
   let barSpacing = 15;
   let rightOffset = 0.8;
   let drawingTool: WorkbenchDrawingTool = "none";
@@ -362,8 +387,34 @@ export function mountWorkbenchDemo(
       mainChartType === "kagi"
         ? workbenchSeries("kagi").bars
         : null;
+    const inferredKagiReversalSize =
+      kagiBars === null ? null : inferKagiReversalSize(kagiBars);
+    const effectiveKagiAutoReversalSize =
+      inferredKagiReversalSize === null ? null : Math.max(1, Math.round(inferredKagiReversalSize * kagiAutoScale));
+    const effectiveKagiAtrReversalSize =
+      kagiBars === null
+        ? null
+        : Math.max(1, Math.round(inferAverageTrueRange(kagiBars, kagiAtrLength) * kagiAutoScale));
+    const effectiveKagiPercentageReversalSize =
+      kagiBars === null ? null : inferPercentageBoxSize(kagiBars, kagiPercentageValue);
+    const effectiveKagiReversalSize =
+      kagiMode === "fixed"
+        ? kagiFixedReversalSize
+        : kagiMode === "atr"
+          ? effectiveKagiAtrReversalSize
+          : kagiMode === "percentage"
+            ? effectiveKagiPercentageReversalSize
+            : effectiveKagiAutoReversalSize;
     const kagiRows =
-      kagiBars === null ? null : buildKagiData(kagiBars);
+      kagiBars === null
+        ? null
+        : buildKagiData(kagiBars, {
+            reversalMode: kagiMode,
+            reversalSize: kagiMode === "fixed" ? kagiFixedReversalSize : null,
+            reversalScale: kagiAutoScale,
+            atrLength: kagiAtrLength,
+            percentageValue: kagiPercentageValue,
+          });
     const kagiVisibleColumns =
       mainChartType !== "kagi" || visibleLogical === null
         ? null
@@ -436,7 +487,14 @@ export function mountWorkbenchDemo(
         ...(mainChartType === "kagi"
           ? [{
               label: "Kagi",
-              value: `${kagiRows?.length ?? 0} swings`,
+              value:
+                kagiMode === "auto"
+                  ? `Auto ${formatPointFigureBoxSize(effectiveKagiAutoReversalSize)} pts`
+                  : kagiMode === "atr"
+                    ? `ATR ${formatPointFigureBoxSize(effectiveKagiAtrReversalSize)} pts`
+                    : kagiMode === "percentage"
+                      ? `${kagiPercentageValue.toFixed(1)}% · ${formatPointFigureBoxSize(effectiveKagiPercentageReversalSize)} pts`
+                      : `Fixed ${kagiFixedReversalSize} pts`,
             }]
           : []),
         { label: "Panes", value: String(paneSnapshot.length) },
@@ -503,6 +561,13 @@ export function mountWorkbenchDemo(
       kagiControls:
         mainChartType === "kagi"
           ? {
+              mode: kagiMode,
+              autoReversalSize: effectiveKagiAutoReversalSize,
+              effectiveReversalSize: effectiveKagiReversalSize,
+              fixedReversalSize: kagiFixedReversalSize,
+              autoScale: kagiAutoScale,
+              atrLength: kagiAtrLength,
+              percentageValue: kagiPercentageValue,
               visibleColumns: kagiVisibleColumns,
             }
           : null,
@@ -541,7 +606,13 @@ export function mountWorkbenchDemo(
         : createDirectionColumnPriceBasedChartBarSequence(createPlotRows(pointFigureRows)).logicalLength;
     const kagiRows =
       mainChartType === "kagi"
-        ? buildKagiData(bars)
+        ? buildKagiData(bars, {
+            reversalMode: kagiMode,
+            reversalSize: kagiMode === "fixed" ? kagiFixedReversalSize : null,
+            reversalScale: kagiAutoScale,
+            atrLength: kagiAtrLength,
+            percentageValue: kagiPercentageValue,
+          })
         : null;
     const kagiLogicalLength =
       kagiRows === null
@@ -640,7 +711,13 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "kagi") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      chart.setChartType("kagi");
+      chart.setChartType("kagi").applyOptions({
+        kagiReversalMode: kagiMode,
+        kagiReversalSize: kagiMode === "fixed" ? kagiFixedReversalSize : null,
+        kagiReversalScale: kagiAutoScale,
+        kagiAtrLength: kagiAtrLength,
+        kagiPercentageValue: kagiPercentageValue,
+      });
       if (kagiLogicalLength !== null) {
         const lastLogical = kagiLogicalLength - 1;
         if (kagiLogicalLength <= 18) {
@@ -1320,6 +1397,46 @@ export function mountWorkbenchDemo(
     setPointFigurePercentageValue(value) {
       pointFigurePercentageValue = Math.min(10, Math.max(0.1, value));
       if (mainChartType === "point-figure") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setKagiMode(mode) {
+      kagiMode = mode;
+      if (mainChartType === "kagi") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setKagiFixedReversalSize(value) {
+      kagiFixedReversalSize = Math.min(2_000, Math.max(10, Math.round(value)));
+      if (mainChartType === "kagi") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setKagiAutoScale(scale) {
+      kagiAutoScale = Math.min(2.5, Math.max(0.35, scale));
+      if (mainChartType === "kagi") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setKagiAtrLength(length) {
+      kagiAtrLength = Math.min(60, Math.max(2, Math.round(length)));
+      if (mainChartType === "kagi") {
+        rebuild();
+        return;
+      }
+      publishSnapshot();
+    },
+    setKagiPercentageValue(value) {
+      kagiPercentageValue = Math.min(10, Math.max(0.1, value));
+      if (mainChartType === "kagi") {
         rebuild();
         return;
       }

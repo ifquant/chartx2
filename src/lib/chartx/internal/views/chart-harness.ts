@@ -35,6 +35,8 @@ import {
   type PhaseOneMainSeriesInputCapability,
   type PhaseOneMainSeriesRenderer,
   type PhaseOneMainStyleSchemaId,
+  type KagiStyleOptionsState,
+  type MainSeriesStyleOptionsPatch,
   type PointFigureStyleOptionsState,
   type MainSeriesStateSnapshot,
   type RenkoStyleOptionsState,
@@ -282,6 +284,15 @@ export type PhaseOneBarSeriesOptions = {
 export type PhaseOneLineSeriesOptions = {
   color?: string;
   lineWidth?: number;
+  kagiYangColor?: string;
+  kagiYinColor?: string;
+  kagiYangLineWidth?: number;
+  kagiYinLineWidth?: number;
+  kagiReversalMode?: "auto" | "fixed" | "atr" | "percentage";
+  kagiReversalSize?: number | null;
+  kagiReversalScale?: number;
+  kagiAtrLength?: number;
+  kagiPercentageValue?: number;
 };
 
 export type PhaseOneCompareSeriesOptions = {
@@ -951,6 +962,7 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   lineBreakOptions: { lineCount: number };
   renkoOptions: Required<RenkoStyleOptionsState>;
   pointFigureOptions: Required<PointFigureStyleOptionsState>;
+  kagiOptions: Required<KagiStyleOptionsState>;
   inputCapability: PhaseOneMainSeriesInputCapability;
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
@@ -1101,6 +1113,15 @@ export class PhaseOneChartHarness {
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
     color: LINE_COLOR,
     lineWidth: 2,
+    kagiYangColor: "#0c8f62",
+    kagiYinColor: "#c7543e",
+    kagiYangLineWidth: 4,
+    kagiYinLineWidth: 2,
+    kagiReversalMode: "auto",
+    kagiReversalSize: null,
+    kagiReversalScale: 1,
+    kagiAtrLength: 14,
+    kagiPercentageValue: 1,
   };
   private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = {
     affectMainScale: true,
@@ -2046,6 +2067,7 @@ export class PhaseOneChartHarness {
       lineBreakOptions: source.lineBreakOptions,
       renkoOptions: source.renkoOptions,
       pointFigureOptions: source.pointFigureOptions,
+      kagiOptions: source.kagiOptions,
     });
   }
 
@@ -2085,6 +2107,16 @@ export class PhaseOneChartHarness {
       reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
       atrLength: Math.max(2, Math.floor(state.pointFigureOptions.atrLength)),
       percentageValue: Math.min(25, Math.max(0.1, state.pointFigureOptions.percentageValue)),
+    };
+    source.kagiOptions = {
+      reversalMode: state.kagiOptions.reversalMode,
+      reversalSize:
+        state.kagiOptions.reversalSize !== null && state.kagiOptions.reversalSize > 0
+          ? state.kagiOptions.reversalSize
+          : null,
+      reversalScale: Math.min(4, Math.max(0.25, state.kagiOptions.reversalScale)),
+      atrLength: Math.max(2, Math.floor(state.kagiOptions.atrLength)),
+      percentageValue: Math.min(25, Math.max(0.1, state.kagiOptions.percentageValue)),
     };
     source.data = applyMainSeriesBuilderData(source.inputData, source);
     this.syncChartContextFromMainSource(source);
@@ -2651,6 +2683,22 @@ export class PhaseOneChartHarness {
         }
         if (options.lineWidth !== undefined) {
           seriesOptions.lineWidth = Math.max(1, options.lineWidth);
+        }
+        if (options.kagiYangColor !== undefined) {
+          seriesOptions.kagiYangColor = options.kagiYangColor;
+        }
+        if (options.kagiYinColor !== undefined) {
+          seriesOptions.kagiYinColor = options.kagiYinColor;
+        }
+        if (options.kagiYangLineWidth !== undefined) {
+          seriesOptions.kagiYangLineWidth = Math.max(1, options.kagiYangLineWidth);
+        }
+        if (options.kagiYinLineWidth !== undefined) {
+          seriesOptions.kagiYinLineWidth = Math.max(1, options.kagiYinLineWidth);
+        }
+        if (state.role === "main-series" && applyMainSeriesTypeSpecificOptions(state, options)) {
+          state.data = applyMainSeriesBuilderData(state.inputData, state);
+          this.syncChartContextFromMainSource(state);
         }
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -4354,6 +4402,13 @@ export class PhaseOneChartHarness {
         atrLength: this.candlestickOptions.pointFigureAtrLength,
         percentageValue: this.candlestickOptions.pointFigurePercentageValue,
       },
+      kagiOptions: {
+        reversalMode: this.lineOptions.kagiReversalMode,
+        reversalSize: this.lineOptions.kagiReversalSize,
+        reversalScale: this.lineOptions.kagiReversalScale,
+        atrLength: this.lineOptions.kagiAtrLength,
+        percentageValue: this.lineOptions.kagiPercentageValue,
+      },
       inputCapability: chartTypeSpec.inputCapability,
       builder: chartTypeSpec.builder,
       renderer: chartTypeSpec.renderer,
@@ -5579,12 +5634,16 @@ function updateCanonicalData(
 
 function applyMainSeriesBuilderData(
   data: readonly PhaseOneCandlestickData[],
-  source: Pick<MainSeriesSourceState, "builder" | "lineBreakOptions" | "renkoOptions" | "pointFigureOptions">,
+  source: Pick<
+    MainSeriesSourceState,
+    "builder" | "lineBreakOptions" | "renkoOptions" | "pointFigureOptions" | "kagiOptions"
+  >,
 ): readonly PhaseOneCandlestickData[] {
   return applyMainSeriesBuilder(source.builder, data, {
     lineBreakOptions: source.lineBreakOptions,
     renkoOptions: source.renkoOptions,
     pointFigureOptions: source.pointFigureOptions,
+    kagiOptions: source.kagiOptions,
   });
 }
 
@@ -5655,7 +5714,7 @@ function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKin
 
 function applyMainSeriesTypeSpecificOptions(
   source: MainSeriesSourceState,
-  options: PhaseOneCandlestickSeriesOptions,
+  options: MainSeriesStyleOptionsPatch,
 ): boolean {
   return applyMainSeriesStyleOptions(source.styleSchemaId, source, options);
 }

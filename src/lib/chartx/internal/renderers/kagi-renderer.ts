@@ -9,8 +9,10 @@ export type KagiRendererItem = {
 
 export type KagiRendererData = {
   items: KagiRendererItem[];
-  lineColor: string;
-  lineWidth: number;
+  yangColor: string;
+  yinColor: string;
+  yangLineWidth: number;
+  yinLineWidth: number;
 };
 
 export class KagiRenderer {
@@ -20,7 +22,6 @@ export class KagiRenderer {
     }
 
     context.save();
-    context.strokeStyle = data.lineColor;
     context.lineCap = "round";
     context.lineJoin = "round";
 
@@ -30,9 +31,10 @@ export class KagiRenderer {
       const x = Math.round(item.x) + 0.5;
       const openY = Math.round(item.openY) + 0.5;
       const closeY = Math.round(item.closeY) + 0.5;
-      const segmentWidth = item.isYang ? data.lineWidth * 2.8 : Math.max(1, data.lineWidth * 1.25);
+      const segmentWidth = item.isYang ? data.yangLineWidth : data.yinLineWidth;
 
-      context.globalAlpha = item.isYang ? 1 : 0.72;
+      context.strokeStyle = item.isYang ? data.yangColor : data.yinColor;
+      context.globalAlpha = item.isYang ? 1 : 0.78;
       context.lineWidth = segmentWidth;
       context.beginPath();
       context.moveTo(x, openY);
@@ -44,7 +46,9 @@ export class KagiRenderer {
       }
 
       const nextX = Math.round(next.x) + 0.5;
-      context.globalAlpha = next.isYang ? 1 : 0.72;
+      context.strokeStyle = next.isYang ? data.yangColor : data.yinColor;
+      context.globalAlpha = next.isYang ? 1 : 0.78;
+      context.lineWidth = next.isYang ? data.yangLineWidth : data.yinLineWidth;
       context.beginPath();
       context.moveTo(x, closeY);
       context.lineTo(nextX, closeY);

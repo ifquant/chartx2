@@ -1,6 +1,7 @@
 import type { OhlcDataPoint } from "./series-data";
 import type { PhaseOneMainSeriesBuilder } from "./main-series-chart-types";
 import type {
+  KagiStyleOptionsState,
   LineBreakStyleOptionsState,
   PointFigureStyleOptionsState,
   RenkoStyleOptionsState,
@@ -12,6 +13,7 @@ export type MainSeriesBuilderContext = {
   lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
+  kagiOptions: KagiStyleOptionsState;
 };
 
 export type MainSeriesBuilderExecutor = (
@@ -24,7 +26,7 @@ export const MAIN_SERIES_BUILDERS: Record<PhaseOneMainSeriesBuilder, MainSeriesB
   "heikin-ashi": (data) => buildHeikinAshiData(data),
   renko: (data, context) => buildRenkoData(data, context.renkoOptions),
   "line-break": (data, context) => buildLineBreakData(data, context.lineBreakOptions.lineCount),
-  kagi: (data) => buildKagiData(data),
+  kagi: (data, context) => buildKagiData(data, context.kagiOptions),
   "point-figure": (data, context) => buildPointFigureData(data, context.pointFigureOptions),
   range: (data) => [...data],
 };
@@ -525,13 +527,33 @@ function buildPointFigureBoxes(
 
 export function buildKagiData(
   data: readonly MainSeriesBuilderDataPoint[],
-  reversalFactor = 1,
+  options: KagiStyleOptionsState = {
+    reversalMode: "auto",
+    reversalSize: null,
+    reversalScale: 1,
+    atrLength: 14,
+    percentageValue: 1,
+  },
 ): readonly MainSeriesBuilderDataPoint[] {
   if (data.length === 0) {
     return [];
   }
 
-  const reversalSize = inferKagiReversalSize(data) * Math.max(1, Math.floor(reversalFactor));
+  const autoReversal = inferKagiReversalSize(data);
+  const atrReversal = inferAverageTrueRange(data, options.atrLength);
+  const percentageReversal = inferPercentageBoxSize(data, options.percentageValue);
+  const reversalBase =
+    options.reversalMode === "fixed" && options.reversalSize !== null && options.reversalSize > 0
+      ? options.reversalSize
+      : options.reversalMode === "atr"
+        ? atrReversal
+        : options.reversalMode === "percentage"
+          ? percentageReversal
+          : autoReversal;
+  const reversalSize =
+    options.reversalMode === "fixed"
+      ? Math.max(reversalBase, Number.EPSILON)
+      : Math.max(reversalBase * options.reversalScale, Number.EPSILON);
   const segments = buildKagiSegments(data, reversalSize);
 
   if (segments.length > 0) {
@@ -590,8 +612,8 @@ export function inferKagiReversalSize(data: readonly MainSeriesBuilderDataPoint[
     return baseline;
   }
 
-  const targetSegmentCount = Math.max(10, Math.min(28, Math.round(data.length / 320)));
-  const candidateMultipliers = [1, 1.5, 2, 3, 4, 6, 8, 10, 12, 14, 16];
+  const targetSegmentCount = Math.max(12, Math.min(26, Math.round(Math.sqrt(data.length) * 1.9)));
+  const candidateMultipliers = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8, 10, 12, 14, 16];
   const candidates = Array.from(
     new Set(
       candidateMultipliers
@@ -610,8 +632,8 @@ export function inferKagiReversalSize(data: readonly MainSeriesBuilderDataPoint[
 
     const score =
       Math.abs(segmentCount - targetSegmentCount) +
-      Math.max(0, 12 - segmentCount) * 4 +
-      Math.max(0, segmentCount - 40) * 1.5;
+      Math.max(0, 10 - segmentCount) * 4 +
+      Math.max(0, segmentCount - 36) * 1.5;
     if (score < bestScore) {
       bestScore = score;
       best = candidate;

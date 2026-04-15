@@ -107,7 +107,14 @@ export const MAIN_SERIES_RENDERERS: Record<PhaseOneMainSeriesRenderer, MainSerie
     });
   },
   kagi: (request) => {
-    const options = request.options as { color: string; lineWidth: number };
+    const options = request.options as {
+      color: string;
+      lineWidth: number;
+      kagiYangColor?: string;
+      kagiYinColor?: string;
+      kagiYangLineWidth?: number;
+      kagiYinLineWidth?: number;
+    };
     const items = request.rows.map((row, index): KagiRendererItem => ({
       x: request.timeToX(row.index),
       openY: request.priceToY(row.value[PlotRowValueIndex.Open]),
@@ -117,8 +124,10 @@ export const MAIN_SERIES_RENDERERS: Record<PhaseOneMainSeriesRenderer, MainSerie
 
     request.runtime.kagiRenderer.draw(request.context, {
       items,
-      lineColor: options.color,
-      lineWidth: options.lineWidth,
+      yangColor: options.kagiYangColor ?? options.color,
+      yinColor: options.kagiYinColor ?? options.color,
+      yangLineWidth: Math.max(1, options.kagiYangLineWidth ?? options.lineWidth * 2.4),
+      yinLineWidth: Math.max(1, options.kagiYinLineWidth ?? options.lineWidth),
     });
   },
   segment: (request) => {

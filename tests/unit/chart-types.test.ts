@@ -58,6 +58,7 @@ describe("chart type builders", () => {
         lineBreakOptions: { lineCount: 3 },
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
         pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
+        kagiOptions: { reversalMode: "auto", reversalSize: null, reversalScale: 1, atrLength: 14, percentageValue: 1 },
       }),
     ).toEqual(buildHeikinAshiData(input));
 
@@ -66,6 +67,7 @@ describe("chart type builders", () => {
         lineBreakOptions: { lineCount: 3 },
         renkoOptions: { boxSize: null, boxSizeMode: "auto" },
         pointFigureOptions: { boxSize: null, boxSizeMode: "auto", boxSizeScale: 1, reversalBoxes: 3, atrLength: 14, percentageValue: 1 },
+        kagiOptions: { reversalMode: "auto", reversalSize: null, reversalScale: 1, atrLength: 14, percentageValue: 1 },
       }),
     ).toEqual(input);
   });
@@ -105,6 +107,13 @@ describe("chart type builders", () => {
           atrLength: 14,
           percentageValue: 1,
         },
+        kagiOptions: {
+          reversalMode: "auto",
+          reversalSize: null,
+          reversalScale: 1,
+          atrLength: 14,
+          percentageValue: 1,
+        },
       }),
     ).toEqual({
       chartType: "renko",
@@ -132,6 +141,13 @@ describe("chart type builders", () => {
         boxSizeMode: "auto",
         boxSizeScale: 1,
         reversalBoxes: 3,
+        atrLength: 14,
+        percentageValue: 1,
+      },
+      kagiOptions: {
+        reversalMode: "auto",
+        reversalSize: null,
+        reversalScale: 1,
         atrLength: 14,
         percentageValue: 1,
       },
@@ -209,6 +225,13 @@ describe("chart type builders", () => {
         atrLength: 14,
         percentageValue: 1,
       },
+      kagiOptions: {
+        reversalMode: "auto" as const,
+        reversalSize: null,
+        reversalScale: 1,
+        atrLength: 14,
+        percentageValue: 1,
+      },
     };
 
     expect(
@@ -249,6 +272,22 @@ describe("chart type builders", () => {
       atrLength: 21,
       percentageValue: 1.8,
     });
+
+    expect(
+      applyMainSeriesStyleOptions("kagiStyle", styleTarget, {
+        kagiReversalMode: "atr",
+        kagiReversalScale: 1.4,
+        kagiAtrLength: 21,
+        kagiPercentageValue: 1.8,
+      }),
+    ).toBe(true);
+    expect(styleTarget.kagiOptions).toEqual({
+      reversalMode: "atr",
+      reversalSize: null,
+      reversalScale: 1.4,
+      atrLength: 21,
+      percentageValue: 1.8,
+    });
   });
 
   it("maps style schemas to explicit option surfaces and type-specific keys", () => {
@@ -277,6 +316,33 @@ describe("chart type builders", () => {
         "pointFigureReversalBoxes",
         "pointFigureAtrLength",
         "pointFigurePercentageValue",
+      ],
+    });
+    expect(mainSeriesStyleSchemaSpec("kagiStyle")).toEqual({
+      optionSurface: "line",
+      optionKeys: [
+        "color",
+        "lineWidth",
+        "kagiYangColor",
+        "kagiYinColor",
+        "kagiYangLineWidth",
+        "kagiYinLineWidth",
+        "kagiReversalMode",
+        "kagiReversalSize",
+        "kagiReversalScale",
+        "kagiAtrLength",
+        "kagiPercentageValue",
+      ],
+      typeSpecificOptionKeys: [
+        "kagiYangColor",
+        "kagiYinColor",
+        "kagiYangLineWidth",
+        "kagiYinLineWidth",
+        "kagiReversalMode",
+        "kagiReversalSize",
+        "kagiReversalScale",
+        "kagiAtrLength",
+        "kagiPercentageValue",
       ],
     });
     expect(mainSeriesStyleSchemaSpec("lineStyle")).toEqual({
@@ -720,5 +786,54 @@ describe("chart type builders", () => {
       { time: 5, open: 103, high: 104, low: 96, close: 98 },
       { time: 6, open: 98, high: 106, low: 97, close: 105 },
     ]);
+  });
+
+  it("supports configurable kagi reversal modes without mutating canonical input", () => {
+    const input = Array.from({ length: 48 }, (_, index) => {
+      const close = 18_000 + Math.sin(index / 2.6) * 220 + Math.cos(index / 6.2) * 380;
+      return {
+        time: index + 1,
+        open: close - 35,
+        high: close + 80 + (index % 4) * 9,
+        low: close - 90 - (index % 3) * 12,
+        close,
+      };
+    });
+
+    const autoResult = buildKagiData(input, {
+      reversalMode: "auto",
+      reversalSize: null,
+      reversalScale: 1,
+      atrLength: 14,
+      percentageValue: 1,
+    });
+    const atrResult = buildKagiData(input, {
+      reversalMode: "atr",
+      reversalSize: null,
+      reversalScale: 0.8,
+      atrLength: 21,
+      percentageValue: 1,
+    });
+    const percentageResult = buildKagiData(input, {
+      reversalMode: "percentage",
+      reversalSize: null,
+      reversalScale: 1,
+      atrLength: 14,
+      percentageValue: 1.5,
+    });
+    const fixedResult = buildKagiData(input, {
+      reversalMode: "fixed",
+      reversalSize: 180,
+      reversalScale: 1,
+      atrLength: 14,
+      percentageValue: 1,
+    });
+
+    expect(autoResult.length).toBeGreaterThan(0);
+    expect(atrResult.length).toBeGreaterThan(0);
+    expect(percentageResult.length).toBeGreaterThan(0);
+    expect(fixedResult.length).toBeGreaterThan(0);
+    expect(autoResult).not.toEqual(atrResult);
+    expect(percentageResult).not.toEqual(fixedResult);
   });
 });

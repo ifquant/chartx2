@@ -236,6 +236,26 @@
     workbenchController?.setPointFigurePercentageValue?.(value);
   }
 
+  function setKagiMode(value: "auto" | "fixed" | "atr" | "percentage"): void {
+    workbenchController?.setKagiMode?.(value);
+  }
+
+  function setKagiFixedReversalSize(value: number): void {
+    workbenchController?.setKagiFixedReversalSize?.(value);
+  }
+
+  function setKagiAutoScale(value: number): void {
+    workbenchController?.setKagiAutoScale?.(value);
+  }
+
+  function setKagiAtrLength(value: number): void {
+    workbenchController?.setKagiAtrLength?.(value);
+  }
+
+  function setKagiPercentageValue(value: number): void {
+    workbenchController?.setKagiPercentageValue?.(value);
+  }
+
   function handleWorkbenchChartPointerMove(event: PointerEvent): void {
     const frame = event.currentTarget;
     if (!(frame instanceof HTMLElement)) {
@@ -875,6 +895,107 @@
                       </button>
                     {/each}
                   </div>
+                </section>
+              {/if}
+
+              {#if workbenchSnapshot.kagiControls}
+                <section class="mini-card symbol-card">
+                  <div class="sidebar-head">
+                    <h4>Kagi</h4>
+                    <span>{workbenchSnapshot.kagiControls.visibleColumns ?? "--"} cols</span>
+                  </div>
+                  <div class="metric-list compact">
+                    <article>
+                      <small>Mode</small>
+                      <strong>{workbenchSnapshot.kagiControls.mode}</strong>
+                    </article>
+                    <article>
+                      <small>Reversal</small>
+                      <strong>{formatPointFigureBoxSize(workbenchSnapshot.kagiControls.effectiveReversalSize)} pts</strong>
+                    </article>
+                    <article>
+                      <small>Visible</small>
+                      <strong>{workbenchSnapshot.kagiControls.visibleColumns ?? "--"} cols</strong>
+                    </article>
+                  </div>
+                  <div class="mode-strip compact">
+                    <button
+                      class:active={workbenchSnapshot.kagiControls.mode === "auto"}
+                      on:click={() => setKagiMode("auto")}
+                    >
+                      Auto
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.kagiControls.mode === "atr"}
+                      on:click={() => setKagiMode("atr")}
+                    >
+                      ATR
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.kagiControls.mode === "percentage"}
+                      on:click={() => setKagiMode("percentage")}
+                    >
+                      %
+                    </button>
+                    <button
+                      class:active={workbenchSnapshot.kagiControls.mode === "fixed"}
+                      on:click={() => setKagiMode("fixed")}
+                    >
+                      Fixed
+                    </button>
+                  </div>
+                  {#if workbenchSnapshot.kagiControls.mode === "auto" || workbenchSnapshot.kagiControls.mode === "atr"}
+                    <label class="inspector-field slider-field">
+                      <span>Scale {workbenchSnapshot.kagiControls.autoScale.toFixed(2)}x</span>
+                      <input
+                        type="range"
+                        min="0.35"
+                        max="2.5"
+                        step="0.05"
+                        value={String(workbenchSnapshot.kagiControls.autoScale)}
+                        on:input={(event) => setKagiAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
+                  {#if workbenchSnapshot.kagiControls.mode === "fixed"}
+                    <label class="inspector-field slider-field">
+                      <span>Fixed reversal {workbenchSnapshot.kagiControls.fixedReversalSize} pts</span>
+                      <input
+                        type="range"
+                        min="10"
+                        max="2000"
+                        step="10"
+                        value={String(workbenchSnapshot.kagiControls.fixedReversalSize)}
+                        on:input={(event) => setKagiFixedReversalSize(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
+                  {#if workbenchSnapshot.kagiControls.mode === "atr"}
+                    <label class="inspector-field slider-field">
+                      <span>ATR length {workbenchSnapshot.kagiControls.atrLength}</span>
+                      <input
+                        type="range"
+                        min="2"
+                        max="60"
+                        step="1"
+                        value={String(workbenchSnapshot.kagiControls.atrLength)}
+                        on:input={(event) => setKagiAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
+                  {#if workbenchSnapshot.kagiControls.mode === "percentage"}
+                    <label class="inspector-field slider-field">
+                      <span>Percent {workbenchSnapshot.kagiControls.percentageValue.toFixed(1)}%</span>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="10"
+                        step="0.1"
+                        value={String(workbenchSnapshot.kagiControls.percentageValue)}
+                        on:input={(event) => setKagiPercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    </label>
+                  {/if}
                 </section>
               {/if}
 

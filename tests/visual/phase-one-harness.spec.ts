@@ -294,6 +294,25 @@ test("workbench kagi opens with a readable dedicated kagi stroke", async ({ page
   await expect(frame).toHaveScreenshot("phase-one-harness-kagi-readable.png");
 });
 
+test("workbench kagi can switch between auto, ATR, percentage, and fixed reversal controls", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await page.getByRole("button", { name: "Kagi", exact: true }).click();
+
+  await expect(workbench).toContainText(/Reversal/i);
+  await workbench.getByRole("button", { name: "ATR", exact: true }).click();
+  await expect(workbench).toContainText("ATR length");
+
+  await workbench.getByRole("button", { name: "%", exact: true }).click();
+  await expect(workbench).toContainText("Percent");
+
+  await workbench.getByRole("button", { name: "Fixed", exact: true }).click();
+  await expect(workbench).toContainText(/Fixed/i);
+});
+
 test("workbench can switch from heikin back to candles", async ({ page }) => {
   await page.goto("/");
 

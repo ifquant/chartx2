@@ -11,6 +11,7 @@ import {
   type MainSeriesStyleOptionSurfaceKind,
 } from "./main-series-style-schemas";
 import type {
+  KagiStyleOptionsState,
   LineBreakStyleOptionsState,
   PointFigureStyleOptionsState,
   RenkoStyleOptionsState,
@@ -24,6 +25,7 @@ export type MainSeriesStateTarget = {
   lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
+  kagiOptions: KagiStyleOptionsState;
 };
 
 export type MainSeriesStateSnapshot = {
@@ -37,6 +39,7 @@ export type MainSeriesStateSnapshot = {
   lineBreakOptions: LineBreakStyleOptionsState;
   renkoOptions: RenkoStyleOptionsState;
   pointFigureOptions: PointFigureStyleOptionsState;
+  kagiOptions: KagiStyleOptionsState;
 };
 
 export function createMainSeriesStateSnapshot(
@@ -68,6 +71,14 @@ export function createMainSeriesStateSnapshot(
     styleOptions.pointFigurePercentageValue = target.pointFigureOptions.percentageValue;
   }
 
+  if (chartTypeSpec.styleSchemaId === "kagiStyle") {
+    styleOptions.kagiReversalMode = target.kagiOptions.reversalMode;
+    styleOptions.kagiReversalSize = target.kagiOptions.reversalSize;
+    styleOptions.kagiReversalScale = target.kagiOptions.reversalScale;
+    styleOptions.kagiAtrLength = target.kagiOptions.atrLength;
+    styleOptions.kagiPercentageValue = target.kagiOptions.percentageValue;
+  }
+
   return {
     chartType: target.chartType,
     inputCapability: chartTypeSpec.inputCapability,
@@ -90,6 +101,13 @@ export function createMainSeriesStateSnapshot(
       reversalBoxes: target.pointFigureOptions.reversalBoxes,
       atrLength: target.pointFigureOptions.atrLength,
       percentageValue: target.pointFigureOptions.percentageValue,
+    },
+    kagiOptions: {
+      reversalMode: target.kagiOptions.reversalMode,
+      reversalSize: target.kagiOptions.reversalSize,
+      reversalScale: target.kagiOptions.reversalScale,
+      atrLength: target.kagiOptions.atrLength,
+      percentageValue: target.kagiOptions.percentageValue,
     },
   };
 }

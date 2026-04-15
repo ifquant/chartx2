@@ -91,6 +91,9 @@ export type DemoSnapshot = {
     lineCount: number;
     visibleColumns: number | null;
   } | null;
+  kagiControls?: {
+    visibleColumns: number | null;
+  } | null;
 };
 
 export type DemoController = {
@@ -270,6 +273,7 @@ export function mountWorkbenchDemo(
     bars: readonly PhaseOneCandlestickData[],
     lineBreakRows: readonly PhaseOneCandlestickData[] | null,
     pointFigureRows: readonly PhaseOneCandlestickData[] | null,
+    kagiRows: readonly PhaseOneCandlestickData[] | null,
   ): readonly PhaseOneCandlestickData[] => {
     if (mainChartType === "line-break") {
       return lineBreakRows ?? bars;
@@ -284,7 +288,7 @@ export function mountWorkbenchDemo(
       });
     }
     if (mainChartType === "kagi") {
-      return buildKagiData(bars);
+      return kagiRows ?? bars;
     }
     return bars;
   };
@@ -354,6 +358,16 @@ export function mountWorkbenchDemo(
       mainChartType !== "line-break" || visibleLogical === null
         ? null
         : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
+    const kagiBars =
+      mainChartType === "kagi"
+        ? workbenchSeries("kagi").bars
+        : null;
+    const kagiRows =
+      kagiBars === null ? null : buildKagiData(kagiBars);
+    const kagiVisibleColumns =
+      mainChartType !== "kagi" || visibleLogical === null
+        ? null
+        : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
     const pointFigureBars =
       mainChartType === "point-figure"
         ? workbenchSeries("point-figure").bars
@@ -419,6 +433,12 @@ export function mountWorkbenchDemo(
               value: `${lineBreakCount} lines · ${effectiveLineBreakRows?.length ?? 0} bricks`,
             }]
           : []),
+        ...(mainChartType === "kagi"
+          ? [{
+              label: "Kagi",
+              value: `${kagiRows?.length ?? 0} swings`,
+            }]
+          : []),
         { label: "Panes", value: String(paneSnapshot.length) },
         {
           label: "Visible bars",
@@ -480,6 +500,12 @@ export function mountWorkbenchDemo(
               visibleColumns: lineBreakVisibleColumns,
             }
           : null,
+      kagiControls:
+        mainChartType === "kagi"
+          ? {
+              visibleColumns: kagiVisibleColumns,
+            }
+          : null,
     });
   };
 
@@ -513,6 +539,14 @@ export function mountWorkbenchDemo(
       pointFigureRows === null
         ? null
         : createDirectionColumnPriceBasedChartBarSequence(createPlotRows(pointFigureRows)).logicalLength;
+    const kagiRows =
+      mainChartType === "kagi"
+        ? buildKagiData(bars)
+        : null;
+    const kagiLogicalLength =
+      kagiRows === null
+        ? null
+        : createCompressedPriceBasedChartBarSequence(createPlotRows(kagiRows)).logicalLength;
     const effectiveBarSpacing =
       mainChartType === "point-figure"
         ? Math.max(
@@ -522,9 +556,20 @@ export function mountWorkbenchDemo(
               Math.floor(
                 (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
                   Math.max(Math.min(pointFigureLogicalLength ?? 1, 24) + 1, 1),
+                ),
               ),
-            ),
-          )
+            )
+        : mainChartType === "kagi"
+          ? Math.max(
+              22,
+              Math.min(
+                42,
+                Math.floor(
+                  (Math.max(canvas.clientWidth || canvas.width || 960, 960) - 36) /
+                    Math.max(Math.min(kagiLogicalLength ?? 1, 18) + 1, 1),
+                ),
+              ),
+            )
         : mainChartType === "line-break"
           ? Math.max(
               12,
@@ -538,11 +583,15 @@ export function mountWorkbenchDemo(
             )
         : barSpacing;
     const effectiveRightOffset =
-      mainChartType === "point-figure" || mainChartType === "line-break"
+      mainChartType === "point-figure" || mainChartType === "line-break" || mainChartType === "kagi"
         ? Math.min(rightOffset, 0.1)
         : rightOffset;
-    const defaultDrawingRows = resolveMainDrawingRows(bars, lineBreakRows, pointFigureRows);
+    const defaultDrawingRows = resolveMainDrawingRows(bars, lineBreakRows, pointFigureRows, kagiRows);
     const defaultDrawingAnchors = resolveDefaultDrawingAnchors(defaultDrawingRows);
+    const volumeRows = mainChartType === "kagi" ? kagiRows ?? bars : bars;
+    const lineRows = mainChartType === "kagi" ? kagiRows ?? bars : bars;
+    const volumeData = createVolumeData(volumeRows);
+    const lineData = createLineData(lineRows, mainChartType === "kagi" ? 14 : 6);
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
@@ -589,9 +638,24 @@ export function mountWorkbenchDemo(
         });
       }
     } else if (mainChartType === "kagi") {
-      const mainSeries = chart.addLineSeries();
-      mainSeries.setData(line);
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
       chart.setChartType("kagi");
+      if (kagiLogicalLength !== null) {
+        const lastLogical = kagiLogicalLength - 1;
+        if (kagiLogicalLength <= 18) {
+          chart.timeScale().setVisibleLogicalRange({
+            from: -0.5,
+            to: lastLogical + 0.5,
+          });
+        } else {
+          const targetVisibleColumns = Math.max(12, Math.min(18, kagiLogicalLength));
+          chart.timeScale().setVisibleLogicalRange({
+            from: Math.max(-0.5, lastLogical - targetVisibleColumns + 1 - 0.5),
+            to: lastLogical + 0.5,
+          });
+        }
+      }
     } else if (mainChartType === "point-figure") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -672,7 +736,7 @@ export function mountWorkbenchDemo(
     if (!suppressSecondaryPanes) {
       const volumePane = chart.addPane({ height: 126 });
       const volumeSeries = chart.addVolumeSeries({ pane: volumePane });
-      volumeSeries.setData(volume);
+      volumeSeries.setData(volumeData);
     }
 
     if (!suppressSecondaryPanes && studyPaneEnabled) {
@@ -682,7 +746,7 @@ export function mountWorkbenchDemo(
         color: theme === "warm" ? "#365cb7" : "#2563eb",
         lineWidth: 3,
       });
-      studySeries.setData(line);
+      studySeries.setData(lineData);
     }
 
     for (let index = 0; index < emptyPaneCount; index += 1) {

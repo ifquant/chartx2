@@ -531,90 +531,8 @@ export function buildKagiData(
     return [];
   }
 
-  const reversalSize = inferRenkoBoxSize(data) * Math.max(1, Math.floor(reversalFactor));
-  const segments: MainSeriesBuilderDataPoint[] = [];
-  let anchor = data[0].close;
-  let direction: 1 | -1 | null = null;
-
-  for (let index = 1; index < data.length; index += 1) {
-    const input = data[index];
-    const close = input.close;
-
-    if (direction === null) {
-      if (Math.abs(close - anchor) < reversalSize) {
-        continue;
-      }
-
-      direction = close > anchor ? 1 : -1;
-      segments.push({
-        time: input.time,
-        open: anchor,
-        high: Math.max(anchor, close),
-        low: Math.min(anchor, close),
-        close,
-        volume: input.volume,
-      });
-      anchor = close;
-      continue;
-    }
-
-    if (direction === 1) {
-      if (close >= anchor) {
-        const current = segments[segments.length - 1];
-        segments[segments.length - 1] = {
-          ...current,
-          time: input.time,
-          high: Math.max(current.open, close),
-          low: Math.min(current.open, close),
-          close,
-          volume: input.volume,
-        };
-        anchor = close;
-        continue;
-      }
-
-      if (anchor - close >= reversalSize) {
-        direction = -1;
-        segments.push({
-          time: input.time,
-          open: anchor,
-          high: anchor,
-          low: close,
-          close,
-          volume: input.volume,
-        });
-        anchor = close;
-      }
-      continue;
-    }
-
-    if (close <= anchor) {
-      const current = segments[segments.length - 1];
-      segments[segments.length - 1] = {
-        ...current,
-        time: input.time,
-        high: Math.max(current.open, close),
-        low: Math.min(current.open, close),
-        close,
-        volume: input.volume,
-      };
-      anchor = close;
-      continue;
-    }
-
-    if (close - anchor >= reversalSize) {
-      direction = 1;
-      segments.push({
-        time: input.time,
-        open: anchor,
-        high: close,
-        low: anchor,
-        close,
-        volume: input.volume,
-      });
-      anchor = close;
-    }
-  }
+  const reversalSize = inferKagiReversalSize(data) * Math.max(1, Math.floor(reversalFactor));
+  const segments = buildKagiSegments(data, reversalSize);
 
   if (segments.length > 0) {
     return segments;
@@ -630,4 +548,154 @@ export function buildKagiData(
       volume: data[0].volume,
     },
   ];
+}
+
+export function inferKagiReversalSize(data: readonly MainSeriesBuilderDataPoint[]): number {
+  if (data.length < 2) {
+    return 1;
+  }
+
+  const sampleSize = Math.min(data.length, 240);
+  const sample = data.slice(-sampleSize);
+  let minLow = sample[0]?.low ?? sample[0]?.close ?? 0;
+  let maxHigh = sample[0]?.high ?? sample[0]?.close ?? 0;
+  let totalDelta = 0;
+  let totalTrueRange = 0;
+
+  for (let index = 0; index < sample.length; index += 1) {
+    const bar = sample[index]!;
+    minLow = Math.min(minLow, bar.low);
+    maxHigh = Math.max(maxHigh, bar.high);
+    const previousClose = index === 0 ? bar.open : sample[index - 1]!.close;
+    totalTrueRange += Math.max(
+      bar.high - bar.low,
+      Math.abs(bar.high - previousClose),
+      Math.abs(bar.low - previousClose),
+    );
+    if (index > 0) {
+      totalDelta += Math.abs(bar.close - sample[index - 1]!.close);
+    }
+  }
+
+  const averageDelta = totalDelta / Math.max(sample.length - 1, 1);
+  const averageTrueRange = totalTrueRange / sample.length;
+  const priceRange = Math.max(maxHigh - minLow, Number.EPSILON);
+  const reversalSize = Math.max(
+    averageTrueRange * 1.15,
+    averageDelta * 1.75,
+    priceRange / 18,
+  );
+  const baseline = roundBoxSize(Math.max(reversalSize, Number.EPSILON));
+  if (data.length <= 64) {
+    return baseline;
+  }
+
+  const targetSegmentCount = Math.max(10, Math.min(28, Math.round(data.length / 320)));
+  const candidateMultipliers = [1, 1.5, 2, 3, 4, 6, 8, 10, 12, 14, 16];
+  const candidates = Array.from(
+    new Set(
+      candidateMultipliers
+        .map((multiplier) => roundBoxSize(baseline * multiplier))
+        .filter((value) => Number.isFinite(value) && value > 0),
+    ),
+  ).sort((left, right) => left - right);
+
+  let best = baseline;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const segmentCount = buildKagiSegments(data, candidate).length;
+    if (segmentCount === 0) {
+      continue;
+    }
+
+    const score =
+      Math.abs(segmentCount - targetSegmentCount) +
+      Math.max(0, 12 - segmentCount) * 4 +
+      Math.max(0, segmentCount - 40) * 1.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
+function buildKagiSegments(
+  data: readonly MainSeriesBuilderDataPoint[],
+  reversalSize: number,
+): readonly MainSeriesBuilderDataPoint[] {
+  const segments: MainSeriesBuilderDataPoint[] = [];
+  let anchor = data[0]?.close ?? 0;
+  let direction: 1 | -1 | null = null;
+  let currentSegmentOpen = anchor;
+
+  const upsertSegment = (
+    input: MainSeriesBuilderDataPoint,
+    nextClose: number,
+    nextDirection: 1 | -1,
+    syntheticOrdinal: number,
+  ) => {
+    if (direction !== nextDirection) {
+      currentSegmentOpen = anchor;
+    }
+
+    const segment: MainSeriesBuilderDataPoint = {
+      time: input.time + syntheticOrdinal * 0.001,
+      open: currentSegmentOpen,
+      high: Math.max(currentSegmentOpen, nextClose),
+      low: Math.min(currentSegmentOpen, nextClose),
+      close: nextClose,
+      volume: input.volume,
+    };
+
+    if (segments.length > 0 && direction === nextDirection) {
+      segments[segments.length - 1] = segment;
+    } else {
+      segments.push(segment);
+    }
+    anchor = nextClose;
+    direction = nextDirection;
+  };
+
+  for (let index = 1; index < data.length; index += 1) {
+    const input = data[index]!;
+    let syntheticOrdinal = 0;
+
+    if (direction === null) {
+      const upwardDistance = input.high - anchor;
+      const downwardDistance = anchor - input.low;
+      if (Math.max(upwardDistance, downwardDistance) < reversalSize) {
+        continue;
+      }
+
+      if (upwardDistance >= downwardDistance) {
+        upsertSegment(input, input.high, 1, syntheticOrdinal);
+      } else {
+        upsertSegment(input, input.low, -1, syntheticOrdinal);
+      }
+      continue;
+    }
+
+    if (direction === 1) {
+      if (input.close >= anchor && input.high > anchor) {
+        upsertSegment(input, input.high, 1, syntheticOrdinal);
+      }
+      if (input.close < anchor && anchor - input.close >= reversalSize) {
+        syntheticOrdinal += 1;
+        upsertSegment(input, input.low, -1, syntheticOrdinal);
+      }
+      continue;
+    }
+
+    if (input.close <= anchor && input.low < anchor) {
+      upsertSegment(input, input.low, -1, syntheticOrdinal);
+    }
+    if (input.close > anchor && input.close - anchor >= reversalSize) {
+      syntheticOrdinal += 1;
+      upsertSegment(input, input.high, 1, syntheticOrdinal);
+    }
+  }
+
+  return segments;
 }

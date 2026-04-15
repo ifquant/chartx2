@@ -282,6 +282,18 @@ test("workbench line-break opens with chart-context lower panes and line-count c
   await expect(frame).toHaveScreenshot("phase-one-harness-line-break-readable.png");
 });
 
+test("workbench kagi opens with a readable dedicated kagi stroke", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const frame = workbench.locator(".chart-frame");
+
+  await page.getByRole("button", { name: "Kagi", exact: true }).click();
+
+  await expect(workbench).toContainText("Kagi");
+  await expect(frame).toHaveScreenshot("phase-one-harness-kagi-readable.png");
+});
+
 test("workbench can switch from heikin back to candles", async ({ page }) => {
   await page.goto("/");
 

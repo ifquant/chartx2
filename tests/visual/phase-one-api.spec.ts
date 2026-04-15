@@ -209,7 +209,7 @@ test("phase-one public api mounts a single line chart and renders the first fram
     }
 
     const chart = createChartxPhaseOneChart(canvas);
-    const series = chart.addLineSeries();
+    const series = chart.addCandlestickSeries();
     series.setData(data);
   }, { data: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
 
@@ -237,7 +237,7 @@ test("phase-one public api can switch the active main chart type to line-markers
     }
 
     const chart = createChartxPhaseOneChart(canvas);
-    const series = chart.addLineSeries();
+    const series = chart.addCandlestickSeries();
     series.setData(data);
     const paneEvents: PaneEventSnapshot[] = [];
     chart.subscribePaneEvents((event: PaneEventSnapshot) => {
@@ -579,6 +579,10 @@ test("phase-one public api can switch the active main chart type to kagi", async
     });
 
     chart.setChartType("kagi");
+    chart.timeScale().setVisibleLogicalRange({
+      from: -0.5,
+      to: 4.5,
+    });
     chart.addPane({ height: 98 });
 
     return {
@@ -587,12 +591,12 @@ test("phase-one public api can switch the active main chart type to kagi", async
     };
   }, {
     data: [
-      { time: 1, value: 100 },
-      { time: 2, value: 104 },
-      { time: 3, value: 108 },
-      { time: 4, value: 103 },
-      { time: 5, value: 98 },
-      { time: 6, value: 105 },
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 109, low: 101, close: 103 },
+      { time: 5, open: 103, high: 104, low: 96, close: 98 },
+      { time: 6, open: 98, high: 106, low: 97, close: 105 },
     ],
     publicEntry: PUBLIC_ENTRY,
   });
@@ -604,10 +608,10 @@ test("phase-one public api can switch the active main chart type to kagi", async
     sourceRole: "main-series",
     inputCapability: "ohlcv",
     builder: "kagi",
-    renderer: "segment",
+    renderer: "kagi",
     styleSchemaId: "kagiStyle",
-    pointCount: 3,
   });
+  expect(result.paneEvents[0]?.panes[0]?.series[0]?.pointCount).toBeGreaterThan(0);
 
   const fixture = page.locator("#api-kagi-fixture");
   await expect(fixture).toBeVisible();

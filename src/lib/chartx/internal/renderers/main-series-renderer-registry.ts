@@ -17,6 +17,8 @@ import {
   type CandlestickItem,
   HistogramRenderer,
   type HistogramItem,
+  KagiRenderer,
+  type KagiRendererItem,
   LineRenderer,
   type LineItem,
   PointFigureRenderer,
@@ -31,6 +33,7 @@ type MainSeriesRendererRuntime = {
   candlesRenderer: CandlesticksRenderer;
   pointFigureRenderer: PointFigureRenderer;
   histogramRenderer: HistogramRenderer;
+  kagiRenderer: KagiRenderer;
 };
 
 export type MainSeriesRendererVisual = {
@@ -101,6 +104,21 @@ export const MAIN_SERIES_RENDERERS: Record<PhaseOneMainSeriesRenderer, MainSerie
       lineWidth: options.lineWidth,
       mode: "stepline",
       showMarkers: false,
+    });
+  },
+  kagi: (request) => {
+    const options = request.options as { color: string; lineWidth: number };
+    const items = request.rows.map((row, index): KagiRendererItem => ({
+      x: request.timeToX(row.index),
+      openY: request.priceToY(row.value[PlotRowValueIndex.Open]),
+      closeY: request.priceToY(row.value[PlotRowValueIndex.Close]),
+      isYang: inferKagiLineState(request.rows, index),
+    }));
+
+    request.runtime.kagiRenderer.draw(request.context, {
+      items,
+      lineColor: options.color,
+      lineWidth: options.lineWidth,
     });
   },
   segment: (request) => {
@@ -257,6 +275,38 @@ export const MAIN_SERIES_RENDERERS: Record<PhaseOneMainSeriesRenderer, MainSerie
 
 export function drawMainSeriesRenderer(request: MainSeriesRendererRequest): void {
   MAIN_SERIES_RENDERERS[request.renderer](request);
+}
+
+function inferKagiLineState(rows: readonly PlotRow<number>[], index: number): boolean {
+  const current = rows[index];
+  if (current === undefined) {
+    return false;
+  }
+
+  let highestUpClose = Number.NEGATIVE_INFINITY;
+  let lowestDownClose = Number.POSITIVE_INFINITY;
+  let isYang = current.value[PlotRowValueIndex.Close] >= current.value[PlotRowValueIndex.Open];
+
+  for (let cursor = 0; cursor <= index; cursor += 1) {
+    const row = rows[cursor]!;
+    const close = row.value[PlotRowValueIndex.Close];
+    const rowIsUp = close >= row.value[PlotRowValueIndex.Open];
+
+    if (rowIsUp) {
+      if (close >= lowestDownClose) {
+        isYang = true;
+      }
+      highestUpClose = Math.max(highestUpClose, close);
+      continue;
+    }
+
+    if (close <= highestUpClose) {
+      isYang = false;
+    }
+    lowestDownClose = Math.min(lowestDownClose, close);
+  }
+
+  return isYang;
 }
 
 function buildBarItems(request: MainSeriesRendererRequest): BarItem[] {

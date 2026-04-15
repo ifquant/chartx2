@@ -4,6 +4,7 @@ export * from "./bar-renderer";
 export * from "./candlesticks-renderer";
 export * from "./grid-renderer";
 export * from "./histogram-renderer";
+export * from "./kagi-renderer";
 export * from "./line-renderer";
 export * from "./main-series-renderer-registry";
 export * from "./point-figure-renderer";

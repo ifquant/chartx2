@@ -13,6 +13,7 @@ export type PhaseOneMainSeriesRenderer =
   | "line"
   | "line-markers"
   | "stepline"
+  | "kagi"
   | "area"
   | "hlc-area"
   | "baseline"
@@ -96,7 +97,7 @@ export const MAIN_SERIES_CHART_TYPE_SPECS: Record<PhaseOneMainChartType, MainSer
   kagi: {
     inputCapability: "ohlcv",
     builder: "kagi",
-    renderer: "segment",
+    renderer: "kagi",
     styleSchemaId: "kagiStyle",
   },
   "point-figure": {

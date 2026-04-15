@@ -52,6 +52,7 @@ import {
   drawMainSeriesRenderer,
   GridRenderer,
   HistogramRenderer,
+  KagiRenderer,
   LineRenderer,
   PointFigureRenderer,
 } from "../renderers";
@@ -1029,6 +1030,7 @@ export class PhaseOneChartHarness {
   private readonly histogramRenderer = new HistogramRenderer();
   private readonly lineRenderer = new LineRenderer();
   private readonly pointFigureRenderer = new PointFigureRenderer();
+  private readonly kagiRenderer = new KagiRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
   private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
@@ -4785,6 +4787,7 @@ export class PhaseOneChartHarness {
         candlesRenderer: this.candlesRenderer,
         pointFigureRenderer: this.pointFigureRenderer,
         histogramRenderer: this.histogramRenderer,
+        kagiRenderer: this.kagiRenderer,
       },
     });
   }

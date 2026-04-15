@@ -73,6 +73,7 @@ describe("chart type builders", () => {
   it("routes main-series renderer lookup through a unified renderer registry", () => {
     expect(typeof MAIN_SERIES_RENDERERS.candles).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS["point-figure"]).toBe("function");
+    expect(typeof MAIN_SERIES_RENDERERS.kagi).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS["line-markers"]).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS.columns).toBe("function");
   });
@@ -657,18 +658,18 @@ describe("chart type builders", () => {
     const movingAverage = buildMovingAverageStudyData(merged, 2);
 
     expect(kagiSegments).toEqual([
-      { time: 3, open: 100, high: 108, low: 100, close: 108, volume: undefined },
-      { time: 5, open: 108, high: 108, low: 100, close: 100, volume: undefined },
-      { time: 7, open: 100, high: 108, low: 100, close: 108, volume: undefined },
+      { time: 3, open: 100, high: 109, low: 100, close: 109, volume: undefined },
+      { time: 5.001, open: 109, high: 109, low: 99, close: 99, volume: undefined },
+      { time: 7.001, open: 99, high: 109, low: 99, close: 109, volume: undefined },
     ]);
     expect(merged).toEqual([
       { time: 3, open: 200, high: 200, low: 200, close: 200 },
-      { time: 5, open: 240, high: 240, low: 240, close: 240 },
-      { time: 7, open: 300, high: 300, low: 300, close: 300 },
+      { time: 5.001, open: 240, high: 240, low: 240, close: 240 },
+      { time: 7.001, open: 300, high: 300, low: 300, close: 300 },
     ]);
     expect(movingAverage).toEqual([
-      { time: 5, open: 220, high: 220, low: 220, close: 220 },
-      { time: 7, open: 270, high: 270, low: 270, close: 270 },
+      { time: 5.001, open: 220, high: 220, low: 220, close: 220 },
+      { time: 7.001, open: 270, high: 270, low: 270, close: 270 },
     ]);
   });
 
@@ -707,9 +708,9 @@ describe("chart type builders", () => {
     const result = buildKagiData(input);
 
     expect(result).toEqual([
-      { time: 3, open: 100, high: 108, low: 100, close: 108, volume: undefined },
-      { time: 5, open: 108, high: 108, low: 98, close: 98, volume: undefined },
-      { time: 6, open: 98, high: 105, low: 98, close: 105, volume: undefined },
+      { time: 3, open: 100, high: 109, low: 100, close: 109, volume: undefined },
+      { time: 5.001, open: 109, high: 109, low: 96, close: 96, volume: undefined },
+      { time: 6.001, open: 96, high: 106, low: 96, close: 106, volume: undefined },
     ]);
     expect(input).toEqual([
       { time: 1, open: 100, high: 101, low: 99, close: 100 },

@@ -3,18 +3,48 @@ import type { OhlcDataPoint } from "./series-data";
 
 export type StudyMergePolicy = "carry-forward" | "gaps" | "exact";
 
+export type StudyMergeRequest<TTime extends number> = {
+  inputData: readonly OhlcDataPoint<TTime>[];
+  axisBars: readonly PlotRow<TTime>[];
+  mergePolicy: StudyMergePolicy;
+};
+
+export type StudyMergeEngine = {
+  mergeToChartContext<TTime extends number>(
+    request: StudyMergeRequest<TTime>,
+  ): readonly OhlcDataPoint<TTime>[];
+};
+
+export function createStudyMergeEngine(): StudyMergeEngine {
+  return {
+    mergeToChartContext<TTime extends number>({
+      inputData,
+      axisBars,
+      mergePolicy,
+    }: StudyMergeRequest<TTime>): readonly OhlcDataPoint<TTime>[] {
+      switch (mergePolicy) {
+        case "carry-forward":
+          return carryForwardStudyData(inputData, axisBars);
+        case "gaps":
+        case "exact":
+          return exactStudyData(inputData, axisBars);
+      }
+    },
+  };
+}
+
+export const DEFAULT_STUDY_MERGE_ENGINE = createStudyMergeEngine();
+
 export function mergeStudyDataToChartContext<TTime extends number>(
   inputData: readonly OhlcDataPoint<TTime>[],
   axisBars: readonly PlotRow<TTime>[],
   mergePolicy: StudyMergePolicy,
 ): readonly OhlcDataPoint<TTime>[] {
-  switch (mergePolicy) {
-    case "carry-forward":
-      return carryForwardStudyData(inputData, axisBars);
-    case "gaps":
-    case "exact":
-      return exactStudyData(inputData, axisBars);
-  }
+  return DEFAULT_STUDY_MERGE_ENGINE.mergeToChartContext({
+    inputData,
+    axisBars,
+    mergePolicy,
+  });
 }
 
 function carryForwardStudyData<TTime extends number>(

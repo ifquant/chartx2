@@ -6,6 +6,7 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
   createProjectedPriceBasedChartBarSequence,
+  createStudyMergeEngine,
   createTimeBasedChartBarSequence,
   findNearestRowByLogical,
   mergeStudyDataToChartContext,
@@ -264,6 +265,29 @@ describe("model core scales and data", () => {
       { time: 3, open: 20, high: 20, low: 20, close: 20 },
       { time: 4, open: 40, high: 40, low: 40, close: 40 },
       { time: 5, open: 40, high: 40, low: 40, close: 40 },
+    ]);
+  });
+
+  it("routes requested-context merges through the study merge engine boundary", () => {
+    const engine = createStudyMergeEngine();
+    const axisBars = [
+      { index: 0 as never, time: 1, originalTime: 1, value: [1, 1, 1, 1] as [number, number, number, number] },
+      { index: 1 as never, time: 2, originalTime: 2, value: [2, 2, 2, 2] as [number, number, number, number] },
+      { index: 2 as never, time: 3, originalTime: 3, value: [3, 3, 3, 3] as [number, number, number, number] },
+    ];
+    const inputData = [
+      { time: 1, open: 10, high: 10, low: 10, close: 10 },
+      { time: 3, open: 30, high: 30, low: 30, close: 30 },
+    ];
+
+    expect(engine.mergeToChartContext({ inputData, axisBars, mergePolicy: "exact" })).toEqual([
+      { time: 1, open: 10, high: 10, low: 10, close: 10 },
+      { time: 3, open: 30, high: 30, low: 30, close: 30 },
+    ]);
+    expect(engine.mergeToChartContext({ inputData, axisBars, mergePolicy: "carry-forward" })).toEqual([
+      { time: 1, open: 10, high: 10, low: 10, close: 10 },
+      { time: 2, open: 10, high: 10, low: 10, close: 10 },
+      { time: 3, open: 30, high: 30, low: 30, close: 30 },
     ]);
   });
 

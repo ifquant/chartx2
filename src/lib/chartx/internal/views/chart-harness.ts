@@ -20,7 +20,7 @@ import {
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
   DrawingRegistry,
-  mergeStudyDataToChartContext,
+  DEFAULT_STUDY_MERGE_ENGINE,
   normalizeVersionedChartTemplate,
   PlotRowValueIndex,
   PriceRangeImpl,
@@ -1034,6 +1034,7 @@ export class PhaseOneChartHarness {
   private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
   private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, ChartDrawingDescriptor>();
   private readonly chartContext = new ChartContext<number, PhaseOneMainChartType>();
+  private readonly studyMergeEngine = DEFAULT_STUDY_MERGE_ENGINE;
   private readonly timeScale = new TimeScale();
   private readonly primaryPriceScale = new PriceScale();
   private readonly barRenderer = new BarRenderer();
@@ -4904,21 +4905,21 @@ export class PhaseOneChartHarness {
       state.inputContext.mode === "chart-context" &&
       this.chartContext.snapshot().barSequence.kind === "price-based"
     ) {
-      return mergeStudyDataToChartContext(
-        state.inputData,
-        this.chartContext.snapshot().barSequence.axisBars,
-        "carry-forward",
-      );
+      return this.studyMergeEngine.mergeToChartContext({
+        inputData: state.inputData,
+        axisBars: this.chartContext.snapshot().barSequence.axisBars,
+        mergePolicy: "carry-forward",
+      });
     }
 
     if (state.studyKind === "indicator" && state.indicator?.kind === "moving-average") {
       const input =
         state.inputContext.mode === "requested-context"
-          ? mergeStudyDataToChartContext(
-              state.inputData,
-              this.chartContext.snapshot().barSequence.axisBars,
-              state.inputContext.mergePolicy,
-            )
+          ? this.studyMergeEngine.mergeToChartContext({
+              inputData: state.inputData,
+              axisBars: this.chartContext.snapshot().barSequence.axisBars,
+              mergePolicy: state.inputContext.mergePolicy,
+            })
           : this.chartContext.snapshot().barSequence.bars.map((row) => ({
               time: row.time,
               open: row.value[PlotRowValueIndex.Open],
@@ -4930,11 +4931,11 @@ export class PhaseOneChartHarness {
     }
 
     if (state.inputContext.mode === "requested-context" && state.studyKind === "compare") {
-      return mergeStudyDataToChartContext(
-        state.inputData,
-        this.chartContext.snapshot().barSequence.axisBars,
-        state.inputContext.mergePolicy,
-      );
+      return this.studyMergeEngine.mergeToChartContext({
+        inputData: state.inputData,
+        axisBars: this.chartContext.snapshot().barSequence.axisBars,
+        mergePolicy: state.inputContext.mergePolicy,
+      });
     }
 
     return [...state.inputData];

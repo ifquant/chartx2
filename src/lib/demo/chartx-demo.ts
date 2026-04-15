@@ -1785,7 +1785,7 @@ function mountInteractionsFeature(
           value:
             latestReadout?.paneIndex === null || latestReadout === null
               ? "--"
-              : `${formatTime(latestReadout.time)} ${formatMaybeNumber(latestReadout.price)}`,
+              : `${latestReadout.formatted.time} ${latestReadout.formatted.price}`,
         },
       ],
       eventLog: [...log],

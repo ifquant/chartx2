@@ -35,6 +35,14 @@
     low: null,
     close: null,
     price: null,
+    formatted: {
+      time: "--",
+      open: "--",
+      high: "--",
+      low: "--",
+      close: "--",
+      price: "--",
+    },
     series: [],
   });
 
@@ -625,14 +633,14 @@
                   <strong>Nasdaq 100 Index</strong>
                   <span>1D</span>
                   <span>NASDAQ</span>
-                  <span>O {formatValue(workbenchReadout.open)}</span>
-                  <span>H {formatValue(workbenchReadout.high)}</span>
-                  <span>L {formatValue(workbenchReadout.low)}</span>
-                  <span>C {formatValue(workbenchReadout.close)}</span>
+                  <span>O {workbenchReadout.formatted.open}</span>
+                  <span>H {workbenchReadout.formatted.high}</span>
+                  <span>L {workbenchReadout.formatted.low}</span>
+                  <span>C {workbenchReadout.formatted.close}</span>
                 </div>
                 <div class="market-line">
                   <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
-                  <span>{formatTime(workbenchReadout.time)}</span>
+                  <span>{workbenchReadout.formatted.time}</span>
                 </div>
               </div>
 
@@ -680,13 +688,13 @@
 
               <div class="readout-bar">
                 <span>Pane {workbenchReadout.paneIndex === null ? "--" : workbenchReadout.paneIndex + 1}</span>
-                <span>O {formatValue(workbenchReadout.open)}</span>
-                <span>H {formatValue(workbenchReadout.high)}</span>
-                <span>L {formatValue(workbenchReadout.low)}</span>
-                <span>C {formatValue(workbenchReadout.close)}</span>
+                <span>O {workbenchReadout.formatted.open}</span>
+                <span>H {workbenchReadout.formatted.high}</span>
+                <span>L {workbenchReadout.formatted.low}</span>
+                <span>C {workbenchReadout.formatted.close}</span>
                 {#each workbenchReadout.series as series}
                   <span class="series-pill" style={`--series-color: ${series.color};`}>
-                    {series.label} {formatValue(series.value)}
+                    {series.label} {series.formattedValue}
                   </span>
                 {/each}
               </div>
@@ -764,7 +772,7 @@
                   <h4>NDX</h4>
                   <span>NASDAQ</span>
                 </div>
-                <strong class="big-price">{formatValue(workbenchReadout.close)}</strong>
+                <strong class="big-price">{workbenchReadout.formatted.close}</strong>
                 <div class="metric-list compact">
                   {#each workbenchSnapshot.metrics.slice(0, 3) as metric}
                     <article>
@@ -1140,13 +1148,13 @@
 
           <div class="readout-bar feature-readout">
             <span>Pane {featureReadout.paneIndex === null ? "--" : featureReadout.paneIndex + 1}</span>
-            <span>O {formatValue(featureReadout.open)}</span>
-            <span>H {formatValue(featureReadout.high)}</span>
-            <span>L {formatValue(featureReadout.low)}</span>
-            <span>C {formatValue(featureReadout.close)}</span>
+            <span>O {featureReadout.formatted.open}</span>
+            <span>H {featureReadout.formatted.high}</span>
+            <span>L {featureReadout.formatted.low}</span>
+            <span>C {featureReadout.formatted.close}</span>
             {#each featureReadout.series as series}
               <span class="series-pill" style={`--series-color: ${series.color};`}>
-                {series.label} {formatValue(series.value)}
+                {series.label} {series.formattedValue}
               </span>
             {/each}
           </div>

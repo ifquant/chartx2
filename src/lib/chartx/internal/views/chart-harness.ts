@@ -104,7 +104,16 @@ export type PhaseOneReadoutSeriesDetail = {
   label: string;
   kind: string;
   value: number | null;
+  formattedValue: string;
   color: string;
+};
+export type PhaseOneFormattedReadoutValues = {
+  time: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  price: string;
 };
 export type PhaseOneReadoutDetail = {
   active: boolean;
@@ -115,8 +124,11 @@ export type PhaseOneReadoutDetail = {
   low: number | null;
   close: number | null;
   price: number | null;
+  formatted: PhaseOneFormattedReadoutValues;
   series: readonly PhaseOneReadoutSeriesDetail[];
 };
+
+type PhaseOneReadoutBody = Omit<PhaseOneReadoutDetail, "formatted">;
 
 export type PhaseOnePriceLineOptions = {
   price?: number;
@@ -4860,11 +4872,13 @@ export class PhaseOneChartHarness {
       if (rows === undefined) {
         return [];
       }
+      const value = resolveSeriesReadoutValue(rows, crosshair, this.timeScale);
       return [{
         id: source.id,
         label: source.label,
         kind: source.kind,
-        value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
+        value,
+        formattedValue: this.formatSeriesReadoutValue(source.kind, value),
         color: resolveSeriesColor(source),
       }];
     });
@@ -4876,11 +4890,13 @@ export class PhaseOneChartHarness {
   ): readonly PhaseOneReadoutSeriesDetail[] {
     return paneSeries.map((state) => {
       const rows = state.store.setData(state.data);
+      const value = resolveSeriesReadoutValue(rows, crosshair, this.timeScale);
       return {
         id: state.id,
         label: state.label,
         kind: state.kind,
-        value: resolveSeriesReadoutValue(rows, crosshair, this.timeScale),
+        value,
+        formattedValue: this.formatSeriesReadoutValue(state.kind, value),
         color: resolveSeriesColor(state),
       };
     });
@@ -4948,6 +4964,10 @@ export class PhaseOneChartHarness {
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
+    return this.formatReadoutDetail(this.buildRawReadout(point, layout));
+  }
+
+  private buildRawReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutBody {
     const mainSource = this.getMainSource();
     const mainSequence = this.buildMainBarSequence(mainSource);
     const primaryRows = mainSequence.bars;
@@ -5040,6 +5060,37 @@ export class PhaseOneChartHarness {
       price: null,
       series: [],
     };
+  }
+
+  private formatReadoutDetail(readout: PhaseOneReadoutBody): PhaseOneReadoutDetail {
+    return {
+      ...readout,
+      formatted: {
+        time: this.formatReadoutTime(readout.time),
+        open: this.formatPriceReadoutValue(readout.open),
+        high: this.formatPriceReadoutValue(readout.high),
+        low: this.formatPriceReadoutValue(readout.low),
+        close: this.formatPriceReadoutValue(readout.close),
+        price: this.formatPriceReadoutValue(readout.price),
+      },
+    };
+  }
+
+  private formatPriceReadoutValue(value: number | null): string {
+    return value === null ? "--" : formatPriceAxisLabel(value, this.priceAxisFormatter);
+  }
+
+  private formatReadoutTime(value: number | null): string {
+    return value === null ? "--" : formatTimeAxisLabel(value, this.timeAxisFormatter);
+  }
+
+  private formatSeriesReadoutValue(kind: string, value: number | null): string {
+    if (value === null) {
+      return "--";
+    }
+    return kind === "volume"
+      ? formatVolumeAxisLabel(value)
+      : formatPriceAxisLabel(value, this.priceAxisFormatter);
   }
 
   public render(canvas: HTMLCanvasElement): void {
@@ -6015,8 +6066,7 @@ function drawPaneLegend(
 
   let x = 10;
   for (const entry of entries) {
-    const value = entry.value === null ? "--" : formatLegendValue(entry.kind, entry.value);
-    const text = `${entry.label} ${value}`;
+    const text = `${entry.label} ${entry.formattedValue}`;
     const textWidth = context.measureText(text).width;
 
     context.fillStyle = "rgba(255, 253, 247, 0.92)";
@@ -6494,10 +6544,6 @@ function formatTimeAxisLabel(value: number, formatter: ((time: number) => string
   }).format(new Date(value));
 }
 
-function formatLegendValue(kind: string, value: number): string {
-  return kind === "volume" ? formatVolumeAxisLabel(value) : formatPriceAxisLabel(value);
-}
-
 function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {
   canvas.dispatchEvent(
     new CustomEvent<PhaseOneReadoutDetail>("chartx:readout", {
@@ -6511,7 +6557,7 @@ function buildCrosshairReadout(
   crosshair: PanePoint | null,
   timeScale: TimeScale,
   priceScale: PriceScale,
-): PhaseOneReadoutDetail {
+): PhaseOneReadoutBody {
   if (crosshair === null || rows.length === 0) {
     return {
       active: false,

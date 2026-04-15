@@ -3478,14 +3478,53 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
       maxValue: 142,
     });
 
+    let latestReadout: {
+      formatted: {
+        time: string;
+        open: string;
+        close: string;
+        price: string;
+      };
+      series: Array<{ formattedValue: string }>;
+    } | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        active: boolean;
+        formatted: {
+          time: string;
+          open: string;
+          close: string;
+          price: string;
+        };
+        series: Array<{ formattedValue: string }>;
+      }>).detail;
+      if (!detail.active) {
+        return;
+      }
+      latestReadout = {
+        formatted: detail.formatted,
+        series: detail.series.map((entry) => ({ formattedValue: entry.formattedValue })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.55,
+      clientY: rect.top + rect.height * 0.35,
+      bubbles: true,
+    }));
+    canvas.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+
     (window as Window & {
       __chartxOptionsState?: {
         logicalRange: { from: number; to: number } | null;
         priceRange: { minValue: number; maxValue: number } | null;
+        readout: typeof latestReadout;
       };
     }).__chartxOptionsState = {
       logicalRange: chart.timeScale().getVisibleLogicalRange(),
       priceRange: chart.priceScale().getVisibleRange(),
+      readout: latestReadout,
     };
   }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
 
@@ -3498,6 +3537,15 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
       __chartxOptionsState?: {
         logicalRange: { from: number; to: number } | null;
         priceRange: { minValue: number; maxValue: number } | null;
+        readout: {
+          formatted: {
+            time: string;
+            open: string;
+            close: string;
+            price: string;
+          };
+          series: Array<{ formattedValue: string }>;
+        } | null;
       };
     }).__chartxOptionsState ?? null;
   });
@@ -3512,6 +3560,11 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
   });
   expect(state?.logicalRange?.from).toBeCloseTo(1.5, 1);
   expect(state?.logicalRange?.to).toBeCloseTo(4.6, 1);
+  expect(state?.readout?.formatted.time).toMatch(/^T-/);
+  expect(state?.readout?.formatted.open).toContain("pts");
+  expect(state?.readout?.formatted.close).toContain("pts");
+  expect(state?.readout?.formatted.price).toContain("pts");
+  expect(state?.readout?.series[0]?.formattedValue).toContain("pts");
 });
 
 test("phase-one public api can snapshot and restore unified main-series state", async ({ page }) => {

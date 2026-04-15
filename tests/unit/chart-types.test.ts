@@ -636,6 +636,42 @@ describe("chart type builders", () => {
     expect(logicalLength).toBeLessThanOrEqual(36);
   });
 
+  it("merges requested-context moving-average data onto kagi segments with deterministic parity", () => {
+    const input = [
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 109, low: 103, close: 104 },
+      { time: 5, open: 104, high: 105, low: 99, close: 100 },
+      { time: 6, open: 100, high: 105, low: 99, close: 104 },
+      { time: 7, open: 104, high: 109, low: 103, close: 108 },
+    ] as const;
+    const requested = [
+      { time: 2, open: 200, high: 200, low: 200, close: 200 },
+      { time: 5, open: 240, high: 240, low: 240, close: 240 },
+      { time: 7, open: 300, high: 300, low: 300, close: 300 },
+    ] as const;
+
+    const kagiSegments = buildKagiData(input);
+    const merged = mergeStudyDataToChartContext(requested, createPlotRows(kagiSegments), "carry-forward");
+    const movingAverage = buildMovingAverageStudyData(merged, 2);
+
+    expect(kagiSegments).toEqual([
+      { time: 3, open: 100, high: 108, low: 100, close: 108, volume: undefined },
+      { time: 5, open: 108, high: 108, low: 100, close: 100, volume: undefined },
+      { time: 7, open: 100, high: 108, low: 100, close: 108, volume: undefined },
+    ]);
+    expect(merged).toEqual([
+      { time: 3, open: 200, high: 200, low: 200, close: 200 },
+      { time: 5, open: 240, high: 240, low: 240, close: 240 },
+      { time: 7, open: 300, high: 300, low: 300, close: 300 },
+    ]);
+    expect(movingAverage).toEqual([
+      { time: 5, open: 220, high: 220, low: 220, close: 220 },
+      { time: 7, open: 270, high: 270, low: 270, close: 270 },
+    ]);
+  });
+
   it("derives a traditional point-figure box size from price magnitude", () => {
     const input = [
       { time: 1, open: 18_100, high: 18_180, low: 18_020, close: 18_150 },

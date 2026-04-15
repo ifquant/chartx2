@@ -1669,6 +1669,7 @@ test("phase-one public api merges requested-context moving-average data onto com
     };
     paneSeries: readonly PaneSeriesSnapshot[];
     readout: ReadoutSnapshot | null;
+    observedValues: number[];
   } = await page.evaluate(async ({ bars, requested, publicEntry }) => {
     const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
 
@@ -1705,6 +1706,7 @@ test("phase-one public api merges requested-context moving-average data onto com
     chart.addPane({ height: 84 });
 
     let readout: ReadoutSnapshot | null = null;
+    const observedValues = new Set<number>();
     canvas.addEventListener("chartx:readout", (event) => {
       const detail = (event as CustomEvent<{
         paneIndex: number | null;
@@ -1718,6 +1720,11 @@ test("phase-one public api merges requested-context moving-average data onto com
           value: series.value,
         })),
       };
+      for (const series of readout.series) {
+        if (series.value !== null) {
+          observedValues.add(series.value);
+        }
+      }
     });
 
     const rect = canvas.getBoundingClientRect();
@@ -1725,23 +1732,34 @@ test("phase-one public api merges requested-context moving-average data onto com
     const paneGap = 10;
     const plotHeight = 448 - layoutTop - 34;
     const studyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap * 2 - 112 - 84) + paneGap + 56;
-    canvas.dispatchEvent(new PointerEvent("pointermove", {
-      clientX: rect.left + rect.width * 0.82,
-      clientY: studyPaneCenterY,
-      bubbles: true,
-    }));
+    for (const fraction of [0.78, 0.88, 0.96]) {
+      canvas.dispatchEvent(new PointerEvent("pointermove", {
+        clientX: rect.left + rect.width * fraction,
+        clientY: studyPaneCenterY,
+        bubbles: true,
+      }));
+    }
 
     return {
       studyOptions: movingAverage.getStudyOptions(),
       paneSeries: paneEvents[paneEvents.length - 1]?.panes[1]?.series ?? [],
       readout,
+      observedValues: [...observedValues].sort((left, right) => left - right),
     };
   }, {
-    bars: RENKO_ALIGNMENT_BARS,
+    bars: [
+      { time: 1, open: 99, high: 101, low: 98, close: 100 },
+      { time: 2, open: 100, high: 105, low: 99, close: 104 },
+      { time: 3, open: 104, high: 109, low: 103, close: 108 },
+      { time: 4, open: 108, high: 109, low: 103, close: 104 },
+      { time: 5, open: 104, high: 105, low: 99, close: 100 },
+      { time: 6, open: 100, high: 105, low: 99, close: 104 },
+      { time: 7, open: 104, high: 109, low: 103, close: 108 },
+    ],
     requested: [
       { time: 2, value: 200 },
-      { time: 4, value: 240 },
-      { time: 7, value: 280 },
+      { time: 5, value: 240 },
+      { time: 7, value: 300 },
     ],
     publicEntry: PUBLIC_ENTRY,
   });
@@ -1761,6 +1779,7 @@ test("phase-one public api merges requested-context moving-average data onto com
   });
   expect(result.readout?.paneIndex).toBe(1);
   expect(result.readout?.series).toHaveLength(1);
+  expect(result.observedValues).toContain(270);
 });
 
 test("phase-one public api merges requested-context moving-average data onto compressed renko chart bars", async ({

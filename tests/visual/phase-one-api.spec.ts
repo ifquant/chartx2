@@ -1515,6 +1515,224 @@ test("phase-one public api merges requested-context moving-average data onto com
   expect(result.readout?.series[0]?.value).not.toBeNull();
 });
 
+test("phase-one public api merges requested-context compare data onto compressed renko chart bars", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    compareOptions: {
+      affectMainScale: boolean;
+      inputContextMode: string;
+      requestedSymbol: string | null;
+      requestedResolution: string | null;
+      requestedSession: string | null;
+      requestedTimezone: string | null;
+      mergePolicy: string;
+    };
+    paneSeries: readonly PaneSeriesSnapshot[];
+    readout: ReadoutSnapshot | null;
+  } = await page.evaluate(async ({ bars, compare, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-renko-requested-context-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-renko-requested-context-canvas" aria-label="phase-one api renko requested-context chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-renko-requested-context-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API renko requested-context fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const mainSeries = chart.addCandlestickSeries();
+    const compareSeries = chart.addCompareSeries();
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+    mainSeries.setData(bars);
+    compareSeries.setData(compare);
+    chart.setChartType("renko").applyOptions({
+      renkoBoxSizeMode: "fixed",
+      renkoBoxSize: 4,
+    });
+    compareSeries.applyCompareOptions({
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1H",
+      mergePolicy: "carry-forward",
+    });
+    chart.addPane({ height: 84 });
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: rect.top + rect.height * 0.24,
+      bubbles: true,
+    }));
+
+    return {
+      compareOptions: compareSeries.getCompareOptions(),
+      paneSeries: paneEvents[paneEvents.length - 1]?.panes[0]?.series ?? [],
+      readout,
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    compare: [
+      { time: 2, value: 210 },
+      { time: 4, value: 240 },
+      { time: 7, value: 280 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.compareOptions).toEqual({
+    affectMainScale: true,
+    inputContextMode: "requested-context",
+    requestedSymbol: "NASDAQ:NDX",
+    requestedResolution: "1H",
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  });
+  expect(
+    result.paneSeries.some(
+      (series) => series.studyKind === "compare" && series.inputContextMode === "requested-context",
+    ),
+  ).toBe(true);
+  expect(result.readout?.paneIndex).toBe(0);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+  expect(result.readout?.series[1]?.value).not.toBeNull();
+});
+
+test("phase-one public api merges requested-context moving-average data onto compressed kagi chart bars", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result: {
+    studyOptions: {
+      length: number;
+      inputContextMode: string;
+      requestedSymbol: string | null;
+      requestedResolution: string | null;
+      requestedSession: string | null;
+      requestedTimezone: string | null;
+      mergePolicy: string;
+    };
+    paneSeries: readonly PaneSeriesSnapshot[];
+    readout: ReadoutSnapshot | null;
+  } = await page.evaluate(async ({ bars, requested, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-kagi-requested-ma-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-kagi-requested-ma-canvas" aria-label="phase-one api kagi requested moving-average chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-kagi-requested-ma-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API kagi requested moving-average fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    chart.resize(720, 448);
+    const studyPane = chart.addPane({ height: 112 });
+    const mainSeries = chart.addCandlestickSeries();
+    const movingAverage = chart.addMovingAverageStudy({ pane: studyPane });
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+    mainSeries.setData(bars);
+    chart.setChartType("kagi");
+    movingAverage.setData(requested);
+    movingAverage.applyStudyOptions({
+      length: 2,
+      inputContextMode: "requested-context",
+      requestedSymbol: "NASDAQ:NDX",
+      requestedResolution: "1H",
+      mergePolicy: "carry-forward",
+    });
+    chart.addPane({ height: 84 });
+
+    let readout: ReadoutSnapshot | null = null;
+    canvas.addEventListener("chartx:readout", (event) => {
+      const detail = (event as CustomEvent<{
+        paneIndex: number | null;
+        series: Array<{ label: string; color: string; value: number | null }>;
+      }>).detail;
+      readout = {
+        paneIndex: detail.paneIndex,
+        series: detail.series.map((series) => ({
+          label: series.label,
+          color: series.color,
+          value: series.value,
+        })),
+      };
+    });
+
+    const rect = canvas.getBoundingClientRect();
+    const layoutTop = 28;
+    const paneGap = 10;
+    const plotHeight = 448 - layoutTop - 34;
+    const studyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap * 2 - 112 - 84) + paneGap + 56;
+    canvas.dispatchEvent(new PointerEvent("pointermove", {
+      clientX: rect.left + rect.width * 0.82,
+      clientY: studyPaneCenterY,
+      bubbles: true,
+    }));
+
+    return {
+      studyOptions: movingAverage.getStudyOptions(),
+      paneSeries: paneEvents[paneEvents.length - 1]?.panes[1]?.series ?? [],
+      readout,
+    };
+  }, {
+    bars: RENKO_ALIGNMENT_BARS,
+    requested: [
+      { time: 2, value: 200 },
+      { time: 4, value: 240 },
+      { time: 7, value: 280 },
+    ],
+    publicEntry: PUBLIC_ENTRY,
+  });
+
+  expect(result.studyOptions).toEqual({
+    length: 2,
+    inputContextMode: "requested-context",
+    requestedSymbol: "NASDAQ:NDX",
+    requestedResolution: "1H",
+    requestedSession: null,
+    requestedTimezone: null,
+    mergePolicy: "carry-forward",
+  });
+  expect(result.paneSeries[0]).toMatchObject({
+    studyKind: "indicator",
+    inputContextMode: "requested-context",
+  });
+  expect(result.readout?.paneIndex).toBe(1);
+  expect(result.readout?.series[0]?.value).not.toBeNull();
+});
+
 test("phase-one public api keeps a compressed kagi main series aligned with secondary panes", async ({
   page,
 }) => {

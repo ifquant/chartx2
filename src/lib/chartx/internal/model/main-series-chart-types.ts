@@ -33,6 +33,7 @@ export type PhaseOneMainChartType =
   | "line-break"
   | "kagi"
   | "point-figure"
+  | "columns"
   | "volume-candles"
   | "hollow-candles"
   | "heikin-ashi"
@@ -40,6 +41,7 @@ export type PhaseOneMainChartType =
   | "bar"
   | "hlc-bars"
   | "high-low"
+  | "hlc-area"
   | "line"
   | "line-markers"
   | "stepline"
@@ -52,6 +54,7 @@ export type PhaseOneMainStyleSchemaId =
   | "lineBreakStyle"
   | "kagiStyle"
   | "pnfStyle"
+  | "columnsStyle"
   | "volumeCandleStyle"
   | "hollowCandleStyle"
   | "haStyle"
@@ -59,6 +62,7 @@ export type PhaseOneMainStyleSchemaId =
   | "barStyle"
   | "hlcBarStyle"
   | "highLowStyle"
+  | "hlcAreaStyle"
   | "lineStyle"
   | "lineWithMarkersStyle"
   | "steplineStyle"
@@ -106,6 +110,12 @@ export const MAIN_SERIES_CHART_TYPE_SPECS: Record<PhaseOneMainChartType, MainSer
     renderer: "point-figure",
     styleSchemaId: "pnfStyle",
   },
+  columns: {
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "columns",
+    styleSchemaId: "columnsStyle",
+  },
   "volume-candles": {
     inputCapability: "ohlcv",
     builder: "time-bars",
@@ -147,6 +157,12 @@ export const MAIN_SERIES_CHART_TYPE_SPECS: Record<PhaseOneMainChartType, MainSer
     builder: "time-bars",
     renderer: "high-low",
     styleSchemaId: "highLowStyle",
+  },
+  "hlc-area": {
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "hlc-area",
+    styleSchemaId: "hlcAreaStyle",
   },
   line: {
     inputCapability: "c",
@@ -191,6 +207,7 @@ export const MAIN_SERIES_KIND_BY_CHART_TYPE: Record<PhaseOneMainChartType, MainS
   "line-break": "candlestick",
   kagi: "line",
   "point-figure": "candlestick",
+  columns: "candlestick",
   "volume-candles": "candlestick",
   "hollow-candles": "candlestick",
   "heikin-ashi": "candlestick",
@@ -198,6 +215,7 @@ export const MAIN_SERIES_KIND_BY_CHART_TYPE: Record<PhaseOneMainChartType, MainS
   bar: "bar",
   "hlc-bars": "bar",
   "high-low": "bar",
+  "hlc-area": "candlestick",
   line: "line",
   "line-markers": "line",
   stepline: "line",

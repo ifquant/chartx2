@@ -790,6 +790,14 @@ export function mountWorkbenchDemo(
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
       chart.setChartType("high-low");
+    } else if (mainChartType === "columns") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("columns");
+    } else if (mainChartType === "hlc-area") {
+      const mainSeries = chart.addCandlestickSeries();
+      mainSeries.setData(bars);
+      chart.setChartType("hlc-area");
     } else if (mainChartType === "line") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
@@ -1030,6 +1038,18 @@ export function mountWorkbenchDemo(
           active: mainChartType === "high-low",
         },
         {
+          id: "main-columns",
+          label: "Columns",
+          group: "chart-type",
+          active: mainChartType === "columns",
+        },
+        {
+          id: "main-hlc-area",
+          label: "HLC Area",
+          group: "chart-type",
+          active: mainChartType === "hlc-area",
+        },
+        {
           id: "main-line",
           label: "Line",
           group: "chart-type",
@@ -1264,6 +1284,12 @@ export function mountWorkbenchDemo(
           return;
         case "main-high-low":
           switchMainChartType("high-low");
+          return;
+        case "main-columns":
+          switchMainChartType("columns");
+          return;
+        case "main-hlc-area":
+          switchMainChartType("hlc-area");
           return;
         case "main-renko":
           switchMainChartType("renko");
@@ -1582,6 +1608,10 @@ function formatWorkbenchChartType(kind: WorkbenchMainChartType): string {
       return "HLC Bars";
     case "high-low":
       return "High-Low";
+    case "columns":
+      return "Columns";
+    case "hlc-area":
+      return "HLC Area";
     case "line":
       return "Line";
     case "line-markers":

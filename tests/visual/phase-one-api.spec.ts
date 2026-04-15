@@ -807,6 +807,58 @@ test("phase-one public api mounts a single area chart and renders the first fram
   await expect(fixture).toHaveScreenshot("phase-one-api-area-series.png");
 });
 
+test("phase-one public api can switch the active main chart type to hlc-area", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-hlc-area-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-hlc-area-canvas" aria-label="phase-one api hlc area chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-hlc-area-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API hlc-area fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("hlc-area");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("hlc-area");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "hlc-area",
+    sourceRole: "main-series",
+    inputCapability: "ohlc",
+    builder: "time-bars",
+    renderer: "hlc-area",
+    styleSchemaId: "hlcAreaStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-hlc-area-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-hlc-area-series.png");
+});
+
 test("phase-one public api mounts a single baseline chart and renders the first frame", async ({
   page,
 }) => {
@@ -2198,6 +2250,58 @@ test("phase-one public api mounts a single histogram chart and renders the first
   const fixture = page.locator("#api-histogram-fixture");
   await expect(fixture).toBeVisible();
   await expect(fixture).toHaveScreenshot("phase-one-api-histogram-series.png");
+});
+
+test("phase-one public api can switch the active main chart type to columns", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async ({ data, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-columns-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-columns-canvas" aria-label="phase-one api columns chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-columns-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API columns fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const series = chart.addCandlestickSeries();
+    series.setData(data);
+    const paneEvents: PaneEventSnapshot[] = [];
+    chart.subscribePaneEvents((event: PaneEventSnapshot) => {
+      paneEvents.push(event);
+    });
+
+    chart.setChartType("columns");
+    chart.addPane({ height: 98 });
+
+    return {
+      chartType: chart.getChartType(),
+      paneEvents,
+    };
+  }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  expect(result.chartType).toBe("columns");
+  expect(result.paneEvents[0]?.panes[0]?.series[0]).toMatchObject({
+    kind: "candlestick",
+    chartType: "columns",
+    sourceRole: "main-series",
+    inputCapability: "ohlcv",
+    builder: "time-bars",
+    renderer: "columns",
+    styleSchemaId: "columnsStyle",
+    pointCount: 4,
+  });
+
+  const fixture = page.locator("#api-columns-fixture");
+  await expect(fixture).toBeVisible();
+  await expect(fixture).toHaveScreenshot("phase-one-api-columns-series.png");
 });
 
 test("phase-one public api mounts a single volume chart and renders the first frame", async ({

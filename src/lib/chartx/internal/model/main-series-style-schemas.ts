@@ -74,6 +74,11 @@ export const MAIN_SERIES_STYLE_SCHEMAS: Record<PhaseOneMainStyleSchemaId, MainSe
       "pointFigurePercentageValue",
     ],
   },
+  columnsStyle: {
+    optionSurface: "histogram",
+    optionKeys: ["upColor", "downColor"],
+    typeSpecificOptionKeys: [],
+  },
   volumeCandleStyle: {
     optionSurface: "candlestick",
     optionKeys: ["upColor", "downColor", "wickColor"],
@@ -107,6 +112,11 @@ export const MAIN_SERIES_STYLE_SCHEMAS: Record<PhaseOneMainStyleSchemaId, MainSe
   highLowStyle: {
     optionSurface: "bar",
     optionKeys: ["upColor", "downColor"],
+    typeSpecificOptionKeys: [],
+  },
+  hlcAreaStyle: {
+    optionSurface: "area",
+    optionKeys: ["lineColor", "lineWidth", "topColor", "bottomColor"],
     typeSpecificOptionKeys: [],
   },
   lineStyle: {

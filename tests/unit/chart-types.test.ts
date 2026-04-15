@@ -44,6 +44,18 @@ describe("chart type builders", () => {
       renderer: "line-markers",
       styleSchemaId: "lineWithMarkersStyle",
     });
+    expect(mainSeriesChartTypeSpec("columns")).toEqual({
+      inputCapability: "ohlcv",
+      builder: "time-bars",
+      renderer: "columns",
+      styleSchemaId: "columnsStyle",
+    });
+    expect(mainSeriesChartTypeSpec("hlc-area")).toEqual({
+      inputCapability: "ohlc",
+      builder: "time-bars",
+      renderer: "hlc-area",
+      styleSchemaId: "hlcAreaStyle",
+    });
   });
 
   it("routes main-series builder execution through a unified builder registry", () => {
@@ -78,6 +90,7 @@ describe("chart type builders", () => {
     expect(typeof MAIN_SERIES_RENDERERS.kagi).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS["line-markers"]).toBe("function");
     expect(typeof MAIN_SERIES_RENDERERS.columns).toBe("function");
+    expect(typeof MAIN_SERIES_RENDERERS["hlc-area"]).toBe("function");
   });
 
   it("captures main-series chart type, style options, and builder-specific state in one snapshot", () => {

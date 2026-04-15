@@ -1532,8 +1532,10 @@ export class PhaseOneChartHarness {
       case "candlestick":
       case "line-break":
       case "point-figure":
+      case "columns":
       case "volume-candles":
       case "hollow-candles":
+      case "hlc-area":
         return this.createPrimaryCandlestickSeriesApi();
       case "heikin-ashi":
         return this.createPrimaryCandlestickSeriesApi();

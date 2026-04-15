@@ -279,7 +279,34 @@ export const MAIN_SERIES_RENDERERS: Record<PhaseOneMainSeriesRenderer, MainSerie
       downColor: options.downColor,
     });
   },
-  "hlc-area": () => {},
+  "hlc-area": (request) => {
+    const options = request.options as {
+      lineColor: string;
+      lineWidth: number;
+      topColor: string;
+      bottomColor: string;
+    };
+    const areaItems = request.rows.map((row): AreaItem => {
+      const hlcAverage =
+        (row.value[PlotRowValueIndex.High] +
+          row.value[PlotRowValueIndex.Low] +
+          row.value[PlotRowValueIndex.Close]) /
+        3;
+      return {
+        x: request.timeToX(row.index),
+        y: request.priceToY(hlcAverage),
+      };
+    });
+
+    request.runtime.areaRenderer.draw(request.context, {
+      items: areaItems,
+      lineColor: options.lineColor,
+      lineWidth: options.lineWidth,
+      topColor: options.topColor,
+      bottomColor: options.bottomColor,
+      baseY: request.paneHeight,
+    });
+  },
 };
 
 export function drawMainSeriesRenderer(request: MainSeriesRendererRequest): void {

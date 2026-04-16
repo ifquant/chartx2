@@ -14,6 +14,8 @@ import {
   PriceRangeImpl,
   PriceScale,
   RangeImpl,
+  resolveTradeLocationState,
+  resolveTradeOverlayOptions,
   SeriesDataStore,
   TimeScale,
   TimeScaleVisibleRange,
@@ -216,6 +218,123 @@ describe("model core scales and data", () => {
     );
 
     expect(row).toEqual({ index: 1.667, value: 20 });
+  });
+
+  it("resolves trade locations on time-based main series data", () => {
+    const state = resolveTradeLocationState(
+      {
+        kind: "locate-trade",
+        tradeId: "T-001",
+        symbol: "NDX",
+        entryTime: 2,
+        exitTime: 4,
+        entryPrice: 112,
+        exitPrice: 118,
+        side: "long",
+        quantity: 1,
+        realizedPnl: 6,
+      },
+      {
+        chartType: "candlestick",
+        inputData: [
+          { time: 1, open: 100, high: 110, low: 95, close: 108 },
+          { time: 2, open: 108, high: 114, low: 106, close: 112 },
+          { time: 3, open: 112, high: 116, low: 109, close: 111 },
+          { time: 4, open: 111, high: 119, low: 110, close: 118 },
+        ],
+        lineBreakOptions: { lineCount: 3 },
+        renkoOptions: { boxSize: null, boxSizeMode: "auto" },
+        pointFigureOptions: {
+          boxSize: null,
+          boxSizeMode: "auto",
+          boxSizeScale: 1,
+          reversalBoxes: 3,
+          atrLength: 14,
+          percentageValue: 1,
+        },
+        kagiOptions: {
+          reversalMode: "auto",
+          reversalSize: null,
+          reversalScale: 1,
+          atrLength: 14,
+          percentageValue: 1,
+        },
+      },
+      { showSpan: true, showConnector: true },
+    );
+
+    expect(state).not.toBeNull();
+    expect(state?.resolvedEntryTime).toBe(2);
+    expect(state?.resolvedExitTime).toBe(4);
+    expect(state?.resolvedEntryLogical).toBe(1);
+    expect(state?.resolvedExitLogical).toBe(3);
+    expect(state?.overlay.showSpan).toBe(true);
+  });
+
+  it("resolves trade locations on point-and-figure columns with compressed logical indices", () => {
+    const state = resolveTradeLocationState(
+      {
+        kind: "locate-trade",
+        tradeId: "T-002",
+        symbol: "NDX",
+        entryTime: 4,
+        exitTime: 7,
+        entryPrice: 122,
+        exitPrice: 114,
+        side: "short",
+        quantity: 1,
+        realizedPnl: 8,
+      },
+      {
+        chartType: "point-figure",
+        inputData: [
+          { time: 1, open: 100, high: 105, low: 99, close: 104 },
+          { time: 2, open: 104, high: 109, low: 103, close: 108 },
+          { time: 3, open: 108, high: 113, low: 107, close: 112 },
+          { time: 4, open: 112, high: 123, low: 111, close: 122 },
+          { time: 5, open: 122, high: 123, low: 117, close: 118 },
+          { time: 6, open: 118, high: 119, low: 113, close: 114 },
+          { time: 7, open: 114, high: 115, low: 109, close: 110 },
+        ],
+        lineBreakOptions: { lineCount: 3 },
+        renkoOptions: { boxSize: null, boxSizeMode: "auto" },
+        pointFigureOptions: {
+          boxSize: 4,
+          boxSizeMode: "fixed",
+          boxSizeScale: 1,
+          reversalBoxes: 2,
+          atrLength: 14,
+          percentageValue: 1,
+        },
+        kagiOptions: {
+          reversalMode: "auto",
+          reversalSize: null,
+          reversalScale: 1,
+          atrLength: 14,
+          percentageValue: 1,
+        },
+      },
+    );
+
+    expect(state).not.toBeNull();
+    expect(state?.resolvedEntryLogical).toBeLessThanOrEqual(state?.resolvedExitLogical ?? 0);
+    expect(state?.overlay.showMarkers).toBe(true);
+    expect(state?.request.side).toBe("short");
+  });
+
+  it("normalizes trade overlay options onto explicit defaults", () => {
+    expect(resolveTradeOverlayOptions({ showSpan: false, longColor: "#123456" })).toEqual({
+      fitRange: true,
+      showMarkers: true,
+      showSpan: false,
+      showConnector: true,
+      entryLabel: "Entry",
+      exitLabel: "Exit",
+      longColor: "#123456",
+      shortColor: "#dc2626",
+      spanOpacity: 0.12,
+      connectorLineWidth: 2,
+    });
   });
 
   it("chart context keeps descriptor metadata while main sources change", () => {

@@ -21,3 +21,4 @@ export * from "./study-data-merge";
 export * from "./time-data";
 export * from "./time-scale";
 export * from "./time-scale-visible-range";
+export * from "./trade-location";

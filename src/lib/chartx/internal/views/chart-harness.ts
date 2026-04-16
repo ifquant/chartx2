@@ -19,6 +19,8 @@ import {
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
+  resolveTradeLocationState,
+  resolveTradeOverlayOptions,
   DrawingRegistry,
   DEFAULT_STUDY_MERGE_ENGINE,
   normalizeVersionedChartTemplate,
@@ -35,6 +37,10 @@ import {
   type PhaseOneMainSeriesInputCapability,
   type PhaseOneMainSeriesRenderer,
   type PhaseOneMainStyleSchemaId,
+  type PhaseOneTradeLocationRequest,
+  type PhaseOneTradeLocationState,
+  type PhaseOneTradeOverlayOptions,
+  type PhaseOneResolvedTradeOverlayOptions,
   type KagiStyleOptionsState,
   type MainSeriesStyleOptionsPatch,
   type PointFigureStyleOptionsState,
@@ -797,6 +803,12 @@ export type PhaseOneChartApi = {
   getChartTemplate(): PhaseOneChartTemplate;
   applyChartTemplate(template: PhaseOneChartTemplateInput): void;
   setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi;
+  locateTrade(
+    request: PhaseOneTradeLocationRequest,
+    options?: PhaseOneTradeOverlayOptions,
+  ): PhaseOneTradeLocationState | null;
+  clearTradeLocation(): void;
+  getTradeLocationState(): PhaseOneTradeLocationState | null;
   subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   removeSeries(
@@ -1111,6 +1123,13 @@ export class PhaseOneChartHarness {
   private priceAxisFormatter: ((value: number) => string) | null = null;
   private primaryScaleSeriesOnly = false;
   private primaryPriceRangeOverride: PriceRangeImpl | null = null;
+  private activeTradeLocation:
+    | {
+        request: PhaseOneTradeLocationRequest;
+        options: PhaseOneResolvedTradeOverlayOptions;
+        state: PhaseOneTradeLocationState | null;
+      }
+    | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
     valueFormatter: null,
     upColor: UP_COLOR,
@@ -2197,6 +2216,32 @@ export class PhaseOneChartHarness {
   public applyChartTemplate(template: PhaseOneChartTemplateInput): void {
     const normalized = normalizePhaseOneChartTemplate(template);
     this.applyChartStateSnapshot(normalized.chart);
+  }
+
+  public locateTrade(
+    request: PhaseOneTradeLocationRequest,
+    options: PhaseOneTradeOverlayOptions = {},
+  ): PhaseOneTradeLocationState | null {
+    this.getMainSourceOrThrow();
+    this.activeTradeLocation = {
+      request,
+      options: resolveTradeOverlayOptions(options),
+      state: null,
+    };
+    this.refreshTradeLocation();
+    return this.activeTradeLocation?.state ?? null;
+  }
+
+  public clearTradeLocation(): void {
+    this.activeTradeLocation = null;
+    this.primaryPriceRangeOverride = null;
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
+  }
+
+  public getTradeLocationState(): PhaseOneTradeLocationState | null {
+    return this.activeTradeLocation?.state ?? null;
   }
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
@@ -4527,6 +4572,7 @@ export class PhaseOneChartHarness {
     if (source === null) {
       this.chartContext.clearMainSource();
       this.syncStudyContextData();
+      this.refreshTradeLocation();
       return;
     }
 
@@ -4536,6 +4582,7 @@ export class PhaseOneChartHarness {
       this.createMainBarSequenceFromSource(source),
     );
     this.syncStudyContextData();
+    this.refreshTradeLocation();
   }
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
@@ -4560,6 +4607,43 @@ export class PhaseOneChartHarness {
     return mainSourceId === null
       ? null
       : ((this.sourceRegistry.getById(mainSourceId) as MainSeriesSourceState | undefined) ?? null);
+  }
+
+  private refreshTradeLocation(): void {
+    if (this.activeTradeLocation === null) {
+      return;
+    }
+
+    const source = this.getMainSource();
+    const state =
+      source === null
+        ? null
+        : resolveTradeLocationState(
+            this.activeTradeLocation.request,
+            {
+              chartType: source.chartType,
+              inputData: source.inputData,
+              lineBreakOptions: source.lineBreakOptions,
+              renkoOptions: source.renkoOptions,
+              pointFigureOptions: source.pointFigureOptions,
+              kagiOptions: source.kagiOptions,
+            },
+            this.activeTradeLocation.options,
+          );
+    this.activeTradeLocation = {
+      ...this.activeTradeLocation,
+      state,
+    };
+
+    if (this.activeTradeLocation.options.fitRange && state !== null) {
+      this.timeScaleApi().setVisibleLogicalRange(state.logicalRange);
+      this.priceScaleApi().setVisibleRange(state.priceRange);
+      return;
+    }
+
+    if (this.canvas !== null) {
+      this.render(this.canvas);
+    }
   }
 
   private getMainSourceOrThrow(): MainSeriesSourceState {
@@ -5274,6 +5358,13 @@ export class PhaseOneChartHarness {
           this.hoveredDrawingId,
           this.hoveredDrawingHandle,
         );
+        drawTradeLocationOverlay(
+          context,
+          this.activeTradeLocation?.state ?? null,
+          pane.height,
+          this.timeScale,
+          this.primaryPriceScale,
+        );
         drawDrawingSnapGuide(
           context,
           paneWidth,
@@ -5591,6 +5682,15 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
     },
     setChartType(type) {
       return harness.setChartType(type);
+    },
+    locateTrade(request, options) {
+      return harness.locateTrade(request, options);
+    },
+    clearTradeLocation() {
+      harness.clearTradeLocation();
+    },
+    getTradeLocationState() {
+      return harness.getTradeLocationState();
     },
     subscribeChartTypeChange(handler) {
       harness.subscribeChartTypeChange(handler);
@@ -6238,6 +6338,94 @@ function drawSeriesMarkers(
   context.restore();
 }
 
+function drawTradeLocationOverlay(
+  context: CanvasRenderingContext2D,
+  state: PhaseOneTradeLocationState | null,
+  paneHeight: number,
+  timeScale: TimeScale,
+  priceScale: PriceScale,
+): void {
+  if (state === null) {
+    return;
+  }
+
+  const x1 = timeScale.logicalToCoordinate(state.resolvedEntryLogical as Logical);
+  const x2 = timeScale.logicalToCoordinate(state.resolvedExitLogical as Logical);
+  const y1 = toCoordinate(priceScale.priceToCoordinate(state.resolvedEntryPrice));
+  const y2 = toCoordinate(priceScale.priceToCoordinate(state.resolvedExitPrice));
+  if (![x1, x2, y1, y2].every(Number.isFinite)) {
+    return;
+  }
+
+  const isLong = state.request.side === "long";
+  const color = isLong ? state.overlay.longColor : state.overlay.shortColor;
+  const left = Math.min(x1, x2);
+  const right = Math.max(x1, x2);
+
+  context.save();
+  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+
+  if (state.overlay.showSpan) {
+    context.fillStyle = withAlpha(color, state.overlay.spanOpacity);
+    context.fillRect(left, 0, Math.max(2, right - left), paneHeight);
+  }
+
+  if (state.overlay.showConnector) {
+    context.strokeStyle = color;
+    context.lineWidth = state.overlay.connectorLineWidth;
+    context.setLineDash([6, 4]);
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+    context.setLineDash([]);
+  }
+
+  context.fillStyle = CHART_BACKGROUND;
+  context.strokeStyle = color;
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(x1, y1, 4.5, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.beginPath();
+  context.arc(x2, y2, 4.5, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  if (state.overlay.showMarkers) {
+    drawMarkerShape(
+      context,
+      x1,
+      isLong ? Math.min(paneHeight - 12, y1 + 18) : Math.max(12, y1 - 18),
+      isLong ? "arrowUp" : "arrowDown",
+      color,
+    );
+    drawMarkerShape(
+      context,
+      x2,
+      isLong ? Math.max(12, y2 - 18) : Math.min(paneHeight - 12, y2 + 18),
+      isLong ? "arrowDown" : "arrowUp",
+      color,
+    );
+    context.fillStyle = color;
+    context.fillText(
+      state.overlay.entryLabel,
+      x1,
+      isLong ? Math.min(paneHeight - 10, y1 + 34) : Math.max(10, y1 - 34),
+    );
+    context.fillText(
+      state.overlay.exitLabel,
+      x2,
+      isLong ? Math.max(10, y2 - 34) : Math.min(paneHeight - 10, y2 + 34),
+    );
+  }
+
+  context.restore();
+}
+
 function markerYForRow(
   row: { value: readonly number[] },
   position: PhaseOneSeriesMarkerPosition,
@@ -6695,6 +6883,25 @@ function resolveSeriesColor(state: SeriesSourceState): string {
       return visual?.color ?? (visual?.isUp ?? (last.close >= last.open) ? options.upColor : options.downColor);
     }
   }
+}
+
+function withAlpha(color: string, alpha: number): string {
+  if (color.startsWith("#")) {
+    const normalized = color.length === 4
+      ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+      : color;
+    const red = Number.parseInt(normalized.slice(1, 3), 16);
+    const green = Number.parseInt(normalized.slice(3, 5), 16);
+    const blue = Number.parseInt(normalized.slice(5, 7), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  const rgbaMatch = color.match(/^rgba?\((.+)\)$/);
+  if (rgbaMatch === null) {
+    return color;
+  }
+  const [red = "0", green = "0", blue = "0"] = rgbaMatch[1].split(",").map((token) => token.trim());
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function drawPaneDrawings(

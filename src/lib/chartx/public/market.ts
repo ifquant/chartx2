@@ -7,12 +7,18 @@ import {
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
   inferTraditionalPointFigureBoxSize,
+  resolveTradeLocationState,
+  resolveTradeOverlayOptions,
 } from "../internal/model";
 import type {
   PhaseOneMainChartType,
   PhaseOneMainSeriesBuilder,
   PhaseOneMainSeriesInputCapability,
   PhaseOneMainSeriesRenderer,
+  PhaseOneResolvedTradeOverlayOptions,
+  PhaseOneTradeLocationRequest,
+  PhaseOneTradeLocationState,
+  PhaseOneTradeOverlayOptions,
 } from "../internal/model";
 import {
   createPhaseOneChart,
@@ -131,6 +137,10 @@ export type {
   PhaseOneMainSeriesBuilder,
   PhaseOneMainSeriesInputCapability,
   PhaseOneMainSeriesRenderer,
+  PhaseOneResolvedTradeOverlayOptions,
+  PhaseOneTradeLocationRequest,
+  PhaseOneTradeLocationState,
+  PhaseOneTradeOverlayOptions,
   PhaseOneMainSeriesStateSnapshot,
   PhaseOneMovingAverageStudyApi,
   PhaseOneMovingAverageStudyOptions,
@@ -182,4 +192,6 @@ export {
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
   inferTraditionalPointFigureBoxSize,
+  resolveTradeLocationState,
+  resolveTradeOverlayOptions,
 };

@@ -17,18 +17,15 @@ import {
   type PhaseOneHistogramData,
   type PhaseOneLineData,
   type PhaseOneMainChartType,
-  type PhaseOneMainSeriesApi,
   type PhaseOnePaneApi,
   type PhaseOnePaneEvent,
   type PhaseOnePaneState,
-  type PhaseOneSeriesMarker,
   type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
 } from "$lib/chartx/public/market";
 import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 import {
   createCompressedPriceBasedChartBarSequence,
-  createTimeBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
 } from "$lib/chartx/internal/model/chart-bar-sequence";
 import {
@@ -156,10 +153,6 @@ type DefaultDrawingAnchors = {
   trendEndPrice: number;
 };
 
-type WorkbenchLocateRow = PhaseOneCandlestickData & {
-  logicalIndex: number;
-};
-
 function formatPointFigureBoxSize(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
     return "--";
@@ -264,7 +257,6 @@ export function mountWorkbenchDemo(
 ): DemoController {
   const log: EventLog = [];
   let chart: PhaseOneChartApi | null = null;
-  let mainSeriesApi: PhaseOneMainSeriesApi | null = null;
   let studyPaneEnabled = true;
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
@@ -292,8 +284,6 @@ export function mountWorkbenchDemo(
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
   let teardownChartTypeSubscription: (() => void) | null = null;
-  let currentWorkbenchBars: readonly PhaseOneCandlestickData[] = [];
-  let currentLocateRows: readonly WorkbenchLocateRow[] = [];
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
 
   const workbenchSeries = (chartType: WorkbenchMainChartType) => {
@@ -331,190 +321,29 @@ export function mountWorkbenchDemo(
     return bars;
   };
 
-  const toLocateRows = (
-    rows: readonly PhaseOneCandlestickData[],
-    sequenceRows: readonly { index: number }[],
-  ): readonly WorkbenchLocateRow[] =>
-    rows.map((row, index) => ({
-      ...row,
-      logicalIndex: sequenceRows[index]?.index ?? index,
-    }));
-
-  const resolveLocateRowsForChartType = (
-    chartType: WorkbenchMainChartType,
-    bars: readonly PhaseOneCandlestickData[],
-  ): readonly WorkbenchLocateRow[] => {
-    if (chartType === "line-break") {
-      const rows = buildLineBreakData(bars, lineBreakCount);
-      const sequence = createCompressedPriceBasedChartBarSequence(createPlotRows(rows));
-      return toLocateRows(rows, sequence.bars);
-    }
-
-    if (chartType === "point-figure") {
-      const rows = buildPointFigureData(bars, {
-        boxSizeMode: pointFigureMode,
-        boxSize: pointFigureMode === "fixed" ? pointFigureFixedBoxSize : null,
-        boxSizeScale: pointFigureAutoScale,
-        reversalBoxes: pointFigureReversalBoxes,
-        atrLength: pointFigureAtrLength,
-        percentageValue: pointFigurePercentageValue,
-      });
-      const sequence = createDirectionColumnPriceBasedChartBarSequence(createPlotRows(rows));
-      return toLocateRows(rows, sequence.bars);
-    }
-
-    if (chartType === "renko") {
-      const rows = buildRenkoData(bars, {
-        boxSizeMode: renkoMode,
-        boxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
-      });
-      const sequence = createCompressedPriceBasedChartBarSequence(createPlotRows(rows));
-      return toLocateRows(rows, sequence.bars);
-    }
-
-    if (chartType === "kagi") {
-      const rows = buildKagiData(bars, {
-        reversalMode: kagiMode,
-        reversalSize: kagiMode === "fixed" ? kagiFixedReversalSize : null,
-        reversalScale: kagiAutoScale,
-        atrLength: kagiAtrLength,
-        percentageValue: kagiPercentageValue,
-      });
-      const sequence = createCompressedPriceBasedChartBarSequence(createPlotRows(rows));
-      return toLocateRows(rows, sequence.bars);
-    }
-
-    const sequence = createTimeBasedChartBarSequence(createPlotRows(bars));
-    return toLocateRows(bars, sequence.bars);
-  };
-
-  const findNearestLocateRow = (
-    rows: readonly WorkbenchLocateRow[],
-    targetTime: number,
-  ): WorkbenchLocateRow | null => {
-    if (rows.length === 0) {
-      return null;
-    }
-
-    let left = 0;
-    let right = rows.length - 1;
-
-    while (left <= right) {
-      const middle = Math.floor((left + right) / 2);
-      const candidate = rows[middle];
-      if (candidate.time === targetTime) {
-        return candidate;
-      }
-      if (candidate.time < targetTime) {
-        left = middle + 1;
-      } else {
-        right = middle - 1;
-      }
-    }
-
-    const lower = rows[Math.max(0, right)];
-    const upper = rows[Math.min(rows.length - 1, left)];
-    if (lower === undefined) {
-      return upper ?? null;
-    }
-    if (upper === undefined) {
-      return lower;
-    }
-    return Math.abs(lower.time - targetTime) <= Math.abs(upper.time - targetTime) ? lower : upper;
-  };
-
-  const buildTradeLocationMarkers = (
-    intent: TradeLocationIntent,
-    entryRow: WorkbenchLocateRow,
-    exitRow: WorkbenchLocateRow,
-  ): readonly PhaseOneSeriesMarker[] => {
-    if (intent.side === "long") {
-      return [
-        {
-          time: entryRow.time,
-          position: "belowBar",
-          shape: "arrowUp",
-          color: "#059669",
-          text: "Entry",
-        },
-        {
-          time: exitRow.time,
-          position: "aboveBar",
-          shape: "arrowDown",
-          color: "#dc2626",
-          text: "Exit",
-        },
-      ];
-    }
-
-    return [
-      {
-        time: entryRow.time,
-        position: "aboveBar",
-        shape: "arrowDown",
-        color: "#dc2626",
-        text: "Entry",
-      },
-      {
-        time: exitRow.time,
-        position: "belowBar",
-        shape: "arrowUp",
-        color: "#059669",
-        text: "Exit",
-      },
-    ];
-  };
-
   const applyTradeLocation = (intent: TradeLocationIntent, logEvent: boolean): void => {
     activeTradeLocationIntent = intent;
-    if (chart === null || mainSeriesApi === null || currentLocateRows.length === 0) {
+    if (chart === null) {
       return;
     }
 
-    const entryRow = findNearestLocateRow(currentLocateRows, intent.entryTime);
-    const exitRow = findNearestLocateRow(currentLocateRows, intent.exitTime);
-    if (entryRow === null || exitRow === null) {
+    const state = chart.locateTrade(intent, {
+      fitRange: true,
+      showMarkers: true,
+      showSpan: true,
+      showConnector: true,
+    });
+    if (state === null) {
       return;
     }
-
-    mainSeriesApi.setMarkers(buildTradeLocationMarkers(intent, entryRow, exitRow));
-
-    const minLogical = Math.min(entryRow.logicalIndex, exitRow.logicalIndex);
-    const maxLogical = Math.max(entryRow.logicalIndex, exitRow.logicalIndex);
-    const logicalPadding = Math.max(4, Math.ceil((maxLogical - minLogical + 1) * 0.45));
-    chart.timeScale().setVisibleLogicalRange({
-      from: minLogical - logicalPadding - 0.5,
-      to: maxLogical + logicalPadding + 0.5,
-    });
-
-    const minPrice = Math.min(entryRow.low, exitRow.low, intent.entryPrice, intent.exitPrice);
-    const maxPrice = Math.max(entryRow.high, exitRow.high, intent.entryPrice, intent.exitPrice);
-    const pricePadding = Math.max((maxPrice - minPrice) * 0.12, 24);
-    chart.priceScale().setVisibleRange({
-      minValue: minPrice - pricePadding,
-      maxValue: maxPrice + pricePadding,
-    });
 
     if (logEvent) {
       pushLog(
         log,
-        `located trade ${intent.tradeId} on workbench ${formatTime(entryRow.time)} → ${formatTime(exitRow.time)}`,
+        `located trade ${intent.tradeId} on workbench ${formatTime(state.resolvedEntryTime)} → ${formatTime(state.resolvedExitTime)}`,
       );
     }
     publishSnapshot();
-  };
-
-  const assignMainSeriesContext = (
-    series: PhaseOneMainSeriesApi,
-    bars: readonly PhaseOneCandlestickData[],
-    chartType: WorkbenchMainChartType,
-  ): void => {
-    mainSeriesApi = series;
-    currentWorkbenchBars = bars;
-    currentLocateRows = resolveLocateRowsForChartType(chartType, bars);
-    if (activeTradeLocationIntent !== null) {
-      applyTradeLocation(activeTradeLocationIntent, false);
-    }
   };
 
   const resolveDefaultDrawingAnchors = (
@@ -865,9 +694,6 @@ export function mountWorkbenchDemo(
 
     chart?.destroy();
     chart = createChartxPhaseOneChart(canvas);
-    mainSeriesApi = null;
-    currentWorkbenchBars = bars;
-    currentLocateRows = resolveLocateRowsForChartType(mainChartType, bars);
     chart.applyOptions(theme === "warm" ? warmChartOptions() : inkChartOptions());
     chart.timeScale().applyOptions({
       rightOffset: effectiveRightOffset,
@@ -896,7 +722,6 @@ export function mountWorkbenchDemo(
     if (mainChartType === "candlestick") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      assignMainSeriesContext(mainSeries, bars, mainChartType);
     } else if (mainChartType === "line-break") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -904,7 +729,6 @@ export function mountWorkbenchDemo(
       chartTypeSeries.applyOptions({
         lineBreakCount,
       });
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
       if (lineBreakLogicalLength !== null) {
         const lastLogical = lineBreakLogicalLength - 1;
         const targetVisibleColumns = Math.max(14, Math.min(24, lineBreakLogicalLength));
@@ -924,7 +748,6 @@ export function mountWorkbenchDemo(
         kagiAtrLength: kagiAtrLength,
         kagiPercentageValue: kagiPercentageValue,
       });
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
       if (kagiLogicalLength !== null) {
         const lastLogical = kagiLogicalLength - 1;
         if (kagiLogicalLength <= 18) {
@@ -952,7 +775,6 @@ export function mountWorkbenchDemo(
         pointFigureAtrLength: pointFigureAtrLength,
         pointFigurePercentageValue: pointFigurePercentageValue,
       });
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
       if (pointFigureLogicalLength !== null) {
         const lastLogical = pointFigureLogicalLength - 1;
         if (pointFigureLogicalLength <= 24) {
@@ -971,18 +793,15 @@ export function mountWorkbenchDemo(
     } else if (mainChartType === "volume-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("volume-candles");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("volume-candles");
     } else if (mainChartType === "hollow-candles") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("hollow-candles");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("hollow-candles");
     } else if (mainChartType === "heikin-ashi") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("heikin-ashi");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("heikin-ashi");
     } else if (mainChartType === "renko") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
@@ -991,54 +810,43 @@ export function mountWorkbenchDemo(
         renkoBoxSizeMode: renkoMode,
         renkoBoxSize: renkoMode === "fixed" ? renkoFixedBoxSize : null,
       });
-      assignMainSeriesContext(renkoSeries, bars, mainChartType);
     } else if (mainChartType === "bar") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
-      assignMainSeriesContext(mainSeries, bars, mainChartType);
     } else if (mainChartType === "hlc-bars") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("hlc-bars");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("hlc-bars");
     } else if (mainChartType === "high-low") {
       const mainSeries = chart.addBarSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("high-low");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("high-low");
     } else if (mainChartType === "columns") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("columns");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("columns");
     } else if (mainChartType === "hlc-area") {
       const mainSeries = chart.addCandlestickSeries();
       mainSeries.setData(bars);
-      const chartTypeSeries = chart.setChartType("hlc-area");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("hlc-area");
     } else if (mainChartType === "line") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
-      assignMainSeriesContext(mainSeries, bars, mainChartType);
     } else if (mainChartType === "line-markers") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
-      const chartTypeSeries = chart.setChartType("line-markers");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("line-markers");
     } else if (mainChartType === "stepline") {
       const mainSeries = chart.addLineSeries();
       mainSeries.setData(line);
-      const chartTypeSeries = chart.setChartType("stepline");
-      assignMainSeriesContext(chartTypeSeries, bars, mainChartType);
+      chart.setChartType("stepline");
     } else if (mainChartType === "area") {
       const mainSeries = chart.addAreaSeries();
       mainSeries.setData(line);
-      assignMainSeriesContext(mainSeries, bars, mainChartType);
     } else {
       const mainSeries = chart.addBaselineSeries();
       mainSeries.applyOptions({ baseValue: 16_950 });
       mainSeries.setData(line);
-      assignMainSeriesContext(mainSeries, bars, mainChartType);
     }
 
     if (!suppressSecondaryPanes) {
@@ -1059,6 +867,10 @@ export function mountWorkbenchDemo(
 
     for (let index = 0; index < emptyPaneCount; index += 1) {
       chart.addPane({ height: 88, resizable: true });
+    }
+
+    if (activeTradeLocationIntent !== null) {
+      applyTradeLocation(activeTradeLocationIntent, false);
     }
 
     if (defaultDrawingAnchors !== null) {
@@ -1404,12 +1216,7 @@ export function mountWorkbenchDemo(
           return;
         }
 
-        const nextMainSeries = currentChart.setChartType(nextType);
-        assignMainSeriesContext(
-          nextMainSeries,
-          currentWorkbenchBars.length > 0 ? currentWorkbenchBars : workbenchSeries(nextType).bars,
-          nextType,
-        );
+        currentChart.setChartType(nextType);
         publishSnapshot();
       };
 
@@ -1703,7 +1510,6 @@ export function mountWorkbenchDemo(
       teardownChartTypeSubscription?.();
       chart?.destroy();
       chart = null;
-      mainSeriesApi = null;
     },
   };
 }

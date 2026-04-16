@@ -85,4 +85,23 @@ describe("performance optimization datasets", () => {
     expect(run.closedTrades).toHaveLength(Math.round(runSummary.metrics.tradeCount!));
     expect(netProfit).toBe(Math.round(runSummary.metrics.netProfit!));
   });
+
+  it("exposes objective score as a selectable optimization metric", () => {
+    const sweep = createSampleParameterSweep();
+    const registry = new OptimizationDatasetRegistry(sweep);
+    const surface = registry.getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "objectiveScore",
+      filter: {
+        threshold: 0.5,
+      },
+    });
+
+    expect(surface.points).not.toHaveLength(0);
+    expect(surface.zRange).not.toBeNull();
+    expect(surface.zRange!.min).toBeGreaterThanOrEqual(0);
+    expect(surface.zRange!.max).toBeLessThanOrEqual(1);
+  });
 });

@@ -59,6 +59,7 @@ type TradeLocationPublisher = (intent: TradeLocationIntent) => void;
 
 const OPTIMIZATION_METRICS: OptimizationMetricKey[] = [
   "netProfit",
+  "objectiveScore",
   "sharpe",
   "maxDrawdown",
   "profitFactor",

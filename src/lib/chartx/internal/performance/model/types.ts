@@ -152,6 +152,7 @@ export type ParameterAssignment = Record<string, ParameterValue>;
 
 export type OptimizationMetricKey =
   | "netProfit"
+  | "objectiveScore"
   | "grossProfit"
   | "grossLoss"
   | "winRate"

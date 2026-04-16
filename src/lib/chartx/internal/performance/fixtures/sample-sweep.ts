@@ -49,6 +49,16 @@ function createRunSummary(
       valley * 18
     ).toFixed(2),
   );
+  const netProfitNorm = (netProfit - 420) / (2420 - 420);
+  const sharpeNorm = (sharpe - 0.58) / (1.78 - 0.58);
+  const drawdownNorm = (Math.abs(maxDrawdown) - 240) / (814 - 240);
+  const objectiveScore = Number(
+    (
+      netProfitNorm * 0.5 +
+      sharpeNorm * 0.3 +
+      (1 - drawdownNorm) * 0.2
+    ).toFixed(4),
+  );
 
   return {
     runId,
@@ -61,6 +71,7 @@ function createRunSummary(
     },
     metrics: {
       netProfit,
+      objectiveScore,
       grossProfit,
       grossLoss,
       winRate,

@@ -24,6 +24,7 @@
   ] as const;
   const zMetricOptions: OptimizationMetricKey[] = [
     "netProfit",
+    "objectiveScore",
     "sharpe",
     "maxDrawdown",
     "profitFactor",

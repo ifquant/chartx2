@@ -47,13 +47,37 @@ function lerpColor(start: [number, number, number], end: [number, number, number
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function heatColor(value: number, min: number, max: number): string {
+function normalizeRange(value: number, min: number, max: number): number {
   const span = Math.max(max - min, 1);
-  const t = clamp((value - min) / span, 0, 1);
-  if (t <= 0.5) {
-    return lerpColor([197, 77, 63], [236, 187, 71], t / 0.5);
+  return clamp((value - min) / span, 0, 1);
+}
+
+function heatColor(value: number, min: number, max: number): string {
+  const t = normalizeRange(value, min, max);
+  const stops = [
+    { t: 0, color: [156, 104, 83] as [number, number, number] },
+    { t: 0.22, color: [191, 142, 103] as [number, number, number] },
+    { t: 0.45, color: [220, 191, 132] as [number, number, number] },
+    { t: 0.7, color: [152, 174, 123] as [number, number, number] },
+    { t: 1, color: [62, 121, 96] as [number, number, number] },
+  ];
+
+  for (let index = 1; index < stops.length; index += 1) {
+    const current = stops[index]!;
+    const previous = stops[index - 1]!;
+    if (t <= current.t) {
+      const localT = (t - previous.t) / Math.max(current.t - previous.t, 0.001);
+      return lerpColor(previous.color, current.color, localT);
+    }
   }
-  return lerpColor([236, 187, 71], [22, 132, 95], (t - 0.5) / 0.5);
+
+  return lerpColor(stops[stops.length - 2]!.color, stops[stops.length - 1]!.color, 1);
+}
+
+function surfaceFillColor(value: number, min: number, max: number): string {
+  const t = normalizeRange(value, min, max);
+  const alpha = 0.08 + t * 0.08;
+  return heatColor(value, min, max).replace("rgb", "rgba").replace(")", `, ${alpha.toFixed(3)})`);
 }
 
 function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView): string {
@@ -384,7 +408,7 @@ export class OptimizationCanvasHarness {
     this.draw3DBaseGrid(plot, scale);
 
     if (fillSurface) {
-      const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; color: string }> = [];
+      const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; value: number }> = [];
       const pushTriangle = (
         first: ParameterSurfacePoint,
         second: ParameterSurfacePoint,
@@ -403,7 +427,7 @@ export class OptimizationCanvasHarness {
         triangles.push({
           depth: (va.projected.depth + vb.projected.depth + vc.projected.depth) / 3,
           polygon: [va.projected, vb.projected, vc.projected],
-          color: heatColor(avgZ, zRange.min, zRange.max),
+          value: avgZ,
         });
       };
       for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
@@ -425,10 +449,10 @@ export class OptimizationCanvasHarness {
         ctx.moveTo(triangle.polygon[0]!.x, triangle.polygon[0]!.y);
         triangle.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
         ctx.closePath();
-        ctx.fillStyle = triangle.color.replace("rgb", "rgba").replace(")", ", 0.16)");
+        ctx.fillStyle = surfaceFillColor(triangle.value, zRange.min, zRange.max);
         ctx.fill();
-        ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(24, 24, 27, 0.035)";
+        ctx.lineWidth = 0.55;
         ctx.stroke();
       });
     }

@@ -76,7 +76,7 @@
       selectedRunIntent: null,
       renderMode: "surface-zero-3d",
       colorMetric: "robustness",
-      thresholdPlaneMode: "z-zero",
+      thresholdPlaneMode: "auto",
       xParam: "fastLength",
       yParam: "slowLength",
       zMetric: "netProfit",

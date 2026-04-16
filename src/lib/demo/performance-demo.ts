@@ -45,7 +45,7 @@ export type PerformanceDemoSnapshot = {
     selectedRunIntent: RunLocationIntent | null;
     renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d";
     colorMetric: "topology" | "robustness";
-    thresholdPlaneMode: "none" | "z-zero";
+    thresholdPlaneMode: "none" | "auto";
     xParam: string;
     yParam: string;
     zMetric: OptimizationMetricKey;
@@ -70,7 +70,7 @@ export type PerformanceDemoController = {
   snapshot(): PerformanceDemoSnapshot;
   setOptimizationRenderMode(value: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d"): void;
   setOptimizationColorMetric(value: "topology" | "robustness"): void;
-  setOptimizationThresholdPlaneMode(value: "none" | "z-zero"): void;
+  setOptimizationThresholdPlaneMode(value: "none" | "auto"): void;
   setOptimizationXAxis(value: string): void;
   setOptimizationYAxis(value: string): void;
   setOptimizationZMetric(value: OptimizationMetricKey): void;
@@ -132,7 +132,7 @@ function buildOptimizationView(
   renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d",
   camera: { yaw: number; pitch: number },
   colorMetric: "topology" | "robustness",
-  thresholdPlaneMode: "none" | "z-zero",
+  thresholdPlaneMode: "none" | "auto",
   xParam: string,
   yParam: string,
   zMetric: OptimizationMetricKey,
@@ -157,6 +157,22 @@ function buildOptimizationView(
   });
   const selectedRun = selectedRunId === null ? null : sweep.runs.find((run) => run.runId === selectedRunId) ?? null;
   const filterSummary = filterKey === null || filterValue === null ? "all rows" : `${filterKey}=${filterValue}`;
+  const autoThresholdValue =
+    dataset.points.length === 0
+      ? null
+      : (() => {
+          const sorted = dataset.points.map((point) => point.zValue).sort((left, right) => left - right);
+          if (zMetric === "objectiveScore") {
+            return Math.max(sorted[0]!, Math.min(sorted[sorted.length - 1]!, 0.6));
+          }
+          if (zMetric === "netProfit") {
+            return sorted[Math.floor(sorted.length * 0.6)] ?? null;
+          }
+          if (dataset.zRange === null) {
+            return null;
+          }
+          return dataset.zRange.min + (dataset.zRange.max - dataset.zRange.min) * 0.55;
+        })();
   return {
     id: "optimization-surface",
     title: "Parameter Surface",
@@ -166,11 +182,11 @@ function buildOptimizationView(
     selectedRunIntent: selectedRun === null ? null : createRunLocationIntent(selectedRun, "optimization-surface-demo"),
     renderMode,
     thresholdPlane:
-      thresholdPlaneMode === "z-zero"
+      thresholdPlaneMode === "auto" && autoThresholdValue !== null
         ? ({
             metric: zMetric,
-            value: 0,
-            label: `${zMetric} = 0`,
+            value: Number(autoThresholdValue.toFixed(3)),
+            label: `${zMetric} accept`,
           } satisfies ThresholdPlane)
         : null,
     camera,
@@ -186,7 +202,7 @@ function snapshotFromViews(
   filterOptions: readonly string[],
   selectedRun: StrategyRunSummary | null,
   colorMetric: "topology" | "robustness",
-  thresholdPlaneMode: "none" | "z-zero",
+  thresholdPlaneMode: "none" | "auto",
 ): PerformanceDemoSnapshot {
   const crossSectionState = buildCrossSectionState(optimizationView);
   return {
@@ -331,8 +347,8 @@ export function mountPerformanceReportDemo(
   let zMetric: OptimizationMetricKey = "netProfit";
   let colorMetric: "topology" | "robustness" = "robustness";
   let renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d" = "surface-zero-3d";
-  let thresholdPlaneMode: "none" | "z-zero" = "z-zero";
-  let camera = { yaw: 1.02, pitch: 0.84 };
+  let thresholdPlaneMode: "none" | "auto" = "auto";
+  let camera = { yaw: 0.72, pitch: 0.42 };
   let selectedRun = sweep.runs[0] ?? null;
   let filterKey = sweep.parameterKeys.find((key) => key !== xParam && key !== yParam) ?? null;
   let filterValue = filterKey === null ? null : availableFilterValues(sweep, filterKey)[0] ?? null;

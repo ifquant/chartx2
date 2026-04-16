@@ -9,6 +9,12 @@ type Point3D = { x: number; y: number; z: number };
 type ProjectedPoint = { x: number; y: number; depth: number };
 type SurfaceVertex = { world: Point3D; rotated: Point3D; projected: ProjectedPoint };
 type Camera = { yaw: number; pitch: number };
+type SceneFrame = {
+  target: Point3D;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+};
 
 const THEME = {
   background: "#fffdf7",
@@ -203,26 +209,36 @@ function rotate(point: Point3D, camera: Camera): Point3D {
   return { x: x1, y: y2, z: z2 };
 }
 
-function projectRotatedPoint(rotated: Point3D, plot: Rect, scale: number): ProjectedPoint {
-  const cameraDistance = 5.2;
+function projectRotatedPoint(rotated: Point3D, plot: Rect, scale: number, frame?: Pick<SceneFrame, "offsetX" | "offsetY">): ProjectedPoint {
+  const cameraDistance = 6.4;
   const perspective = cameraDistance / (cameraDistance - rotated.z);
   return {
-    x: plot.x + plot.width * 0.5 + rotated.x * scale * perspective,
-    y: plot.y + plot.height * 0.68 - rotated.y * scale * perspective,
+    x: plot.x + plot.width * 0.5 + (frame?.offsetX ?? 0) + rotated.x * scale * perspective,
+    y: plot.y + plot.height * 0.6 + (frame?.offsetY ?? 0) - rotated.y * scale * perspective,
     depth: rotated.z,
   };
 }
 
-function projectPoint(point: Point3D, camera: Camera, plot: Rect, scale: number): ProjectedPoint {
-  return projectRotatedPoint(rotate(point, camera), plot, scale);
+function projectPoint(point: Point3D, camera: Camera, plot: Rect, frame: SceneFrame): ProjectedPoint {
+  const centered = {
+    x: point.x - frame.target.x,
+    y: point.y - frame.target.y,
+    z: point.z - frame.target.z,
+  };
+  return projectRotatedPoint(rotate(centered, camera), plot, frame.scale, frame);
 }
 
-function createSurfaceVertex(point: Point3D, camera: Camera, plot: Rect, scale: number): SurfaceVertex {
-  const rotated = rotate(point, camera);
+function createSurfaceVertex(point: Point3D, camera: Camera, plot: Rect, frame: SceneFrame): SurfaceVertex {
+  const centered = {
+    x: point.x - frame.target.x,
+    y: point.y - frame.target.y,
+    z: point.z - frame.target.z,
+  };
+  const rotated = rotate(centered, camera);
   return {
     world: point,
     rotated,
-    projected: projectRotatedPoint(rotated, plot, scale),
+    projected: projectRotatedPoint(rotated, plot, frame.scale, frame),
   };
 }
 
@@ -253,6 +269,34 @@ function projectedTriangleIsReasonable(a: ProjectedPoint, b: ProjectedPoint, c: 
   const area = Math.abs(triangleArea2(a, b, c));
   const maxArea = plot.width * plot.height * 0.42;
   return Number.isFinite(area) && area > 4 && area < maxArea;
+}
+
+function projectSceneBounds(points: readonly Point3D[], camera: Camera, plot: Rect, scale: number, target: Point3D): {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+} {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  points.forEach((point) => {
+    const rotated = rotate(
+      {
+        x: point.x - target.x,
+        y: point.y - target.y,
+        z: point.z - target.z,
+      },
+      camera,
+    );
+    const projected = projectRotatedPoint(rotated, plot, scale);
+    minX = Math.min(minX, projected.x);
+    maxX = Math.max(maxX, projected.x);
+    minY = Math.min(minY, projected.y);
+    maxY = Math.max(maxY, projected.y);
+  });
+  return { minX, maxX, minY, maxY };
 }
 
 export class OptimizationCanvasHarness {
@@ -495,18 +539,47 @@ export class OptimizationCanvasHarness {
       });
     });
 
-    const scale = Math.min(plot.width, plot.height) * 0.41;
+    const dataPoints = Array.from(coords.values());
+    const scenePoints: Point3D[] = [
+      ...dataPoints,
+      { x: -1, y: -1.18, z: -1 },
+      { x: 1, y: -1.18, z: -1 },
+      { x: 1, y: -1.18, z: 1 },
+      { x: -1, y: -1.18, z: 1 },
+      { x: -1, y: 1.45, z: -1 },
+      { x: 1, y: 1.45, z: -1 },
+      { x: 1, y: 1.45, z: 1 },
+      { x: -1, y: 1.45, z: 1 },
+    ];
+    const yValuesWorld = dataPoints.map((point) => point.y);
+    const sceneTarget = {
+      x: 0,
+      y:
+        yValuesWorld.length === 0
+          ? 0
+          : (Math.min(...yValuesWorld, -1.18) + Math.max(...yValuesWorld, 1.45)) * 0.5,
+      z: 0,
+    };
+    const baseScale = Math.min(plot.width, plot.height) * 0.5;
+    const rawBounds = projectSceneBounds(scenePoints, this.view.camera, plot, baseScale, sceneTarget);
+    const frame: SceneFrame = {
+      target: sceneTarget,
+      scale: baseScale,
+      offsetX: plot.x + plot.width * 0.5 - (rawBounds.minX + rawBounds.maxX) * 0.5,
+      offsetY: plot.y + plot.height * 0.54 - (rawBounds.minY + rawBounds.maxY) * 0.5,
+    };
     const showThresholdPlane = this.view.renderMode === "surface-zero-3d" && this.view.thresholdPlane !== null;
     const showSurfaceFill = this.view.renderMode === "surface-3d" || this.view.renderMode === "surface-zero-3d";
     const showWireframe = this.view.renderMode === "wireframe-3d" || showSurfaceFill;
     const showPoints = this.view.renderMode === "scatter-3d";
     const showSelectedPoint = this.view.selectedRunId !== null;
 
-    this.draw3DBoundingBox(plot, scale);
-    this.draw3DAxes(plot, scale);
-    this.draw3DBaseGrid(plot, scale);
+    this.draw3DBoundingBox(plot, frame);
+    this.draw3DAxes(plot, frame);
+    this.draw3DBaseGrid(plot, frame);
+    this.draw3DFloorProjection(plot, frame, pointMap, xValues, yValues, zRange, this.view.thresholdPlane?.value ?? null);
     if (showThresholdPlane && this.view.thresholdPlane !== null) {
-      this.draw3DThresholdPlane(plot, scale, zRange, this.view.thresholdPlane);
+      this.draw3DThresholdPlane(plot, frame, zRange, this.view.thresholdPlane);
     }
 
     if (showSurfaceFill || showWireframe) {
@@ -516,9 +589,9 @@ export class OptimizationCanvasHarness {
         second: ParameterSurfacePoint,
         third: ParameterSurfacePoint,
       ): void => {
-        const va = createSurfaceVertex(coords.get(first.runId)!, this.view.camera, plot, scale);
-        const vb = createSurfaceVertex(coords.get(second.runId)!, this.view.camera, plot, scale);
-        const vc = createSurfaceVertex(coords.get(third.runId)!, this.view.camera, plot, scale);
+        const va = createSurfaceVertex(coords.get(first.runId)!, this.view.camera, plot, frame);
+        const vb = createSurfaceVertex(coords.get(second.runId)!, this.view.camera, plot, frame);
+        const vc = createSurfaceVertex(coords.get(third.runId)!, this.view.camera, plot, frame);
         if (!surfaceTriangleFacesCamera(va, vb, vc)) {
           return;
         }
@@ -579,16 +652,19 @@ export class OptimizationCanvasHarness {
 
     const renderedPoints = dataset.points
       .map((point) => {
-        const projected = projectPoint(coords.get(point.runId)!, this.view.camera, plot, scale);
+        const projected = projectPoint(coords.get(point.runId)!, this.view.camera, plot, frame);
         return { point, projected };
       })
       .sort((left, right) => left.projected.depth - right.projected.depth);
 
     renderedPoints.forEach(({ point, projected }) => {
-      const showPoint = showPoints || (showSelectedPoint && point.runId === this.view.selectedRunId);
+      const showPoint = showPoints || showSurfaceFill || (showSelectedPoint && point.runId === this.view.selectedRunId);
       if (showPoint) {
-        const radius = point.runId === this.view.selectedRunId ? 3 : 1.35;
-        ctx.fillStyle = pointColor(point, this.view);
+        const radius = point.runId === this.view.selectedRunId ? 3.1 : showPoints ? 1.35 : 0.95;
+        ctx.fillStyle =
+          point.runId === this.view.selectedRunId
+            ? pointColor(point, this.view)
+            : "rgba(24, 24, 27, 0.26)";
         ctx.beginPath();
         ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -617,7 +693,7 @@ export class OptimizationCanvasHarness {
     ctx.fillText("Drag to rotate", plot.x + plot.width - 88, plot.y + plot.height + 20);
   }
 
-  private draw3DBaseGrid(plot: Rect, scale: number): void {
+  private draw3DBaseGrid(plot: Rect, frame: SceneFrame): void {
     const ctx = this.context;
     const gridLines = 5;
     ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
@@ -625,8 +701,8 @@ export class OptimizationCanvasHarness {
 
     for (let index = 0; index <= gridLines; index += 1) {
       const t = (index / gridLines) * 2 - 1;
-      const a = projectPoint({ x: -1, y: -1.18, z: t }, this.view.camera, plot, scale);
-      const b = projectPoint({ x: 1, y: -1.18, z: t }, this.view.camera, plot, scale);
+      const a = projectPoint({ x: -1, y: -1.18, z: t }, this.view.camera, plot, frame);
+      const b = projectPoint({ x: 1, y: -1.18, z: t }, this.view.camera, plot, frame);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -635,8 +711,8 @@ export class OptimizationCanvasHarness {
 
     for (let index = 0; index <= gridLines; index += 1) {
       const t = (index / gridLines) * 2 - 1;
-      const a = projectPoint({ x: t, y: -1.18, z: -1 }, this.view.camera, plot, scale);
-      const b = projectPoint({ x: t, y: -1.18, z: 1 }, this.view.camera, plot, scale);
+      const a = projectPoint({ x: t, y: -1.18, z: -1 }, this.view.camera, plot, frame);
+      const b = projectPoint({ x: t, y: -1.18, z: 1 }, this.view.camera, plot, frame);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -644,9 +720,119 @@ export class OptimizationCanvasHarness {
     }
   }
 
+  private draw3DFloorProjection(
+    plot: Rect,
+    frame: SceneFrame,
+    pointMap: Map<string, ParameterSurfacePoint>,
+    xValues: readonly ParameterValue[],
+    yValues: readonly ParameterValue[],
+    zRange: { min: number; max: number },
+    thresholdValue: number | null,
+  ): void {
+    const ctx = this.context;
+    const contourLevels = Array.from({ length: 6 }, (_, index) =>
+      zRange.min + ((index + 1) / 7) * (zRange.max - zRange.min),
+    );
+    const floorY = -1.18;
+    const contourSegments: Array<{ start: ProjectedPoint; end: ProjectedPoint }> = [];
+
+    const interpolateFloorPoint = (
+      first: { value: number; x: number; z: number },
+      second: { value: number; x: number; z: number },
+      level: number,
+    ): Point3D | null => {
+      if ((level < first.value && level < second.value) || (level > first.value && level > second.value) || first.value === second.value) {
+        return null;
+      }
+      const t = (level - first.value) / (second.value - first.value);
+      if (t < 0 || t > 1) {
+        return null;
+      }
+      return {
+        x: first.x + (second.x - first.x) * t,
+        y: floorY,
+        z: first.z + (second.z - first.z) * t,
+      };
+    };
+
+    for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
+      for (let xIndex = 0; xIndex < xValues.length - 1; xIndex += 1) {
+        const a = pointMap.get(`${String(xValues[xIndex])}::${String(yValues[yIndex])}`);
+        const b = pointMap.get(`${String(xValues[xIndex + 1])}::${String(yValues[yIndex])}`);
+        const c = pointMap.get(`${String(xValues[xIndex + 1])}::${String(yValues[yIndex + 1])}`);
+        const d = pointMap.get(`${String(xValues[xIndex])}::${String(yValues[yIndex + 1])}`);
+        if (a === undefined || b === undefined || c === undefined || d === undefined) {
+          continue;
+        }
+        const x0 = xValues.length === 1 ? 0 : (xIndex / (xValues.length - 1)) * 2 - 1;
+        const x1 = xValues.length === 1 ? 0 : ((xIndex + 1) / (xValues.length - 1)) * 2 - 1;
+        const z0 = yValues.length === 1 ? 0 : (yIndex / (yValues.length - 1)) * 2 - 1;
+        const z1 = yValues.length === 1 ? 0 : ((yIndex + 1) / (yValues.length - 1)) * 2 - 1;
+
+        const pa = projectPoint({ x: x0, y: floorY, z: z0 }, this.view.camera, plot, frame);
+        const pb = projectPoint({ x: x1, y: floorY, z: z0 }, this.view.camera, plot, frame);
+        const pc = projectPoint({ x: x1, y: floorY, z: z1 }, this.view.camera, plot, frame);
+        const pd = projectPoint({ x: x0, y: floorY, z: z1 }, this.view.camera, plot, frame);
+        const avg = (a.zValue + b.zValue + c.zValue + d.zValue) / 4;
+
+        ctx.beginPath();
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.lineTo(pc.x, pc.y);
+        ctx.lineTo(pd.x, pd.y);
+        ctx.closePath();
+        ctx.fillStyle = rgbaString(performanceColorTriplet(avg, zRange.min, zRange.max), 0.18);
+        ctx.fill();
+
+        if (thresholdValue !== null && avg >= thresholdValue) {
+          ctx.fillStyle = "rgba(74, 161, 96, 0.12)";
+          ctx.fill();
+        }
+
+        const cellCorners = [
+          { value: a.zValue, x: x0, z: z0 },
+          { value: b.zValue, x: x1, z: z0 },
+          { value: c.zValue, x: x1, z: z1 },
+          { value: d.zValue, x: x0, z: z1 },
+        ] as const;
+
+        contourLevels.forEach((level) => {
+          const hits = [
+            interpolateFloorPoint(cellCorners[0], cellCorners[1], level),
+            interpolateFloorPoint(cellCorners[1], cellCorners[2], level),
+            interpolateFloorPoint(cellCorners[2], cellCorners[3], level),
+            interpolateFloorPoint(cellCorners[3], cellCorners[0], level),
+          ].filter((value): value is Point3D => value !== null);
+
+          if (hits.length >= 2) {
+            contourSegments.push({
+              start: projectPoint(hits[0]!, this.view.camera, plot, frame),
+              end: projectPoint(hits[1]!, this.view.camera, plot, frame),
+            });
+          }
+          if (hits.length === 4) {
+            contourSegments.push({
+              start: projectPoint(hits[2]!, this.view.camera, plot, frame),
+              end: projectPoint(hits[3]!, this.view.camera, plot, frame),
+            });
+          }
+        });
+      }
+    }
+
+    ctx.strokeStyle = "rgba(34, 56, 97, 0.22)";
+    ctx.lineWidth = 0.8;
+    contourSegments.forEach((segment) => {
+      ctx.beginPath();
+      ctx.moveTo(segment.start.x, segment.start.y);
+      ctx.lineTo(segment.end.x, segment.end.y);
+      ctx.stroke();
+    });
+  }
+
   private draw3DThresholdPlane(
     plot: Rect,
-    scale: number,
+    frame: SceneFrame,
     zRange: { min: number; max: number },
     thresholdPlane: OptimizationSurfaceView["thresholdPlane"],
   ): void {
@@ -659,10 +845,10 @@ export class OptimizationCanvasHarness {
 
     const ctx = this.context;
     const planeY = surfaceYFromMetric(thresholdPlane.value, zRange);
-    const a = projectPoint({ x: -1, y: planeY, z: -1 }, this.view.camera, plot, scale);
-    const b = projectPoint({ x: 1, y: planeY, z: -1 }, this.view.camera, plot, scale);
-    const c = projectPoint({ x: 1, y: planeY, z: 1 }, this.view.camera, plot, scale);
-    const d = projectPoint({ x: -1, y: planeY, z: 1 }, this.view.camera, plot, scale);
+    const a = projectPoint({ x: -1, y: planeY, z: -1 }, this.view.camera, plot, frame);
+    const b = projectPoint({ x: 1, y: planeY, z: -1 }, this.view.camera, plot, frame);
+    const c = projectPoint({ x: 1, y: planeY, z: 1 }, this.view.camera, plot, frame);
+    const d = projectPoint({ x: -1, y: planeY, z: 1 }, this.view.camera, plot, frame);
 
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
@@ -676,23 +862,23 @@ export class OptimizationCanvasHarness {
     ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    const label = projectPoint({ x: -1.08, y: planeY, z: -1.08 }, this.view.camera, plot, scale);
+    const label = projectPoint({ x: -1.08, y: planeY, z: -1.08 }, this.view.camera, plot, frame);
     ctx.fillStyle = "rgba(32, 96, 122, 0.88)";
     ctx.font = "700 10px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.fillText(thresholdPlane.label, label.x - 12, label.y - 6);
   }
 
-  private draw3DBoundingBox(plot: Rect, scale: number): void {
+  private draw3DBoundingBox(plot: Rect, frame: SceneFrame): void {
     const ctx = this.context;
     const corners = {
-      lbf: projectPoint({ x: -1, y: -1.18, z: -1 }, this.view.camera, plot, scale),
-      rbf: projectPoint({ x: 1, y: -1.18, z: -1 }, this.view.camera, plot, scale),
-      rbb: projectPoint({ x: 1, y: -1.18, z: 1 }, this.view.camera, plot, scale),
-      lbb: projectPoint({ x: -1, y: -1.18, z: 1 }, this.view.camera, plot, scale),
-      ltf: projectPoint({ x: -1, y: 1.45, z: -1 }, this.view.camera, plot, scale),
-      rtf: projectPoint({ x: 1, y: 1.45, z: -1 }, this.view.camera, plot, scale),
-      rtb: projectPoint({ x: 1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
-      ltb: projectPoint({ x: -1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
+      lbf: projectPoint({ x: -1, y: -1.18, z: -1 }, this.view.camera, plot, frame),
+      rbf: projectPoint({ x: 1, y: -1.18, z: -1 }, this.view.camera, plot, frame),
+      rbb: projectPoint({ x: 1, y: -1.18, z: 1 }, this.view.camera, plot, frame),
+      lbb: projectPoint({ x: -1, y: -1.18, z: 1 }, this.view.camera, plot, frame),
+      ltf: projectPoint({ x: -1, y: 1.45, z: -1 }, this.view.camera, plot, frame),
+      rtf: projectPoint({ x: 1, y: 1.45, z: -1 }, this.view.camera, plot, frame),
+      rtb: projectPoint({ x: 1, y: 1.45, z: 1 }, this.view.camera, plot, frame),
+      ltb: projectPoint({ x: -1, y: 1.45, z: 1 }, this.view.camera, plot, frame),
     };
     const edges: Array<{ start: ProjectedPoint; end: ProjectedPoint; depth: number; primary: boolean }> = [
       [corners.lbf, corners.rbf],
@@ -726,12 +912,12 @@ export class OptimizationCanvasHarness {
     });
   }
 
-  private draw3DAxes(plot: Rect, scale: number): void {
+  private draw3DAxes(plot: Rect, frame: SceneFrame): void {
     const ctx = this.context;
-    const origin = projectPoint({ x: -1.15, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
-    const xAxis = projectPoint({ x: 1.28, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
-    const yAxis = projectPoint({ x: -1.15, y: 1.38, z: -1.15 }, this.view.camera, plot, scale);
-    const zAxis = projectPoint({ x: -1.15, y: -1.18, z: 1.28 }, this.view.camera, plot, scale);
+    const origin = projectPoint({ x: -1.15, y: -1.18, z: -1.15 }, this.view.camera, plot, frame);
+    const xAxis = projectPoint({ x: 1.28, y: -1.18, z: -1.15 }, this.view.camera, plot, frame);
+    const yAxis = projectPoint({ x: -1.15, y: 1.38, z: -1.15 }, this.view.camera, plot, frame);
+    const zAxis = projectPoint({ x: -1.15, y: -1.18, z: 1.28 }, this.view.camera, plot, frame);
 
     ctx.strokeStyle = THEME.axis;
     ctx.lineWidth = 1.2;
@@ -748,10 +934,10 @@ export class OptimizationCanvasHarness {
     ctx.fillText(`Z ${this.view.dataset.spec.zMetric}`, yAxis.x + 6, yAxis.y - 4);
     ctx.fillText(`Y ${this.view.dataset.spec.yParam}`, zAxis.x + 6, zAxis.y + 2);
 
-    this.draw3DAxisTicks(plot, scale);
+    this.draw3DAxisTicks(plot, frame);
   }
 
-  private draw3DAxisTicks(plot: Rect, scale: number): void {
+  private draw3DAxisTicks(plot: Rect, frame: SceneFrame): void {
     const ctx = this.context;
     const { dataset } = this.view;
     const xValues = dataset.xValues;
@@ -768,8 +954,8 @@ export class OptimizationCanvasHarness {
     const xTickValues = [xValues[0]!, xValues[Math.floor(xValues.length / 2)]!, xValues[xValues.length - 1]!];
     xTickValues.forEach((value, index) => {
       const t = index / Math.max(xTickValues.length - 1, 1);
-      const anchor = projectPoint({ x: -1 + t * 2, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
-      const normal = projectPoint({ x: -1 + t * 2, y: -1.1, z: -1.15 }, this.view.camera, plot, scale);
+      const anchor = projectPoint({ x: -1 + t * 2, y: -1.18, z: -1.15 }, this.view.camera, plot, frame);
+      const normal = projectPoint({ x: -1 + t * 2, y: -1.1, z: -1.15 }, this.view.camera, plot, frame);
       ctx.beginPath();
       ctx.moveTo(anchor.x, anchor.y);
       ctx.lineTo(normal.x, normal.y);
@@ -780,8 +966,8 @@ export class OptimizationCanvasHarness {
     const yTickValues = [yValues[0]!, yValues[Math.floor(yValues.length / 2)]!, yValues[yValues.length - 1]!];
     yTickValues.forEach((value, index) => {
       const t = index / Math.max(yTickValues.length - 1, 1);
-      const anchor = projectPoint({ x: -1.15, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, scale);
-      const normal = projectPoint({ x: -1.07, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, scale);
+      const anchor = projectPoint({ x: -1.15, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, frame);
+      const normal = projectPoint({ x: -1.07, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, frame);
       ctx.beginPath();
       ctx.moveTo(anchor.x, anchor.y);
       ctx.lineTo(normal.x, normal.y);
@@ -792,8 +978,8 @@ export class OptimizationCanvasHarness {
     const zTickValues = [zRange.min, (zRange.min + zRange.max) / 2, zRange.max];
     zTickValues.forEach((value, index) => {
       const t = index / Math.max(zTickValues.length - 1, 1);
-      const anchor = projectPoint({ x: -1.15, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, scale);
-      const normal = projectPoint({ x: -1.05, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, scale);
+      const anchor = projectPoint({ x: -1.15, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, frame);
+      const normal = projectPoint({ x: -1.05, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, frame);
       ctx.beginPath();
       ctx.moveTo(anchor.x, anchor.y);
       ctx.lineTo(normal.x, normal.y);

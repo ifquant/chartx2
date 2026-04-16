@@ -1,16 +1,24 @@
-import type { OptimizationSurfaceView, ParameterValue } from "../model/types";
+import type { OptimizationSurfaceView, ParameterSurfacePoint, ParameterValue } from "../model/types";
 
-type HitTarget = { rect: Rect; runId: string };
+type HitTarget =
+  | { kind: "heatmap-cell"; rect: Rect; runId: string }
+  | { kind: "surface-point"; x: number; y: number; radius: number; runId: string };
+
 type Rect = { x: number; y: number; width: number; height: number };
+type Point3D = { x: number; y: number; z: number };
+type ProjectedPoint = { x: number; y: number; depth: number };
+type Camera = { yaw: number; pitch: number };
 
 const THEME = {
   background: "#fffdf7",
   panel: "#fffaf0",
   frame: "rgba(16, 16, 16, 0.16)",
   grid: "rgba(16, 16, 16, 0.08)",
+  axis: "rgba(24, 24, 27, 0.35)",
   text: "#18181b",
   muted: "rgba(24, 24, 27, 0.54)",
   highlight: "#c47b23",
+  pointStroke: "rgba(24, 24, 27, 0.18)",
 } as const;
 
 function clamp(value: number, min: number, max: number): number {
@@ -19,6 +27,12 @@ function clamp(value: number, min: number, max: number): number {
 
 function pointInRect(x: number, y: number, rect: Rect): boolean {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function pointInCircle(x: number, y: number, cx: number, cy: number, radius: number): boolean {
+  const dx = x - cx;
+  const dy = y - cy;
+  return dx * dx + dy * dy <= radius * radius;
 }
 
 function formatParam(value: ParameterValue): string {
@@ -41,19 +55,65 @@ function heatColor(value: number, min: number, max: number): string {
   return lerpColor([236, 187, 71], [22, 132, 95], (t - 0.5) / 0.5);
 }
 
+function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView): string {
+  const range = view.dataset.colorRange ?? view.dataset.zRange;
+  const value =
+    typeof point.colorValue === "number"
+      ? point.colorValue
+      : point.zValue;
+  if (range === null) {
+    return "rgba(24, 24, 27, 0.18)";
+  }
+  return heatColor(value, range.min, range.max);
+}
+
+function rotate(point: Point3D, camera: Camera): Point3D {
+  const cy = Math.cos(camera.yaw);
+  const sy = Math.sin(camera.yaw);
+  const cp = Math.cos(camera.pitch);
+  const sp = Math.sin(camera.pitch);
+
+  const x1 = point.x * cy - point.z * sy;
+  const z1 = point.x * sy + point.z * cy;
+  const y2 = point.y * cp - z1 * sp;
+  const z2 = point.y * sp + z1 * cp;
+
+  return { x: x1, y: y2, z: z2 };
+}
+
+function projectPoint(point: Point3D, camera: Camera, plot: Rect, scale: number): ProjectedPoint {
+  const rotated = rotate(point, camera);
+  const perspective = 1 / (1 + rotated.z * 0.42);
+  return {
+    x: plot.x + plot.width * 0.5 + rotated.x * scale * perspective,
+    y: plot.y + plot.height * 0.6 - rotated.y * scale * perspective,
+    depth: rotated.z,
+  };
+}
+
 export class OptimizationCanvasHarness {
   private readonly context: CanvasRenderingContext2D;
   private readonly resizeObserver: ResizeObserver;
   private readonly hitTargets: HitTarget[] = [];
   private readonly handlePointerDown = (event: PointerEvent) => this.onPointerDown(event);
   private readonly handlePointerMove = (event: PointerEvent) => this.onPointerMove(event);
+  private readonly handlePointerUp = (event: PointerEvent) => this.onPointerUp(event);
   private view: OptimizationSurfaceView;
   private destroyed = false;
+  private dragStart:
+    | {
+        x: number;
+        y: number;
+        camera: Camera;
+        moved: boolean;
+      }
+    | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     initialView: OptimizationSurfaceView,
     private readonly selectRun: (runId: string) => void,
+    private readonly updateCamera?: (camera: Camera) => void,
   ) {
     const context = canvas.getContext("2d");
     if (context === null) {
@@ -65,6 +125,7 @@ export class OptimizationCanvasHarness {
     this.resizeObserver.observe(canvas);
     canvas.addEventListener("pointerdown", this.handlePointerDown);
     canvas.addEventListener("pointermove", this.handlePointerMove);
+    canvas.addEventListener("pointerup", this.handlePointerUp);
     this.render();
   }
 
@@ -78,6 +139,7 @@ export class OptimizationCanvasHarness {
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
     this.canvas.removeEventListener("pointermove", this.handlePointerMove);
+    this.canvas.removeEventListener("pointerup", this.handlePointerUp);
   }
 
   private syncSize(): { width: number; height: number } {
@@ -121,9 +183,13 @@ export class OptimizationCanvasHarness {
     ctx.fillText(this.view.summary, 12, 40);
 
     const plot = { x: 70, y: 60, width: width - 102, height: height - 94 };
-    this.drawGrid(plot);
-    this.drawCells(plot);
-    this.drawAxes(plot);
+    if (this.view.renderMode === "heatmap") {
+      this.drawGrid(plot);
+      this.drawHeatmap(plot);
+      this.drawHeatmapAxes(plot);
+    } else {
+      this.drawSurface3D(plot, this.view.renderMode === "surface-3d");
+    }
   }
 
   private drawGrid(plot: Rect): void {
@@ -146,7 +212,7 @@ export class OptimizationCanvasHarness {
     }
   }
 
-  private drawCells(plot: Rect): void {
+  private drawHeatmap(plot: Rect): void {
     const ctx = this.context;
     const { dataset } = this.view;
     const xValues = dataset.xValues;
@@ -173,11 +239,11 @@ export class OptimizationCanvasHarness {
           height: Math.max(8, cellHeight - 4),
         };
 
-        ctx.fillStyle =
+        this.context.fillStyle =
           point === undefined
             ? "rgba(24, 24, 27, 0.04)"
             : heatColor(point.zValue, dataset.zRange.min, dataset.zRange.max);
-        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+        this.context.fillRect(rect.x, rect.y, rect.width, rect.height);
 
         if (point !== undefined) {
           if (point.runId === this.view.selectedRunId) {
@@ -189,13 +255,13 @@ export class OptimizationCanvasHarness {
             ctx.lineWidth = 1;
             ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
           }
-          this.hitTargets.push({ rect, runId: point.runId });
+          this.hitTargets.push({ kind: "heatmap-cell", rect, runId: point.runId });
         }
       }
     }
   }
 
-  private drawAxes(plot: Rect): void {
+  private drawHeatmapAxes(plot: Rect): void {
     const ctx = this.context;
     const { dataset } = this.view;
     const xValues = dataset.xValues;
@@ -237,9 +303,146 @@ export class OptimizationCanvasHarness {
     }
   }
 
+  private drawSurface3D(plot: Rect, fillSurface: boolean): void {
+    const ctx = this.context;
+    const { dataset } = this.view;
+    const xValues = dataset.xValues;
+    const yValues = dataset.yValues;
+    const zRange = dataset.zRange;
+    if (xValues.length === 0 || yValues.length === 0 || zRange === null) {
+      return;
+    }
+
+    const pointMap = new Map(
+      dataset.points.map((point) => [`${String(point.xValue)}::${String(point.yValue)}`, point] as const),
+    );
+
+    const coords = new Map<string, Point3D>();
+    xValues.forEach((xValue, xIndex) => {
+      yValues.forEach((yValue, yIndex) => {
+        const point = pointMap.get(`${String(xValue)}::${String(yValue)}`);
+        if (point === undefined) {
+          return;
+        }
+        const xNormalized = xValues.length === 1 ? 0 : (xIndex / (xValues.length - 1)) * 2 - 1;
+        const yNormalized = yValues.length === 1 ? 0 : (yIndex / (yValues.length - 1)) * 2 - 1;
+        const zNormalized = ((point.zValue - zRange.min) / Math.max(zRange.max - zRange.min, 1)) * 2 - 1;
+        coords.set(point.runId, { x: xNormalized, y: zNormalized, z: yNormalized });
+      });
+    });
+
+    const scale = Math.min(plot.width, plot.height) * 0.32;
+    this.draw3DAxes(plot, scale);
+
+    if (fillSurface) {
+      const quads: Array<{ depth: number; polygon: ProjectedPoint[]; color: string }> = [];
+      for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
+        for (let xIndex = 0; xIndex < xValues.length - 1; xIndex += 1) {
+          const a = pointMap.get(`${String(xValues[xIndex])}::${String(yValues[yIndex])}`);
+          const b = pointMap.get(`${String(xValues[xIndex + 1])}::${String(yValues[yIndex])}`);
+          const c = pointMap.get(`${String(xValues[xIndex + 1])}::${String(yValues[yIndex + 1])}`);
+          const d = pointMap.get(`${String(xValues[xIndex])}::${String(yValues[yIndex + 1])}`);
+          if (a === undefined || b === undefined || c === undefined || d === undefined) {
+            continue;
+          }
+          const pa = projectPoint(coords.get(a.runId)!, this.view.camera, plot, scale);
+          const pb = projectPoint(coords.get(b.runId)!, this.view.camera, plot, scale);
+          const pc = projectPoint(coords.get(c.runId)!, this.view.camera, plot, scale);
+          const pd = projectPoint(coords.get(d.runId)!, this.view.camera, plot, scale);
+          const avgZ = (a.zValue + b.zValue + c.zValue + d.zValue) / 4;
+          quads.push({
+            depth: (pa.depth + pb.depth + pc.depth + pd.depth) / 4,
+            polygon: [pa, pb, pc, pd],
+            color: heatColor(avgZ, zRange.min, zRange.max),
+          });
+        }
+      }
+      quads.sort((left, right) => left.depth - right.depth);
+      quads.forEach((quad) => {
+        ctx.beginPath();
+        ctx.moveTo(quad.polygon[0]!.x, quad.polygon[0]!.y);
+        quad.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+        ctx.closePath();
+        ctx.fillStyle = quad.color.replace("rgb", "rgba").replace(")", ", 0.22)");
+        ctx.fill();
+        ctx.strokeStyle = "rgba(24, 24, 27, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    }
+
+    const renderedPoints = dataset.points
+      .map((point) => {
+        const projected = projectPoint(coords.get(point.runId)!, this.view.camera, plot, scale);
+        return { point, projected };
+      })
+      .sort((left, right) => left.projected.depth - right.projected.depth);
+
+    renderedPoints.forEach(({ point, projected }) => {
+      const radius = point.runId === this.view.selectedRunId ? 7 : 5.2;
+      ctx.fillStyle = pointColor(point, this.view);
+      ctx.strokeStyle = point.runId === this.view.selectedRunId ? THEME.highlight : THEME.pointStroke;
+      ctx.lineWidth = point.runId === this.view.selectedRunId ? 2 : 1;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      this.hitTargets.push({
+        kind: "surface-point",
+        x: projected.x,
+        y: projected.y,
+        radius: radius + 4,
+        runId: point.runId,
+      });
+    });
+
+    ctx.fillStyle = THEME.text;
+    ctx.font = "700 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(`${dataset.spec.xParam} / ${dataset.spec.yParam} / ${dataset.spec.zMetric}`, plot.x, plot.y + plot.height + 20);
+    ctx.fillStyle = THEME.muted;
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText("Drag to rotate", plot.x + plot.width - 88, plot.y + plot.height + 20);
+  }
+
+  private draw3DAxes(plot: Rect, scale: number): void {
+    const ctx = this.context;
+    const origin = projectPoint({ x: -1.1, y: -1.05, z: -1.05 }, this.view.camera, plot, scale);
+    const xAxis = projectPoint({ x: 1.18, y: -1.05, z: -1.05 }, this.view.camera, plot, scale);
+    const yAxis = projectPoint({ x: -1.1, y: 1.15, z: -1.05 }, this.view.camera, plot, scale);
+    const zAxis = projectPoint({ x: -1.1, y: -1.05, z: 1.15 }, this.view.camera, plot, scale);
+
+    ctx.strokeStyle = THEME.axis;
+    ctx.lineWidth = 1.2;
+    [xAxis, yAxis, zAxis].forEach((target) => {
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = THEME.muted;
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(this.view.dataset.spec.xParam, xAxis.x + 4, xAxis.y + 2);
+    ctx.fillText(this.view.dataset.spec.zMetric, yAxis.x + 4, yAxis.y - 4);
+    ctx.fillText(this.view.dataset.spec.yParam, zAxis.x + 4, zAxis.y + 2);
+  }
+
   private onPointerDown(event: PointerEvent): void {
     const point = this.toCanvasPoint(event);
-    const hit = this.hitTargets.find((entry) => pointInRect(point.x, point.y, entry.rect));
+    if (this.view.renderMode !== "heatmap") {
+      this.dragStart = {
+        x: point.x,
+        y: point.y,
+        camera: { ...this.view.camera },
+        moved: false,
+      };
+      this.canvas.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    const hit = this.hitTargets.find(
+      (entry) => entry.kind === "heatmap-cell" && pointInRect(point.x, point.y, entry.rect),
+    );
     if (hit !== undefined) {
       this.selectRun(hit.runId);
     }
@@ -247,8 +450,52 @@ export class OptimizationCanvasHarness {
 
   private onPointerMove(event: PointerEvent): void {
     const point = this.toCanvasPoint(event);
-    const hit = this.hitTargets.find((entry) => pointInRect(point.x, point.y, entry.rect));
-    this.canvas.style.cursor = hit === undefined ? "default" : "pointer";
+    if (this.dragStart !== null && this.view.renderMode !== "heatmap") {
+      const dx = point.x - this.dragStart.x;
+      const dy = point.y - this.dragStart.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        this.dragStart.moved = true;
+      }
+      const nextCamera = {
+        yaw: this.dragStart.camera.yaw + dx * 0.012,
+        pitch: clamp(this.dragStart.camera.pitch - dy * 0.01, 0.18, 1.25),
+      };
+      this.view = {
+        ...this.view,
+        camera: nextCamera,
+      };
+      this.updateCamera?.(nextCamera);
+      this.render();
+      this.canvas.style.cursor = "grabbing";
+      return;
+    }
+
+    const hit = this.hitTargets.find((entry) =>
+      entry.kind === "heatmap-cell"
+        ? pointInRect(point.x, point.y, entry.rect)
+        : pointInCircle(point.x, point.y, entry.x, entry.y, entry.radius),
+    );
+    this.canvas.style.cursor = hit === undefined ? (this.view.renderMode === "heatmap" ? "default" : "grab") : "pointer";
+  }
+
+  private onPointerUp(event: PointerEvent): void {
+    const point = this.toCanvasPoint(event);
+    if (this.view.renderMode !== "heatmap" && this.dragStart !== null) {
+      const wasMoved = this.dragStart.moved;
+      this.dragStart = null;
+      this.canvas.releasePointerCapture(event.pointerId);
+      if (wasMoved) {
+        this.canvas.style.cursor = "grab";
+        return;
+      }
+      const hit = this.hitTargets.find(
+        (entry) => entry.kind === "surface-point" && pointInCircle(point.x, point.y, entry.x, entry.y, entry.radius),
+      );
+      if (hit !== undefined) {
+        this.selectRun(hit.runId);
+      }
+      return;
+    }
   }
 
   private toCanvasPoint(event: PointerEvent): { x: number; y: number } {

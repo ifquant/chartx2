@@ -32,6 +32,17 @@ test("optimization heatmap selection switches the performance report to the sele
   await expect(report).toContainText("sweep-run-007");
 });
 
+test("optimization surface can switch into 3d scatter mode", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Performance", exact: true }).click();
+
+  await page.getByLabel("View").selectOption("scatter-3d");
+
+  const report = page.locator('[data-demo-tab="performance"]');
+  await expect(report).toContainText("changed surface mode to scatter-3d");
+  await expect(report).toContainText("Drag inside the surface to rotate the 3D camera.");
+});
+
 test("performance trade row selection auto-switches to the workbench with the selected trade", async ({
   page,
 }) => {

@@ -28,6 +28,7 @@ export type PerformanceDemoSnapshot = {
     summary: string;
     selectedRunId: string | null;
     selectedRunIntent: RunLocationIntent | null;
+    renderMode: "heatmap" | "scatter-3d" | "surface-3d";
     xParam: string;
     yParam: string;
     zMetric: OptimizationMetricKey;
@@ -40,6 +41,7 @@ export type PerformanceDemoSnapshot = {
 
 export type PerformanceDemoController = {
   snapshot(): PerformanceDemoSnapshot;
+  setOptimizationRenderMode(value: "heatmap" | "scatter-3d" | "surface-3d"): void;
   setOptimizationXAxis(value: string): void;
   setOptimizationYAxis(value: string): void;
   setOptimizationZMetric(value: OptimizationMetricKey): void;
@@ -97,6 +99,8 @@ function summarizeRun(run: StrategyRunSummary | null): string {
 
 function buildOptimizationView(
   sweep: ParameterSweepModel,
+  renderMode: "heatmap" | "scatter-3d" | "surface-3d",
+  camera: { yaw: number; pitch: number },
   xParam: string,
   yParam: string,
   zMetric: OptimizationMetricKey,
@@ -127,6 +131,8 @@ function buildOptimizationView(
     dataset,
     selectedRunId,
     selectedRunIntent: selectedRun === null ? null : createRunLocationIntent(selectedRun, "optimization-surface-demo"),
+    renderMode,
+    camera,
   };
 }
 
@@ -154,6 +160,7 @@ function snapshotFromViews(
       summary: optimizationView.summary,
       selectedRunId: optimizationView.selectedRunId,
       selectedRunIntent: optimizationView.selectedRunIntent,
+      renderMode: optimizationView.renderMode,
       xParam: optimizationView.dataset.spec.xParam,
       yParam: optimizationView.dataset.spec.yParam,
       zMetric: optimizationView.dataset.spec.zMetric,
@@ -182,6 +189,8 @@ export function mountPerformanceReportDemo(
   let xParam = "fastLength";
   let yParam = "slowLength";
   let zMetric: OptimizationMetricKey = "netProfit";
+  let renderMode: "heatmap" | "scatter-3d" | "surface-3d" = "heatmap";
+  let camera = { yaw: 0.75, pitch: 0.58 };
   let selectedRun = sweep.runs[0] ?? null;
   let filterKey = sweep.parameterKeys.find((key) => key !== xParam && key !== yParam) ?? null;
   let filterValue = filterKey === null ? null : availableFilterValues(sweep, filterKey)[0] ?? null;
@@ -190,6 +199,8 @@ export function mountPerformanceReportDemo(
   let reportView = report.view();
   let optimizationView = buildOptimizationView(
     sweep,
+    renderMode,
+    camera,
     xParam,
     yParam,
     zMetric,
@@ -223,6 +234,8 @@ export function mountPerformanceReportDemo(
     reportView = report.view();
     optimizationView = buildOptimizationView(
       sweep,
+      renderMode,
+      camera,
       xParam,
       yParam,
       zMetric,
@@ -253,9 +266,21 @@ export function mountPerformanceReportDemo(
     publishSnapshot();
   });
 
-  const optimizationHarness = new OptimizationCanvasHarness(optimizationCanvas, optimizationView, (runId) => {
-    updateReportFromSelection(runId, `selected run ${runId}`);
-  });
+  const optimizationHarness = new OptimizationCanvasHarness(
+    optimizationCanvas,
+    optimizationView,
+    (runId) => {
+      updateReportFromSelection(runId, `selected run ${runId}`);
+    },
+    (nextCamera) => {
+      camera = nextCamera;
+      optimizationView = {
+        ...optimizationView,
+        camera,
+      };
+      publishSnapshot();
+    },
+  );
 
   publishSnapshot();
 
@@ -269,6 +294,8 @@ export function mountPerformanceReportDemo(
     }
     const nextView = buildOptimizationView(
       sweep,
+      renderMode,
+      camera,
       xParam,
       yParam,
       zMetric,
@@ -283,6 +310,8 @@ export function mountPerformanceReportDemo(
         : nextView.dataset.points[0]?.runId ?? null;
     optimizationView = buildOptimizationView(
       sweep,
+      renderMode,
+      camera,
       xParam,
       yParam,
       zMetric,
@@ -313,6 +342,26 @@ export function mountPerformanceReportDemo(
         availableFilterValues(sweep, filterKey),
         selectedRun,
       );
+    },
+    setOptimizationRenderMode(value) {
+      renderMode = value;
+      log.unshift(`changed surface mode to ${value}`);
+      if (log.length > 8) {
+        log.pop();
+      }
+      optimizationView = buildOptimizationView(
+        sweep,
+        renderMode,
+        camera,
+        xParam,
+        yParam,
+        zMetric,
+        filterKey,
+        filterValue,
+        selectedRun?.runId ?? null,
+      );
+      optimizationHarness.update(optimizationView);
+      publishSnapshot();
     },
     setOptimizationXAxis(value: string) {
       if (!sweep.parameterKeys.includes(value) || value === yParam) {

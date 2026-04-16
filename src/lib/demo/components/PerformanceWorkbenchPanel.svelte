@@ -11,8 +11,10 @@
   export let onOptimizationYAxisChange: (value: string) => void;
   export let onOptimizationZMetricChange: (value: OptimizationMetricKey) => void;
   export let onOptimizationFilterValueChange: (value: string) => void;
+  export let onOptimizationRenderModeChange: (value: "heatmap" | "scatter-3d" | "surface-3d") => void;
 
   const parameterOptions = ["fastLength", "slowLength", "threshold"];
+  const renderModeOptions = ["heatmap", "scatter-3d", "surface-3d"] as const;
   const zMetricOptions: OptimizationMetricKey[] = [
     "netProfit",
     "sharpe",
@@ -34,6 +36,20 @@
     <div class="performance-frame">
       <section class="surface-shell">
         <div class="surface-controls">
+          <label>
+            <span>View</span>
+            <select
+              value={snapshot.optimization.renderMode}
+              on:change={(event) =>
+                onOptimizationRenderModeChange(
+                  (event.currentTarget as HTMLSelectElement).value as "heatmap" | "scatter-3d" | "surface-3d",
+                )}
+            >
+              {#each renderModeOptions as option}
+                <option value={option}>{option}</option>
+              {/each}
+            </select>
+          </label>
           <label>
             <span>X</span>
             <select
@@ -86,6 +102,9 @@
           bind:this={optimizationCanvasElement}
           aria-label="chartx2 optimization surface canvas"
         ></canvas>
+        {#if snapshot.optimization.renderMode !== "heatmap"}
+          <p class="surface-hint">Drag inside the surface to rotate the 3D camera. Click a point to switch the active run.</p>
+        {/if}
       </section>
 
       <canvas
@@ -290,6 +309,12 @@
     display: inline-grid;
     gap: 4px;
     min-width: 110px;
+  }
+
+  .surface-hint {
+    margin: 0;
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.76rem;
   }
 
   .surface-controls span {

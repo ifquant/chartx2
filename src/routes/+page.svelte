@@ -74,6 +74,7 @@
       summary: "Mounting the optimization surface.",
       selectedRunId: null,
       selectedRunIntent: null,
+      renderMode: "heatmap",
       xParam: "fastLength",
       yParam: "slowLength",
       zMetric: "netProfit",
@@ -704,6 +705,7 @@
           snapshot={performanceSnapshot}
           {formatValue}
           {formatIntentTime}
+          onOptimizationRenderModeChange={(value) => performanceController?.setOptimizationRenderMode(value)}
           onOptimizationXAxisChange={(value) => performanceController?.setOptimizationXAxis(value)}
           onOptimizationYAxisChange={(value) => performanceController?.setOptimizationYAxis(value)}
           onOptimizationZMetricChange={(value) => performanceController?.setOptimizationZMetric(value)}

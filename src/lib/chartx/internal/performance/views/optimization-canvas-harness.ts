@@ -47,37 +47,79 @@ function lerpColor(start: [number, number, number], end: [number, number, number
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function colorString(color: [number, number, number]): string {
+  return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+}
+
+function rgbaString(color: [number, number, number], alpha: number): string {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+}
+
 function normalizeRange(value: number, min: number, max: number): number {
   const span = Math.max(max - min, 1);
   return clamp((value - min) / span, 0, 1);
 }
 
-function heatColor(value: number, min: number, max: number): string {
-  const t = normalizeRange(value, min, max);
-  const stops = [
-    { t: 0, color: [156, 104, 83] as [number, number, number] },
-    { t: 0.22, color: [191, 142, 103] as [number, number, number] },
-    { t: 0.45, color: [220, 191, 132] as [number, number, number] },
-    { t: 0.7, color: [152, 174, 123] as [number, number, number] },
-    { t: 1, color: [62, 121, 96] as [number, number, number] },
-  ];
+function performanceColorTriplet(value: number, min: number, max: number): [number, number, number] {
+  const low = Math.min(min, 0);
+  const high = Math.max(max, 0);
+  const green: [number, number, number] = [62, 140, 88];
+  const yellow: [number, number, number] = [214, 178, 71];
+  const red: [number, number, number] = [191, 68, 51];
 
-  for (let index = 1; index < stops.length; index += 1) {
-    const current = stops[index]!;
-    const previous = stops[index - 1]!;
-    if (t <= current.t) {
-      const localT = (t - previous.t) / Math.max(current.t - previous.t, 0.001);
-      return lerpColor(previous.color, current.color, localT);
-    }
+  if (value <= 0) {
+    const t = normalizeRange(value, low, 0);
+    return [
+      Math.round(green[0] + (yellow[0] - green[0]) * t),
+      Math.round(green[1] + (yellow[1] - green[1]) * t),
+      Math.round(green[2] + (yellow[2] - green[2]) * t),
+    ];
   }
 
-  return lerpColor(stops[stops.length - 2]!.color, stops[stops.length - 1]!.color, 1);
+  const t = normalizeRange(value, 0, high);
+  return [
+    Math.round(yellow[0] + (red[0] - yellow[0]) * t),
+    Math.round(yellow[1] + (red[1] - yellow[1]) * t),
+    Math.round(yellow[2] + (red[2] - yellow[2]) * t),
+  ];
 }
 
-function surfaceFillColor(value: number, min: number, max: number): string {
-  const t = normalizeRange(value, min, max);
-  const alpha = 0.08 + t * 0.08;
-  return heatColor(value, min, max).replace("rgb", "rgba").replace(")", `, ${alpha.toFixed(3)})`);
+function averageColors(colors: Array<[number, number, number]>): [number, number, number] {
+  const sum = colors.reduce(
+    (acc, color) => [acc[0] + color[0], acc[1] + color[1], acc[2] + color[2]] as [number, number, number],
+    [0, 0, 0],
+  );
+  return [
+    Math.round(sum[0] / colors.length),
+    Math.round(sum[1] / colors.length),
+    Math.round(sum[2] / colors.length),
+  ];
+}
+
+function darkenColor(color: [number, number, number], factor: number): [number, number, number] {
+  return [
+    Math.round(color[0] * factor),
+    Math.round(color[1] * factor),
+    Math.round(color[2] * factor),
+  ];
+}
+
+function heatColor(value: number, min: number, max: number): string {
+  return colorString(performanceColorTriplet(value, min, max));
+}
+
+function pointFillColor(value: number, min: number, max: number): string {
+  return colorString(darkenColor(performanceColorTriplet(value, min, max), 0.84));
+}
+
+function surfaceFillColorFromVertices(values: [number, number, number], min: number, max: number): string {
+  const color = averageColors(values.map((value) => performanceColorTriplet(value, min, max)));
+  return rgbaString(color, 0.18);
+}
+
+function surfaceStrokeColorFromVertices(values: [number, number, number], min: number, max: number): string {
+  const color = averageColors(values.map((value) => performanceColorTriplet(value, min, max)));
+  return rgbaString(color, 0.1);
 }
 
 function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView): string {
@@ -89,7 +131,7 @@ function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView)
   if (range === null) {
     return "rgba(24, 24, 27, 0.18)";
   }
-  return heatColor(value, range.min, range.max);
+  return pointFillColor(value, range.min, range.max);
 }
 
 function formatAxisNumber(value: number): string {
@@ -408,7 +450,7 @@ export class OptimizationCanvasHarness {
     this.draw3DBaseGrid(plot, scale);
 
     if (fillSurface) {
-      const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; value: number }> = [];
+      const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; values: [number, number, number] }> = [];
       const pushTriangle = (
         first: ParameterSurfacePoint,
         second: ParameterSurfacePoint,
@@ -423,11 +465,10 @@ export class OptimizationCanvasHarness {
         if (!projectedTriangleIsReasonable(va.projected, vb.projected, vc.projected, plot)) {
           return;
         }
-        const avgZ = (first.zValue + second.zValue + third.zValue) / 3;
         triangles.push({
           depth: (va.projected.depth + vb.projected.depth + vc.projected.depth) / 3,
           polygon: [va.projected, vb.projected, vc.projected],
-          value: avgZ,
+          values: [first.zValue, second.zValue, third.zValue],
         });
       };
       for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
@@ -449,10 +490,10 @@ export class OptimizationCanvasHarness {
         ctx.moveTo(triangle.polygon[0]!.x, triangle.polygon[0]!.y);
         triangle.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
         ctx.closePath();
-        ctx.fillStyle = surfaceFillColor(triangle.value, zRange.min, zRange.max);
+        ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
         ctx.fill();
-        ctx.strokeStyle = "rgba(24, 24, 27, 0.035)";
-        ctx.lineWidth = 0.55;
+        ctx.strokeStyle = surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
+        ctx.lineWidth = 0.35;
         ctx.stroke();
       });
     }
@@ -465,23 +506,23 @@ export class OptimizationCanvasHarness {
       .sort((left, right) => left.projected.depth - right.projected.depth);
 
     renderedPoints.forEach(({ point, projected }) => {
-      const radius = point.runId === this.view.selectedRunId ? 7 : 5.2;
+      const radius = point.runId === this.view.selectedRunId ? 3.2 : 1.9;
       const base = projectPoint(
         { ...coords.get(point.runId)!, y: -1.18 },
         this.view.camera,
         plot,
         scale,
       );
-      ctx.strokeStyle = "rgba(24, 24, 27, 0.12)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
+      ctx.lineWidth = 0.7;
       ctx.beginPath();
       ctx.moveTo(base.x, base.y);
       ctx.lineTo(projected.x, projected.y);
       ctx.stroke();
 
       ctx.fillStyle = pointColor(point, this.view);
-      ctx.strokeStyle = point.runId === this.view.selectedRunId ? THEME.highlight : THEME.pointStroke;
-      ctx.lineWidth = point.runId === this.view.selectedRunId ? 2 : 1;
+      ctx.strokeStyle = point.runId === this.view.selectedRunId ? THEME.highlight : "rgba(24, 24, 27, 0.12)";
+      ctx.lineWidth = point.runId === this.view.selectedRunId ? 1.4 : 0.6;
       ctx.beginPath();
       ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
       ctx.fill();

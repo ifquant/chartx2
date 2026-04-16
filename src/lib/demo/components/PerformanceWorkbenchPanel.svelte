@@ -30,6 +30,45 @@
     "profitFactor",
     "stabilityScore",
   ];
+
+  const sliceChartWidth = 250;
+  const sliceChartHeight = 88;
+  const slicePadding = { top: 10, right: 10, bottom: 20, left: 10 };
+
+  function slicePointY(value: number, range: { min: number; max: number } | null): number {
+    if (range === null) {
+      return sliceChartHeight * 0.5;
+    }
+    const span = Math.max(range.max - range.min, 1);
+    const normalized = (value - range.min) / span;
+    return slicePadding.top + (1 - normalized) * (sliceChartHeight - slicePadding.top - slicePadding.bottom);
+  }
+
+  function slicePointX(index: number, length: number): number {
+    if (length <= 1) {
+      return sliceChartWidth * 0.5;
+    }
+    return (
+      slicePadding.left +
+      (index / (length - 1)) * (sliceChartWidth - slicePadding.left - slicePadding.right)
+    );
+  }
+
+  function slicePath(
+    points: readonly { zValue: number }[],
+    range: { min: number; max: number } | null,
+  ): string {
+    return points
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${slicePointX(index, points.length)} ${slicePointY(point.zValue, range)}`)
+      .join(" ");
+  }
+
+  function sliceZeroLine(range: { min: number; max: number } | null): number | null {
+    if (range === null || range.min > 0 || range.max < 0) {
+      return null;
+    }
+    return slicePointY(0, range);
+  }
 </script>
 
 <article class="demo-card performance-card" data-demo-tab="performance">
@@ -141,6 +180,70 @@
         ></canvas>
         {#if snapshot.optimization.renderMode !== "heatmap"}
           <p class="surface-hint">Drag inside the surface to rotate the 3D camera. Click a point to switch the active run.</p>
+        {/if}
+        {#if snapshot.optimization.selectedPoint}
+          <section class="cross-section-shell">
+            <div class="cross-section-head">
+              <strong>Cross Sections</strong>
+              <span>
+                {snapshot.optimization.xParam}={snapshot.optimization.selectedPoint.xValue},
+                {snapshot.optimization.yParam}={snapshot.optimization.selectedPoint.yValue},
+                {snapshot.optimization.zMetric}={formatValue(snapshot.optimization.selectedPoint.zValue, 3)}
+                {#if snapshot.optimization.selectedPoint.robustnessScore !== null}
+                  · robustness={formatValue(snapshot.optimization.selectedPoint.robustnessScore, 3)}
+                {/if}
+              </span>
+            </div>
+            <div class="cross-section-grid">
+              {#each [snapshot.optimization.crossSections.xSlice, snapshot.optimization.crossSections.ySlice] as slice}
+                {#if slice}
+                  <article class="cross-section-card">
+                    <header>
+                      <strong>{slice.axisParam} slice</strong>
+                      <span>{slice.fixedParam}={slice.fixedValue}</span>
+                    </header>
+                    <svg viewBox={`0 0 ${sliceChartWidth} ${sliceChartHeight}`} aria-hidden="true">
+                      <rect
+                        x="0"
+                        y="0"
+                        width={sliceChartWidth}
+                        height={sliceChartHeight}
+                        fill="transparent"
+                      />
+                      {#if sliceZeroLine(slice.range) !== null}
+                        <line
+                          x1={slicePadding.left}
+                          y1={sliceZeroLine(slice.range)}
+                          x2={sliceChartWidth - slicePadding.right}
+                          y2={sliceZeroLine(slice.range)}
+                          class="slice-zero-line"
+                        />
+                      {/if}
+                      <path d={slicePath(slice.points, slice.range)} class="slice-line" />
+                      {#each slice.points as point, index}
+                        <circle
+                          cx={slicePointX(index, slice.points.length)}
+                          cy={slicePointY(point.zValue, slice.range)}
+                          r={point.isSelected ? 4.5 : 3}
+                          class:selected={point.isSelected}
+                          class="slice-point"
+                        />
+                        <text
+                          x={slicePointX(index, slice.points.length)}
+                          y={sliceChartHeight - 4}
+                          text-anchor="middle"
+                          class:selected={point.isSelected}
+                          class="slice-label"
+                        >
+                          {point.label}
+                        </text>
+                      {/each}
+                    </svg>
+                  </article>
+                {/if}
+              {/each}
+            </div>
+          </section>
         {/if}
       </section>
 
@@ -354,6 +457,83 @@
     font-size: 0.76rem;
   }
 
+  .cross-section-shell {
+    display: grid;
+    gap: 10px;
+    padding: 10px 12px 12px;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    background: rgba(255, 250, 240, 0.72);
+  }
+
+  .cross-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    color: rgba(24, 24, 27, 0.68);
+    font-size: 0.76rem;
+  }
+
+  .cross-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .cross-section-card {
+    display: grid;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    border: 1px solid rgba(24, 24, 27, 0.1);
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  .cross-section-card header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: baseline;
+    color: rgba(24, 24, 27, 0.66);
+    font-size: 0.74rem;
+  }
+
+  .cross-section-card svg {
+    width: 100%;
+    height: 88px;
+    overflow: visible;
+  }
+
+  .slice-line {
+    fill: none;
+    stroke: rgba(34, 56, 97, 0.9);
+    stroke-width: 1.5;
+  }
+
+  .slice-zero-line {
+    stroke: rgba(199, 72, 83, 0.36);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+
+  .slice-point {
+    fill: rgba(34, 56, 97, 0.74);
+  }
+
+  .slice-point.selected {
+    fill: rgba(196, 123, 35, 0.96);
+  }
+
+  .slice-label {
+    fill: rgba(24, 24, 27, 0.52);
+    font-size: 9px;
+  }
+
+  .slice-label.selected {
+    fill: rgba(24, 24, 27, 0.86);
+    font-weight: 700;
+  }
+
   .surface-controls span {
     color: rgba(24, 24, 27, 0.52);
     font-size: 0.7rem;
@@ -474,6 +654,10 @@
 
     .performance-frame canvas {
       min-height: 560px;
+    }
+
+    .cross-section-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

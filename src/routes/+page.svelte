@@ -84,6 +84,11 @@
       filterValue: null,
       filterOptions: [],
       runLabel: "--",
+      selectedPoint: null,
+      crossSections: {
+        xSlice: null,
+        ySlice: null,
+      },
     },
   });
   const workbenchDrawingTools: Array<{

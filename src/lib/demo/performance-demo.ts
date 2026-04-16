@@ -17,6 +17,20 @@ import {
 } from "$lib/chartx/public/performance";
 import { OptimizationCanvasHarness, PerformanceCanvasHarness } from "$lib/chartx/internal/performance";
 
+type OptimizationCrossSectionPoint = {
+  label: string;
+  zValue: number;
+  isSelected: boolean;
+};
+
+type OptimizationCrossSection = {
+  axisParam: string;
+  fixedParam: string;
+  fixedValue: string;
+  points: readonly OptimizationCrossSectionPoint[];
+  range: { min: number; max: number } | null;
+};
+
 export type PerformanceDemoSnapshot = {
   title: string;
   summary: string;
@@ -39,6 +53,16 @@ export type PerformanceDemoSnapshot = {
     filterValue: string | null;
     filterOptions: readonly string[];
     runLabel: string;
+    selectedPoint: {
+      xValue: string;
+      yValue: string;
+      zValue: number | null;
+      robustnessScore: number | null;
+    } | null;
+    crossSections: {
+      xSlice: OptimizationCrossSection | null;
+      ySlice: OptimizationCrossSection | null;
+    };
   };
 };
 
@@ -164,6 +188,7 @@ function snapshotFromViews(
   colorMetric: "topology" | "robustness",
   thresholdPlaneMode: "none" | "z-zero",
 ): PerformanceDemoSnapshot {
+  const crossSectionState = buildCrossSectionState(optimizationView);
   return {
     title: reportView.title,
     summary: reportView.summary,
@@ -189,6 +214,8 @@ function snapshotFromViews(
       filterValue,
       filterOptions,
       runLabel: summarizeRun(selectedRun),
+      selectedPoint: crossSectionState.selectedPoint,
+      crossSections: crossSectionState.crossSections,
     },
   };
 }
@@ -198,6 +225,98 @@ function availableFilterValues(sweep: ParameterSweepModel, filterKey: string | n
     return [];
   }
   return Array.from(new Set(sweep.runs.map((run) => formatParamValue(run.params[filterKey]!))));
+}
+
+function compareParameterValues(left: ParameterValue, right: ParameterValue): number {
+  if (typeof left === "number" && typeof right === "number") {
+    return left - right;
+  }
+  return String(left).localeCompare(String(right));
+}
+
+function buildCrossSection(
+  axisParam: string,
+  fixedParam: string,
+  fixedValue: ParameterValue,
+  selectedValue: ParameterValue,
+  points: readonly {
+    axisValue: ParameterValue;
+    zValue: number;
+  }[],
+): OptimizationCrossSection | null {
+  if (points.length === 0) {
+    return null;
+  }
+  const sortedPoints = [...points].sort((left, right) => compareParameterValues(left.axisValue, right.axisValue));
+  const zValues = sortedPoints.map((point) => point.zValue);
+  return {
+    axisParam,
+    fixedParam,
+    fixedValue: formatParamValue(fixedValue),
+    points: sortedPoints.map((point) => ({
+      label: formatParamValue(point.axisValue),
+      zValue: point.zValue,
+      isSelected: point.axisValue === selectedValue,
+    })),
+    range: {
+      min: Math.min(...zValues),
+      max: Math.max(...zValues),
+    },
+  };
+}
+
+function buildCrossSectionState(view: OptimizationSurfaceView): {
+  selectedPoint: PerformanceDemoSnapshot["optimization"]["selectedPoint"];
+  crossSections: PerformanceDemoSnapshot["optimization"]["crossSections"];
+} {
+  const selectedPoint =
+    view.selectedRunId === null
+      ? null
+      : view.dataset.points.find((point) => point.runId === view.selectedRunId) ?? null;
+  if (selectedPoint === null) {
+    return {
+      selectedPoint: null,
+      crossSections: {
+        xSlice: null,
+        ySlice: null,
+      },
+    };
+  }
+
+  return {
+    selectedPoint: {
+      xValue: formatParamValue(selectedPoint.xValue),
+      yValue: formatParamValue(selectedPoint.yValue),
+      zValue: selectedPoint.zValue,
+      robustnessScore: selectedPoint.robustnessScore ?? null,
+    },
+    crossSections: {
+      xSlice: buildCrossSection(
+        view.dataset.spec.xParam,
+        view.dataset.spec.yParam,
+        selectedPoint.yValue,
+        selectedPoint.xValue,
+        view.dataset.points
+          .filter((point) => point.yValue === selectedPoint.yValue)
+          .map((point) => ({
+            axisValue: point.xValue,
+            zValue: point.zValue,
+          })),
+      ),
+      ySlice: buildCrossSection(
+        view.dataset.spec.yParam,
+        view.dataset.spec.xParam,
+        selectedPoint.xValue,
+        selectedPoint.yValue,
+        view.dataset.points
+          .filter((point) => point.xValue === selectedPoint.xValue)
+          .map((point) => ({
+            axisValue: point.yValue,
+            zValue: point.zValue,
+          })),
+      ),
+    },
+  };
 }
 
 export function mountPerformanceReportDemo(

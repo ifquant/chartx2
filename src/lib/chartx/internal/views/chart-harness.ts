@@ -610,6 +610,12 @@ export type PhaseOneChartStateSnapshot = {
         studyOptions: Required<PhaseOneMovingAverageStudyOptions>;
       }
   >;
+  tradeLocation:
+    | {
+        request: PhaseOneTradeLocationRequest;
+        overlay: PhaseOneResolvedTradeOverlayOptions;
+      }
+    | null;
   drawings: Array<
     | {
         type: "horizontal-line";
@@ -2201,6 +2207,13 @@ export class PhaseOneChartHarness {
       mainSeries: this.getMainSeriesState(),
       series: this.buildChartSeriesStateSnapshots(),
       studies: this.buildChartStudyStateSnapshots(),
+      tradeLocation:
+        this.activeTradeLocation === null
+          ? null
+          : {
+              request: this.activeTradeLocation.request,
+              overlay: this.activeTradeLocation.options,
+            },
       drawings: this.buildChartDrawingStateSnapshots(),
     };
   }
@@ -2251,6 +2264,7 @@ export class PhaseOneChartHarness {
     this.clearRestorableChartDrawings();
     this.clearRestorableChartStudies();
     this.clearRestorableChartSeries();
+    this.clearTradeLocation();
 
     const currentSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
     const targetPaneCount = state.panes.length;
@@ -2288,6 +2302,9 @@ export class PhaseOneChartHarness {
 
     this.restoreChartSeries(state.series);
     this.restoreChartStudies(state.studies);
+    if (state.tradeLocation !== null) {
+      this.locateTrade(state.tradeLocation.request, state.tradeLocation.overlay);
+    }
     this.restoreChartDrawings(state.drawings);
 
     this.timeScaleApi().applyOptions({

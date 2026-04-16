@@ -65,6 +65,32 @@ describe("chart template contracts", () => {
           },
         },
       ],
+      tradeLocation: {
+        request: {
+          kind: "locate-trade" as const,
+          tradeId: "T-006",
+          symbol: "NDX",
+          entryTime: 5,
+          exitTime: 8,
+          entryPrice: 17025,
+          exitPrice: 17110,
+          side: "long" as const,
+          quantity: 2,
+          realizedPnl: 170,
+        },
+        overlay: {
+          fitRange: true,
+          showMarkers: true,
+          showSpan: true,
+          showConnector: true,
+          entryLabel: "Entry",
+          exitLabel: "Exit",
+          longColor: "#059669",
+          shortColor: "#dc2626",
+          spanOpacity: 0.12,
+          connectorLineWidth: 2,
+        },
+      },
       drawings: [],
     };
 
@@ -140,6 +166,32 @@ describe("chart template contracts", () => {
         }
       }
     ],
+    "tradeLocation": {
+      "request": {
+        "kind": "locate-trade",
+        "tradeId": "T-006",
+        "symbol": "NDX",
+        "entryTime": 5,
+        "exitTime": 8,
+        "entryPrice": 17025,
+        "exitPrice": 17110,
+        "side": "long",
+        "quantity": 2,
+        "realizedPnl": 170
+      },
+      "overlay": {
+        "fitRange": true,
+        "showMarkers": true,
+        "showSpan": true,
+        "showConnector": true,
+        "entryLabel": "Entry",
+        "exitLabel": "Exit",
+        "longColor": "#059669",
+        "shortColor": "#dc2626",
+        "spanOpacity": 0.12,
+        "connectorLineWidth": 2
+      }
+    },
     "drawings": []
   }
 }`);
@@ -167,6 +219,7 @@ describe("chart template contracts", () => {
         mainSeries: null,
         series: [],
         studies: [],
+        tradeLocation: null,
         drawings: [],
       },
     };
@@ -199,6 +252,7 @@ describe("chart template contracts", () => {
           mainSeries: null,
           series: [],
           studies: [],
+          tradeLocation: null,
           drawings: [],
         },
       } as never),
@@ -226,6 +280,7 @@ describe("chart template contracts", () => {
           mainSeries: null,
           series: [],
           studies: [],
+          tradeLocation: null,
           drawings: [],
         },
       } as never),

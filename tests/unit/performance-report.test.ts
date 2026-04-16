@@ -31,6 +31,18 @@ describe("performance report model", () => {
     expect(equity.points.at(-1)?.equity).toBe(103_510);
   });
 
+  it("builds benchmark and underwater series for the report", () => {
+    const run = createSampleStrategyRun();
+    const registry = new PerformanceDatasetRegistry(run);
+    const benchmark = registry.getBenchmarkSeries();
+    const underwater = registry.getUnderwaterSeries("all");
+
+    expect(benchmark).not.toBeNull();
+    expect(benchmark!.points).toHaveLength(run.closedTrades.length);
+    expect(underwater.points).toHaveLength(run.closedTrades.length);
+    expect(underwater.points.some((point) => point.value < 0)).toBe(true);
+  });
+
   it("keeps P&L distribution counts equal to the closed trade count", () => {
     const run = createSampleStrategyRun();
     const registry = new PerformanceDatasetRegistry(run);
@@ -83,6 +95,19 @@ describe("performance report model", () => {
 
     expect(restored.snapshot()).toEqual(snapshot);
     expect(restored.getSelectedTrade()?.id).toBe("T-006");
+  });
+
+  it("includes benchmark, underwater, and excursions in the report view", () => {
+    const run = createSampleStrategyRun();
+    const report = createPerformanceReportModel(run, "perf-test");
+    const view = report.view();
+
+    expect(view.benchmark?.points).toHaveLength(run.closedTrades.length);
+    expect(view.underwater.points).toHaveLength(run.closedTrades.length);
+    expect(view.excursions.points).toHaveLength(run.closedTrades.length);
+    expect(view.excursions.points[0]).toMatchObject({
+      tradeId: "T-001",
+    });
   });
 
   it("creates a deterministic trade location intent without mutating the market chart", () => {

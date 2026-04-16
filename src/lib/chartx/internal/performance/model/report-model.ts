@@ -130,6 +130,9 @@ export class PerformanceReportModel {
         normalization: "absolute",
         xDomain: "trade-index",
       }),
+      benchmark: this.datasetRegistry.getBenchmarkSeries(),
+      underwater: this.datasetRegistry.getUnderwaterSeries(side),
+      excursions: this.datasetRegistry.getExcursionSeries(side),
       pnlDistribution: this.datasetRegistry.getDistribution({
         runId: this.run.id,
         field: "trade-net-pnl",

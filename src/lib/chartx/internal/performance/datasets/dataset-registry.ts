@@ -6,6 +6,8 @@ import type {
   DistributionSpec,
   EquitySeries,
   EquitySeriesSpec,
+  ExcursionSeries,
+  ScalarSeries,
   SideSlice,
   StrategyRunModel,
   TradeListRow,
@@ -111,6 +113,65 @@ export class PerformanceDatasetRegistry {
     }
 
     return { spec, bins };
+  }
+
+  getBenchmarkSeries(label = "Buy & hold"): ScalarSeries | null {
+    const benchmark = this.run.benchmarks.find((series) => series.kind === "buy-hold") ?? this.run.benchmarks[0];
+    if (benchmark === undefined) {
+      return null;
+    }
+    return {
+      id: benchmark.id,
+      label,
+      unit: "currency",
+      points: benchmark.points.map((point) => ({
+        x: point.tradeIndex ?? point.time,
+        time: point.time,
+        tradeIndex: point.tradeIndex ?? 0,
+        value: point.value,
+      })),
+    };
+  }
+
+  getUnderwaterSeries(side: SideSlice = "all"): ScalarSeries {
+    const trades = filterTrades(this.run.closedTrades, side);
+    let equity = this.run.initialCapital;
+    let peak = this.run.initialCapital;
+    const points = trades.map((trade) => {
+      equity += trade.netPnl;
+      peak = Math.max(peak, equity);
+      return {
+        x: trade.tradeIndex,
+        time: trade.exitTime,
+        tradeIndex: trade.tradeIndex,
+        tradeId: trade.id,
+        value: equity - peak,
+      };
+    });
+
+    return {
+      id: "underwater",
+      label: "Underwater",
+      unit: "currency",
+      points,
+    };
+  }
+
+  getExcursionSeries(side: SideSlice = "all"): ExcursionSeries {
+    const points = filterTrades(this.run.closedTrades, side).map((trade) => ({
+      tradeId: trade.id,
+      tradeIndex: trade.tradeIndex,
+      time: trade.exitTime,
+      mfe: trade.mfe ?? 0,
+      mae: trade.mae ?? 0,
+      netPnl: trade.netPnl,
+    }));
+
+    return {
+      id: "trade-excursions",
+      label: "MFE / MAE",
+      points,
+    };
   }
 
   getBreakdown(spec: BreakdownSpec): BreakdownDataset {

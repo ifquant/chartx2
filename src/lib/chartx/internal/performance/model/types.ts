@@ -236,6 +236,36 @@ export type EquitySeries = {
   points: EquitySeriesPoint[];
 };
 
+export type ScalarSeriesPoint = {
+  x: number;
+  time: number;
+  tradeIndex: number;
+  tradeId?: string;
+  value: number;
+};
+
+export type ScalarSeries = {
+  id: string;
+  label: string;
+  unit: MeasureUnit;
+  points: ScalarSeriesPoint[];
+};
+
+export type ExcursionPoint = {
+  tradeId: string;
+  tradeIndex: number;
+  time: number;
+  mfe: number;
+  mae: number;
+  netPnl: number;
+};
+
+export type ExcursionSeries = {
+  id: string;
+  label: string;
+  points: ExcursionPoint[];
+};
+
 export type DistributionSpec = {
   runId: string;
   field: "trade-net-pnl" | "trade-gross-pnl" | "bars-held" | "mfe" | "mae" | "runup" | "drawdown";
@@ -382,6 +412,9 @@ export type PerformanceReportView = {
   summary: string;
   metrics: MetricCardModel[];
   equity: EquitySeries;
+  benchmark: ScalarSeries | null;
+  underwater: ScalarSeries;
+  excursions: ExcursionSeries;
   pnlDistribution: DistributionDataset;
   winLossBreakdown: BreakdownDataset;
   tradeRows: TradeListRow[];

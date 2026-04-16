@@ -134,20 +134,31 @@ export class PerformanceCanvasHarness {
       x: margin,
       y: cardsRect.y + cardsRect.height + 14,
       width: width - tableWidth - margin * 3,
-      height: Math.max(235, height * 0.46),
+      height: Math.max(235, height * 0.38),
     };
     const bottomTop = equityRect.y + equityRect.height + 14;
-    const histogramRect = {
+    const bottomHeight = height - bottomTop - margin;
+    const panelGap = 14;
+    const underwaterWidth = Math.max(230, equityRect.width * 0.34);
+    const histogramWidth = Math.max(230, equityRect.width * 0.35);
+    const donutWidth = Math.max(190, equityRect.width - underwaterWidth - histogramWidth - panelGap * 2);
+    const underwaterRect = {
       x: margin,
       y: bottomTop,
-      width: Math.max(260, equityRect.width * 0.58),
-      height: height - bottomTop - margin,
+      width: underwaterWidth,
+      height: bottomHeight,
+    };
+    const histogramRect = {
+      x: underwaterRect.x + underwaterRect.width + panelGap,
+      y: bottomTop,
+      width: histogramWidth,
+      height: bottomHeight,
     };
     const donutRect = {
       x: histogramRect.x + histogramRect.width + 14,
       y: bottomTop,
-      width: equityRect.width - histogramRect.width - 14,
-      height: histogramRect.height,
+      width: donutWidth,
+      height: bottomHeight,
     };
     const tableRect = {
       x: equityRect.x + equityRect.width + 18,
@@ -158,6 +169,7 @@ export class PerformanceCanvasHarness {
 
     this.drawCards(cardsRect);
     this.drawEquity(equityRect);
+    this.drawUnderwater(underwaterRect);
     this.drawHistogram(histogramRect);
     this.drawDonut(donutRect);
     this.drawTradeTable(tableRect);
@@ -199,6 +211,8 @@ export class PerformanceCanvasHarness {
     this.drawPanel(rect, "Closed-trade equity");
     const ctx = this.context;
     const points = this.view.equity.points;
+    const benchmark = this.view.benchmark?.points ?? [];
+    const excursions = this.view.excursions.points;
     const selectedId = this.view.selectedTrade?.id ?? null;
     const plot = { x: rect.x + 48, y: rect.y + 42, width: rect.width - 68, height: rect.height - 70 };
     this.drawGrid(plot);
@@ -206,12 +220,30 @@ export class PerformanceCanvasHarness {
       return;
     }
 
-    const equities = points.map((point) => point.equity);
+    const equities = points.map((point) => point.equity).concat(benchmark.map((point) => point.value));
     const min = Math.min(...equities);
     const max = Math.max(...equities);
     const span = Math.max(max - min, 1);
     const xFor = (index: number) => plot.x + (index / Math.max(points.length - 1, 1)) * plot.width;
     const yFor = (value: number) => plot.y + plot.height - ((value - min) / span) * plot.height;
+
+    if (benchmark.length > 0) {
+      ctx.strokeStyle = "rgba(196, 123, 35, 0.9)";
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      benchmark.forEach((point, index) => {
+        const x = xFor(index);
+        const y = yFor(point.value);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     ctx.strokeStyle = THEME.blue;
     ctx.lineWidth = 2.5;
@@ -231,6 +263,24 @@ export class PerformanceCanvasHarness {
       const x = xFor(index);
       const y = yFor(point.equity);
       const selected = point.tradeId === selectedId;
+
+       if (selected) {
+        const excursion = excursions.find((entry) => entry.tradeId === point.tradeId);
+        if (excursion !== undefined) {
+          const topY = yFor(point.equity - point.netPnl + excursion.mfe);
+          const bottomY = yFor(point.equity - point.netPnl + excursion.mae);
+          ctx.strokeStyle = "rgba(196, 123, 35, 0.72)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, topY);
+          ctx.lineTo(x, bottomY);
+          ctx.stroke();
+          ctx.fillStyle = "rgba(196, 123, 35, 0.9)";
+          ctx.fillRect(x - 3, topY - 1, 6, 2);
+          ctx.fillRect(x - 3, bottomY - 1, 6, 2);
+        }
+      }
+
       ctx.fillStyle = selected ? THEME.amber : point.netPnl >= 0 ? THEME.green : THEME.red;
       ctx.beginPath();
       ctx.arc(x, y, selected ? 5 : 3.5, 0, Math.PI * 2);
@@ -244,6 +294,73 @@ export class PerformanceCanvasHarness {
     ctx.fillStyle = THEME.muted;
     ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.fillText(formatCurrency(max), plot.x, plot.y - 10);
+    ctx.fillText(formatCurrency(min), plot.x, plot.y + plot.height + 18);
+    if (benchmark.length > 0) {
+      ctx.fillStyle = THEME.amber;
+      ctx.fillText("Buy & hold", plot.x + 110, plot.y - 10);
+    }
+    ctx.fillStyle = THEME.blue;
+    ctx.fillText("Strategy", plot.x + 42, plot.y - 10);
+  }
+
+  private drawUnderwater(rect: Rect): void {
+    this.drawPanel(rect, "Drawdown / underwater");
+    const ctx = this.context;
+    const points = this.view.underwater.points;
+    const plot = { x: rect.x + 40, y: rect.y + 42, width: rect.width - 56, height: rect.height - 68 };
+    this.drawGrid(plot);
+    if (points.length === 0) {
+      return;
+    }
+
+    const min = Math.min(...points.map((point) => point.value), 0);
+    const max = 0;
+    const span = Math.max(max - min, 1);
+    const xFor = (index: number) => plot.x + (index / Math.max(points.length - 1, 1)) * plot.width;
+    const yFor = (value: number) => plot.y + plot.height - ((value - min) / span) * plot.height;
+    const zeroY = yFor(0);
+
+    ctx.fillStyle = "rgba(197, 77, 63, 0.14)";
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const x = xFor(index);
+      const y = yFor(point.value);
+      if (index === 0) {
+        ctx.moveTo(x, zeroY);
+        ctx.lineTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.lineTo(plot.x + plot.width, zeroY);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = THEME.red;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const x = xFor(index);
+      const y = yFor(point.value);
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(24, 24, 27, 0.3)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(plot.x, zeroY);
+    ctx.lineTo(plot.x + plot.width, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = THEME.muted;
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(formatCurrency(0), plot.x, plot.y - 10);
     ctx.fillText(formatCurrency(min), plot.x, plot.y + plot.height + 18);
   }
 

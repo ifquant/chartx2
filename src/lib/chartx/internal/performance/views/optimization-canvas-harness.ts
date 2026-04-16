@@ -7,6 +7,7 @@ type HitTarget =
 type Rect = { x: number; y: number; width: number; height: number };
 type Point3D = { x: number; y: number; z: number };
 type ProjectedPoint = { x: number; y: number; depth: number };
+type SurfaceVertex = { world: Point3D; rotated: Point3D; projected: ProjectedPoint };
 type Camera = { yaw: number; pitch: number };
 
 const THEME = {
@@ -85,14 +86,56 @@ function rotate(point: Point3D, camera: Camera): Point3D {
   return { x: x1, y: y2, z: z2 };
 }
 
-function projectPoint(point: Point3D, camera: Camera, plot: Rect, scale: number): ProjectedPoint {
-  const rotated = rotate(point, camera);
-  const perspective = 1 / (1 + rotated.z * 0.72);
+function projectRotatedPoint(rotated: Point3D, plot: Rect, scale: number): ProjectedPoint {
+  const cameraDistance = 5.2;
+  const perspective = cameraDistance / (cameraDistance - rotated.z);
   return {
     x: plot.x + plot.width * 0.5 + rotated.x * scale * perspective,
     y: plot.y + plot.height * 0.68 - rotated.y * scale * perspective,
     depth: rotated.z,
   };
+}
+
+function projectPoint(point: Point3D, camera: Camera, plot: Rect, scale: number): ProjectedPoint {
+  return projectRotatedPoint(rotate(point, camera), plot, scale);
+}
+
+function createSurfaceVertex(point: Point3D, camera: Camera, plot: Rect, scale: number): SurfaceVertex {
+  const rotated = rotate(point, camera);
+  return {
+    world: point,
+    rotated,
+    projected: projectRotatedPoint(rotated, plot, scale),
+  };
+}
+
+function triangleArea2(a: ProjectedPoint, b: ProjectedPoint, c: ProjectedPoint): number {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function surfaceTriangleFacesCamera(a: SurfaceVertex, b: SurfaceVertex, c: SurfaceVertex): boolean {
+  const ab = {
+    x: b.rotated.x - a.rotated.x,
+    y: b.rotated.y - a.rotated.y,
+    z: b.rotated.z - a.rotated.z,
+  };
+  const ac = {
+    x: c.rotated.x - a.rotated.x,
+    y: c.rotated.y - a.rotated.y,
+    z: c.rotated.z - a.rotated.z,
+  };
+  const normal = {
+    x: ab.y * ac.z - ab.z * ac.y,
+    y: ab.z * ac.x - ab.x * ac.z,
+    z: ab.x * ac.y - ab.y * ac.x,
+  };
+  return normal.z < 0;
+}
+
+function projectedTriangleIsReasonable(a: ProjectedPoint, b: ProjectedPoint, c: ProjectedPoint, plot: Rect): boolean {
+  const area = Math.abs(triangleArea2(a, b, c));
+  const maxArea = plot.width * plot.height * 0.42;
+  return Number.isFinite(area) && area > 4 && area < maxArea;
 }
 
 export class OptimizationCanvasHarness {
@@ -341,7 +384,28 @@ export class OptimizationCanvasHarness {
     this.draw3DBaseGrid(plot, scale);
 
     if (fillSurface) {
-      const quads: Array<{ depth: number; polygon: ProjectedPoint[]; color: string }> = [];
+      const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; color: string }> = [];
+      const pushTriangle = (
+        first: ParameterSurfacePoint,
+        second: ParameterSurfacePoint,
+        third: ParameterSurfacePoint,
+      ): void => {
+        const va = createSurfaceVertex(coords.get(first.runId)!, this.view.camera, plot, scale);
+        const vb = createSurfaceVertex(coords.get(second.runId)!, this.view.camera, plot, scale);
+        const vc = createSurfaceVertex(coords.get(third.runId)!, this.view.camera, plot, scale);
+        if (!surfaceTriangleFacesCamera(va, vb, vc)) {
+          return;
+        }
+        if (!projectedTriangleIsReasonable(va.projected, vb.projected, vc.projected, plot)) {
+          return;
+        }
+        const avgZ = (first.zValue + second.zValue + third.zValue) / 3;
+        triangles.push({
+          depth: (va.projected.depth + vb.projected.depth + vc.projected.depth) / 3,
+          polygon: [va.projected, vb.projected, vc.projected],
+          color: heatColor(avgZ, zRange.min, zRange.max),
+        });
+      };
       for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
         for (let xIndex = 0; xIndex < xValues.length - 1; xIndex += 1) {
           const a = pointMap.get(`${String(xValues[xIndex])}::${String(yValues[yIndex])}`);
@@ -351,28 +415,20 @@ export class OptimizationCanvasHarness {
           if (a === undefined || b === undefined || c === undefined || d === undefined) {
             continue;
           }
-          const pa = projectPoint(coords.get(a.runId)!, this.view.camera, plot, scale);
-          const pb = projectPoint(coords.get(b.runId)!, this.view.camera, plot, scale);
-          const pc = projectPoint(coords.get(c.runId)!, this.view.camera, plot, scale);
-          const pd = projectPoint(coords.get(d.runId)!, this.view.camera, plot, scale);
-          const avgZ = (a.zValue + b.zValue + c.zValue + d.zValue) / 4;
-          quads.push({
-            depth: (pa.depth + pb.depth + pc.depth + pd.depth) / 4,
-            polygon: [pa, pb, pc, pd],
-            color: heatColor(avgZ, zRange.min, zRange.max),
-          });
+          pushTriangle(a, b, c);
+          pushTriangle(a, c, d);
         }
       }
-      quads.sort((left, right) => left.depth - right.depth);
-      quads.forEach((quad) => {
+      triangles.sort((left, right) => left.depth - right.depth);
+      triangles.forEach((triangle) => {
         ctx.beginPath();
-        ctx.moveTo(quad.polygon[0]!.x, quad.polygon[0]!.y);
-        quad.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+        ctx.moveTo(triangle.polygon[0]!.x, triangle.polygon[0]!.y);
+        triangle.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
         ctx.closePath();
-        ctx.fillStyle = quad.color.replace("rgb", "rgba").replace(")", ", 0.22)");
+        ctx.fillStyle = triangle.color.replace("rgb", "rgba").replace(")", ", 0.16)");
         ctx.fill();
-        ctx.strokeStyle = "rgba(24, 24, 27, 0.12)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
+        ctx.lineWidth = 0.8;
         ctx.stroke();
       });
     }

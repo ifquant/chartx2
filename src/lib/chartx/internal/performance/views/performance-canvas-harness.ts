@@ -129,12 +129,13 @@ export class PerformanceCanvasHarness {
 
     const margin = 18;
     const cardsRect = { x: margin, y: margin, width: width - margin * 2, height: 72 };
+    const summaryRect = { x: margin, y: cardsRect.y + cardsRect.height + 14, width: width - margin * 2, height: 98 };
     const tableWidth = clamp(width * 0.32, 280, 390);
     const equityRect = {
       x: margin,
-      y: cardsRect.y + cardsRect.height + 14,
+      y: summaryRect.y + summaryRect.height + 14,
       width: width - tableWidth - margin * 3,
-      height: Math.max(235, height * 0.38),
+      height: Math.max(220, height * 0.31),
     };
     const bottomTop = equityRect.y + equityRect.height + 14;
     const bottomHeight = height - bottomTop - margin;
@@ -168,11 +169,29 @@ export class PerformanceCanvasHarness {
     };
 
     this.drawCards(cardsRect);
+    this.drawSummaryRow(summaryRect);
     this.drawEquity(equityRect);
     this.drawUnderwater(underwaterRect);
     this.drawHistogram(histogramRect);
     this.drawDonut(donutRect);
     this.drawTradeTable(tableRect);
+  }
+
+  private drawSummaryRow(rect: Rect): void {
+    const gap = 14;
+    const panelWidth = (rect.width - gap) / 2;
+    this.drawProfitStructure({
+      x: rect.x,
+      y: rect.y,
+      width: panelWidth,
+      height: rect.height,
+    });
+    this.drawBenchmarking({
+      x: rect.x + panelWidth + gap,
+      y: rect.y,
+      width: panelWidth,
+      height: rect.height,
+    });
   }
 
   private drawPanel(rect: Rect, title: string): void {
@@ -362,6 +381,81 @@ export class PerformanceCanvasHarness {
     ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.fillText(formatCurrency(0), plot.x, plot.y - 10);
     ctx.fillText(formatCurrency(min), plot.x, plot.y + plot.height + 18);
+  }
+
+  private drawProfitStructure(rect: Rect): void {
+    this.drawPanel(rect, "Profit structure");
+    const ctx = this.context;
+    const slices = this.view.profitStructure.slices;
+    if (slices.length === 0) {
+      return;
+    }
+    const plot = { x: rect.x + 18, y: rect.y + 38, width: rect.width - 36, height: rect.height - 54 };
+    const total = Math.max(slices.reduce((sum, slice) => sum + Math.abs(slice.value), 0), 1);
+    let cursorX = plot.x;
+    slices.forEach((slice) => {
+      const width = (Math.abs(slice.value) / total) * plot.width;
+      ctx.fillStyle = slice.color;
+      ctx.globalAlpha = 0.88;
+      ctx.fillRect(cursorX, plot.y + 8, width, 24);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = "rgba(16, 16, 16, 0.08)";
+      ctx.strokeRect(cursorX, plot.y + 8, width, 24);
+      cursorX += width;
+    });
+
+    const startY = plot.y + 46;
+    slices.forEach((slice, index) => {
+      const y = startY + index * 16;
+      ctx.fillStyle = slice.color;
+      ctx.fillRect(plot.x, y - 8, 10, 10);
+      ctx.fillStyle = THEME.muted;
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(slice.label, plot.x + 16, y);
+      ctx.fillStyle = THEME.text;
+      ctx.textAlign = "right";
+      ctx.fillText(formatCurrency(slice.value), plot.x + plot.width, y);
+      ctx.textAlign = "left";
+    });
+  }
+
+  private drawBenchmarking(rect: Rect): void {
+    this.drawPanel(rect, "Benchmarking");
+    const ctx = this.context;
+    const data = this.view.benchmarking;
+    const plot = { x: rect.x + 28, y: rect.y + 38, width: rect.width - 52, height: rect.height - 56 };
+    const min = data.range.min;
+    const max = data.range.max;
+    const span = Math.max(max - min, 1);
+    const zeroY = plot.y + plot.height - ((0 - min) / span) * plot.height;
+
+    ctx.strokeStyle = "rgba(24, 24, 27, 0.22)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(plot.x, zeroY);
+    ctx.lineTo(plot.x + plot.width, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const gap = 18;
+    const barWidth = (plot.width - gap * (data.points.length - 1)) / Math.max(data.points.length, 1);
+    data.points.forEach((point, index) => {
+      const x = plot.x + index * (barWidth + gap);
+      const valueY = plot.y + plot.height - ((point.value - min) / span) * plot.height;
+      const top = Math.min(valueY, zeroY);
+      const height = Math.max(Math.abs(zeroY - valueY), 2);
+      ctx.fillStyle = point.color;
+      ctx.globalAlpha = 0.88;
+      ctx.fillRect(x, top, barWidth, height);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = THEME.muted;
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(point.label, x + barWidth / 2, plot.y + plot.height + 14);
+      ctx.fillStyle = THEME.text;
+      ctx.fillText(formatCurrency(point.value), x + barWidth / 2, top - 6);
+      ctx.textAlign = "left";
+    });
   }
 
   private drawHistogram(rect: Rect): void {

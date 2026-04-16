@@ -122,6 +122,11 @@ export class PerformanceReportModel {
       title: this.run.name,
       summary: "Closed-trade performance report derived from one strategy run.",
       metrics,
+      profitStructure: this.datasetRegistry.getBreakdown({
+        runId: this.run.id,
+        kind: "profit-structure",
+      }),
+      benchmarking: this.datasetRegistry.getBenchmarkingSummary(side),
       equity: this.datasetRegistry.getEquitySeries({
         runId: this.run.id,
         scope: this.run.scope,

@@ -303,6 +303,20 @@ export type BreakdownDataset = {
   slices: BreakdownSlice[];
 };
 
+export type RangeCompareDatum = {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+};
+
+export type RangeCompareDataset = {
+  id: string;
+  title: string;
+  points: RangeCompareDatum[];
+  range: { min: number; max: number };
+};
+
 export type TradeListRow = {
   tradeId: string;
   tradeIndex: number;
@@ -411,6 +425,8 @@ export type PerformanceReportView = {
   title: string;
   summary: string;
   metrics: MetricCardModel[];
+  profitStructure: BreakdownDataset;
+  benchmarking: RangeCompareDataset;
   equity: EquitySeries;
   benchmark: ScalarSeries | null;
   underwater: ScalarSeries;

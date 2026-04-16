@@ -36,11 +36,17 @@ describe("performance report model", () => {
     const registry = new PerformanceDatasetRegistry(run);
     const benchmark = registry.getBenchmarkSeries();
     const underwater = registry.getUnderwaterSeries("all");
+    const benchmarking = registry.getBenchmarkingSummary("all");
 
     expect(benchmark).not.toBeNull();
     expect(benchmark!.points).toHaveLength(run.closedTrades.length);
     expect(underwater.points).toHaveLength(run.closedTrades.length);
     expect(underwater.points.some((point) => point.value < 0)).toBe(true);
+    expect(benchmarking.points.map((point) => point.key)).toEqual([
+      "strategy",
+      "benchmark",
+      "outperformance",
+    ]);
   });
 
   it("keeps P&L distribution counts equal to the closed trade count", () => {
@@ -70,6 +76,16 @@ describe("performance report model", () => {
       ["win", 11],
       ["loss", 7],
       ["breakeven", 0],
+    ]);
+
+    const profitStructure = registry.getBreakdown({
+      runId: run.id,
+      kind: "profit-structure",
+    });
+    expect(profitStructure.slices.map((slice) => slice.key)).toEqual([
+      "profit",
+      "loss-total",
+      "fees",
     ]);
   });
 
@@ -105,6 +121,8 @@ describe("performance report model", () => {
     expect(view.benchmark?.points).toHaveLength(run.closedTrades.length);
     expect(view.underwater.points).toHaveLength(run.closedTrades.length);
     expect(view.excursions.points).toHaveLength(run.closedTrades.length);
+    expect(view.profitStructure.slices).toHaveLength(3);
+    expect(view.benchmarking.points).toHaveLength(3);
     expect(view.excursions.points[0]).toMatchObject({
       tradeId: "T-001",
     });

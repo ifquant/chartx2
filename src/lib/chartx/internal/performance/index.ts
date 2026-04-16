@@ -53,6 +53,8 @@ export type {
   PerformanceReportView,
   PerformanceScope,
   PerformanceVisualKind,
+  RangeCompareDataset,
+  RangeCompareDatum,
   RunLocationIntent,
   SideSlice,
   ScalarSeries,

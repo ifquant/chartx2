@@ -7,6 +7,7 @@ import type {
   EquitySeries,
   EquitySeriesSpec,
   ExcursionSeries,
+  RangeCompareDataset,
   ScalarSeries,
   SideSlice,
   StrategyRunModel,
@@ -175,38 +176,94 @@ export class PerformanceDatasetRegistry {
   }
 
   getBreakdown(spec: BreakdownSpec): BreakdownDataset {
-    if (spec.kind !== "win-loss-breakeven") {
-      return { spec, slices: [] };
+    if (spec.kind === "win-loss-breakeven") {
+      const win = this.run.closedTrades.filter((trade) => trade.netPnl > 0);
+      const loss = this.run.closedTrades.filter((trade) => trade.netPnl < 0);
+      const breakeven = this.run.closedTrades.filter((trade) => trade.netPnl === 0);
+      return {
+        spec,
+        slices: [
+          {
+            key: "win",
+            label: "Win",
+            count: win.length,
+            value: win.reduce((sum, trade) => sum + trade.netPnl, 0),
+            color: "#16845f",
+          },
+          {
+            key: "loss",
+            label: "Loss",
+            count: loss.length,
+            value: loss.reduce((sum, trade) => sum + trade.netPnl, 0),
+            color: "#c54d3f",
+          },
+          {
+            key: "breakeven",
+            label: "Break-even",
+            count: breakeven.length,
+            value: 0,
+            color: "#a1a1aa",
+          },
+        ],
+      };
     }
 
-    const win = this.run.closedTrades.filter((trade) => trade.netPnl > 0);
-    const loss = this.run.closedTrades.filter((trade) => trade.netPnl < 0);
-    const breakeven = this.run.closedTrades.filter((trade) => trade.netPnl === 0);
+    if (spec.kind === "profit-structure") {
+      const trades = this.run.closedTrades;
+      const grossProfit = trades.filter((trade) => trade.grossPnl > 0).reduce((sum, trade) => sum + trade.grossPnl, 0);
+      const grossLoss = trades.filter((trade) => trade.grossPnl < 0).reduce((sum, trade) => sum + Math.abs(trade.grossPnl), 0);
+      const fees = trades.reduce((sum, trade) => sum + trade.commission, 0);
+      return {
+        spec,
+        slices: [
+          {
+            key: "profit",
+            label: "Gross profit",
+            count: trades.filter((trade) => trade.grossPnl > 0).length,
+            value: grossProfit,
+            color: "#16845f",
+          },
+          {
+            key: "loss-total",
+            label: "Gross loss",
+            count: trades.filter((trade) => trade.grossPnl < 0).length,
+            value: grossLoss,
+            color: "#c54d3f",
+          },
+          {
+            key: "fees",
+            label: "Fees",
+            count: trades.length,
+            value: fees,
+            color: "#c47b23",
+          },
+        ],
+      };
+    }
+
+    return { spec, slices: [] };
+  }
+
+  getBenchmarkingSummary(side: SideSlice = "all"): RangeCompareDataset {
+    const trades = filterTrades(this.run.closedTrades, side);
+    const strategy = trades.reduce((sum, trade) => sum + trade.netPnl, 0);
+    const benchmarkSeries = this.getBenchmarkSeries();
+    const benchmarkValue = benchmarkSeries?.points.at(-1)?.value ?? this.run.initialCapital;
+    const benchmark = benchmarkValue - this.run.initialCapital;
+    const outperformance = strategy - benchmark;
+    const values = [strategy, benchmark, outperformance];
     return {
-      spec,
-      slices: [
-        {
-          key: "win",
-          label: "Win",
-          count: win.length,
-          value: win.reduce((sum, trade) => sum + trade.netPnl, 0),
-          color: "#16845f",
-        },
-        {
-          key: "loss",
-          label: "Loss",
-          count: loss.length,
-          value: loss.reduce((sum, trade) => sum + trade.netPnl, 0),
-          color: "#c54d3f",
-        },
-        {
-          key: "breakeven",
-          label: "Break-even",
-          count: breakeven.length,
-          value: 0,
-          color: "#a1a1aa",
-        },
+      id: "benchmarking-summary",
+      title: "Benchmarking",
+      points: [
+        { key: "strategy", label: "Strategy", value: strategy, color: "#365cb7" },
+        { key: "benchmark", label: "Buy & hold", value: benchmark, color: "#c47b23" },
+        { key: "outperformance", label: "Alpha", value: outperformance, color: outperformance >= 0 ? "#16845f" : "#c54d3f" },
       ],
+      range: {
+        min: Math.min(...values, 0),
+        max: Math.max(...values, 0),
+      },
     };
   }
 

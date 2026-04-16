@@ -72,7 +72,7 @@ test("performance trade row selection auto-switches to the workbench with the se
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   await expect(workbench).toBeVisible();
-  await expect(workbench).toContainText("located trade T-006");
+  await expect(workbench).toContainText("located trade T-002");
 });
 
 test("performance trade intent auto-switches to the workbench and locates the trade", async ({
@@ -91,5 +91,5 @@ test("performance trade intent auto-switches to the workbench and locates the tr
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   await expect(workbench).toBeVisible();
-  await expect(workbench).toContainText("located trade T-006");
+  await expect(workbench).toContainText("located trade T-002");
 });

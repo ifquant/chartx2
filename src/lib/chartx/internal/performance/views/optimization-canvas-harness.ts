@@ -61,37 +61,33 @@ function normalizeRange(value: number, min: number, max: number): number {
 }
 
 function performanceColorTriplet(value: number, min: number, max: number): [number, number, number] {
-  const low = Math.min(min, 0);
-  const high = Math.max(max, 0);
-  const negative: [number, number, number] = [56, 221, 154];
-  const neutral: [number, number, number] = [44, 130, 227];
-  const positiveMid: [number, number, number] = [120, 69, 220];
-  const positiveHigh: [number, number, number] = [242, 31, 151];
+  const t = normalizeRange(value, min, max);
+  const low: [number, number, number] = [59, 226, 171];
+  const lowMid: [number, number, number] = [44, 136, 235];
+  const highMid: [number, number, number] = [117, 75, 221];
+  const high: [number, number, number] = [242, 31, 151];
 
-  if (value <= 0) {
-    const t = normalizeRange(value, low, 0);
+  if (t <= 0.36) {
+    const local = t / 0.36;
     return [
-      Math.round(negative[0] + (neutral[0] - negative[0]) * t),
-      Math.round(negative[1] + (neutral[1] - negative[1]) * t),
-      Math.round(negative[2] + (neutral[2] - negative[2]) * t),
+      Math.round(low[0] + (lowMid[0] - low[0]) * local),
+      Math.round(low[1] + (lowMid[1] - low[1]) * local),
+      Math.round(low[2] + (lowMid[2] - low[2]) * local),
     ];
   }
-
-  const t = normalizeRange(value, 0, high);
-  if (t <= 0.55) {
-    const local = t / 0.55;
+  if (t <= 0.72) {
+    const local = (t - 0.36) / 0.36;
     return [
-      Math.round(neutral[0] + (positiveMid[0] - neutral[0]) * local),
-      Math.round(neutral[1] + (positiveMid[1] - neutral[1]) * local),
-      Math.round(neutral[2] + (positiveMid[2] - neutral[2]) * local),
+      Math.round(lowMid[0] + (highMid[0] - lowMid[0]) * local),
+      Math.round(lowMid[1] + (highMid[1] - lowMid[1]) * local),
+      Math.round(lowMid[2] + (highMid[2] - lowMid[2]) * local),
     ];
   }
-
-  const local = (t - 0.55) / 0.45;
+  const local = (t - 0.72) / 0.28;
   return [
-    Math.round(positiveMid[0] + (positiveHigh[0] - positiveMid[0]) * local),
-    Math.round(positiveMid[1] + (positiveHigh[1] - positiveMid[1]) * local),
-    Math.round(positiveMid[2] + (positiveHigh[2] - positiveMid[2]) * local),
+    Math.round(highMid[0] + (high[0] - highMid[0]) * local),
+    Math.round(highMid[1] + (high[1] - highMid[1]) * local),
+    Math.round(highMid[2] + (high[2] - highMid[2]) * local),
   ];
 }
 

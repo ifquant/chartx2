@@ -21,6 +21,7 @@ export type PerformanceDemoController = {
 };
 
 type SnapshotPublisher = (snapshot: PerformanceDemoSnapshot) => void;
+type TradeLocationPublisher = (intent: TradeLocationIntent) => void;
 
 function formatCurrency(value: number | string): string {
   if (typeof value === "string") {
@@ -63,6 +64,7 @@ function snapshotFromView(view: PerformanceReportView, eventLog: readonly string
 export function mountPerformanceReportDemo(
   canvas: HTMLCanvasElement,
   publish: SnapshotPublisher,
+  publishTradeIntent?: TradeLocationPublisher,
 ): PerformanceDemoController {
   const run = createSampleStrategyRun();
   const report = createPerformanceReportModel(run, "performance-report-demo");
@@ -76,6 +78,9 @@ export function mountPerformanceReportDemo(
       log.pop();
     }
     harness.update(view);
+    if (view.selectedTradeIntent !== null) {
+      publishTradeIntent?.(view.selectedTradeIntent);
+    }
     publish(snapshotFromView(view, log));
   });
   const initialSnapshot = snapshotFromView(view, log);

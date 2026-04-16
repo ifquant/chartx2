@@ -22,6 +22,7 @@
     type PerformanceDemoController,
     type PerformanceDemoSnapshot,
   } from "$lib/demo/performance-demo";
+  import type { TradeLocationIntent } from "$lib/chartx/public/performance";
   import FeatureDemoPanel from "$lib/demo/components/FeatureDemoPanel.svelte";
   import MarketWorkbenchPanel from "$lib/demo/components/MarketWorkbenchPanel.svelte";
   import PerformanceWorkbenchPanel from "$lib/demo/components/PerformanceWorkbenchPanel.svelte";
@@ -94,6 +95,7 @@
   let workbenchController: DemoController | null = null;
   let performanceController: PerformanceDemoController | null = null;
   let featureController: DemoController | null = null;
+  let pendingWorkbenchTradeIntent: TradeLocationIntent | null = null;
 
   let workbenchReadout = emptyReadout();
   let featureReadout = emptyReadout();
@@ -216,6 +218,7 @@
         workbenchSnapshot = snapshot;
       });
       workbenchActions = workbenchController.actions();
+      flushPendingWorkbenchTradeIntent();
     } catch (error) {
       workbenchError =
         error instanceof Error ? error.message : "Unknown workbench init failure";
@@ -258,9 +261,26 @@
       return;
     }
 
-    performanceController = mountPerformanceReportDemo(performanceCanvas, (snapshot) => {
-      performanceSnapshot = snapshot;
-    });
+    performanceController = mountPerformanceReportDemo(
+      performanceCanvas,
+      (snapshot) => {
+        performanceSnapshot = snapshot;
+      },
+      (intent) => {
+        pendingWorkbenchTradeIntent = intent;
+        flushPendingWorkbenchTradeIntent();
+      },
+    );
+  }
+
+  function flushPendingWorkbenchTradeIntent(): void {
+    if (pendingWorkbenchTradeIntent === null) {
+      return;
+    }
+    workbenchController?.locateTrade?.(pendingWorkbenchTradeIntent);
+    if (workbenchController !== null) {
+      pendingWorkbenchTradeIntent = null;
+    }
   }
 
   function runWorkbenchAction(actionId: string): void {

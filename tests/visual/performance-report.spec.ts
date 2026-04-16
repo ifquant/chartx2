@@ -53,3 +53,23 @@ test("performance report emits a trade location intent from equity point selecti
   await expect(report).toContainText("T-018");
   await expect(report).toContainText("selected trade T-018");
 });
+
+test("performance trade intent locates the trade when the workbench remounts", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Performance", exact: true }).click();
+
+  const canvas = page.getByLabel("chartx2 performance report canvas");
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("performance report canvas is missing");
+  }
+
+  await page.mouse.click(box.x + box.width - 190, box.y + 302);
+  await page.getByRole("button", { name: "Workbench", exact: true }).click();
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await expect(workbench).toBeVisible();
+  await expect(workbench).toContainText("located trade T-006");
+});

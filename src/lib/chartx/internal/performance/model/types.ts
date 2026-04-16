@@ -146,6 +146,43 @@ export type StrategyRunModel = {
   benchmarks: BenchmarkSeries[];
 };
 
+export type ParameterValue = number | string | boolean;
+
+export type ParameterAssignment = Record<string, ParameterValue>;
+
+export type OptimizationMetricKey =
+  | "netProfit"
+  | "grossProfit"
+  | "grossLoss"
+  | "winRate"
+  | "avgTrade"
+  | "maxDrawdown"
+  | "profitFactor"
+  | "sharpe"
+  | "sortino"
+  | "tradeCount"
+  | "stabilityScore";
+
+export type StrategyRunSummary = {
+  runId: string;
+  strategyId: string;
+  scope: PerformanceScope;
+  params: ParameterAssignment;
+  metrics: Partial<Record<OptimizationMetricKey, number>>;
+  period?: {
+    from: number;
+    to: number;
+  };
+};
+
+export type ParameterSweepModel = {
+  id: string;
+  strategyId: string;
+  name: string;
+  parameterKeys: string[];
+  runs: StrategyRunSummary[];
+};
+
 export type AxisModel = {
   id: string;
   domainKind: XDomainKind;
@@ -255,6 +292,42 @@ export type TradeLocationIntent = {
   quantity: number;
   realizedPnl: number;
   sourceChartId: string;
+};
+
+export type RunLocationIntent = {
+  kind: "locate-run";
+  runId: string;
+  strategyId: string;
+  params: ParameterAssignment;
+  sourceReportId: string;
+};
+
+export type ParameterSurfaceSpec = {
+  sweepId: string;
+  xParam: string;
+  yParam: string;
+  zMetric: OptimizationMetricKey;
+  colorMetric?: OptimizationMetricKey;
+  filter?: ParameterAssignment;
+};
+
+export type ParameterSurfacePoint = {
+  runId: string;
+  params: ParameterAssignment;
+  metrics: Partial<Record<OptimizationMetricKey, number>>;
+  xValue: ParameterValue;
+  yValue: ParameterValue;
+  zValue: number;
+  colorValue?: number;
+};
+
+export type ParameterSurfaceDataset = {
+  spec: ParameterSurfaceSpec;
+  points: ParameterSurfacePoint[];
+  xValues: ParameterValue[];
+  yValues: ParameterValue[];
+  zRange: { min: number; max: number } | null;
+  colorRange: { min: number; max: number } | null;
 };
 
 export type PerformanceReportSnapshot = {

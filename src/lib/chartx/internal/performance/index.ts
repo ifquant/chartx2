@@ -1,8 +1,11 @@
 export { PerformanceDatasetRegistry } from "./datasets/dataset-registry";
+export { OptimizationDatasetRegistry } from "./datasets/optimization-dataset-registry";
 export { PerformanceMetricEngine } from "./metrics/metric-engine";
 export { PerformanceReportModel, createPerformanceReportModel } from "./model/report-model";
 export { createSampleStrategyRun } from "./fixtures/sample-run";
+export { createSampleParameterSweep } from "./fixtures/sample-sweep";
 export { createTradeLocationIntent } from "./model/trade-location";
+export { createRunLocationIntent } from "./model/run-location";
 export { PerformanceCanvasHarness } from "./views/performance-canvas-harness";
 export type {
   AxisModel,
@@ -27,13 +30,22 @@ export type {
   OrderEvent,
   OrderSide,
   OrderType,
+  OptimizationMetricKey,
+  ParameterAssignment,
+  ParameterSurfaceDataset,
+  ParameterSurfacePoint,
+  ParameterSurfaceSpec,
+  ParameterSweepModel,
+  ParameterValue,
   PerformanceMetricKey,
   PerformanceReportSnapshot,
   PerformanceReportView,
   PerformanceScope,
   PerformanceVisualKind,
+  RunLocationIntent,
   SideSlice,
   StrategyRunModel,
+  StrategyRunSummary,
   TradeListRow,
   TradeLocationIntent,
   TradeSide,

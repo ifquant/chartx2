@@ -9,7 +9,7 @@ import type {
   SideSlice,
   StrategyRunModel,
   TradeListRow,
-} from "./types";
+} from "../model/types";
 
 function filterTrades(trades: readonly ClosedTrade[], side: SideSlice): ClosedTrade[] {
   if (side === "all") {

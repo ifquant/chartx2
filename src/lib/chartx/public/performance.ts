@@ -1,9 +1,10 @@
-export { PerformanceDatasetRegistry } from "./datasets/dataset-registry";
-export { PerformanceMetricEngine } from "./metrics/metric-engine";
-export { PerformanceReportModel, createPerformanceReportModel } from "./model/report-model";
-export { createSampleStrategyRun } from "./fixtures/sample-run";
-export { createTradeLocationIntent } from "./model/trade-location";
-export { PerformanceCanvasHarness } from "./views/performance-canvas-harness";
+export {
+  PerformanceReportModel,
+  createPerformanceReportModel,
+  createSampleStrategyRun,
+  createTradeLocationIntent,
+} from "../internal/performance";
+
 export type {
   AxisModel,
   BenchmarkSeries,
@@ -38,4 +39,4 @@ export type {
   TradeLocationIntent,
   TradeSide,
   XDomainKind,
-} from "./model/types";
+} from "../internal/performance";

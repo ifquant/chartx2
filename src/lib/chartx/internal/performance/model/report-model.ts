@@ -1,5 +1,5 @@
-import { PerformanceDatasetRegistry } from "./dataset-registry";
-import { PerformanceMetricEngine } from "./metric-engine";
+import { PerformanceDatasetRegistry } from "../datasets/dataset-registry";
+import { PerformanceMetricEngine } from "../metrics/metric-engine";
 import { createTradeLocationIntent } from "./trade-location";
 import type {
   ClosedTrade,

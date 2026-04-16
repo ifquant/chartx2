@@ -22,7 +22,7 @@ import {
   type PhaseOnePaneState,
   type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
-} from "$lib/chartx/public";
+} from "$lib/chartx/public/market";
 import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,

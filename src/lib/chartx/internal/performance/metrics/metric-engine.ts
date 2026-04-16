@@ -1,4 +1,4 @@
-import type { ClosedTrade, PerformanceMetricKey, SideSlice, StrategyRunModel } from "./types";
+import type { ClosedTrade, PerformanceMetricKey, SideSlice, StrategyRunModel } from "../model/types";
 
 function filterTrades(trades: readonly ClosedTrade[], side: SideSlice): ClosedTrade[] {
   if (side === "all") {

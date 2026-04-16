@@ -5,7 +5,7 @@
     type PhaseOneDrawingPropertyField,
     type PhaseOneDrawingPropertyFieldSchema,
     type PhaseOneReadoutDetail,
-  } from "$lib/chartx/public";
+  } from "$lib/chartx/public/market";
   import {
     FEATURE_TABS,
     mountFeatureDemo,

@@ -1,4 +1,4 @@
-import type { ClosedTrade, EquitySnapshot, StrategyRunModel } from "./types";
+import type { ClosedTrade, EquitySnapshot, StrategyRunModel } from "../model/types";
 
 const HOUR = 60 * 60 * 1000;
 const BASE_TIME = Date.UTC(2026, 2, 9, 9, 30, 0);

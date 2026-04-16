@@ -113,13 +113,19 @@ function pointFillColor(value: number, min: number, max: number): string {
 }
 
 function surfaceFillColorFromVertices(values: [number, number, number], min: number, max: number): string {
-  const color = averageColors(values.map((value) => performanceColorTriplet(value, min, max)));
-  return rgbaString(color, 0.18);
+  const avgValue = (values[0] + values[1] + values[2]) / 3;
+  const color = performanceColorTriplet(avgValue, min, max);
+  return rgbaString(color, 0.24);
 }
 
 function surfaceStrokeColorFromVertices(values: [number, number, number], min: number, max: number): string {
-  const color = averageColors(values.map((value) => performanceColorTriplet(value, min, max)));
-  return rgbaString(color, 0.1);
+  const avgValue = (values[0] + values[1] + values[2]) / 3;
+  const color = darkenColor(performanceColorTriplet(avgValue, min, max), 0.66);
+  return rgbaString(color, 0.18);
+}
+
+function surfaceYFromMetric(value: number, range: { min: number; max: number }): number {
+  return (((value - range.min) / Math.max(range.max - range.min, 1)) * 2 - 1) * 1.45;
 }
 
 function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView): string {
@@ -439,8 +445,7 @@ export class OptimizationCanvasHarness {
         }
         const xNormalized = xValues.length === 1 ? 0 : (xIndex / (xValues.length - 1)) * 2 - 1;
         const yNormalized = yValues.length === 1 ? 0 : (yIndex / (yValues.length - 1)) * 2 - 1;
-        const zNormalized =
-          (((point.zValue - zRange.min) / Math.max(zRange.max - zRange.min, 1)) * 2 - 1) * 1.45;
+        const zNormalized = surfaceYFromMetric(point.zValue, zRange);
         coords.set(point.runId, { x: xNormalized, y: zNormalized, z: yNormalized });
       });
     });
@@ -448,6 +453,7 @@ export class OptimizationCanvasHarness {
     const scale = Math.min(plot.width, plot.height) * 0.41;
     this.draw3DAxes(plot, scale);
     this.draw3DBaseGrid(plot, scale);
+    this.draw3DZeroPlane(plot, scale, zRange);
 
     if (fillSurface) {
       const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; values: [number, number, number] }> = [];
@@ -493,7 +499,7 @@ export class OptimizationCanvasHarness {
         ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
         ctx.fill();
         ctx.strokeStyle = surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
-        ctx.lineWidth = 0.35;
+        ctx.lineWidth = 0.5;
         ctx.stroke();
       });
     }
@@ -506,32 +512,26 @@ export class OptimizationCanvasHarness {
       .sort((left, right) => left.projected.depth - right.projected.depth);
 
     renderedPoints.forEach(({ point, projected }) => {
-      const radius = point.runId === this.view.selectedRunId ? 3.2 : 1.9;
-      const base = projectPoint(
-        { ...coords.get(point.runId)!, y: -1.18 },
-        this.view.camera,
-        plot,
-        scale,
-      );
-      ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
-      ctx.lineWidth = 0.7;
-      ctx.beginPath();
-      ctx.moveTo(base.x, base.y);
-      ctx.lineTo(projected.x, projected.y);
-      ctx.stroke();
-
-      ctx.fillStyle = pointColor(point, this.view);
-      ctx.strokeStyle = point.runId === this.view.selectedRunId ? THEME.highlight : "rgba(24, 24, 27, 0.12)";
-      ctx.lineWidth = point.runId === this.view.selectedRunId ? 1.4 : 0.6;
-      ctx.beginPath();
-      ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      const showPoint = !fillSurface || point.runId === this.view.selectedRunId;
+      if (showPoint) {
+        const radius = point.runId === this.view.selectedRunId ? 3 : 1.2;
+        ctx.fillStyle = pointColor(point, this.view);
+        ctx.beginPath();
+        ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (point.runId === this.view.selectedRunId) {
+          ctx.strokeStyle = THEME.highlight;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(projected.x, projected.y, radius + 2.2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
       this.hitTargets.push({
         kind: "surface-point",
         x: projected.x,
         y: projected.y,
-        radius: radius + 4,
+        radius: point.runId === this.view.selectedRunId ? 8 : 6,
         runId: point.runId,
       });
     });
@@ -569,6 +569,31 @@ export class OptimizationCanvasHarness {
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
     }
+  }
+
+  private draw3DZeroPlane(plot: Rect, scale: number, zRange: { min: number; max: number }): void {
+    if (zRange.min > 0 || zRange.max < 0) {
+      return;
+    }
+
+    const ctx = this.context;
+    const zeroY = surfaceYFromMetric(0, zRange);
+    const a = projectPoint({ x: -1, y: zeroY, z: -1 }, this.view.camera, plot, scale);
+    const b = projectPoint({ x: 1, y: zeroY, z: -1 }, this.view.camera, plot, scale);
+    const c = projectPoint({ x: 1, y: zeroY, z: 1 }, this.view.camera, plot, scale);
+    const d = projectPoint({ x: -1, y: zeroY, z: 1 }, this.view.camera, plot, scale);
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.lineTo(d.x, d.y);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(92, 210, 235, 0.2)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(60, 152, 184, 0.32)";
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
   }
 
   private draw3DAxes(plot: Rect, scale: number): void {

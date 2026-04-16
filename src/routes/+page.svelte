@@ -74,7 +74,7 @@
       summary: "Mounting the optimization surface.",
       selectedRunId: null,
       selectedRunIntent: null,
-      renderMode: "heatmap",
+      renderMode: "surface-3d",
       xParam: "fastLength",
       yParam: "slowLength",
       zMetric: "netProfit",

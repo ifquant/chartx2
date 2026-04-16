@@ -83,10 +83,10 @@ function rotate(point: Point3D, camera: Camera): Point3D {
 
 function projectPoint(point: Point3D, camera: Camera, plot: Rect, scale: number): ProjectedPoint {
   const rotated = rotate(point, camera);
-  const perspective = 1 / (1 + rotated.z * 0.42);
+  const perspective = 1 / (1 + rotated.z * 0.72);
   return {
     x: plot.x + plot.width * 0.5 + rotated.x * scale * perspective,
-    y: plot.y + plot.height * 0.6 - rotated.y * scale * perspective,
+    y: plot.y + plot.height * 0.68 - rotated.y * scale * perspective,
     depth: rotated.z,
   };
 }
@@ -326,13 +326,15 @@ export class OptimizationCanvasHarness {
         }
         const xNormalized = xValues.length === 1 ? 0 : (xIndex / (xValues.length - 1)) * 2 - 1;
         const yNormalized = yValues.length === 1 ? 0 : (yIndex / (yValues.length - 1)) * 2 - 1;
-        const zNormalized = ((point.zValue - zRange.min) / Math.max(zRange.max - zRange.min, 1)) * 2 - 1;
+        const zNormalized =
+          (((point.zValue - zRange.min) / Math.max(zRange.max - zRange.min, 1)) * 2 - 1) * 1.45;
         coords.set(point.runId, { x: xNormalized, y: zNormalized, z: yNormalized });
       });
     });
 
-    const scale = Math.min(plot.width, plot.height) * 0.32;
+    const scale = Math.min(plot.width, plot.height) * 0.38;
     this.draw3DAxes(plot, scale);
+    this.draw3DBaseGrid(plot, scale);
 
     if (fillSurface) {
       const quads: Array<{ depth: number; polygon: ProjectedPoint[]; color: string }> = [];
@@ -380,6 +382,19 @@ export class OptimizationCanvasHarness {
 
     renderedPoints.forEach(({ point, projected }) => {
       const radius = point.runId === this.view.selectedRunId ? 7 : 5.2;
+      const base = projectPoint(
+        { ...coords.get(point.runId)!, y: -1.18 },
+        this.view.camera,
+        plot,
+        scale,
+      );
+      ctx.strokeStyle = "rgba(24, 24, 27, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.lineTo(projected.x, projected.y);
+      ctx.stroke();
+
       ctx.fillStyle = pointColor(point, this.view);
       ctx.strokeStyle = point.runId === this.view.selectedRunId ? THEME.highlight : THEME.pointStroke;
       ctx.lineWidth = point.runId === this.view.selectedRunId ? 2 : 1;
@@ -404,12 +419,39 @@ export class OptimizationCanvasHarness {
     ctx.fillText("Drag to rotate", plot.x + plot.width - 88, plot.y + plot.height + 20);
   }
 
+  private draw3DBaseGrid(plot: Rect, scale: number): void {
+    const ctx = this.context;
+    const gridLines = 5;
+    ctx.strokeStyle = "rgba(24, 24, 27, 0.08)";
+    ctx.lineWidth = 1;
+
+    for (let index = 0; index <= gridLines; index += 1) {
+      const t = (index / gridLines) * 2 - 1;
+      const a = projectPoint({ x: -1, y: -1.18, z: t }, this.view.camera, plot, scale);
+      const b = projectPoint({ x: 1, y: -1.18, z: t }, this.view.camera, plot, scale);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    for (let index = 0; index <= gridLines; index += 1) {
+      const t = (index / gridLines) * 2 - 1;
+      const a = projectPoint({ x: t, y: -1.18, z: -1 }, this.view.camera, plot, scale);
+      const b = projectPoint({ x: t, y: -1.18, z: 1 }, this.view.camera, plot, scale);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
   private draw3DAxes(plot: Rect, scale: number): void {
     const ctx = this.context;
-    const origin = projectPoint({ x: -1.1, y: -1.05, z: -1.05 }, this.view.camera, plot, scale);
-    const xAxis = projectPoint({ x: 1.18, y: -1.05, z: -1.05 }, this.view.camera, plot, scale);
-    const yAxis = projectPoint({ x: -1.1, y: 1.15, z: -1.05 }, this.view.camera, plot, scale);
-    const zAxis = projectPoint({ x: -1.1, y: -1.05, z: 1.15 }, this.view.camera, plot, scale);
+    const origin = projectPoint({ x: -1.15, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
+    const xAxis = projectPoint({ x: 1.28, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
+    const yAxis = projectPoint({ x: -1.15, y: 1.38, z: -1.15 }, this.view.camera, plot, scale);
+    const zAxis = projectPoint({ x: -1.15, y: -1.18, z: 1.28 }, this.view.camera, plot, scale);
 
     ctx.strokeStyle = THEME.axis;
     ctx.lineWidth = 1.2;

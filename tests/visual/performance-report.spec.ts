@@ -18,6 +18,7 @@ test("optimization heatmap selection switches the performance report to the sele
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await page.getByLabel("View").selectOption("heatmap");
 
   const canvas = page.getByLabel("chartx2 optimization surface canvas");
   const box = await canvas.boundingBox();

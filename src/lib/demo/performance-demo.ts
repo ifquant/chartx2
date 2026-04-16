@@ -189,8 +189,8 @@ export function mountPerformanceReportDemo(
   let xParam = "fastLength";
   let yParam = "slowLength";
   let zMetric: OptimizationMetricKey = "netProfit";
-  let renderMode: "heatmap" | "scatter-3d" | "surface-3d" = "heatmap";
-  let camera = { yaw: 0.75, pitch: 0.58 };
+  let renderMode: "heatmap" | "scatter-3d" | "surface-3d" = "surface-3d";
+  let camera = { yaw: 1.02, pitch: 0.84 };
   let selectedRun = sweep.runs[0] ?? null;
   let filterKey = sweep.parameterKeys.find((key) => key !== xParam && key !== yParam) ?? null;
   let filterValue = filterKey === null ? null : availableFilterValues(sweep, filterKey)[0] ?? null;

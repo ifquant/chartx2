@@ -337,7 +337,7 @@ export type OptimizationSurfaceView = {
   dataset: ParameterSurfaceDataset;
   selectedRunId: string | null;
   selectedRunIntent: RunLocationIntent | null;
-  renderMode: "heatmap" | "scatter-3d" | "surface-3d";
+  renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d";
   camera: {
     yaw: number;
     pitch: number;

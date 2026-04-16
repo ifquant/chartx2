@@ -307,7 +307,7 @@ export class OptimizationCanvasHarness {
       this.drawHeatmap(plot);
       this.drawHeatmapAxes(plot);
     } else {
-      this.drawSurface3D(plot, this.view.renderMode === "surface-3d");
+      this.drawSurface3D(plot);
     }
   }
 
@@ -422,7 +422,7 @@ export class OptimizationCanvasHarness {
     }
   }
 
-  private drawSurface3D(plot: Rect, fillSurface: boolean): void {
+  private drawSurface3D(plot: Rect): void {
     const ctx = this.context;
     const { dataset } = this.view;
     const xValues = dataset.xValues;
@@ -451,11 +451,20 @@ export class OptimizationCanvasHarness {
     });
 
     const scale = Math.min(plot.width, plot.height) * 0.41;
+    const showZeroPlane = this.view.renderMode === "surface-zero-3d";
+    const showSurfaceFill = this.view.renderMode === "surface-3d" || this.view.renderMode === "surface-zero-3d";
+    const showWireframe = this.view.renderMode === "wireframe-3d" || showSurfaceFill;
+    const showPoints = this.view.renderMode === "scatter-3d";
+    const showSelectedPoint = this.view.selectedRunId !== null;
+
+    this.draw3DBoundingBox(plot, scale);
     this.draw3DAxes(plot, scale);
     this.draw3DBaseGrid(plot, scale);
-    this.draw3DZeroPlane(plot, scale, zRange);
+    if (showZeroPlane) {
+      this.draw3DZeroPlane(plot, scale, zRange);
+    }
 
-    if (fillSurface) {
+    if (showSurfaceFill || showWireframe) {
       const triangles: Array<{ depth: number; polygon: ProjectedPoint[]; values: [number, number, number] }> = [];
       const pushTriangle = (
         first: ParameterSurfacePoint,
@@ -496,10 +505,12 @@ export class OptimizationCanvasHarness {
         ctx.moveTo(triangle.polygon[0]!.x, triangle.polygon[0]!.y);
         triangle.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
         ctx.closePath();
-        ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
-        ctx.fill();
+        if (showSurfaceFill) {
+          ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
+          ctx.fill();
+        }
         ctx.strokeStyle = surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
-        ctx.lineWidth = 0.5;
+        ctx.lineWidth = showWireframe ? 0.7 : 0.45;
         ctx.stroke();
       });
     }
@@ -512,9 +523,9 @@ export class OptimizationCanvasHarness {
       .sort((left, right) => left.projected.depth - right.projected.depth);
 
     renderedPoints.forEach(({ point, projected }) => {
-      const showPoint = !fillSurface || point.runId === this.view.selectedRunId;
+      const showPoint = showPoints || (showSelectedPoint && point.runId === this.view.selectedRunId);
       if (showPoint) {
-        const radius = point.runId === this.view.selectedRunId ? 3 : 1.2;
+        const radius = point.runId === this.view.selectedRunId ? 3 : 1.35;
         ctx.fillStyle = pointColor(point, this.view);
         ctx.beginPath();
         ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
@@ -594,6 +605,43 @@ export class OptimizationCanvasHarness {
     ctx.strokeStyle = "rgba(60, 152, 184, 0.32)";
     ctx.lineWidth = 0.8;
     ctx.stroke();
+  }
+
+  private draw3DBoundingBox(plot: Rect, scale: number): void {
+    const ctx = this.context;
+    const corners = {
+      lbf: projectPoint({ x: -1, y: -1.18, z: -1 }, this.view.camera, plot, scale),
+      rbf: projectPoint({ x: 1, y: -1.18, z: -1 }, this.view.camera, plot, scale),
+      rbb: projectPoint({ x: 1, y: -1.18, z: 1 }, this.view.camera, plot, scale),
+      lbb: projectPoint({ x: -1, y: -1.18, z: 1 }, this.view.camera, plot, scale),
+      ltf: projectPoint({ x: -1, y: 1.45, z: -1 }, this.view.camera, plot, scale),
+      rtf: projectPoint({ x: 1, y: 1.45, z: -1 }, this.view.camera, plot, scale),
+      rtb: projectPoint({ x: 1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
+      ltb: projectPoint({ x: -1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
+    };
+    const edges: Array<[ProjectedPoint, ProjectedPoint]> = [
+      [corners.lbf, corners.rbf],
+      [corners.rbf, corners.rbb],
+      [corners.rbb, corners.lbb],
+      [corners.lbb, corners.lbf],
+      [corners.ltf, corners.rtf],
+      [corners.rtf, corners.rtb],
+      [corners.rtb, corners.ltb],
+      [corners.ltb, corners.ltf],
+      [corners.lbf, corners.ltf],
+      [corners.rbf, corners.rtf],
+      [corners.rbb, corners.rtb],
+      [corners.lbb, corners.ltb],
+    ];
+
+    ctx.strokeStyle = "rgba(24, 24, 27, 0.22)";
+    ctx.lineWidth = 0.9;
+    edges.forEach(([start, end]) => {
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    });
   }
 
   private draw3DAxes(plot: Rect, scale: number): void {

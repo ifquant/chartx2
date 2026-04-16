@@ -11,10 +11,10 @@
   export let onOptimizationYAxisChange: (value: string) => void;
   export let onOptimizationZMetricChange: (value: OptimizationMetricKey) => void;
   export let onOptimizationFilterValueChange: (value: string) => void;
-  export let onOptimizationRenderModeChange: (value: "heatmap" | "scatter-3d" | "surface-3d") => void;
+  export let onOptimizationRenderModeChange: (value: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d") => void;
 
   const parameterOptions = ["fastLength", "slowLength", "threshold"];
-  const renderModeOptions = ["heatmap", "scatter-3d", "surface-3d"] as const;
+  const renderModeOptions = ["heatmap", "scatter-3d", "wireframe-3d", "surface-3d", "surface-zero-3d"] as const;
   const zMetricOptions: OptimizationMetricKey[] = [
     "netProfit",
     "sharpe",
@@ -42,7 +42,12 @@
               value={snapshot.optimization.renderMode}
               on:change={(event) =>
                 onOptimizationRenderModeChange(
-                  (event.currentTarget as HTMLSelectElement).value as "heatmap" | "scatter-3d" | "surface-3d",
+                  (event.currentTarget as HTMLSelectElement).value as
+                    | "heatmap"
+                    | "scatter-3d"
+                    | "wireframe-3d"
+                    | "surface-3d"
+                    | "surface-zero-3d",
                 )}
             >
               {#each renderModeOptions as option}

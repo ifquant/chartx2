@@ -28,7 +28,7 @@ export type PerformanceDemoSnapshot = {
     summary: string;
     selectedRunId: string | null;
     selectedRunIntent: RunLocationIntent | null;
-    renderMode: "heatmap" | "scatter-3d" | "surface-3d";
+    renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d";
     xParam: string;
     yParam: string;
     zMetric: OptimizationMetricKey;
@@ -41,7 +41,7 @@ export type PerformanceDemoSnapshot = {
 
 export type PerformanceDemoController = {
   snapshot(): PerformanceDemoSnapshot;
-  setOptimizationRenderMode(value: "heatmap" | "scatter-3d" | "surface-3d"): void;
+  setOptimizationRenderMode(value: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d"): void;
   setOptimizationXAxis(value: string): void;
   setOptimizationYAxis(value: string): void;
   setOptimizationZMetric(value: OptimizationMetricKey): void;
@@ -99,7 +99,7 @@ function summarizeRun(run: StrategyRunSummary | null): string {
 
 function buildOptimizationView(
   sweep: ParameterSweepModel,
-  renderMode: "heatmap" | "scatter-3d" | "surface-3d",
+  renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d",
   camera: { yaw: number; pitch: number },
   xParam: string,
   yParam: string,
@@ -189,7 +189,7 @@ export function mountPerformanceReportDemo(
   let xParam = "fastLength";
   let yParam = "slowLength";
   let zMetric: OptimizationMetricKey = "netProfit";
-  let renderMode: "heatmap" | "scatter-3d" | "surface-3d" = "surface-3d";
+  let renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d" = "surface-zero-3d";
   let camera = { yaw: 1.02, pitch: 0.84 };
   let selectedRun = sweep.runs[0] ?? null;
   let filterKey = sweep.parameterKeys.find((key) => key !== xParam && key !== yParam) ?? null;

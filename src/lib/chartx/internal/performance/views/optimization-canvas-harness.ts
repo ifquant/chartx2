@@ -509,8 +509,11 @@ export class OptimizationCanvasHarness {
           ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
           ctx.fill();
         }
-        ctx.strokeStyle = surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
-        ctx.lineWidth = showWireframe ? 0.7 : 0.45;
+        const isWireframeOnly = this.view.renderMode === "wireframe-3d";
+        ctx.strokeStyle = isWireframeOnly
+          ? "rgba(24, 24, 27, 0.24)"
+          : surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
+        ctx.lineWidth = isWireframeOnly ? 0.55 : showWireframe ? 0.7 : 0.45;
         ctx.stroke();
       });
     }
@@ -605,6 +608,11 @@ export class OptimizationCanvasHarness {
     ctx.strokeStyle = "rgba(60, 152, 184, 0.32)";
     ctx.lineWidth = 0.8;
     ctx.stroke();
+
+    const label = projectPoint({ x: -1.08, y: zeroY, z: -1.08 }, this.view.camera, plot, scale);
+    ctx.fillStyle = "rgba(32, 96, 122, 0.88)";
+    ctx.font = "700 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText("0", label.x - 8, label.y - 6);
   }
 
   private draw3DBoundingBox(plot: Rect, scale: number): void {
@@ -619,7 +627,7 @@ export class OptimizationCanvasHarness {
       rtb: projectPoint({ x: 1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
       ltb: projectPoint({ x: -1, y: 1.45, z: 1 }, this.view.camera, plot, scale),
     };
-    const edges: Array<[ProjectedPoint, ProjectedPoint]> = [
+    const edges: Array<{ start: ProjectedPoint; end: ProjectedPoint; depth: number; primary: boolean }> = [
       [corners.lbf, corners.rbf],
       [corners.rbf, corners.rbb],
       [corners.rbb, corners.lbb],
@@ -632,14 +640,21 @@ export class OptimizationCanvasHarness {
       [corners.rbf, corners.rtf],
       [corners.rbb, corners.rtb],
       [corners.lbb, corners.ltb],
-    ];
+    ].map(([start, end], index) => ({
+      start,
+      end,
+      depth: (start.depth + end.depth) / 2,
+      primary: index < 4 || (index >= 8 && index < 10),
+    }));
 
-    ctx.strokeStyle = "rgba(24, 24, 27, 0.22)";
-    ctx.lineWidth = 0.9;
-    edges.forEach(([start, end]) => {
+    edges
+      .sort((left, right) => left.depth - right.depth)
+      .forEach((edge) => {
+      ctx.strokeStyle = edge.depth > 0 ? "rgba(24, 24, 27, 0.14)" : edge.primary ? "rgba(24, 24, 27, 0.28)" : "rgba(24, 24, 27, 0.22)";
+      ctx.lineWidth = edge.depth > 0 ? 0.75 : edge.primary ? 1.15 : 0.95;
       ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
+      ctx.moveTo(edge.start.x, edge.start.y);
+      ctx.lineTo(edge.end.x, edge.end.y);
       ctx.stroke();
     });
   }

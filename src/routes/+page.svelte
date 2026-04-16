@@ -268,7 +268,11 @@
       },
       (intent) => {
         pendingWorkbenchTradeIntent = intent;
-        flushPendingWorkbenchTradeIntent();
+        if (activeTopTab === "workbench") {
+          flushPendingWorkbenchTradeIntent();
+          return;
+        }
+        void showTopTab("workbench");
       },
     );
   }

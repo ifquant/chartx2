@@ -12,14 +12,13 @@ test("performance report renders the first-slice canvas board", async ({ page })
   await expect(report).toContainText("T-001");
 });
 
-test("performance report emits a trade location intent from trade row selection", async ({
+test("performance trade row selection auto-switches to the workbench with the selected trade", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Performance", exact: true }).click();
 
   const canvas = page.getByLabel("chartx2 performance report canvas");
-  const report = page.locator('[data-demo-tab="performance"]');
   const box = await canvas.boundingBox();
   if (box === null) {
     throw new Error("performance report canvas is missing");
@@ -27,19 +26,18 @@ test("performance report emits a trade location intent from trade row selection"
 
   await page.mouse.click(box.x + box.width - 190, box.y + 302);
 
-  await expect(report).toContainText("T-006");
-  await expect(report).toContainText("performance-report-demo");
-  await expect(report).toContainText("selected trade T-006");
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await expect(workbench).toBeVisible();
+  await expect(workbench).toContainText("located trade T-006");
 });
 
-test("performance report emits a trade location intent from equity point selection", async ({
+test("performance equity point selection auto-switches to the workbench with the selected trade", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Performance", exact: true }).click();
 
   const canvas = page.getByLabel("chartx2 performance report canvas");
-  const report = page.locator('[data-demo-tab="performance"]');
   const box = await canvas.boundingBox();
   if (box === null) {
     throw new Error("performance report canvas is missing");
@@ -50,11 +48,12 @@ test("performance report emits a trade location intent from equity point selecti
   const equityPointY = box.y + 146;
   await page.mouse.click(equityPointX, equityPointY);
 
-  await expect(report).toContainText("T-018");
-  await expect(report).toContainText("selected trade T-018");
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  await expect(workbench).toBeVisible();
+  await expect(workbench).toContainText("located trade T-018");
 });
 
-test("performance trade intent locates the trade when the workbench remounts", async ({
+test("performance trade intent auto-switches to the workbench and locates the trade", async ({
   page,
 }) => {
   await page.goto("/");
@@ -67,7 +66,6 @@ test("performance trade intent locates the trade when the workbench remounts", a
   }
 
   await page.mouse.click(box.x + box.width - 190, box.y + 302);
-  await page.getByRole("button", { name: "Workbench", exact: true }).click();
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   await expect(workbench).toBeVisible();

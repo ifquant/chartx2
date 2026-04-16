@@ -17,12 +17,18 @@
     type FeatureTabId,
     type WorkbenchDrawingTool,
   } from "$lib/demo/chartx-demo";
+  import {
+    mountPerformanceReportDemo,
+    type PerformanceDemoController,
+    type PerformanceDemoSnapshot,
+  } from "$lib/demo/performance-demo";
 
-  type TopTabId = "workbench" | FeatureTabId;
+  type TopTabId = "workbench" | "performance" | FeatureTabId;
 
   const foundation = getChartxFoundation();
   const topTabs: Array<{ id: TopTabId; label: string; available: boolean }> = [
     { id: "workbench", label: "Workbench", available: true },
+    { id: "performance", label: "Performance", available: true },
     ...FEATURE_TABS.map((tab) => ({ id: tab.id, label: tab.label, available: tab.available })),
   ];
 
@@ -52,6 +58,14 @@
     metrics: [],
     eventLog: [],
   });
+  const emptyPerformanceSnapshot = (): PerformanceDemoSnapshot => ({
+    title: "Performance Report",
+    summary: "Mounting the strategy performance report.",
+    metrics: [],
+    eventLog: [],
+    selectedTradeId: null,
+    selectedTradeIntent: null,
+  });
   const workbenchDrawingTools: Array<{
     id: WorkbenchDrawingTool;
     label: string;
@@ -71,9 +85,11 @@
   let activeTopTab: TopTabId = "workbench";
 
   let workbenchCanvas: HTMLCanvasElement | undefined;
+  let performanceCanvas: HTMLCanvasElement | undefined;
   let featureCanvas: HTMLCanvasElement | undefined;
 
   let workbenchController: DemoController | null = null;
+  let performanceController: PerformanceDemoController | null = null;
   let featureController: DemoController | null = null;
 
   let workbenchReadout = emptyReadout();
@@ -83,6 +99,7 @@
     "Workbench",
     "Mounting the default workstation example.",
   );
+  let performanceSnapshot = emptyPerformanceSnapshot();
   let featureSnapshot = emptySnapshot("Feature", "Mounting the focused example.");
 
   let workbenchActions: readonly DemoAction[] = [];
@@ -102,6 +119,7 @@
 
     return () => {
       teardownWorkbench();
+      teardownPerformance();
       teardownFeature();
     };
   });
@@ -128,10 +146,20 @@
     }
 
     if (tabId === "workbench") {
+      teardownPerformance();
       teardownFeature();
       activeTopTab = "workbench";
       await tick();
       mountWorkbench();
+      return;
+    }
+
+    if (tabId === "performance") {
+      teardownWorkbench();
+      teardownFeature();
+      activeTopTab = "performance";
+      await tick();
+      mountPerformance();
       return;
     }
 
@@ -141,6 +169,7 @@
     }
 
     teardownWorkbench();
+    teardownPerformance();
     activeTopTab = tabId;
     await tick();
     mountFeature(tabId);
@@ -151,6 +180,11 @@
     teardownWorkbenchReadout = null;
     workbenchController?.destroy();
     workbenchController = null;
+  }
+
+  function teardownPerformance(): void {
+    performanceController?.destroy();
+    performanceController = null;
   }
 
   function teardownFeature(): void {
@@ -211,6 +245,19 @@
       teardownFeatureReadout?.();
       teardownFeatureReadout = null;
     }
+  }
+
+  function mountPerformance(): void {
+    teardownPerformance();
+    performanceSnapshot = emptyPerformanceSnapshot();
+
+    if (!performanceCanvas) {
+      return;
+    }
+
+    performanceController = mountPerformanceReportDemo(performanceCanvas, (snapshot) => {
+      performanceSnapshot = snapshot;
+    });
   }
 
   function runWorkbenchAction(actionId: string): void {
@@ -315,6 +362,16 @@
       return "--";
     }
 
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(value));
+  }
+
+  function formatIntentTime(value: number): string {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
       day: "2-digit",
@@ -517,7 +574,9 @@
     workbenchInspectorErrors = {};
   }
   $: activeFeatureSummary =
-    activeTopTab === "workbench" ? null : featureDescriptor(activeTopTab);
+    activeTopTab === "workbench" || activeTopTab === "performance"
+      ? null
+      : featureDescriptor(activeTopTab);
   $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
     (step) => step.status === "complete",
   ).length;
@@ -1120,6 +1179,83 @@
                   </ul>
                 </section>
               </div>
+            </aside>
+          </div>
+        </article>
+      {:else if activeTopTab === "performance"}
+        <article class="demo-card performance-card" data-demo-tab="performance">
+          <div class="card-head compact-head feature-header">
+            <div class="feature-title-row">
+              <h3>{performanceSnapshot.title}</h3>
+              <span class="feature-summary-inline">{performanceSnapshot.summary}</span>
+            </div>
+          </div>
+
+          <div class="performance-shell">
+            <div class="performance-frame">
+              <canvas
+                bind:this={performanceCanvas}
+                aria-label="chartx2 performance report canvas"
+              ></canvas>
+            </div>
+
+            <aside class="performance-sidebar">
+              <section class="mini-card symbol-card">
+                <div class="sidebar-head">
+                  <h4>Run</h4>
+                  <span>{performanceSnapshot.selectedTradeId ?? "--"}</span>
+                </div>
+                <div class="metric-list compact">
+                  {#each performanceSnapshot.metrics as metric}
+                    <article>
+                      <small>{metric.label}</small>
+                      <strong>{metric.value}</strong>
+                    </article>
+                  {/each}
+                </div>
+              </section>
+
+              <section class="mini-card inspector-card">
+                <div class="sidebar-head">
+                  <h4>Trade Intent</h4>
+                  <span>{performanceSnapshot.selectedTradeIntent?.tradeId ?? "None"}</span>
+                </div>
+                {#if performanceSnapshot.selectedTradeIntent}
+                  <div class="intent-grid">
+                    <small>Symbol</small>
+                    <strong>{performanceSnapshot.selectedTradeIntent.symbol}</strong>
+                    <small>Side</small>
+                    <strong>{performanceSnapshot.selectedTradeIntent.side}</strong>
+                    <small>Entry</small>
+                    <strong>{formatIntentTime(performanceSnapshot.selectedTradeIntent.entryTime)}</strong>
+                    <small>Exit</small>
+                    <strong>{formatIntentTime(performanceSnapshot.selectedTradeIntent.exitTime)}</strong>
+                    <small>Entry Px</small>
+                    <strong>{formatValue(performanceSnapshot.selectedTradeIntent.entryPrice)}</strong>
+                    <small>Exit Px</small>
+                    <strong>{formatValue(performanceSnapshot.selectedTradeIntent.exitPrice)}</strong>
+                    <small>P&L</small>
+                    <strong>{formatValue(performanceSnapshot.selectedTradeIntent.realizedPnl, 0)}</strong>
+                    <small>Source</small>
+                    <strong>{performanceSnapshot.selectedTradeIntent.sourceChartId}</strong>
+                  </div>
+                {:else}
+                  <p class="inspector-empty">Click an equity point or trade row to emit a TradeLocationIntent.</p>
+                {/if}
+              </section>
+
+              <section class="mini-card action-card">
+                <h4>Activity</h4>
+                <ul class="event-log">
+                  {#if performanceSnapshot.eventLog.length === 0}
+                    <li>Waiting for performance report events.</li>
+                  {:else}
+                    {#each performanceSnapshot.eventLog as entry}
+                      <li>{entry}</li>
+                    {/each}
+                  {/if}
+                </ul>
+              </section>
             </aside>
           </div>
         </article>
@@ -2048,9 +2184,72 @@
     text-transform: uppercase;
   }
 
+  .performance-card {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: var(--card-head-height) minmax(0, 1fr);
+  }
+
+  .performance-shell {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 0;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .performance-frame {
+    min-height: 0;
+    padding: 14px;
+    background: #fffdf7;
+  }
+
+  .performance-frame canvas {
+    width: 100%;
+    height: 100%;
+    min-height: 620px;
+    display: block;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    background: #fffdf7;
+  }
+
+  .performance-sidebar {
+    min-height: 0;
+    overflow-y: auto;
+    border-left: 1px solid rgba(24, 24, 27, 0.08);
+    background: #f8f5ee;
+  }
+
+  .intent-grid {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px 10px;
+    align-items: baseline;
+    padding-top: 4px;
+  }
+
+  .intent-grid small {
+    color: rgba(24, 24, 27, 0.52);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .intent-grid strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.86rem;
+  }
+
   @media (max-width: 1180px) {
     .workbench-shell {
       grid-template-columns: 38px minmax(0, 1fr) 220px;
+    }
+
+    .performance-shell {
+      grid-template-columns: minmax(0, 1fr) 260px;
     }
 
     .feature-console {
@@ -2088,6 +2287,14 @@
 
     .workbench-shell {
       grid-template-columns: 1fr;
+    }
+
+    .performance-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .performance-frame canvas {
+      min-height: 560px;
     }
 
     .tool-rail {

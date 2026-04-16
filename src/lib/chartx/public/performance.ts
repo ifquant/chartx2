@@ -1,4 +1,6 @@
 export {
+  computeRobustnessField,
+  deriveOptimizationThresholdPlane,
   OptimizationDatasetRegistry,
   PerformanceReportModel,
   createPerformanceReportModel,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveOptimizationThresholdPlane,
   createRunLocationIntent,
   createSampleParameterSweep,
   createSampleStrategyRunFromSummary,
@@ -103,5 +104,53 @@ describe("performance optimization datasets", () => {
     expect(surface.zRange).not.toBeNull();
     expect(surface.zRange!.min).toBeGreaterThanOrEqual(0);
     expect(surface.zRange!.max).toBeLessThanOrEqual(1);
+  });
+
+  it("derives a stable accept threshold plane for optimization metrics", () => {
+    const sweep = createSampleParameterSweep();
+    const registry = new OptimizationDatasetRegistry(sweep);
+    const surface = registry.getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "objectiveScore",
+      filter: {
+        threshold: 0.5,
+      },
+    });
+
+    const plane = deriveOptimizationThresholdPlane("objectiveScore", surface.points);
+
+    expect(plane).not.toBeNull();
+    expect(plane).toMatchObject({
+      metric: "objectiveScore",
+      label: "objectiveScore accept",
+    });
+    expect(plane!.value).toBeGreaterThanOrEqual(surface.zRange!.min);
+    expect(plane!.value).toBeLessThanOrEqual(surface.zRange!.max);
+  });
+
+  it("scores broad plateaus as more robust than narrow spikes", () => {
+    const sweep = createSampleParameterSweep();
+    const registry = new OptimizationDatasetRegistry(sweep);
+    const surface = registry.getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      colorMetric: "robustness",
+      filter: {
+        threshold: 0.5,
+      },
+    });
+
+    const plateau = surface.points.find((point) => point.xValue === 11 && point.yValue === 41);
+    const spike = surface.points.find((point) => point.xValue === 15 && point.yValue === 49);
+
+    expect(plateau).toBeDefined();
+    expect(spike).toBeDefined();
+    expect(plateau!.robustnessScore).toBeGreaterThan(spike!.robustnessScore ?? -1);
+    expect(surface.robustnessField.range?.min).toBeGreaterThanOrEqual(0);
+    expect(surface.robustnessField.range?.max).toBeLessThanOrEqual(100);
   });
 });

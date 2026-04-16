@@ -1,5 +1,9 @@
 export { PerformanceDatasetRegistry } from "./datasets/dataset-registry";
-export { OptimizationDatasetRegistry } from "./datasets/optimization-dataset-registry";
+export {
+  OptimizationDatasetRegistry,
+  computeRobustnessField,
+  deriveOptimizationThresholdPlane,
+} from "./datasets/optimization-dataset-registry";
 export { PerformanceMetricEngine } from "./metrics/metric-engine";
 export { PerformanceReportModel, createPerformanceReportModel } from "./model/report-model";
 export { createSampleStrategyRun } from "./fixtures/sample-run";

@@ -1,4 +1,5 @@
 import {
+  deriveOptimizationThresholdPlane,
   createPerformanceReportModel,
   createRunLocationIntent,
   createSampleParameterSweep,
@@ -157,22 +158,9 @@ function buildOptimizationView(
   });
   const selectedRun = selectedRunId === null ? null : sweep.runs.find((run) => run.runId === selectedRunId) ?? null;
   const filterSummary = filterKey === null || filterValue === null ? "all rows" : `${filterKey}=${filterValue}`;
-  const autoThresholdValue =
-    dataset.points.length === 0
-      ? null
-      : (() => {
-          const sorted = dataset.points.map((point) => point.zValue).sort((left, right) => left - right);
-          if (zMetric === "objectiveScore") {
-            return Math.max(sorted[0]!, Math.min(sorted[sorted.length - 1]!, 0.6));
-          }
-          if (zMetric === "netProfit") {
-            return sorted[Math.floor(sorted.length * 0.6)] ?? null;
-          }
-          if (dataset.zRange === null) {
-            return null;
-          }
-          return dataset.zRange.min + (dataset.zRange.max - dataset.zRange.min) * 0.55;
-        })();
+  const thresholdPlane = thresholdPlaneMode === "auto"
+    ? deriveOptimizationThresholdPlane(zMetric, dataset.points)
+    : null;
   return {
     id: "optimization-surface",
     title: "Parameter Surface",
@@ -181,14 +169,7 @@ function buildOptimizationView(
     selectedRunId,
     selectedRunIntent: selectedRun === null ? null : createRunLocationIntent(selectedRun, "optimization-surface-demo"),
     renderMode,
-    thresholdPlane:
-      thresholdPlaneMode === "auto" && autoThresholdValue !== null
-        ? ({
-            metric: zMetric,
-            value: Number(autoThresholdValue.toFixed(3)),
-            label: `${zMetric} accept`,
-          } satisfies ThresholdPlane)
-        : null,
+    thresholdPlane: thresholdPlane as ThresholdPlane | null,
     camera,
   };
 }

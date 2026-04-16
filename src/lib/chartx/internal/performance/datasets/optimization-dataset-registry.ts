@@ -10,6 +10,15 @@ import type {
   StrategyRunSummary,
 } from "../model/types";
 
+type RawRobustnessSample = {
+  runId: string;
+  neighborhoodMean: number;
+  stddev: number;
+  slope: number;
+  curvature: number;
+  supportPenalty: number;
+};
+
 function matchesFilter(
   params: ParameterAssignment,
   filter: ParameterAssignment | undefined,
@@ -54,7 +63,73 @@ function computeRange(values: number[]): { min: number; max: number } | null {
   };
 }
 
-function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessField {
+function normalizeMetric(value: number, range: { min: number; max: number } | null, invert = false): number {
+  if (range === null || range.max === range.min) {
+    return 0.5;
+  }
+  const normalized = (value - range.min) / (range.max - range.min);
+  const clamped = Math.min(1, Math.max(0, normalized));
+  return invert ? 1 - clamped : clamped;
+}
+
+function quantile(sortedValues: number[], fraction: number): number | null {
+  if (sortedValues.length === 0) {
+    return null;
+  }
+  const clamped = Math.min(1, Math.max(0, fraction));
+  const index = (sortedValues.length - 1) * clamped;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) {
+    return sortedValues[lower] ?? null;
+  }
+  const lowerValue = sortedValues[lower]!;
+  const upperValue = sortedValues[upper]!;
+  const t = index - lower;
+  return lowerValue + (upperValue - lowerValue) * t;
+}
+
+export function deriveOptimizationThresholdPlane(
+  zMetric: OptimizationMetricKey,
+  points: readonly ParameterSurfacePoint[],
+): { metric: OptimizationMetricKey; value: number; label: string } | null {
+  if (points.length === 0) {
+    return null;
+  }
+  const sorted = points.map((point) => point.zValue).sort((left, right) => left - right);
+  let value: number | null = null;
+
+  switch (zMetric) {
+    case "objectiveScore":
+      value = Math.max(sorted[0]!, Math.min(sorted[sorted.length - 1]!, 0.6));
+      break;
+    case "netProfit":
+      value = quantile(sorted, 0.6);
+      break;
+    case "sharpe":
+      value = Math.max(sorted[0]!, Math.min(sorted[sorted.length - 1]!, 1.1));
+      break;
+    case "profitFactor":
+      value = Math.max(sorted[0]!, Math.min(sorted[sorted.length - 1]!, 1.35));
+      break;
+    case "maxDrawdown":
+      value = quantile(sorted, 0.45);
+      break;
+    default:
+      value = quantile(sorted, 0.55);
+      break;
+  }
+
+  return value === null
+    ? null
+    : {
+        metric: zMetric,
+        value: Number(value.toFixed(3)),
+        label: `${zMetric} accept`,
+      };
+}
+
+export function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessField {
   const scoreByRunId: Record<string, number> = {};
   if (points.length === 0) {
     return {
@@ -69,6 +144,7 @@ function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessFiel
   const yValues = Array.from(new Set(points.map((point) => point.yValue))).sort(compareParameterValue);
   const xIndexByValue = new Map(xValues.map((value, index) => [String(value), index] as const));
   const yIndexByValue = new Map(yValues.map((value, index) => [String(value), index] as const));
+  const rawSamples: RawRobustnessSample[] = [];
 
   for (const point of points) {
     const xIndex = xIndexByValue.get(String(point.xValue));
@@ -93,7 +169,14 @@ function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessFiel
     }
 
     if (neighborhood.length === 0) {
-      scoreByRunId[point.runId] = 0;
+      rawSamples.push({
+        runId: point.runId,
+        neighborhoodMean: point.zValue,
+        stddev: 0,
+        slope: 0,
+        curvature: 0,
+        supportPenalty: 0.2,
+      });
       continue;
     }
 
@@ -108,10 +191,38 @@ function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessFiel
     const up = yIndex < yValues.length - 1 ? pointMap.get(`${String(point.xValue)}::${String(yValues[yIndex + 1])}`) : undefined;
     const slopeX = left !== undefined && right !== undefined ? Math.abs(right.zValue - left.zValue) / 2 : 0;
     const slopeY = down !== undefined && up !== undefined ? Math.abs(up.zValue - down.zValue) / 2 : 0;
-    const slope = slopeX + slopeY;
+    const slope = Math.sqrt(slopeX * slopeX + slopeY * slopeY);
+    const curvature = Math.abs(point.zValue - mean);
+    const supportPenalty = neighborhood.length < 5 ? (5 - neighborhood.length) * 0.06 : 0;
 
-    scoreByRunId[point.runId] = Number((mean - stddev * 0.85 - slope * 0.55).toFixed(3));
+    rawSamples.push({
+      runId: point.runId,
+      neighborhoodMean: mean,
+      stddev,
+      slope,
+      curvature,
+      supportPenalty,
+    });
   }
+
+  const meanRange = computeRange(rawSamples.map((sample) => sample.neighborhoodMean));
+  const stddevRange = computeRange(rawSamples.map((sample) => sample.stddev));
+  const slopeRange = computeRange(rawSamples.map((sample) => sample.slope));
+  const curvatureRange = computeRange(rawSamples.map((sample) => sample.curvature));
+
+  rawSamples.forEach((sample) => {
+    const meanScore = normalizeMetric(sample.neighborhoodMean, meanRange);
+    const stabilityScore = normalizeMetric(sample.stddev, stddevRange, true);
+    const flatnessScore = normalizeMetric(sample.slope, slopeRange, true);
+    const plateauScore = normalizeMetric(sample.curvature, curvatureRange, true);
+    const score =
+      meanScore * 0.42 +
+      stabilityScore * 0.24 +
+      flatnessScore * 0.22 +
+      plateauScore * 0.12 -
+      sample.supportPenalty;
+    scoreByRunId[sample.runId] = Number((Math.min(1, Math.max(0, score)) * 100).toFixed(3));
+  });
 
   return {
     neighborhoodRadius: 1,

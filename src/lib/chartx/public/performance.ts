@@ -4,6 +4,7 @@ export {
   createPerformanceReportModel,
   createRunLocationIntent,
   createSampleParameterSweep,
+  createSampleStrategyRunFromSummary,
   createSampleStrategyRun,
   createTradeLocationIntent,
 } from "../internal/performance";
@@ -32,6 +33,7 @@ export type {
   OrderSide,
   OrderType,
   OptimizationMetricKey,
+  OptimizationSurfaceView,
   ParameterAssignment,
   ParameterSurfaceDataset,
   ParameterSurfacePoint,

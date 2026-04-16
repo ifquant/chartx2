@@ -69,6 +69,19 @@
     eventLog: [],
     selectedTradeId: null,
     selectedTradeIntent: null,
+    optimization: {
+      title: "Parameter Surface",
+      summary: "Mounting the optimization surface.",
+      selectedRunId: null,
+      selectedRunIntent: null,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      filterKey: "threshold",
+      filterValue: null,
+      filterOptions: [],
+      runLabel: "--",
+    },
   });
   const workbenchDrawingTools: Array<{
     id: WorkbenchDrawingTool;
@@ -90,6 +103,7 @@
 
   let workbenchCanvas: HTMLCanvasElement | undefined;
   let performanceCanvas: HTMLCanvasElement | undefined;
+  let optimizationCanvas: HTMLCanvasElement | undefined;
   let featureCanvas: HTMLCanvasElement | undefined;
 
   let workbenchController: DemoController | null = null;
@@ -257,11 +271,12 @@
     teardownPerformance();
     performanceSnapshot = emptyPerformanceSnapshot();
 
-    if (!performanceCanvas) {
+    if (!performanceCanvas || !optimizationCanvas) {
       return;
     }
 
     performanceController = mountPerformanceReportDemo(
+      optimizationCanvas,
       performanceCanvas,
       (snapshot) => {
         performanceSnapshot = snapshot;
@@ -684,10 +699,15 @@
         />
       {:else if activeTopTab === "performance"}
         <PerformanceWorkbenchPanel
-          bind:canvasElement={performanceCanvas}
+          bind:reportCanvasElement={performanceCanvas}
+          bind:optimizationCanvasElement={optimizationCanvas}
           snapshot={performanceSnapshot}
           {formatValue}
           {formatIntentTime}
+          onOptimizationXAxisChange={(value) => performanceController?.setOptimizationXAxis(value)}
+          onOptimizationYAxisChange={(value) => performanceController?.setOptimizationYAxis(value)}
+          onOptimizationZMetricChange={(value) => performanceController?.setOptimizationZMetric(value)}
+          onOptimizationFilterValueChange={(value) => performanceController?.setOptimizationFilterValue(value)}
         />
       {:else}
         <FeatureDemoPanel

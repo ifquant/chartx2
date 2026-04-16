@@ -330,6 +330,15 @@ export type ParameterSurfaceDataset = {
   colorRange: { min: number; max: number } | null;
 };
 
+export type OptimizationSurfaceView = {
+  id: string;
+  title: string;
+  summary: string;
+  dataset: ParameterSurfaceDataset;
+  selectedRunId: string | null;
+  selectedRunIntent: RunLocationIntent | null;
+};
+
 export type PerformanceReportSnapshot = {
   selectedSectionId: string;
   selectedTradeId: string | null;

@@ -4,9 +4,11 @@ export { PerformanceMetricEngine } from "./metrics/metric-engine";
 export { PerformanceReportModel, createPerformanceReportModel } from "./model/report-model";
 export { createSampleStrategyRun } from "./fixtures/sample-run";
 export { createSampleParameterSweep } from "./fixtures/sample-sweep";
+export { createSampleStrategyRunFromSummary } from "./fixtures/sample-sweep";
 export { createTradeLocationIntent } from "./model/trade-location";
 export { createRunLocationIntent } from "./model/run-location";
 export { PerformanceCanvasHarness } from "./views/performance-canvas-harness";
+export { OptimizationCanvasHarness } from "./views/optimization-canvas-harness";
 export type {
   AxisModel,
   BenchmarkSeries,
@@ -31,6 +33,7 @@ export type {
   OrderSide,
   OrderType,
   OptimizationMetricKey,
+  OptimizationSurfaceView,
   ParameterAssignment,
   ParameterSurfaceDataset,
   ParameterSurfacePoint,

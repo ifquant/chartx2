@@ -236,7 +236,7 @@ export class PerformanceCanvasHarness {
       ctx.arc(x, y, selected ? 5 : 3.5, 0, Math.PI * 2);
       ctx.fill();
       this.hitTargets.push({
-        rect: { x: x - 8, y: y - 8, width: 16, height: 16 },
+        rect: { x: x - 14, y: y - 14, width: 28, height: 28 },
         target: { kind: "equity-point", tradeId: point.tradeId },
       });
     });

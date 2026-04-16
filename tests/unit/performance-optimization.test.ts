@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRunLocationIntent,
   createSampleParameterSweep,
+  createSampleStrategyRunFromSummary,
   OptimizationDatasetRegistry,
 } from "../../src/lib/chartx/internal/performance";
 
@@ -71,5 +72,16 @@ describe("performance optimization datasets", () => {
       params: { ...run.params },
       sourceReportId: "optimization-report-demo",
     });
+  });
+
+  it("materializes a deterministic strategy run from one sweep summary", () => {
+    const sweep = createSampleParameterSweep();
+    const runSummary = sweep.runs[6]!;
+    const run = createSampleStrategyRunFromSummary(runSummary);
+    const netProfit = run.closedTrades.reduce((sum, trade) => sum + trade.netPnl, 0);
+
+    expect(run.id).toBe(runSummary.runId);
+    expect(run.closedTrades).toHaveLength(Math.round(runSummary.metrics.tradeCount!));
+    expect(netProfit).toBe(Math.round(runSummary.metrics.netProfit!));
   });
 });

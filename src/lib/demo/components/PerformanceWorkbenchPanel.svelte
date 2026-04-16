@@ -1,10 +1,25 @@
 <script lang="ts">
   import type { PerformanceDemoSnapshot } from "$lib/demo/performance-demo";
+  import type { OptimizationMetricKey } from "$lib/chartx/public/performance";
 
   export let snapshot: PerformanceDemoSnapshot;
-  export let canvasElement: HTMLCanvasElement | undefined = undefined;
+  export let reportCanvasElement: HTMLCanvasElement | undefined = undefined;
+  export let optimizationCanvasElement: HTMLCanvasElement | undefined = undefined;
   export let formatValue: (value: number | null, digits?: number) => string;
   export let formatIntentTime: (value: number) => string;
+  export let onOptimizationXAxisChange: (value: string) => void;
+  export let onOptimizationYAxisChange: (value: string) => void;
+  export let onOptimizationZMetricChange: (value: OptimizationMetricKey) => void;
+  export let onOptimizationFilterValueChange: (value: string) => void;
+
+  const parameterOptions = ["fastLength", "slowLength", "threshold"];
+  const zMetricOptions: OptimizationMetricKey[] = [
+    "netProfit",
+    "sharpe",
+    "maxDrawdown",
+    "profitFactor",
+    "stabilityScore",
+  ];
 </script>
 
 <article class="demo-card performance-card" data-demo-tab="performance">
@@ -17,8 +32,64 @@
 
   <div class="performance-shell">
     <div class="performance-frame">
+      <section class="surface-shell">
+        <div class="surface-controls">
+          <label>
+            <span>X</span>
+            <select
+              value={snapshot.optimization.xParam}
+              on:change={(event) => onOptimizationXAxisChange((event.currentTarget as HTMLSelectElement).value)}
+            >
+              {#each parameterOptions as option}
+                <option value={option} disabled={option === snapshot.optimization.yParam}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>Y</span>
+            <select
+              value={snapshot.optimization.yParam}
+              on:change={(event) => onOptimizationYAxisChange((event.currentTarget as HTMLSelectElement).value)}
+            >
+              {#each parameterOptions as option}
+                <option value={option} disabled={option === snapshot.optimization.xParam}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>Z</span>
+            <select
+              value={snapshot.optimization.zMetric}
+              on:change={(event) => onOptimizationZMetricChange((event.currentTarget as HTMLSelectElement).value as OptimizationMetricKey)}
+            >
+              {#each zMetricOptions as option}
+                <option value={option}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          {#if snapshot.optimization.filterKey}
+            <label>
+              <span>{snapshot.optimization.filterKey}</span>
+              <select
+                value={snapshot.optimization.filterValue ?? ""}
+                on:change={(event) => onOptimizationFilterValueChange((event.currentTarget as HTMLSelectElement).value)}
+              >
+                {#each snapshot.optimization.filterOptions as option}
+                  <option value={option}>{option}</option>
+                {/each}
+              </select>
+            </label>
+          {/if}
+        </div>
+
+        <canvas
+          bind:this={optimizationCanvasElement}
+          aria-label="chartx2 optimization surface canvas"
+        ></canvas>
+      </section>
+
       <canvas
-        bind:this={canvasElement}
+        bind:this={reportCanvasElement}
         aria-label="chartx2 performance report canvas"
       ></canvas>
     </div>
@@ -27,8 +98,9 @@
       <section class="mini-card symbol-card">
         <div class="sidebar-head">
           <h4>Run</h4>
-          <span>{snapshot.selectedTradeId ?? "--"}</span>
+          <span>{snapshot.optimization.selectedRunId ?? "--"}</span>
         </div>
+        <p class="run-label">{snapshot.optimization.runLabel}</p>
         <div class="metric-list compact">
           {#each snapshot.metrics as metric}
             <article>
@@ -37,6 +109,27 @@
             </article>
           {/each}
         </div>
+      </section>
+
+      <section class="mini-card inspector-card">
+        <div class="sidebar-head">
+          <h4>Run Intent</h4>
+          <span>{snapshot.optimization.selectedRunIntent?.runId ?? "None"}</span>
+        </div>
+        {#if snapshot.optimization.selectedRunIntent}
+          <div class="intent-grid">
+            <small>Run</small>
+            <strong>{snapshot.optimization.selectedRunIntent.runId}</strong>
+            <small>Strategy</small>
+            <strong>{snapshot.optimization.selectedRunIntent.strategyId}</strong>
+            <small>Params</small>
+            <strong>{snapshot.optimization.runLabel}</strong>
+            <small>Source</small>
+            <strong>{snapshot.optimization.selectedRunIntent.sourceReportId}</strong>
+          </div>
+        {:else}
+          <p class="inspector-empty">Click a heatmap cell to emit a RunLocationIntent and switch the performance report.</p>
+        {/if}
       </section>
 
       <section class="mini-card inspector-card">
@@ -159,16 +252,65 @@
   .performance-frame {
     min-height: 0;
     padding: 14px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
     background: #fffdf7;
   }
 
   .performance-frame canvas {
     width: 100%;
-    height: 100%;
-    min-height: 620px;
     display: block;
     border: 1px solid rgba(24, 24, 27, 0.12);
     background: #fffdf7;
+  }
+
+  .surface-shell {
+    display: grid;
+    gap: 8px;
+  }
+
+  .surface-shell canvas {
+    height: 300px;
+  }
+
+  .performance-frame > canvas {
+    min-height: 620px;
+    height: 100%;
+  }
+
+  .surface-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .surface-controls label {
+    display: inline-grid;
+    gap: 4px;
+    min-width: 110px;
+  }
+
+  .surface-controls span {
+    color: rgba(24, 24, 27, 0.52);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .surface-controls select {
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    background: rgba(255, 255, 255, 0.84);
+    padding: 6px 8px;
+    font: inherit;
+  }
+
+  .run-label {
+    margin: 10px 0 0;
+    color: rgba(24, 24, 27, 0.66);
+    font-size: 0.78rem;
+    line-height: 1.45;
   }
 
   .performance-sidebar {

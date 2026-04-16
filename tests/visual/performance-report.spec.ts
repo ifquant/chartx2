@@ -26,11 +26,23 @@ test("optimization heatmap selection switches the performance report to the sele
     throw new Error("optimization surface canvas is missing");
   }
 
-  await page.mouse.click(box.x + 110, box.y + 102);
+  const plot = {
+    x: box.x + 70,
+    y: box.y + 60,
+    width: box.width - 102,
+    height: box.height - 94,
+  };
+  const cellWidth = plot.width / 9;
+  const cellHeight = plot.height / 10;
+  const target = {
+    x: plot.x + cellWidth * 1.5,
+    y: plot.y + plot.height - cellHeight * 0.5,
+  };
+  await page.mouse.click(target.x, target.y);
 
   const report = page.locator('[data-demo-tab="performance"]');
-  await expect(report).toContainText("selected run sweep-run-007");
-  await expect(report).toContainText("sweep-run-007");
+  await expect(report).toContainText("selected run sweep-run-051");
+  await expect(report).toContainText("sweep-run-051");
 });
 
 test("optimization surface can switch into 3d scatter mode", async ({ page }) => {

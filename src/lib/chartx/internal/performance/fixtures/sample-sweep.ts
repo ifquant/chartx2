@@ -1,8 +1,8 @@
 import type { ClosedTrade, EquitySnapshot, ParameterSweepModel, StrategyRunModel, StrategyRunSummary } from "../model/types";
 
-const FAST_LENGTHS = [5, 9, 13, 21] as const;
-const SLOW_LENGTHS = [21, 34, 55] as const;
-const THRESHOLDS = [0.25, 0.5, 0.75] as const;
+const FAST_LENGTHS = [5, 7, 9, 11, 13, 15, 17, 19, 21] as const;
+const SLOW_LENGTHS = [21, 25, 29, 33, 37, 41, 45, 49, 53, 57] as const;
+const THRESHOLDS = [0.2, 0.35, 0.5, 0.65, 0.8] as const;
 
 const BASE_TIME = Date.UTC(2026, 2, 1, 0, 0, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -14,25 +14,39 @@ function createRunSummary(
   index: number,
 ): StrategyRunSummary {
   const runId = `sweep-run-${String(index + 1).padStart(3, "0")}`;
-  const crossoverSpread = slowLength - fastLength;
-  const efficiency = 1600 - Math.abs(crossoverSpread - 22) * 48;
-  const thresholdPenalty = Math.abs(threshold - 0.5) * 920;
-  const shapeNoise = Math.sin(fastLength * 0.8 + slowLength * 0.25 + threshold * 7) * 180;
-  const netProfit = Math.round(efficiency - thresholdPenalty + shapeNoise);
-  const winRate = Number((48 + crossoverSpread * 0.42 - Math.abs(threshold - 0.45) * 18).toFixed(2));
-  const tradeCount = Math.max(18, Math.round(74 - fastLength * 1.1 - threshold * 20 + (slowLength - 20) * 0.2));
+  const gaussian = (value: number, center: number, width: number): number =>
+    Math.exp(-((value - center) ** 2) / (2 * width * width));
+  const plateau =
+    gaussian(fastLength, 11, 5.2) *
+    gaussian(slowLength, 39, 8.8) *
+    gaussian(threshold, 0.5, 0.18);
+  const ridge =
+    gaussian(fastLength, 15, 2.8) *
+    gaussian(slowLength, 47, 5.4) *
+    gaussian(threshold, 0.35, 0.08);
+  const valley =
+    gaussian(fastLength, 7, 1.8) *
+    gaussian(slowLength, 29, 3.8) *
+    gaussian(threshold, 0.72, 0.07);
+  const netProfit = Math.round(420 + plateau * 1480 + ridge * 520 - valley * 680);
+  const winRate = Number((44 + plateau * 22 + ridge * 4 - valley * 8).toFixed(2));
+  const tradeCount = Math.max(
+    22,
+    Math.round(82 - fastLength * 1.25 - threshold * 18 + gaussian(slowLength, 41, 10) * 7),
+  );
   const avgTrade = Number((netProfit / tradeCount).toFixed(2));
-  const maxDrawdown = -Math.round(260 + Math.abs(crossoverSpread - 18) * 16 + threshold * 340);
+  const maxDrawdown = -Math.round(240 + (1 - plateau) * 330 + ridge * 34 + valley * 210);
   const grossProfit = Math.round(Math.max(netProfit * 1.55, 280));
   const grossLoss = -Math.round(Math.max(grossProfit - netProfit, 120));
   const profitFactor = Number((grossProfit / Math.max(Math.abs(grossLoss), 1)).toFixed(3));
-  const sharpe = Number((0.6 + netProfit / 2200 - Math.abs(threshold - 0.5) * 0.65).toFixed(3));
+  const sharpe = Number((0.58 + plateau * 1.02 + ridge * 0.18 - valley * 0.45).toFixed(3));
   const sortino = Number((sharpe + 0.22).toFixed(3));
   const stabilityScore = Number(
     (
-      55 +
-      Math.max(0, 18 - Math.abs(crossoverSpread - 20)) * 1.2 -
-      Math.abs(threshold - 0.5) * 28
+      42 +
+      plateau * 38 -
+      ridge * 12 -
+      valley * 18
     ).toFixed(2),
   );
 

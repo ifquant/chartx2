@@ -18,25 +18,25 @@ describe("performance optimization datasets", () => {
       zMetric: "netProfit",
       colorMetric: "sharpe",
       filter: {
-        slowLength: 34,
+        slowLength: 33,
       },
     });
 
-    expect(surface.points).toHaveLength(12);
-    expect(surface.xValues).toEqual([5, 9, 13, 21]);
-    expect(surface.yValues).toEqual([0.25, 0.5, 0.75]);
+    expect(surface.points).toHaveLength(45);
+    expect(surface.xValues).toEqual([5, 7, 9, 11, 13, 15, 17, 19, 21]);
+    expect(surface.yValues).toEqual([0.2, 0.35, 0.5, 0.65, 0.8]);
     expect(surface.zRange).not.toBeNull();
     expect(surface.colorRange).not.toBeNull();
     expect(surface.points[0]).toMatchObject({
       xValue: 5,
-      yValue: 0.25,
+      yValue: 0.2,
     });
   });
 
   it("skips runs missing the requested z metric", () => {
     const sweep = createSampleParameterSweep();
     const targetIndex = sweep.runs.findIndex(
-      (run) => run.params.slowLength === 34 && run.params.fastLength === 5 && run.params.threshold === 0.25,
+      (run) => run.params.slowLength === 33 && run.params.fastLength === 5 && run.params.threshold === 0.2,
     );
     sweep.runs[targetIndex] = {
       ...sweep.runs[targetIndex]!,
@@ -53,11 +53,11 @@ describe("performance optimization datasets", () => {
       yParam: "threshold",
       zMetric: "netProfit",
       filter: {
-        slowLength: 34,
+        slowLength: 33,
       },
     });
 
-    expect(surface.points).toHaveLength(11);
+    expect(surface.points).toHaveLength(44);
   });
 
   it("creates a deterministic run location intent", () => {

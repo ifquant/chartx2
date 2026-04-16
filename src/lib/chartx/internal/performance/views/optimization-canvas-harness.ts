@@ -67,6 +67,10 @@ function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView)
   return heatColor(value, range.min, range.max);
 }
 
+function formatAxisNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 function rotate(point: Point3D, camera: Camera): Point3D {
   const cy = Math.cos(camera.yaw);
   const sy = Math.sin(camera.yaw);
@@ -332,7 +336,7 @@ export class OptimizationCanvasHarness {
       });
     });
 
-    const scale = Math.min(plot.width, plot.height) * 0.38;
+    const scale = Math.min(plot.width, plot.height) * 0.41;
     this.draw3DAxes(plot, scale);
     this.draw3DBaseGrid(plot, scale);
 
@@ -463,10 +467,63 @@ export class OptimizationCanvasHarness {
     });
 
     ctx.fillStyle = THEME.muted;
-    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText(this.view.dataset.spec.xParam, xAxis.x + 4, xAxis.y + 2);
-    ctx.fillText(this.view.dataset.spec.zMetric, yAxis.x + 4, yAxis.y - 4);
-    ctx.fillText(this.view.dataset.spec.yParam, zAxis.x + 4, zAxis.y + 2);
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(`X ${this.view.dataset.spec.xParam}`, xAxis.x + 6, xAxis.y + 2);
+    ctx.fillText(`Z ${this.view.dataset.spec.zMetric}`, yAxis.x + 6, yAxis.y - 4);
+    ctx.fillText(`Y ${this.view.dataset.spec.yParam}`, zAxis.x + 6, zAxis.y + 2);
+
+    this.draw3DAxisTicks(plot, scale);
+  }
+
+  private draw3DAxisTicks(plot: Rect, scale: number): void {
+    const ctx = this.context;
+    const { dataset } = this.view;
+    const xValues = dataset.xValues;
+    const yValues = dataset.yValues;
+    const zRange = dataset.zRange;
+    if (xValues.length < 2 || yValues.length < 2 || zRange === null) {
+      return;
+    }
+
+    ctx.strokeStyle = "rgba(24, 24, 27, 0.22)";
+    ctx.fillStyle = THEME.muted;
+    ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+
+    const xTickValues = [xValues[0]!, xValues[Math.floor(xValues.length / 2)]!, xValues[xValues.length - 1]!];
+    xTickValues.forEach((value, index) => {
+      const t = index / Math.max(xTickValues.length - 1, 1);
+      const anchor = projectPoint({ x: -1 + t * 2, y: -1.18, z: -1.15 }, this.view.camera, plot, scale);
+      const normal = projectPoint({ x: -1 + t * 2, y: -1.1, z: -1.15 }, this.view.camera, plot, scale);
+      ctx.beginPath();
+      ctx.moveTo(anchor.x, anchor.y);
+      ctx.lineTo(normal.x, normal.y);
+      ctx.stroke();
+      ctx.fillText(formatParam(value), normal.x + 4, normal.y + 8);
+    });
+
+    const yTickValues = [yValues[0]!, yValues[Math.floor(yValues.length / 2)]!, yValues[yValues.length - 1]!];
+    yTickValues.forEach((value, index) => {
+      const t = index / Math.max(yTickValues.length - 1, 1);
+      const anchor = projectPoint({ x: -1.15, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, scale);
+      const normal = projectPoint({ x: -1.07, y: -1.18, z: -1 + t * 2 }, this.view.camera, plot, scale);
+      ctx.beginPath();
+      ctx.moveTo(anchor.x, anchor.y);
+      ctx.lineTo(normal.x, normal.y);
+      ctx.stroke();
+      ctx.fillText(formatParam(value), normal.x + 4, normal.y + 8);
+    });
+
+    const zTickValues = [zRange.min, (zRange.min + zRange.max) / 2, zRange.max];
+    zTickValues.forEach((value, index) => {
+      const t = index / Math.max(zTickValues.length - 1, 1);
+      const anchor = projectPoint({ x: -1.15, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, scale);
+      const normal = projectPoint({ x: -1.05, y: -1 + t * 2.3, z: -1.15 }, this.view.camera, plot, scale);
+      ctx.beginPath();
+      ctx.moveTo(anchor.x, anchor.y);
+      ctx.lineTo(normal.x, normal.y);
+      ctx.stroke();
+      ctx.fillText(formatAxisNumber(value), normal.x + 4, normal.y + 4);
+    });
   }
 
   private onPointerDown(event: PointerEvent): void {

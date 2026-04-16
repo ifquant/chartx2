@@ -63,36 +63,35 @@ function normalizeRange(value: number, min: number, max: number): number {
 function performanceColorTriplet(value: number, min: number, max: number): [number, number, number] {
   const low = Math.min(min, 0);
   const high = Math.max(max, 0);
-  const green: [number, number, number] = [62, 140, 88];
-  const yellow: [number, number, number] = [214, 178, 71];
-  const red: [number, number, number] = [191, 68, 51];
+  const negative: [number, number, number] = [56, 221, 154];
+  const neutral: [number, number, number] = [44, 130, 227];
+  const positiveMid: [number, number, number] = [120, 69, 220];
+  const positiveHigh: [number, number, number] = [242, 31, 151];
 
   if (value <= 0) {
     const t = normalizeRange(value, low, 0);
     return [
-      Math.round(green[0] + (yellow[0] - green[0]) * t),
-      Math.round(green[1] + (yellow[1] - green[1]) * t),
-      Math.round(green[2] + (yellow[2] - green[2]) * t),
+      Math.round(negative[0] + (neutral[0] - negative[0]) * t),
+      Math.round(negative[1] + (neutral[1] - negative[1]) * t),
+      Math.round(negative[2] + (neutral[2] - negative[2]) * t),
     ];
   }
 
   const t = normalizeRange(value, 0, high);
-  return [
-    Math.round(yellow[0] + (red[0] - yellow[0]) * t),
-    Math.round(yellow[1] + (red[1] - yellow[1]) * t),
-    Math.round(yellow[2] + (red[2] - yellow[2]) * t),
-  ];
-}
+  if (t <= 0.55) {
+    const local = t / 0.55;
+    return [
+      Math.round(neutral[0] + (positiveMid[0] - neutral[0]) * local),
+      Math.round(neutral[1] + (positiveMid[1] - neutral[1]) * local),
+      Math.round(neutral[2] + (positiveMid[2] - neutral[2]) * local),
+    ];
+  }
 
-function averageColors(colors: Array<[number, number, number]>): [number, number, number] {
-  const sum = colors.reduce(
-    (acc, color) => [acc[0] + color[0], acc[1] + color[1], acc[2] + color[2]] as [number, number, number],
-    [0, 0, 0],
-  );
+  const local = (t - 0.55) / 0.45;
   return [
-    Math.round(sum[0] / colors.length),
-    Math.round(sum[1] / colors.length),
-    Math.round(sum[2] / colors.length),
+    Math.round(positiveMid[0] + (positiveHigh[0] - positiveMid[0]) * local),
+    Math.round(positiveMid[1] + (positiveHigh[1] - positiveMid[1]) * local),
+    Math.round(positiveMid[2] + (positiveHigh[2] - positiveMid[2]) * local),
   ];
 }
 
@@ -109,7 +108,9 @@ function heatColor(value: number, min: number, max: number): string {
 }
 
 function pointFillColor(value: number, min: number, max: number): string {
-  return colorString(darkenColor(performanceColorTriplet(value, min, max), 0.84));
+  const t = normalizeRange(value, min, max);
+  const base: [number, number, number] = t > 0.7 ? [64, 39, 116] : [34, 56, 97];
+  return colorString(base);
 }
 
 function surfaceFillColorFromVertices(values: [number, number, number], min: number, max: number): string {

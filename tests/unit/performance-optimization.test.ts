@@ -124,7 +124,7 @@ describe("performance optimization datasets", () => {
     expect(plane).not.toBeNull();
     expect(plane).toMatchObject({
       metric: "objectiveScore",
-      label: "objectiveScore accept",
+      label: "Objective score accepted zone",
     });
     expect(plane!.value).toBeGreaterThanOrEqual(surface.zRange!.min);
     expect(plane!.value).toBeLessThanOrEqual(surface.zRange!.max);
@@ -152,5 +152,73 @@ describe("performance optimization datasets", () => {
     expect(plateau!.robustnessScore).toBeGreaterThan(spike!.robustnessScore ?? -1);
     expect(surface.robustnessField.range?.min).toBeGreaterThanOrEqual(0);
     expect(surface.robustnessField.range?.max).toBeLessThanOrEqual(100);
+  });
+
+  it("penalizes fragile runs even when local shape is similar", () => {
+    const sweep = createSampleParameterSweep();
+    const registry = new OptimizationDatasetRegistry(sweep);
+    const surface = registry.getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      colorMetric: "robustness",
+      filter: {
+        threshold: 0.5,
+      },
+    });
+
+    const robustBaseline = surface.points.find((point) => point.xValue === 11 && point.yValue === 41);
+    expect(robustBaseline).toBeDefined();
+
+    const fragileLikeBaseline = {
+      ...robustBaseline!,
+      runId: "fragile-copy",
+      metrics: {
+        ...robustBaseline!.metrics,
+        tradeCount: 12,
+        sharpe: 0.55,
+        profitFactor: 0.96,
+        maxDrawdown: -520,
+        oosAgreement: 0.22,
+      },
+    };
+
+    const field = registry.getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      colorMetric: "robustness",
+      filter: {
+        threshold: 0.5,
+      },
+    }).robustnessField;
+
+    expect(field.scoreByRunId[robustBaseline!.runId]).toBeGreaterThan(0);
+
+    const recalculated = new OptimizationDatasetRegistry({
+      ...sweep,
+      runs: sweep.runs.map((run) => (run.runId === robustBaseline!.runId
+        ? {
+            ...run,
+            runId: fragileLikeBaseline.runId,
+            metrics: fragileLikeBaseline.metrics,
+          }
+        : run)),
+    }).getParameterSurface({
+      sweepId: sweep.id,
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      colorMetric: "robustness",
+      filter: {
+        threshold: 0.5,
+      },
+    });
+
+    const robustScore = field.scoreByRunId[robustBaseline!.runId];
+    const fragileScore = recalculated.robustnessField.scoreByRunId[fragileLikeBaseline.runId];
+    expect(robustScore).toBeGreaterThan(fragileScore);
   });
 });

@@ -3,6 +3,7 @@ export {
   OptimizationDatasetRegistry,
   computeRobustnessField,
   deriveOptimizationThresholdPlane,
+  optimizationMetricLabel,
 } from "./datasets/optimization-dataset-registry";
 export { PerformanceMetricEngine } from "./metrics/metric-engine";
 export { PerformanceReportModel, createPerformanceReportModel } from "./model/report-model";

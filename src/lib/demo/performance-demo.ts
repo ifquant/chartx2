@@ -1,5 +1,6 @@
 import {
   deriveOptimizationThresholdPlane,
+  optimizationMetricLabel,
   createPerformanceReportModel,
   createRunLocationIntent,
   createSampleParameterSweep,
@@ -54,6 +55,12 @@ export type PerformanceDemoSnapshot = {
     filterValue: string | null;
     filterOptions: readonly string[];
     runLabel: string;
+    xLabel: string;
+    yLabel: string;
+    zLabel: string;
+    colorLabel: string;
+    floorHint: string;
+    planeLabel: string | null;
     selectedPoint: {
       xValue: string;
       yValue: string;
@@ -128,6 +135,32 @@ function summarizeRun(run: StrategyRunSummary | null): string {
     .join(" / ");
 }
 
+function optimizationParameterLabel(parameter: string): string {
+  switch (parameter) {
+    case "fastLength":
+      return "Fast length";
+    case "slowLength":
+      return "Slow length";
+    case "threshold":
+      return "Signal threshold";
+    default:
+      return parameter;
+  }
+}
+
+function optimizationColorLabel(colorMetric: "topology" | "robustness"): string {
+  return colorMetric === "robustness"
+    ? "Robustness (green=stable, red=sensitive)"
+    : "Height bands";
+}
+
+function optimizationFloorHint(metric: OptimizationMetricKey, planeLabel: string | null): string {
+  const metricLabel = optimizationMetricLabel(metric).toLowerCase();
+  return planeLabel === null
+    ? `Floor contours show ${metricLabel} bands.`
+    : `Floor contours show ${metricLabel} bands; green floor marks the ${planeLabel.toLowerCase()}.`;
+}
+
 function buildOptimizationView(
   sweep: ParameterSweepModel,
   renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d",
@@ -164,7 +197,7 @@ function buildOptimizationView(
   return {
     id: "optimization-surface",
     title: "Parameter Surface",
-    summary: `${xParam} × ${yParam} on ${zMetric}; ${filterSummary}.`,
+    summary: `${optimizationParameterLabel(xParam)} × ${optimizationParameterLabel(yParam)} on ${optimizationMetricLabel(zMetric)}; ${filterSummary}.`,
     dataset,
     selectedRunId,
     selectedRunIntent: selectedRun === null ? null : createRunLocationIntent(selectedRun, "optimization-surface-demo"),
@@ -211,6 +244,12 @@ function snapshotFromViews(
       filterValue,
       filterOptions,
       runLabel: summarizeRun(selectedRun),
+      xLabel: optimizationParameterLabel(optimizationView.dataset.spec.xParam),
+      yLabel: optimizationParameterLabel(optimizationView.dataset.spec.yParam),
+      zLabel: optimizationMetricLabel(optimizationView.dataset.spec.zMetric),
+      colorLabel: optimizationColorLabel(colorMetric),
+      floorHint: optimizationFloorHint(optimizationView.dataset.spec.zMetric, optimizationView.thresholdPlane?.label ?? null),
+      planeLabel: optimizationView.thresholdPlane?.label ?? null,
       selectedPoint: crossSectionState.selectedPoint,
       crossSections: crossSectionState.crossSections,
     },

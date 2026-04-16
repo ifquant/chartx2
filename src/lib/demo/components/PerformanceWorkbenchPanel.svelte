@@ -15,20 +15,34 @@
   export let onOptimizationColorMetricChange: (value: "topology" | "robustness") => void;
   export let onOptimizationThresholdPlaneModeChange: (value: "none" | "auto") => void;
 
+  const parameterLabels: Record<string, string> = {
+    fastLength: "Fast length",
+    slowLength: "Slow length",
+    threshold: "Signal threshold",
+  };
   const parameterOptions = ["fastLength", "slowLength", "threshold"];
-  const renderModeOptions = ["heatmap", "scatter-3d", "wireframe-3d", "surface-3d", "surface-zero-3d"] as const;
-  const colorMetricOptions = ["robustness", "topology"] as const;
+  const renderModeOptions = [
+    { value: "heatmap", label: "Heatmap" },
+    { value: "scatter-3d", label: "3D samples" },
+    { value: "wireframe-3d", label: "3D wireframe" },
+    { value: "surface-3d", label: "3D surface" },
+    { value: "surface-zero-3d", label: "3D surface + accept plane" },
+  ] as const;
+  const colorMetricOptions = [
+    { value: "robustness", label: "Robustness" },
+    { value: "topology", label: "Height bands" },
+  ] as const;
   const thresholdPlaneOptions = [
     { value: "auto", label: "Accept" },
     { value: "none", label: "None" },
   ] as const;
-  const zMetricOptions: OptimizationMetricKey[] = [
-    "netProfit",
-    "objectiveScore",
-    "sharpe",
-    "maxDrawdown",
-    "profitFactor",
-    "stabilityScore",
+  const zMetricOptions: Array<{ value: OptimizationMetricKey; label: string }> = [
+    { value: "netProfit", label: "Net profit" },
+    { value: "objectiveScore", label: "Objective score" },
+    { value: "sharpe", label: "Sharpe ratio" },
+    { value: "maxDrawdown", label: "Max drawdown" },
+    { value: "profitFactor", label: "Profit factor" },
+    { value: "stabilityScore", label: "Stability score" },
   ];
 
   const sliceChartWidth = 250;
@@ -98,7 +112,7 @@
                 )}
             >
               {#each renderModeOptions as option}
-                <option value={option}>{option}</option>
+                <option value={option.value}>{option.label}</option>
               {/each}
             </select>
           </label>
@@ -109,7 +123,9 @@
               on:change={(event) => onOptimizationXAxisChange((event.currentTarget as HTMLSelectElement).value)}
             >
               {#each parameterOptions as option}
-                <option value={option} disabled={option === snapshot.optimization.yParam}>{option}</option>
+                <option value={option} disabled={option === snapshot.optimization.yParam}>
+                  {parameterLabels[option] ?? option}
+                </option>
               {/each}
             </select>
           </label>
@@ -120,7 +136,9 @@
               on:change={(event) => onOptimizationYAxisChange((event.currentTarget as HTMLSelectElement).value)}
             >
               {#each parameterOptions as option}
-                <option value={option} disabled={option === snapshot.optimization.xParam}>{option}</option>
+                <option value={option} disabled={option === snapshot.optimization.xParam}>
+                  {parameterLabels[option] ?? option}
+                </option>
               {/each}
             </select>
           </label>
@@ -131,7 +149,7 @@
               on:change={(event) => onOptimizationZMetricChange((event.currentTarget as HTMLSelectElement).value as OptimizationMetricKey)}
             >
               {#each zMetricOptions as option}
-                <option value={option}>{option}</option>
+                <option value={option.value}>{option.label}</option>
               {/each}
             </select>
           </label>
@@ -143,7 +161,7 @@
                 onOptimizationColorMetricChange((event.currentTarget as HTMLSelectElement).value as "topology" | "robustness")}
             >
               {#each colorMetricOptions as option}
-                <option value={option}>{option}</option>
+                <option value={option.value}>{option.label}</option>
               {/each}
             </select>
           </label>
@@ -174,10 +192,21 @@
           {/if}
         </div>
 
+        <div class="surface-copy">
+          <span><strong>X</strong> {snapshot.optimization.xLabel}</span>
+          <span><strong>Y</strong> {snapshot.optimization.yLabel}</span>
+          <span><strong>Z</strong> {snapshot.optimization.zLabel}</span>
+          <span><strong>Color</strong> {snapshot.optimization.colorLabel}</span>
+          {#if snapshot.optimization.planeLabel}
+            <span><strong>Accept plane</strong> {snapshot.optimization.planeLabel}</span>
+          {/if}
+        </div>
+
         <canvas
           bind:this={optimizationCanvasElement}
           aria-label="chartx2 optimization surface canvas"
         ></canvas>
+        <p class="surface-copy-hint">{snapshot.optimization.floorHint}</p>
         {#if snapshot.optimization.renderMode !== "heatmap"}
           <p class="surface-hint">Drag inside the surface to rotate the 3D camera. Click a point to switch the active run.</p>
         {/if}
@@ -186,9 +215,9 @@
             <div class="cross-section-head">
               <strong>Cross Sections</strong>
               <span>
-                {snapshot.optimization.xParam}={snapshot.optimization.selectedPoint.xValue},
-                {snapshot.optimization.yParam}={snapshot.optimization.selectedPoint.yValue},
-                {snapshot.optimization.zMetric}={formatValue(snapshot.optimization.selectedPoint.zValue, 3)}
+                {snapshot.optimization.xLabel}={snapshot.optimization.selectedPoint.xValue},
+                {snapshot.optimization.yLabel}={snapshot.optimization.selectedPoint.yValue},
+                {snapshot.optimization.zLabel}={formatValue(snapshot.optimization.selectedPoint.zValue, 3)}
                 {#if snapshot.optimization.selectedPoint.robustnessScore !== null}
                   · robustness={formatValue(snapshot.optimization.selectedPoint.robustnessScore, 3)}
                 {/if}
@@ -199,8 +228,8 @@
                 {#if slice}
                   <article class="cross-section-card">
                     <header>
-                      <strong>{slice.axisParam} slice</strong>
-                      <span>{slice.fixedParam}={slice.fixedValue}</span>
+                      <strong>{parameterLabels[slice.axisParam] ?? slice.axisParam} slice</strong>
+                      <span>{parameterLabels[slice.fixedParam] ?? slice.fixedParam}={slice.fixedValue}</span>
                     </header>
                     <svg viewBox={`0 0 ${sliceChartWidth} ${sliceChartHeight}`} aria-hidden="true">
                       <rect
@@ -454,6 +483,27 @@
   .surface-hint {
     margin: 0;
     color: rgba(24, 24, 27, 0.58);
+    font-size: 0.76rem;
+  }
+
+  .surface-copy {
+    display: flex;
+    gap: 12px 18px;
+    flex-wrap: wrap;
+    color: rgba(24, 24, 27, 0.66);
+    font-size: 0.76rem;
+  }
+
+  .surface-copy strong {
+    margin-right: 6px;
+    color: rgba(24, 24, 27, 0.9);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+  }
+
+  .surface-copy-hint {
+    margin: 0;
+    color: rgba(24, 24, 27, 0.66);
     font-size: 0.76rem;
   }
 

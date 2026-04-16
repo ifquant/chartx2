@@ -16,8 +16,39 @@ type RawRobustnessSample = {
   stddev: number;
   slope: number;
   curvature: number;
+  oosAgreement: number;
+  constraintQuality: number;
   supportPenalty: number;
 };
+
+export function optimizationMetricLabel(metric: OptimizationMetricKey): string {
+  switch (metric) {
+    case "netProfit":
+      return "Net profit";
+    case "objectiveScore":
+      return "Objective score";
+    case "grossProfit":
+      return "Gross profit";
+    case "grossLoss":
+      return "Gross loss";
+    case "winRate":
+      return "Win rate";
+    case "avgTrade":
+      return "Average trade";
+    case "maxDrawdown":
+      return "Max drawdown";
+    case "profitFactor":
+      return "Profit factor";
+    case "sharpe":
+      return "Sharpe ratio";
+    case "sortino":
+      return "Sortino ratio";
+    case "tradeCount":
+      return "Trade count";
+    case "stabilityScore":
+      return "Stability score";
+  }
+}
 
 function matchesFilter(
   params: ParameterAssignment,
@@ -125,7 +156,7 @@ export function deriveOptimizationThresholdPlane(
     : {
         metric: zMetric,
         value: Number(value.toFixed(3)),
-        label: `${zMetric} accept`,
+        label: `${optimizationMetricLabel(zMetric)} accepted zone`,
       };
 }
 
@@ -145,6 +176,36 @@ export function computeRobustnessField(points: ParameterSurfacePoint[]): Robustn
   const xIndexByValue = new Map(xValues.map((value, index) => [String(value), index] as const));
   const yIndexByValue = new Map(yValues.map((value, index) => [String(value), index] as const));
   const rawSamples: RawRobustnessSample[] = [];
+  const drawdownRange = computeRange(
+    points
+      .map((point) => point.metrics.maxDrawdown)
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+      .map((value) => Math.abs(value)),
+  );
+
+  const constraintQualityForPoint = (point: ParameterSurfacePoint): number => {
+    const tradeCount = typeof point.metrics.tradeCount === "number" ? point.metrics.tradeCount : null;
+    const sharpe = typeof point.metrics.sharpe === "number" ? point.metrics.sharpe : null;
+    const profitFactor = typeof point.metrics.profitFactor === "number" ? point.metrics.profitFactor : null;
+    const maxDrawdown = typeof point.metrics.maxDrawdown === "number" ? Math.abs(point.metrics.maxDrawdown) : null;
+
+    const tradeQuality = tradeCount === null ? 0.5 : Math.min(1, Math.max(0, (tradeCount - 24) / 44));
+    const sharpeQuality = sharpe === null ? 0.5 : Math.min(1, Math.max(0, (sharpe - 0.65) / 0.85));
+    const profitFactorQuality = profitFactor === null ? 0.5 : Math.min(1, Math.max(0, (profitFactor - 1.0) / 0.6));
+    const drawdownQuality =
+      maxDrawdown === null
+        ? 0.5
+        : normalizeMetric(maxDrawdown, drawdownRange, true);
+
+    return Number(
+      (
+        drawdownQuality * 0.38 +
+        tradeQuality * 0.18 +
+        sharpeQuality * 0.22 +
+        profitFactorQuality * 0.22
+      ).toFixed(4),
+    );
+  };
 
   for (const point of points) {
     const xIndex = xIndexByValue.get(String(point.xValue));
@@ -175,6 +236,8 @@ export function computeRobustnessField(points: ParameterSurfacePoint[]): Robustn
         stddev: 0,
         slope: 0,
         curvature: 0,
+        oosAgreement: typeof point.metrics.oosAgreement === "number" ? point.metrics.oosAgreement : 0.5,
+        constraintQuality: constraintQualityForPoint(point),
         supportPenalty: 0.2,
       });
       continue;
@@ -201,6 +264,8 @@ export function computeRobustnessField(points: ParameterSurfacePoint[]): Robustn
       stddev,
       slope,
       curvature,
+      oosAgreement: typeof point.metrics.oosAgreement === "number" ? point.metrics.oosAgreement : 0.5,
+      constraintQuality: constraintQualityForPoint(point),
       supportPenalty,
     });
   }
@@ -216,10 +281,12 @@ export function computeRobustnessField(points: ParameterSurfacePoint[]): Robustn
     const flatnessScore = normalizeMetric(sample.slope, slopeRange, true);
     const plateauScore = normalizeMetric(sample.curvature, curvatureRange, true);
     const score =
-      meanScore * 0.42 +
-      stabilityScore * 0.24 +
-      flatnessScore * 0.22 +
-      plateauScore * 0.12 -
+      meanScore * 0.3 +
+      stabilityScore * 0.2 +
+      flatnessScore * 0.16 +
+      plateauScore * 0.1 +
+      sample.oosAgreement * 0.14 +
+      sample.constraintQuality * 0.1 -
       sample.supportPenalty;
     scoreByRunId[sample.runId] = Number((Math.min(1, Math.max(0, score)) * 100).toFixed(3));
   });

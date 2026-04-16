@@ -49,6 +49,14 @@ function createRunSummary(
       valley * 18
     ).toFixed(2),
   );
+  const oosAgreement = Number(
+    (
+      0.52 +
+      plateau * 0.3 -
+      ridge * 0.14 -
+      valley * 0.18
+    ).toFixed(3),
+  );
   const netProfitNorm = (netProfit - 420) / (2420 - 420);
   const sharpeNorm = (sharpe - 0.58) / (1.78 - 0.58);
   const drawdownNorm = (Math.abs(maxDrawdown) - 240) / (814 - 240);
@@ -56,7 +64,8 @@ function createRunSummary(
     (
       netProfitNorm * 0.5 +
       sharpeNorm * 0.3 +
-      (1 - drawdownNorm) * 0.2
+      (1 - drawdownNorm) * 0.15 +
+      oosAgreement * 0.05
     ).toFixed(4),
   );
 
@@ -82,6 +91,7 @@ function createRunSummary(
       sortino,
       tradeCount,
       stabilityScore,
+      oosAgreement,
     },
     period: {
       from: BASE_TIME,

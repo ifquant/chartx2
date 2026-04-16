@@ -84,6 +84,12 @@
       filterValue: null,
       filterOptions: [],
       runLabel: "--",
+      xLabel: "Fast length",
+      yLabel: "Slow length",
+      zLabel: "Net profit",
+      colorLabel: "Robustness (green=stable, red=sensitive)",
+      floorHint: "Floor contours show net profit bands.",
+      planeLabel: null,
       selectedPoint: null,
       crossSections: {
         xSlice: null,

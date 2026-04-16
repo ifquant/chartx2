@@ -169,7 +169,9 @@ export type StrategyRunSummary = {
   strategyId: string;
   scope: PerformanceScope;
   params: ParameterAssignment;
-  metrics: Partial<Record<OptimizationMetricKey, number>>;
+  metrics: Partial<Record<OptimizationMetricKey, number>> & {
+    oosAgreement?: number;
+  };
   period?: {
     from: number;
     to: number;
@@ -327,7 +329,9 @@ export type ParameterSurfaceSpec = {
 export type ParameterSurfacePoint = {
   runId: string;
   params: ParameterAssignment;
-  metrics: Partial<Record<OptimizationMetricKey, number>>;
+  metrics: Partial<Record<OptimizationMetricKey, number>> & {
+    oosAgreement?: number;
+  };
   xValue: ParameterValue;
   yValue: ParameterValue;
   zValue: number;

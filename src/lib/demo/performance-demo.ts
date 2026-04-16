@@ -12,6 +12,7 @@ import {
   type PerformanceReportView,
   type RunLocationIntent,
   type StrategyRunSummary,
+  type ThresholdPlane,
   type TradeLocationIntent,
 } from "$lib/chartx/public/performance";
 import { OptimizationCanvasHarness, PerformanceCanvasHarness } from "$lib/chartx/internal/performance";
@@ -29,6 +30,8 @@ export type PerformanceDemoSnapshot = {
     selectedRunId: string | null;
     selectedRunIntent: RunLocationIntent | null;
     renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d";
+    colorMetric: "topology" | "robustness";
+    thresholdPlaneMode: "none" | "z-zero";
     xParam: string;
     yParam: string;
     zMetric: OptimizationMetricKey;
@@ -42,6 +45,8 @@ export type PerformanceDemoSnapshot = {
 export type PerformanceDemoController = {
   snapshot(): PerformanceDemoSnapshot;
   setOptimizationRenderMode(value: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d"): void;
+  setOptimizationColorMetric(value: "topology" | "robustness"): void;
+  setOptimizationThresholdPlaneMode(value: "none" | "z-zero"): void;
   setOptimizationXAxis(value: string): void;
   setOptimizationYAxis(value: string): void;
   setOptimizationZMetric(value: OptimizationMetricKey): void;
@@ -101,6 +106,8 @@ function buildOptimizationView(
   sweep: ParameterSweepModel,
   renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d",
   camera: { yaw: number; pitch: number },
+  colorMetric: "topology" | "robustness",
+  thresholdPlaneMode: "none" | "z-zero",
   xParam: string,
   yParam: string,
   zMetric: OptimizationMetricKey,
@@ -120,6 +127,7 @@ function buildOptimizationView(
     xParam,
     yParam,
     zMetric,
+    colorMetric,
     filter,
   });
   const selectedRun = selectedRunId === null ? null : sweep.runs.find((run) => run.runId === selectedRunId) ?? null;
@@ -132,6 +140,14 @@ function buildOptimizationView(
     selectedRunId,
     selectedRunIntent: selectedRun === null ? null : createRunLocationIntent(selectedRun, "optimization-surface-demo"),
     renderMode,
+    thresholdPlane:
+      thresholdPlaneMode === "z-zero"
+        ? ({
+            metric: zMetric,
+            value: 0,
+            label: `${zMetric} = 0`,
+          } satisfies ThresholdPlane)
+        : null,
     camera,
   };
 }
@@ -144,6 +160,8 @@ function snapshotFromViews(
   filterValue: string | null,
   filterOptions: readonly string[],
   selectedRun: StrategyRunSummary | null,
+  colorMetric: "topology" | "robustness",
+  thresholdPlaneMode: "none" | "z-zero",
 ): PerformanceDemoSnapshot {
   return {
     title: reportView.title,
@@ -161,6 +179,8 @@ function snapshotFromViews(
       selectedRunId: optimizationView.selectedRunId,
       selectedRunIntent: optimizationView.selectedRunIntent,
       renderMode: optimizationView.renderMode,
+      colorMetric,
+      thresholdPlaneMode,
       xParam: optimizationView.dataset.spec.xParam,
       yParam: optimizationView.dataset.spec.yParam,
       zMetric: optimizationView.dataset.spec.zMetric,
@@ -189,7 +209,9 @@ export function mountPerformanceReportDemo(
   let xParam = "fastLength";
   let yParam = "slowLength";
   let zMetric: OptimizationMetricKey = "netProfit";
+  let colorMetric: "topology" | "robustness" = "robustness";
   let renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d" = "surface-zero-3d";
+  let thresholdPlaneMode: "none" | "z-zero" = "z-zero";
   let camera = { yaw: 1.02, pitch: 0.84 };
   let selectedRun = sweep.runs[0] ?? null;
   let filterKey = sweep.parameterKeys.find((key) => key !== xParam && key !== yParam) ?? null;
@@ -201,6 +223,8 @@ export function mountPerformanceReportDemo(
     sweep,
     renderMode,
     camera,
+    colorMetric,
+    thresholdPlaneMode,
     xParam,
     yParam,
     zMetric,
@@ -220,6 +244,8 @@ export function mountPerformanceReportDemo(
         filterValue,
         availableFilterValues(sweep, filterKey),
         selectedRun,
+        colorMetric,
+        thresholdPlaneMode,
       ),
     );
   };
@@ -236,6 +262,8 @@ export function mountPerformanceReportDemo(
       sweep,
       renderMode,
       camera,
+      colorMetric,
+      thresholdPlaneMode,
       xParam,
       yParam,
       zMetric,
@@ -296,6 +324,8 @@ export function mountPerformanceReportDemo(
       sweep,
       renderMode,
       camera,
+      colorMetric,
+      thresholdPlaneMode,
       xParam,
       yParam,
       zMetric,
@@ -312,6 +342,8 @@ export function mountPerformanceReportDemo(
       sweep,
       renderMode,
       camera,
+      colorMetric,
+      thresholdPlaneMode,
       xParam,
       yParam,
       zMetric,
@@ -341,6 +373,8 @@ export function mountPerformanceReportDemo(
         filterValue,
         availableFilterValues(sweep, filterKey),
         selectedRun,
+        colorMetric,
+        thresholdPlaneMode,
       );
     },
     setOptimizationRenderMode(value) {
@@ -353,6 +387,8 @@ export function mountPerformanceReportDemo(
         sweep,
         renderMode,
         camera,
+        colorMetric,
+        thresholdPlaneMode,
         xParam,
         yParam,
         zMetric,
@@ -362,6 +398,14 @@ export function mountPerformanceReportDemo(
       );
       optimizationHarness.update(optimizationView);
       publishSnapshot();
+    },
+    setOptimizationColorMetric(value) {
+      colorMetric = value;
+      refreshSurface(`changed color metric to ${value}`);
+    },
+    setOptimizationThresholdPlaneMode(value) {
+      thresholdPlaneMode = value;
+      refreshSurface(`changed threshold plane to ${value}`);
     },
     setOptimizationXAxis(value: string) {
       if (!sweep.parameterKeys.includes(value) || value === yParam) {

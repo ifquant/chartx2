@@ -75,6 +75,8 @@
       selectedRunId: null,
       selectedRunIntent: null,
       renderMode: "surface-zero-3d",
+      colorMetric: "robustness",
+      thresholdPlaneMode: "z-zero",
       xParam: "fastLength",
       yParam: "slowLength",
       zMetric: "netProfit",
@@ -705,8 +707,10 @@
           snapshot={performanceSnapshot}
           {formatValue}
           {formatIntentTime}
-          onOptimizationRenderModeChange={(value) => performanceController?.setOptimizationRenderMode(value)}
-          onOptimizationXAxisChange={(value) => performanceController?.setOptimizationXAxis(value)}
+              onOptimizationRenderModeChange={(value) => performanceController?.setOptimizationRenderMode(value)}
+              onOptimizationColorMetricChange={(value) => performanceController?.setOptimizationColorMetric(value)}
+              onOptimizationThresholdPlaneModeChange={(value) => performanceController?.setOptimizationThresholdPlaneMode(value)}
+              onOptimizationXAxisChange={(value) => performanceController?.setOptimizationXAxis(value)}
           onOptimizationYAxisChange={(value) => performanceController?.setOptimizationYAxis(value)}
           onOptimizationZMetricChange={(value) => performanceController?.setOptimizationZMetric(value)}
           onOptimizationFilterValueChange={(value) => performanceController?.setOptimizationFilterValue(value)}

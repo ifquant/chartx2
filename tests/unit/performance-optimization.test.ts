@@ -16,7 +16,7 @@ describe("performance optimization datasets", () => {
       xParam: "fastLength",
       yParam: "threshold",
       zMetric: "netProfit",
-      colorMetric: "sharpe",
+      colorMetric: "robustness",
       filter: {
         slowLength: 33,
       },
@@ -27,6 +27,7 @@ describe("performance optimization datasets", () => {
     expect(surface.yValues).toEqual([0.2, 0.35, 0.5, 0.65, 0.8]);
     expect(surface.zRange).not.toBeNull();
     expect(surface.colorRange).not.toBeNull();
+    expect(surface.robustnessField.range).not.toBeNull();
     expect(surface.points[0]).toMatchObject({
       xValue: 5,
       yValue: 0.2,

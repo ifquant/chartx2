@@ -1,4 +1,5 @@
 import type {
+  RobustnessField,
   OptimizationMetricKey,
   ParameterAssignment,
   ParameterSurfaceDataset,
@@ -53,6 +54,72 @@ function computeRange(values: number[]): { min: number; max: number } | null {
   };
 }
 
+function computeRobustnessField(points: ParameterSurfacePoint[]): RobustnessField {
+  const scoreByRunId: Record<string, number> = {};
+  if (points.length === 0) {
+    return {
+      neighborhoodRadius: 1,
+      scoreByRunId,
+      range: null,
+    };
+  }
+
+  const pointMap = new Map(points.map((point) => [`${String(point.xValue)}::${String(point.yValue)}`, point] as const));
+  const xValues = Array.from(new Set(points.map((point) => point.xValue))).sort(compareParameterValue);
+  const yValues = Array.from(new Set(points.map((point) => point.yValue))).sort(compareParameterValue);
+  const xIndexByValue = new Map(xValues.map((value, index) => [String(value), index] as const));
+  const yIndexByValue = new Map(yValues.map((value, index) => [String(value), index] as const));
+
+  for (const point of points) {
+    const xIndex = xIndexByValue.get(String(point.xValue));
+    const yIndex = yIndexByValue.get(String(point.yValue));
+    if (xIndex === undefined || yIndex === undefined) {
+      continue;
+    }
+
+    const neighborhood: number[] = [];
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const neighborX = xValues[xIndex + dx];
+        const neighborY = yValues[yIndex + dy];
+        if (neighborX === undefined || neighborY === undefined) {
+          continue;
+        }
+        const neighbor = pointMap.get(`${String(neighborX)}::${String(neighborY)}`);
+        if (neighbor !== undefined) {
+          neighborhood.push(neighbor.zValue);
+        }
+      }
+    }
+
+    if (neighborhood.length === 0) {
+      scoreByRunId[point.runId] = 0;
+      continue;
+    }
+
+    const mean = neighborhood.reduce((sum, value) => sum + value, 0) / neighborhood.length;
+    const variance =
+      neighborhood.reduce((sum, value) => sum + (value - mean) ** 2, 0) / neighborhood.length;
+    const stddev = Math.sqrt(variance);
+
+    const left = xIndex > 0 ? pointMap.get(`${String(xValues[xIndex - 1])}::${String(point.yValue)}`) : undefined;
+    const right = xIndex < xValues.length - 1 ? pointMap.get(`${String(xValues[xIndex + 1])}::${String(point.yValue)}`) : undefined;
+    const down = yIndex > 0 ? pointMap.get(`${String(point.xValue)}::${String(yValues[yIndex - 1])}`) : undefined;
+    const up = yIndex < yValues.length - 1 ? pointMap.get(`${String(point.xValue)}::${String(yValues[yIndex + 1])}`) : undefined;
+    const slopeX = left !== undefined && right !== undefined ? Math.abs(right.zValue - left.zValue) / 2 : 0;
+    const slopeY = down !== undefined && up !== undefined ? Math.abs(up.zValue - down.zValue) / 2 : 0;
+    const slope = slopeX + slopeY;
+
+    scoreByRunId[point.runId] = Number((mean - stddev * 0.85 - slope * 0.55).toFixed(3));
+  }
+
+  return {
+    neighborhoodRadius: 1,
+    scoreByRunId,
+    range: computeRange(Object.values(scoreByRunId)),
+  };
+}
+
 export class OptimizationDatasetRegistry {
   constructor(private readonly sweep: ParameterSweepModel) {}
 
@@ -70,9 +137,6 @@ export class OptimizationDatasetRegistry {
         return [];
       }
 
-      const colorValue =
-        spec.colorMetric === undefined ? undefined : metricValue(run, spec.colorMetric) ?? undefined;
-
       return [
         {
           runId: run.runId,
@@ -81,23 +145,37 @@ export class OptimizationDatasetRegistry {
           xValue: run.params[spec.xParam]!,
           yValue: run.params[spec.yParam]!,
           zValue,
-          colorValue,
         },
       ];
     });
 
-    const xValues = Array.from(new Set(points.map((point) => point.xValue))).sort(compareParameterValue);
-    const yValues = Array.from(new Set(points.map((point) => point.yValue))).sort(compareParameterValue);
+    const robustnessField = computeRobustnessField(points);
+    const enrichedPoints = points.map((point) => {
+      const robustnessScore = robustnessField.scoreByRunId[point.runId];
+      const colorValue =
+        spec.colorMetric === "robustness"
+          ? robustnessScore
+          : point.zValue;
+      return {
+        ...point,
+        robustnessScore,
+        colorValue,
+      };
+    });
+
+    const xValues = Array.from(new Set(enrichedPoints.map((point) => point.xValue))).sort(compareParameterValue);
+    const yValues = Array.from(new Set(enrichedPoints.map((point) => point.yValue))).sort(compareParameterValue);
 
     return {
       spec,
-      points,
+      points: enrichedPoints,
       xValues,
       yValues,
-      zRange: computeRange(points.map((point) => point.zValue)),
+      zRange: computeRange(enrichedPoints.map((point) => point.zValue)),
       colorRange: computeRange(
-        points.flatMap((point) => (typeof point.colorValue === "number" ? [point.colorValue] : [])),
+        enrichedPoints.flatMap((point) => (typeof point.colorValue === "number" ? [point.colorValue] : [])),
       ),
+      robustnessField,
     };
   }
 }

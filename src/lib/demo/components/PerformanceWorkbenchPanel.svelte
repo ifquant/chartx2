@@ -12,9 +12,16 @@
   export let onOptimizationZMetricChange: (value: OptimizationMetricKey) => void;
   export let onOptimizationFilterValueChange: (value: string) => void;
   export let onOptimizationRenderModeChange: (value: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d") => void;
+  export let onOptimizationColorMetricChange: (value: "topology" | "robustness") => void;
+  export let onOptimizationThresholdPlaneModeChange: (value: "none" | "z-zero") => void;
 
   const parameterOptions = ["fastLength", "slowLength", "threshold"];
   const renderModeOptions = ["heatmap", "scatter-3d", "wireframe-3d", "surface-3d", "surface-zero-3d"] as const;
+  const colorMetricOptions = ["robustness", "topology"] as const;
+  const thresholdPlaneOptions = [
+    { value: "z-zero", label: "Z = 0" },
+    { value: "none", label: "None" },
+  ] as const;
   const zMetricOptions: OptimizationMetricKey[] = [
     "netProfit",
     "sharpe",
@@ -85,6 +92,30 @@
             >
               {#each zMetricOptions as option}
                 <option value={option}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>Color</span>
+            <select
+              value={snapshot.optimization.colorMetric}
+              on:change={(event) =>
+                onOptimizationColorMetricChange((event.currentTarget as HTMLSelectElement).value as "topology" | "robustness")}
+            >
+              {#each colorMetricOptions as option}
+                <option value={option}>{option}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>Plane</span>
+            <select
+              value={snapshot.optimization.thresholdPlaneMode}
+              on:change={(event) =>
+                onOptimizationThresholdPlaneModeChange((event.currentTarget as HTMLSelectElement).value as "none" | "z-zero")}
+            >
+              {#each thresholdPlaneOptions as option}
+                <option value={option.value}>{option.label}</option>
               {/each}
             </select>
           </label>

@@ -91,6 +91,27 @@ function performanceColorTriplet(value: number, min: number, max: number): [numb
   ];
 }
 
+function robustnessColorTriplet(value: number, min: number, max: number): [number, number, number] {
+  const t = normalizeRange(value, min, max);
+  const fragile: [number, number, number] = [199, 72, 83];
+  const neutral: [number, number, number] = [223, 187, 87];
+  const robust: [number, number, number] = [74, 161, 96];
+  if (t <= 0.5) {
+    const local = t / 0.5;
+    return [
+      Math.round(fragile[0] + (neutral[0] - fragile[0]) * local),
+      Math.round(fragile[1] + (neutral[1] - fragile[1]) * local),
+      Math.round(fragile[2] + (neutral[2] - fragile[2]) * local),
+    ];
+  }
+  const local = (t - 0.5) / 0.5;
+  return [
+    Math.round(neutral[0] + (robust[0] - neutral[0]) * local),
+    Math.round(neutral[1] + (robust[1] - neutral[1]) * local),
+    Math.round(neutral[2] + (robust[2] - neutral[2]) * local),
+  ];
+}
+
 function darkenColor(color: [number, number, number], factor: number): [number, number, number] {
   return [
     Math.round(color[0] * factor),
@@ -103,21 +124,45 @@ function heatColor(value: number, min: number, max: number): string {
   return colorString(performanceColorTriplet(value, min, max));
 }
 
+function robustnessColor(value: number, min: number, max: number): string {
+  return colorString(robustnessColorTriplet(value, min, max));
+}
+
 function pointFillColor(value: number, min: number, max: number): string {
   const t = normalizeRange(value, min, max);
   const base: [number, number, number] = t > 0.7 ? [64, 39, 116] : [34, 56, 97];
   return colorString(base);
 }
 
-function surfaceFillColorFromVertices(values: [number, number, number], min: number, max: number): string {
+function averageColorForMetric(
+  values: [number, number, number],
+  min: number,
+  max: number,
+  colorMetric: "topology" | "robustness",
+): [number, number, number] {
   const avgValue = (values[0] + values[1] + values[2]) / 3;
-  const color = performanceColorTriplet(avgValue, min, max);
+  return colorMetric === "robustness"
+    ? robustnessColorTriplet(avgValue, min, max)
+    : performanceColorTriplet(avgValue, min, max);
+}
+
+function surfaceFillColorFromVertices(
+  values: [number, number, number],
+  min: number,
+  max: number,
+  colorMetric: "topology" | "robustness",
+): string {
+  const color = averageColorForMetric(values, min, max, colorMetric);
   return rgbaString(color, 0.24);
 }
 
-function surfaceStrokeColorFromVertices(values: [number, number, number], min: number, max: number): string {
-  const avgValue = (values[0] + values[1] + values[2]) / 3;
-  const color = darkenColor(performanceColorTriplet(avgValue, min, max), 0.66);
+function surfaceStrokeColorFromVertices(
+  values: [number, number, number],
+  min: number,
+  max: number,
+  colorMetric: "topology" | "robustness",
+): string {
+  const color = darkenColor(averageColorForMetric(values, min, max, colorMetric), 0.66);
   return rgbaString(color, 0.18);
 }
 
@@ -133,6 +178,9 @@ function pointColor(point: ParameterSurfacePoint, view: OptimizationSurfaceView)
       : point.zValue;
   if (range === null) {
     return "rgba(24, 24, 27, 0.18)";
+  }
+  if (view.dataset.spec.colorMetric === "robustness") {
+    return robustnessColor(value, range.min, range.max);
   }
   return pointFillColor(value, range.min, range.max);
 }
@@ -448,7 +496,7 @@ export class OptimizationCanvasHarness {
     });
 
     const scale = Math.min(plot.width, plot.height) * 0.41;
-    const showZeroPlane = this.view.renderMode === "surface-zero-3d";
+    const showThresholdPlane = this.view.renderMode === "surface-zero-3d" && this.view.thresholdPlane !== null;
     const showSurfaceFill = this.view.renderMode === "surface-3d" || this.view.renderMode === "surface-zero-3d";
     const showWireframe = this.view.renderMode === "wireframe-3d" || showSurfaceFill;
     const showPoints = this.view.renderMode === "scatter-3d";
@@ -457,8 +505,8 @@ export class OptimizationCanvasHarness {
     this.draw3DBoundingBox(plot, scale);
     this.draw3DAxes(plot, scale);
     this.draw3DBaseGrid(plot, scale);
-    if (showZeroPlane) {
-      this.draw3DZeroPlane(plot, scale, zRange);
+    if (showThresholdPlane && this.view.thresholdPlane !== null) {
+      this.draw3DThresholdPlane(plot, scale, zRange, this.view.thresholdPlane);
     }
 
     if (showSurfaceFill || showWireframe) {
@@ -480,7 +528,11 @@ export class OptimizationCanvasHarness {
         triangles.push({
           depth: (va.projected.depth + vb.projected.depth + vc.projected.depth) / 3,
           polygon: [va.projected, vb.projected, vc.projected],
-          values: [first.zValue, second.zValue, third.zValue],
+          values: [
+            first.colorValue ?? first.zValue,
+            second.colorValue ?? second.zValue,
+            third.colorValue ?? third.zValue,
+          ],
         });
       };
       for (let yIndex = 0; yIndex < yValues.length - 1; yIndex += 1) {
@@ -503,13 +555,23 @@ export class OptimizationCanvasHarness {
         triangle.polygon.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
         ctx.closePath();
         if (showSurfaceFill) {
-          ctx.fillStyle = surfaceFillColorFromVertices(triangle.values, zRange.min, zRange.max);
+          ctx.fillStyle = surfaceFillColorFromVertices(
+            triangle.values,
+            (dataset.colorRange ?? zRange).min,
+            (dataset.colorRange ?? zRange).max,
+            dataset.spec.colorMetric ?? "topology",
+          );
           ctx.fill();
         }
         const isWireframeOnly = this.view.renderMode === "wireframe-3d";
         ctx.strokeStyle = isWireframeOnly
           ? "rgba(24, 24, 27, 0.24)"
-          : surfaceStrokeColorFromVertices(triangle.values, zRange.min, zRange.max);
+          : surfaceStrokeColorFromVertices(
+              triangle.values,
+              (dataset.colorRange ?? zRange).min,
+              (dataset.colorRange ?? zRange).max,
+              dataset.spec.colorMetric ?? "topology",
+            );
         ctx.lineWidth = isWireframeOnly ? 0.55 : showWireframe ? 0.7 : 0.45;
         ctx.stroke();
       });
@@ -582,17 +644,25 @@ export class OptimizationCanvasHarness {
     }
   }
 
-  private draw3DZeroPlane(plot: Rect, scale: number, zRange: { min: number; max: number }): void {
-    if (zRange.min > 0 || zRange.max < 0) {
+  private draw3DThresholdPlane(
+    plot: Rect,
+    scale: number,
+    zRange: { min: number; max: number },
+    thresholdPlane: OptimizationSurfaceView["thresholdPlane"],
+  ): void {
+    if (thresholdPlane === null) {
+      return;
+    }
+    if (thresholdPlane.value < zRange.min || thresholdPlane.value > zRange.max) {
       return;
     }
 
     const ctx = this.context;
-    const zeroY = surfaceYFromMetric(0, zRange);
-    const a = projectPoint({ x: -1, y: zeroY, z: -1 }, this.view.camera, plot, scale);
-    const b = projectPoint({ x: 1, y: zeroY, z: -1 }, this.view.camera, plot, scale);
-    const c = projectPoint({ x: 1, y: zeroY, z: 1 }, this.view.camera, plot, scale);
-    const d = projectPoint({ x: -1, y: zeroY, z: 1 }, this.view.camera, plot, scale);
+    const planeY = surfaceYFromMetric(thresholdPlane.value, zRange);
+    const a = projectPoint({ x: -1, y: planeY, z: -1 }, this.view.camera, plot, scale);
+    const b = projectPoint({ x: 1, y: planeY, z: -1 }, this.view.camera, plot, scale);
+    const c = projectPoint({ x: 1, y: planeY, z: 1 }, this.view.camera, plot, scale);
+    const d = projectPoint({ x: -1, y: planeY, z: 1 }, this.view.camera, plot, scale);
 
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
@@ -606,10 +676,10 @@ export class OptimizationCanvasHarness {
     ctx.lineWidth = 0.8;
     ctx.stroke();
 
-    const label = projectPoint({ x: -1.08, y: zeroY, z: -1.08 }, this.view.camera, plot, scale);
+    const label = projectPoint({ x: -1.08, y: planeY, z: -1.08 }, this.view.camera, plot, scale);
     ctx.fillStyle = "rgba(32, 96, 122, 0.88)";
     ctx.font = "700 10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText("0", label.x - 8, label.y - 6);
+    ctx.fillText(thresholdPlane.label, label.x - 12, label.y - 6);
   }
 
   private draw3DBoundingBox(plot: Rect, scale: number): void {

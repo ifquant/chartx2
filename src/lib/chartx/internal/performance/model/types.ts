@@ -183,6 +183,18 @@ export type ParameterSweepModel = {
   runs: StrategyRunSummary[];
 };
 
+export type ThresholdPlane = {
+  metric: OptimizationMetricKey;
+  value: number;
+  label: string;
+};
+
+export type RobustnessField = {
+  neighborhoodRadius: number;
+  scoreByRunId: Record<string, number>;
+  range: { min: number; max: number } | null;
+};
+
 export type AxisModel = {
   id: string;
   domainKind: XDomainKind;
@@ -307,7 +319,7 @@ export type ParameterSurfaceSpec = {
   xParam: string;
   yParam: string;
   zMetric: OptimizationMetricKey;
-  colorMetric?: OptimizationMetricKey;
+  colorMetric?: "topology" | "robustness";
   filter?: ParameterAssignment;
 };
 
@@ -319,6 +331,7 @@ export type ParameterSurfacePoint = {
   yValue: ParameterValue;
   zValue: number;
   colorValue?: number;
+  robustnessScore?: number;
 };
 
 export type ParameterSurfaceDataset = {
@@ -328,6 +341,7 @@ export type ParameterSurfaceDataset = {
   yValues: ParameterValue[];
   zRange: { min: number; max: number } | null;
   colorRange: { min: number; max: number } | null;
+  robustnessField: RobustnessField;
 };
 
 export type OptimizationSurfaceView = {
@@ -338,6 +352,7 @@ export type OptimizationSurfaceView = {
   selectedRunId: string | null;
   selectedRunIntent: RunLocationIntent | null;
   renderMode: "heatmap" | "scatter-3d" | "wireframe-3d" | "surface-3d" | "surface-zero-3d";
+  thresholdPlane: ThresholdPlane | null;
   camera: {
     yaw: number;
     pitch: number;

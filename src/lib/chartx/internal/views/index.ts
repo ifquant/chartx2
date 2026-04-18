@@ -1,6 +1,7 @@
 export * from "./chart-harness";
 export * from "./chart-content-restore";
 export * from "./chart-drawing-restore";
+export * from "./chart-main-series-source";
 export * from "./chart-main-series-state";
 export * from "./chart-state";
 export * from "./chart-state-snapshot-builders";

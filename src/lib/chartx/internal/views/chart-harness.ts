@@ -14,7 +14,6 @@ import {
   assertDrawingTargetValid,
   ChartModel,
   createDefaultStudyInputContext,
-  createMainSeriesDescriptor,
   createMainSeriesStateSnapshot,
   createSeriesRuntimeFields,
   mainSeriesKindForChartType,
@@ -78,6 +77,7 @@ import {
 import type { Coordinate } from "../model";
 import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
+import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import {
@@ -1597,43 +1597,39 @@ export class PhaseOneChartHarness {
       previousStyleSchemaId?: PhaseOneMainStyleSchemaId;
     },
   ): PhaseOneMainSeriesApi {
-    if (this.chartModel.mainSourceId() !== null) {
-      throw new Error("chartx phase-one chart supports only one primary series");
-    }
-
-    const meta =
-      preserved === undefined
-        ? this.createSeriesMeta(kind)
-        : { id: preserved.id, label: this.createSeriesLabel(kind, preserved.id) };
-    const api = this.createPrimarySeriesApi(kind);
-    const seriesKind = seriesKindForMainChartType(kind);
-    const source = this.createMainSourceState(
-      "primary",
+    return attachMainSeriesSource(
       kind,
-      seriesKind,
-      api,
-      meta,
-      this.primaryPriceScale,
-      "primary-right",
+      preserved,
+      {
+        currentMainSourceId: this.chartModel.mainSourceId(),
+        createMeta: (chartType) => this.createSeriesMeta(chartType),
+        createLabel: (chartType, id) => this.createSeriesLabel(chartType, id),
+        createApi: (chartType) => this.createPrimarySeriesApi(chartType),
+        createSourceState: (chartType, api, meta) =>
+          this.createMainSourceState(
+            "primary",
+            chartType,
+            seriesKindForMainChartType(chartType),
+            api,
+            meta,
+            this.primaryPriceScale,
+            "primary-right",
+          ),
+        clonePriceLines,
+        projectOptions: (previousStyleSchemaId, nextStyleSchemaId, preservedOptions, currentOptions) =>
+          projectMainSeriesStyleOptions(
+            previousStyleSchemaId,
+            nextStyleSchemaId,
+            preservedOptions,
+            currentOptions as Record<string, unknown>,
+          ) as typeof currentOptions,
+        rebuildData: (source) => {
+          source.data = applyMainSeriesBuilderData(source.inputData, source);
+        },
+        registerSource: (source) => this.chartModel.registerSource(source),
+        syncContext: (source) => this.syncChartContextFromMainSource(source),
+      },
     );
-    if (preserved !== undefined) {
-      source.inputData = [...preserved.data];
-      source.visuals = new Map(preserved.visuals);
-      source.markers = [...preserved.markers];
-      source.priceLines = clonePriceLines(preserved.priceLines);
-      if (preserved.options !== undefined && preserved.previousStyleSchemaId !== undefined) {
-        source.options = projectMainSeriesStyleOptions(
-          preserved.previousStyleSchemaId,
-          source.styleSchemaId,
-          preserved.options,
-          source.options as Record<string, unknown>,
-        ) as typeof source.options;
-      }
-    }
-    source.data = applyMainSeriesBuilderData(source.inputData, source);
-    this.chartModel.registerSource(source);
-    this.syncChartContextFromMainSource(source);
-    return api;
   }
 
   private createPrimarySeriesApi(
@@ -4380,52 +4376,48 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     priceScaleId: string,
   ): MainSeriesSourceState {
-    const chartTypeDescriptor = createMainSeriesDescriptor(chartType);
-    return {
-      id: meta.id,
-      label: meta.label,
-      kind,
-      role: "main-series",
-      ...chartTypeDescriptor,
-      inputData: [],
-      lineBreakOptions: {
-        lineCount: this.candlestickOptions.lineBreakCount,
-      },
-      renkoOptions: {
-        boxSize: this.candlestickOptions.renkoBoxSize,
-        boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
-      },
-      pointFigureOptions: {
-        boxSize: this.candlestickOptions.pointFigureBoxSize,
-        boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
-        boxSizeScale: this.candlestickOptions.pointFigureBoxSizeScale,
-        reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
-        atrLength: this.candlestickOptions.pointFigureAtrLength,
-        percentageValue: this.candlestickOptions.pointFigurePercentageValue,
-      },
-      kagiOptions: {
-        reversalMode: this.lineOptions.kagiReversalMode,
-        reversalSize: this.lineOptions.kagiReversalSize,
-        reversalScale: this.lineOptions.kagiReversalScale,
-        atrLength: this.lineOptions.kagiAtrLength,
-        percentageValue: this.lineOptions.kagiPercentageValue,
-      },
+    return createMainSeriesSourceState<
+      PhaseOneCandlestickData,
+      ChartSeriesApi,
+      ChartSeriesKind,
+      MainSeriesSourceState["options"],
+      HistogramVisual,
+      PriceLineState,
+      SeriesMarkerState
+    >({
       paneId,
+      chartType,
+      kind,
+      api,
+      meta,
+      priceScale,
       priceScaleId,
-      visible: true,
-      ...createSeriesRuntimeFields<
-        PhaseOneCandlestickData,
-        ChartSeriesApi,
-        MainSeriesSourceState["options"],
-        HistogramVisual,
-        PriceLineState,
-        SeriesMarkerState
-      >({
-        api,
-        priceScale,
-        options: this.createMainSeriesOptions(chartTypeDescriptor.styleSchemaId),
-      }),
-    };
+      defaults: {
+        lineBreakOptions: {
+          lineCount: this.candlestickOptions.lineBreakCount,
+        },
+        renkoOptions: {
+          boxSize: this.candlestickOptions.renkoBoxSize,
+          boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
+        },
+        pointFigureOptions: {
+          boxSize: this.candlestickOptions.pointFigureBoxSize,
+          boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
+          boxSizeScale: this.candlestickOptions.pointFigureBoxSizeScale,
+          reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
+          atrLength: this.candlestickOptions.pointFigureAtrLength,
+          percentageValue: this.candlestickOptions.pointFigurePercentageValue,
+        },
+        kagiOptions: {
+          reversalMode: this.lineOptions.kagiReversalMode,
+          reversalSize: this.lineOptions.kagiReversalSize,
+          reversalScale: this.lineOptions.kagiReversalScale,
+          atrLength: this.lineOptions.kagiAtrLength,
+          percentageValue: this.lineOptions.kagiPercentageValue,
+        },
+      },
+      createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
+    });
   }
 
   private createStudySourceState(

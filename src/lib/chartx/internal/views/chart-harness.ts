@@ -114,6 +114,7 @@ import {
   buildSeriesStateSnapshots,
   buildStudyStateSnapshots,
 } from "./chart-state-snapshot-builders";
+import { buildRawReadout as buildRawReadoutUseCase } from "./chart-readout";
 import { restoreChartSeries as restoreChartSeriesUseCase } from "./chart-series-restore";
 import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
@@ -4323,100 +4324,26 @@ export class PhaseOneChartHarness {
   private buildRawReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutBody {
     const mainSource = this.getMainSource();
     const mainSequence = this.buildMainBarSequence(mainSource);
-    const primaryRows = mainSequence.bars;
-    const primaryStudies = this.getStudySourcesForPane("primary");
-    const primarySources = this.buildPrimaryPaneSeries(mainSource);
-    const primaryRowSets = new Map<string, RowSet>();
-    if (mainSource !== null) {
-      primaryRowSets.set(mainSource.id, primaryRows);
-    }
-    for (const study of primaryStudies) {
-      primaryRowSets.set(study.id, study.store.setData(study.data));
-    }
-    const paneFrames = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    );
-    const activePane = point === null ? null : resolveActivePane(paneFrames, point.y);
-    const logicalPoint = point === null ? null : resolveLocalPanePoint(activePane, point);
-    const activePaneIndex = activePane === null ? null : this.getPaneIndex(activePane.id);
-
-    if (primaryRows.length > 0) {
-      const baseReadout = buildCrosshairReadout(
-        primaryRows,
-        logicalPoint === null ? null : { x: logicalPoint.x, y: logicalPoint.y },
-        this.timeScale,
-        this.primaryPriceScale,
-      );
-      const baseSeries = this.buildReadoutSeriesForPrimary(primarySources, primaryRowSets, logicalPoint);
-
-      if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
-        const paneSeries = this.getSecondarySeriesForPane(activePane.id);
-        const state = paneSeries[0];
-        if (state !== undefined) {
-          const paneSeriesReadout = this.buildReadoutSeriesForPane(
-            paneSeries,
-            logicalPoint,
-          );
-          if (state.kind === "candlestick" || state.kind === "bar") {
-            const rows = state.store.setData(state.data);
-            return {
-              ...buildCrosshairReadout(
-                rows,
-                { x: logicalPoint.x, y: logicalPoint.y },
-                this.timeScale,
-                state.priceScale,
-              ),
-              paneIndex: activePaneIndex,
-              series: paneSeriesReadout,
-            };
-          }
-          return {
-            ...baseReadout,
-            paneIndex: activePaneIndex,
-            price: state.priceScale.coordinateToPrice(logicalPoint.y),
-            series: paneSeriesReadout,
-          };
-        }
-      }
-
-      return {
-        ...baseReadout,
-        paneIndex: activePaneIndex ?? 0,
-        series: baseSeries,
-      };
-    }
-
-    if (activePane !== null && activePane.kind === "secondary") {
-      const paneSeries = this.getSecondarySeriesForPane(activePane.id);
-      const state = paneSeries[0];
-      if (state !== undefined) {
-        const rows = state.store.setData(state.data);
-        return {
-          ...buildCrosshairReadout(
-            rows,
-            logicalPoint === null ? null : { x: logicalPoint.x, y: logicalPoint.y },
-            this.timeScale,
-            state.priceScale,
-          ),
-          paneIndex: activePaneIndex,
-          series: this.buildReadoutSeriesForPane(paneSeries, logicalPoint),
-        };
-      }
-    }
-
-    return {
-      active: false,
-      paneIndex: activePaneIndex,
-      time: null,
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      price: null,
-      series: [],
-    };
+    return buildRawReadoutUseCase({
+      point,
+      paneFrames: buildPaneFrames(
+        this.panes.list(),
+        layout.height - layout.top - layout.bottom,
+        PANE_GAP,
+      ),
+      mainSourceId: mainSource?.id ?? null,
+      primaryRows: mainSequence.bars,
+      primaryStudies: this.getStudySourcesForPane("primary"),
+      primarySources: this.buildPrimaryPaneSeries(mainSource),
+      timeScale: this.timeScale,
+      primaryPriceScale: this.primaryPriceScale,
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+      getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
+      buildReadoutSeriesForPrimary: (primarySources, rowSets, crosshair) =>
+        this.buildReadoutSeriesForPrimary(primarySources, rowSets, crosshair),
+      buildReadoutSeriesForPane: (paneSeries, crosshair) =>
+        this.buildReadoutSeriesForPane(paneSeries, crosshair),
+    });
   }
 
   private formatReadoutDetail(readout: PhaseOneReadoutBody): PhaseOneReadoutDetail {

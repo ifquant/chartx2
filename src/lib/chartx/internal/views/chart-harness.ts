@@ -127,6 +127,10 @@ import {
   applyPrimaryPaneScale as applyPrimaryPaneScaleUseCase,
   applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
 } from "./chart-pane-scale";
+import {
+  collectPanePriceLines as collectPanePriceLinesUseCase,
+  selectPaneDrawingSnapGuide as selectPaneDrawingSnapGuideUseCase,
+} from "./chart-pane-decorations";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3984,29 +3988,6 @@ export class PhaseOneChartHarness {
     return mainSource === null ? studies : [mainSource, ...studies];
   }
 
-  private collectPriceLines(sources: readonly SeriesSourceState[]): Map<string, PriceLineState> {
-    const lines = new Map<string, PriceLineState>();
-    for (const source of sources) {
-      for (const [lineId, line] of source.priceLines.entries()) {
-        lines.set(lineId, line);
-      }
-    }
-    return lines;
-  }
-
-  private collectPanePriceLines(
-    paneId: string,
-    sources: readonly SeriesSourceState[],
-  ): Map<string, PriceLineState> {
-    const lines = this.collectPriceLines(sources);
-    for (const drawing of this.drawingRegistry.listByPane(paneId)) {
-      if (drawing.visible && drawing.kind === "horizontal-line") {
-        lines.set(drawing.line.id, drawing.line);
-      }
-    }
-    return lines;
-  }
-
   private resolveHitDrawing(
     point: PanePoint,
     layout: Layout,
@@ -4461,7 +4442,10 @@ export class PhaseOneChartHarness {
               paneWidth,
               pane.height,
               this.primaryPriceScale,
-              this.collectPanePriceLines("primary", primarySources),
+              collectPanePriceLinesUseCase({
+                sources: primarySources,
+                drawings: this.drawingRegistry.listByPane("primary"),
+              }),
               this.chartOptions,
               this.priceAxisFormatter,
             );
@@ -4496,7 +4480,7 @@ export class PhaseOneChartHarness {
               this.primaryPriceScale,
               this.chartModel.context().snapshot().barSequence.axisBars,
               this.timeScale,
-              this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
+              selectPaneDrawingSnapGuideUseCase("primary", this.drawingSnapGuide),
             );
           },
           drawMarkers: (source, rows) => {
@@ -4549,7 +4533,10 @@ export class PhaseOneChartHarness {
                 paneWidth,
                 pane.height,
                 panePriceScale,
-                this.collectPanePriceLines(pane.id, paneSeries),
+                collectPanePriceLinesUseCase({
+                  sources: paneSeries,
+                  drawings: this.drawingRegistry.listByPane(pane.id),
+                }),
                 this.chartOptions,
                 this.priceAxisFormatter,
               );
@@ -4579,7 +4566,7 @@ export class PhaseOneChartHarness {
                 panePriceScale,
                 this.chartModel.context().snapshot().barSequence.axisBars,
                 this.timeScale,
-                this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
+                selectPaneDrawingSnapGuideUseCase(pane.id, this.drawingSnapGuide),
               );
             }
           },

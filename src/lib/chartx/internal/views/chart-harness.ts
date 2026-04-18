@@ -79,6 +79,7 @@ import {
 } from "../renderers";
 import type { Coordinate } from "../model";
 import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
+import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
 import { restoreChartState } from "./chart-state-restore";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -1061,6 +1062,10 @@ type PhaseOneRestorableSeriesSnapshot =
       options: PhaseOneVolumeSeriesOptions;
       data: readonly PhaseOneVolumeData[];
     };
+type PhaseOneRestorableDrawingSnapshot =
+  | (Extract<PhaseOneChartStateSnapshot["drawings"][number], { type: "horizontal-line" }> &
+      RestorableDrawingSnapshot)
+  | (Extract<PhaseOneChartStateSnapshot["drawings"][number], { type: "trend-line" }> & RestorableDrawingSnapshot);
 
 type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
 
@@ -2649,20 +2654,21 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartDrawings(drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][]): void {
-    for (const drawing of drawings) {
-      const pane = this.panes.getByIndex(drawing.paneIndex);
-      if (pane === undefined) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      const target = { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
-      if (drawing.type === "horizontal-line") {
-        this.addHorizontalLineDrawing(target, drawing.options);
-        continue;
-      }
-      if (drawing.type === "trend-line") {
-        this.addTrendLineDrawing(target, drawing.options);
-      }
-    }
+    restoreDrawingCollection(drawings as readonly PhaseOneRestorableDrawingSnapshot[], {
+      resolvePaneTarget: (paneIndex) => {
+        const pane = this.panes.getByIndex(paneIndex);
+        if (pane === undefined) {
+          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+        }
+        return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
+      },
+      restoreHorizontalLine: (target, snapshot) => {
+        this.addHorizontalLineDrawing(target, snapshot.options);
+      },
+      restoreTrendLine: (target, snapshot) => {
+        this.addTrendLineDrawing(target, snapshot.options);
+      },
+    });
   }
 
   private assertChartDrawingSnapshotsValid(

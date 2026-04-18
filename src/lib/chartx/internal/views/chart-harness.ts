@@ -120,6 +120,10 @@ import {
   renderSecondaryPaneContent as renderSecondaryPaneContentUseCase,
 } from "./chart-pane-render";
 import {
+  renderPriceAxes as renderPriceAxesUseCase,
+  renderTimeAxis as renderTimeAxisUseCase,
+} from "./chart-axis-render";
+import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
@@ -4661,44 +4665,43 @@ export class PhaseOneChartHarness {
       context.restore();
     }
 
-    if (primaryRows.length > 0) {
-      const primaryPane = paneFrames.find((pane) => pane.kind === "primary");
-      if (primaryPane !== undefined) {
+    renderPriceAxesUseCase({
+      paneFrames,
+      activePane,
+      crosshair: this.crosshair,
+      hasPrimaryRows: primaryRows.length > 0,
+      findPrimaryPane: (panes) => panes.find((pane) => pane.kind === "primary"),
+      drawPrimaryAxis: (pane, crosshair) => {
         drawPriceAxis(
           context,
           layout,
-          primaryPane.top,
-          primaryPane.height,
+          pane.top,
+          pane.height,
           this.primaryPriceScale,
-          resolveLocalPanePoint(activePane?.kind === "primary" ? activePane : null, this.crosshair),
+          crosshair,
           this.chartOptions,
           "primary",
           this.priceAxisFormatter,
           this.drawingOptions.magnetLabelVisible
             && this.drawingSnapGuide?.paneId === "primary"
             && this.drawingSnapGuide.price !== null
-            ? buildMagnetAxisTag(layout, primaryPane.top, this.primaryPriceScale, this.drawingSnapGuide, this.priceAxisFormatter)
+            ? buildMagnetAxisTag(layout, pane.top, this.primaryPriceScale, this.drawingSnapGuide, this.priceAxisFormatter)
             : null,
         );
-      }
-    }
-
-    for (const pane of paneFrames) {
-      if (pane.kind !== "secondary") {
-        continue;
-      }
-      const state = this.getSecondarySeriesForPane(pane.id)[0];
-      const hasRows = this.getSecondarySeriesForPane(pane.id).some(
-        (entry) => (secondaryRows.get(entry.id)?.length ?? 0) > 0,
-      );
-      if (state !== undefined && hasRows) {
+      },
+      getSecondaryAxisState: (paneId) => this.getSecondarySeriesForPane(paneId)[0],
+      secondaryPaneHasRows: (paneId) =>
+        this.getSecondarySeriesForPane(paneId).some(
+          (entry) => (secondaryRows.get(entry.id)?.length ?? 0) > 0,
+        ),
+      drawSecondaryAxis: (pane, state, crosshair) => {
         drawPriceAxis(
           context,
           layout,
           pane.top,
           pane.height,
           state.priceScale,
-          resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
+          crosshair,
           this.chartOptions,
           state.kind === "volume" ? "volume" : "primary",
           this.priceAxisFormatter,
@@ -4708,28 +4711,35 @@ export class PhaseOneChartHarness {
             ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.drawingSnapGuide, this.priceAxisFormatter)
             : null,
         );
-      }
-    }
+      },
+    });
 
     const firstSecondaryRows = secondaryRows.values().next().value;
-    drawTimeAxis(
-      context,
-      layout,
-      primaryTimeAxisRows.length > 0 ? primaryTimeAxisRows : (firstSecondaryRows ?? []),
-      this.timeScale,
-      this.crosshair,
-      this.chartOptions,
-      this.timeAxisFormatter,
-      this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
-        ? buildMagnetTimeAxisTag(
-            layout,
-            primaryTimeAxisRows.length > 0 ? primaryTimeAxisRows : (firstSecondaryRows ?? []),
-            this.timeScale,
-            this.drawingSnapGuide!,
-            this.timeAxisFormatter,
-          )
-        : null,
-    );
+    renderTimeAxisUseCase({
+      primaryRows: primaryTimeAxisRows,
+      firstSecondaryRows,
+      hasRows: (rows) => (rows?.length ?? 0) > 0,
+      draw: (rows) => {
+        drawTimeAxis(
+          context,
+          layout,
+          rows,
+          this.timeScale,
+          this.crosshair,
+          this.chartOptions,
+          this.timeAxisFormatter,
+          this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
+            ? buildMagnetTimeAxisTag(
+                layout,
+                rows,
+                this.timeScale,
+                this.drawingSnapGuide!,
+                this.timeAxisFormatter,
+              )
+            : null,
+        );
+      },
+    });
     const readout = this.buildReadout(this.crosshair, layout);
     emitReadout(canvas, readout);
     this.emitCrosshairMove(readout);

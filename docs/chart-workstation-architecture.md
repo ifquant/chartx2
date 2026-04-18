@@ -142,5 +142,6 @@ Current direction on that path:
 - readout series entry composition should follow the same direction, so per-series value lookup, formatting, and color resolution stop living as harness-local helpers
 - pane legend selection should follow the same direction, so primary-vs-secondary legend entry routing and pane-local crosshair selection stop living as harness-local render branches
 - pane content render orchestration should follow the same direction, so primary-vs-secondary pane content ordering stops living as one large harness-local render branch
+- axis render orchestration should follow the same direction, so primary/secondary price-axis routing and time-axis row-source selection stop living as harness-local render branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

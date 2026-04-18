@@ -123,11 +123,11 @@ import {
   renderPriceAxes as renderPriceAxesUseCase,
   renderTimeAxis as renderTimeAxisUseCase,
 } from "./chart-axis-render";
+import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
-import { buildPaneLegendEntries as buildPaneLegendEntriesUseCase } from "./chart-pane-legend";
 import { restoreChartSeries as restoreChartSeriesUseCase } from "./chart-series-restore";
 import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
@@ -4644,7 +4644,7 @@ export class PhaseOneChartHarness {
 
       context.restore();
 
-      const legendEntries = buildPaneLegendEntriesUseCase({
+      renderPaneChromeUseCase({
         pane,
         activePane,
         crosshair: this.crosshair,
@@ -4655,13 +4655,17 @@ export class PhaseOneChartHarness {
           this.buildReadoutSeriesForPrimary(nextPrimarySources, rowSets as ReadonlyMap<string, RowSet>, crosshair),
         buildReadoutSeriesForPane: (paneSeries, crosshair) =>
           this.buildReadoutSeriesForPane(paneSeries, crosshair),
+        drawLegend: (entries) => {
+          drawPaneLegend(context, entries);
+        },
+        drawCrosshair: (crosshair) => {
+          drawCrosshair(context, paneWidth, pane.height, crosshair, this.crosshairOptions);
+        },
+        drawFrameBorder: () => {
+          context.strokeStyle = this.chartOptions.frameColor;
+          context.strokeRect(0.5, 0.5, paneWidth - 1, pane.height - 1);
+        },
       });
-      drawPaneLegend(context, legendEntries);
-
-      const paneCrosshair = resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair);
-      drawCrosshair(context, paneWidth, pane.height, paneCrosshair, this.crosshairOptions);
-      context.strokeStyle = this.chartOptions.frameColor;
-      context.strokeRect(0.5, 0.5, paneWidth - 1, pane.height - 1);
       context.restore();
     }
 

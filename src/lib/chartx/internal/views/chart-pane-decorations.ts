@@ -1,5 +1,9 @@
 type PriceLineState = {
   id: string;
+  price: number;
+  color: string;
+  lineWidth: number;
+  title: string;
 };
 
 type SourceWithPriceLines<Line extends PriceLineState> = {
@@ -53,6 +57,59 @@ export function selectPaneDrawingSnapGuide<Guide extends DrawingSnapGuideState>(
   guide: Guide | null,
 ): Guide | null {
   return guide?.paneId === paneId ? guide : null;
+}
+
+export function buildPrimaryPaneDecorations<
+  Line extends PriceLineState,
+  Source extends SourceWithPriceLines<Line>,
+  Drawing extends HorizontalLineDrawing<Line> | OtherDrawing,
+  Guide extends DrawingSnapGuideState,
+  TradeState,
+>(params: {
+  sources: readonly Source[];
+  drawings: readonly Drawing[];
+  drawingSnapGuide: Guide | null;
+  tradeLocationState: TradeState | null;
+}): {
+  priceLines: Map<string, Line>;
+  drawings: readonly Drawing[];
+  snapGuide: Guide | null;
+  tradeLocationState: TradeState | null;
+} {
+  return {
+    priceLines: collectPanePriceLines({
+      sources: params.sources,
+      drawings: params.drawings,
+    }),
+    drawings: params.drawings,
+    snapGuide: selectPaneDrawingSnapGuide("primary", params.drawingSnapGuide),
+    tradeLocationState: params.tradeLocationState,
+  };
+}
+
+export function buildSecondaryPaneDecorations<
+  Line extends PriceLineState,
+  Source extends SourceWithPriceLines<Line>,
+  Drawing extends HorizontalLineDrawing<Line> | OtherDrawing,
+  Guide extends DrawingSnapGuideState,
+>(params: {
+  paneId: string;
+  sources: readonly Source[];
+  drawings: readonly Drawing[];
+  drawingSnapGuide: Guide | null;
+}): {
+  priceLines: Map<string, Line>;
+  drawings: readonly Drawing[];
+  snapGuide: Guide | null;
+} {
+  return {
+    priceLines: collectPanePriceLines({
+      sources: params.sources,
+      drawings: params.drawings,
+    }),
+    drawings: params.drawings,
+    snapGuide: selectPaneDrawingSnapGuide(params.paneId, params.drawingSnapGuide),
+  };
 }
 
 function isVisibleHorizontalLineDrawing<Line extends PriceLineState>(

@@ -128,6 +128,8 @@ import {
   applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
 } from "./chart-pane-scale";
 import {
+  buildPrimaryPaneDecorations as buildPrimaryPaneDecorationsUseCase,
+  buildSecondaryPaneDecorations as buildSecondaryPaneDecorationsUseCase,
   collectPanePriceLines as collectPanePriceLinesUseCase,
   selectPaneDrawingSnapGuide as selectPaneDrawingSnapGuideUseCase,
 } from "./chart-pane-decorations";
@@ -4410,6 +4412,12 @@ export class PhaseOneChartHarness {
       context.clip();
 
       if (pane.kind === "primary") {
+        const primaryPaneDecorations = buildPrimaryPaneDecorationsUseCase({
+          sources: primarySources,
+          drawings: this.drawingRegistry.listByPane("primary"),
+          drawingSnapGuide: this.drawingSnapGuide,
+          tradeLocationState: this.activeTradeLocation?.state ?? null,
+        });
         const { rangeMin: primaryRangeMin } = applyPrimaryPaneScaleUseCase({
           mainSource,
           primaryStudies,
@@ -4442,10 +4450,7 @@ export class PhaseOneChartHarness {
               paneWidth,
               pane.height,
               this.primaryPriceScale,
-              collectPanePriceLinesUseCase({
-                sources: primarySources,
-                drawings: this.drawingRegistry.listByPane("primary"),
-              }),
+              primaryPaneDecorations.priceLines,
               this.chartOptions,
               this.priceAxisFormatter,
             );
@@ -4462,11 +4467,11 @@ export class PhaseOneChartHarness {
               this.hoveredDrawingHandle,
             );
           },
-          primaryDrawings: this.drawingRegistry.listByPane("primary"),
+          primaryDrawings: primaryPaneDecorations.drawings,
           drawTradeLocationOverlay: () => {
             drawTradeLocationOverlay(
               context,
-              this.activeTradeLocation?.state ?? null,
+              primaryPaneDecorations.tradeLocationState,
               pane.height,
               this.timeScale,
               this.primaryPriceScale,
@@ -4480,7 +4485,7 @@ export class PhaseOneChartHarness {
               this.primaryPriceScale,
               this.chartModel.context().snapshot().barSequence.axisBars,
               this.timeScale,
-              selectPaneDrawingSnapGuideUseCase("primary", this.drawingSnapGuide),
+              primaryPaneDecorations.snapGuide,
             );
           },
           drawMarkers: (source, rows) => {
@@ -4499,6 +4504,12 @@ export class PhaseOneChartHarness {
 
       if (pane.kind === "secondary") {
         const paneSeries = this.getSecondarySeriesForPane(pane.id);
+        const secondaryPaneDecorations = buildSecondaryPaneDecorationsUseCase({
+          paneId: pane.id,
+          sources: paneSeries,
+          drawings: this.drawingRegistry.listByPane(pane.id),
+          drawingSnapGuide: this.drawingSnapGuide,
+        });
         const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
         const {
           hasPriceScale,
@@ -4529,17 +4540,14 @@ export class PhaseOneChartHarness {
           drawPriceLines: () => {
             if (panePriceScale !== undefined) {
               drawPriceLines(
-                context,
-                paneWidth,
-                pane.height,
-                panePriceScale,
-                collectPanePriceLinesUseCase({
-                  sources: paneSeries,
-                  drawings: this.drawingRegistry.listByPane(pane.id),
-                }),
-                this.chartOptions,
-                this.priceAxisFormatter,
-              );
+              context,
+              paneWidth,
+              pane.height,
+              panePriceScale,
+              secondaryPaneDecorations.priceLines,
+              this.chartOptions,
+              this.priceAxisFormatter,
+            );
             }
           },
           drawDrawings: (drawings) => {
@@ -4556,7 +4564,7 @@ export class PhaseOneChartHarness {
               );
             }
           },
-          paneDrawings: this.drawingRegistry.listByPane(pane.id),
+          paneDrawings: secondaryPaneDecorations.drawings,
           drawDrawingSnapGuide: () => {
             if (panePriceScale !== undefined) {
               drawDrawingSnapGuide(
@@ -4566,7 +4574,7 @@ export class PhaseOneChartHarness {
                 panePriceScale,
                 this.chartModel.context().snapshot().barSequence.axisBars,
                 this.timeScale,
-                selectPaneDrawingSnapGuideUseCase(pane.id, this.drawingSnapGuide),
+                secondaryPaneDecorations.snapGuide,
               );
             }
           },

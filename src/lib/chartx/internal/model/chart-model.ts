@@ -64,6 +64,10 @@ export class ChartModel<
     return this.sourceRegistry.getByApiOrThrow(api, message);
   }
 
+  public hasSourceApi(api: Api): boolean {
+    return this.sourceRegistry.hasApi(api);
+  }
+
   public getSourceByIdAndRole<Role extends State["role"]>(
     id: string,
     role: Role,

@@ -35,7 +35,6 @@ import {
   resolvePaneDivider,
   resolvePaneDividerByIds,
   SeriesDataStore,
-  SourceRegistry,
   TimeScale,
   type OhlcDataPoint,
   type ChartTemplateV1,
@@ -1211,10 +1210,6 @@ export class PhaseOneChartHarness {
 
   private get panes(): PaneCollection {
     return this.chartModel.panes();
-  }
-
-  private get sourceRegistry(): SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState> {
-    return this.chartModel.sources();
   }
 
   private get primaryPriceScale(): PriceScale {
@@ -4671,9 +4666,7 @@ export class PhaseOneChartHarness {
   }
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {
-    return this.sourceRegistry
-      .listByPaneAndRole(paneId, "study")
-      .filter((entry): entry is StudySourceState => entry.role === "study");
+    return [...this.chartModel.listSourcesByPaneAndRole(paneId, "study")];
   }
 
   private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
@@ -5564,7 +5557,7 @@ export class PhaseOneChartHarness {
   }
 
   private assertSeriesActive(series: ChartSeriesApi): void {
-    if (!this.sourceRegistry.hasApi(series)) {
+    if (!this.chartModel.hasSourceApi(series)) {
       throw new Error("chartx phase-one series has been removed");
     }
   }

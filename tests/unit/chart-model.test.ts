@@ -71,6 +71,7 @@ describe("chart model", () => {
     );
 
     expect(model.getSourceByApiOrThrow(api, "missing source")).toBe(source);
+    expect(model.hasSourceApi(api)).toBe(true);
     expect(model.getSourceByIdAndRole(source.id, "main-series")).toBe(source);
     expect(model.mainSourceId()).toBe(source.id);
   });
@@ -99,6 +100,7 @@ describe("chart model", () => {
     const removed = model.removeSourceByApi(api);
 
     expect(removed?.id).toBe("series-1");
+    expect(model.hasSourceApi(api)).toBe(false);
     expect(model.mainSourceId()).toBeNull();
     expect(model.sources().getByApi(api)).toBeUndefined();
   });

@@ -114,4 +114,9 @@ Near-term work should continue to prioritize chart-core ownership cleanup:
 - chart runtime ownership should keep moving into explicit model-layer objects
 - workstation shell should consume chart runtime through contracts, not own it
 
+Current direction on that path:
+
+- pane list, pane height normalization, and pane frame/divider layout logic should live in dedicated model-layer code instead of remaining embedded in `chart-harness`
+- source and study ownership should follow the same path next, with `SourceRegistry` and source-state construction becoming more explicit model concerns
+
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

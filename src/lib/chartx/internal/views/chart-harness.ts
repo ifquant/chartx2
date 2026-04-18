@@ -24,9 +24,14 @@ import {
   DrawingRegistry,
   DEFAULT_STUDY_MERGE_ENGINE,
   normalizeVersionedChartTemplate,
+  PaneCollection,
   PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
+  buildPaneFrames,
+  normalizePaneHeight,
+  resolvePaneDivider,
+  resolvePaneDividerByIds,
   SeriesDataStore,
   SourceRegistry,
   TimeScale,
@@ -42,6 +47,9 @@ import {
   type PhaseOneTradeOverlayOptions,
   type PhaseOneResolvedTradeOverlayOptions,
   type KagiStyleOptionsState,
+  type PaneFrame,
+  type PaneKind,
+  type PaneModelState,
   type MainSeriesStyleOptionsPatch,
   type PointFigureStyleOptionsState,
   type MainSeriesStateSnapshot,
@@ -367,7 +375,7 @@ export type PhaseOneVolumeSeriesOptions = PhaseOneSeriesFormatterOptions & {
   downColor?: string;
 };
 
-export type PhaseOnePaneKind = "primary" | "secondary";
+export type PhaseOnePaneKind = PaneKind;
 
 export type PhaseOnePaneApi = {
   paneIndex(): number;
@@ -1032,20 +1040,6 @@ type SeriesSourceState = MainSeriesSourceState | StudySourceState;
 
 type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
 
-type PaneFrame = {
-  id: string;
-  kind: PhaseOnePaneKind;
-  top: number;
-  height: number;
-};
-
-type PaneSpec = {
-  id: string;
-  kind: PhaseOnePaneKind;
-  preferredHeight: number | null;
-  resizable: boolean;
-};
-
 type ResolvedSeriesTarget =
   | { kind: "primary" }
   | { kind: "secondary"; paneId: string };
@@ -1082,8 +1076,7 @@ export class PhaseOneChartHarness {
   private readonly kagiRenderer = new KagiRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
-  private readonly panes: PaneSpec[] = [{ id: "primary", kind: "primary", preferredHeight: null, resizable: false }];
-  private nextPaneId = 1;
+  private readonly panes = new PaneCollection();
   private nextSeriesId = 1;
   private nextPriceLineId = 1;
   private nextDrawingId = 1;
@@ -1245,7 +1238,11 @@ export class PhaseOneChartHarness {
     }
 
     const layout = measureLayout(this.canvas);
-    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const paneFrames = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    );
     if (this.paneResizeState !== null) {
       this.drawingSnapGuide = null;
       this.applyPaneResize(event.clientY, layout, paneFrames);
@@ -1272,7 +1269,13 @@ export class PhaseOneChartHarness {
       this.rightOffset = this.dragState.startRightOffset - deltaBars;
     }
 
-    const divider = resolvePaneDivider(this.panes, paneFrames, resolvePanePoint(this.canvas, event, layout)?.y ?? null);
+    const divider = resolvePaneDivider(
+      this.panes.list(),
+      paneFrames,
+      resolvePanePoint(this.canvas, event, layout)?.y ?? null,
+      PANE_GAP,
+      PANE_DIVIDER_HIT_SLOP,
+    );
     this.crosshair = resolvePanePoint(this.canvas, event, layout);
     const hoveredDrawing =
       divider === null && this.dragState === null && this.crosshair !== null
@@ -1315,9 +1318,19 @@ export class PhaseOneChartHarness {
     }
 
     const layout = measureLayout(this.canvas);
-    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const paneFrames = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    );
     const point = resolvePanePoint(this.canvas, event, layout);
-    const divider = resolvePaneDivider(this.panes, paneFrames, point?.y ?? null);
+    const divider = resolvePaneDivider(
+      this.panes.list(),
+      paneFrames,
+      point?.y ?? null,
+      PANE_GAP,
+      PANE_DIVIDER_HIT_SLOP,
+    );
     if (divider !== null) {
       this.canvas.focus({ preventScroll: true });
       this.paneResizeState = {
@@ -1392,7 +1405,11 @@ export class PhaseOneChartHarness {
 
     const layout = measureLayout(this.canvas, this.manualLayout);
     const point = resolvePanePoint(this.canvas, event, layout);
-    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const paneFrames = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    );
     const hitDrawing = point === null ? null : this.resolveHitDrawing(point, layout, paneFrames);
     this.selectDrawing(hitDrawing?.id ?? null);
     const readout = this.buildReadout(point, layout);
@@ -1774,18 +1791,11 @@ export class PhaseOneChartHarness {
   }
 
   public panesApi(): readonly PhaseOnePaneApi[] {
-    return this.panes.map((pane) => this.createPaneHandle(pane.id));
+    return this.panes.list().map((pane) => this.createPaneHandle(pane.id));
   }
 
   public addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
-    const pane: PaneSpec = {
-      id: `pane-${this.nextPaneId}`,
-      kind: "secondary",
-      preferredHeight: normalizePaneHeight(options.height),
-      resizable: options.resizable ?? true,
-    };
-    this.nextPaneId += 1;
-    this.panes.push(pane);
+    const pane = this.panes.addSecondaryPane(options);
     this.emitPaneEvent("added", pane.id);
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -2004,7 +2014,9 @@ export class PhaseOneChartHarness {
         if (this.primaryPriceRangeOverride !== null && this.canvas !== null) {
           const layout = measureLayout(this.canvas, this.manualLayout);
           const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
-          const paneHeight = buildPaneFrames(this.panes, plotHeight).find((pane) => pane.kind === "primary")?.height ?? plotHeight;
+          const paneHeight =
+            buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
+              ?.height ?? plotHeight;
           this.primaryPriceScale.applyOptions({
             height: paneHeight,
             priceRange: this.primaryPriceRangeOverride,
@@ -2199,6 +2211,7 @@ export class PhaseOneChartHarness {
         scaleSeriesOnly: this.primaryScaleSeriesOnly,
       },
       panes: this.panes
+        .list()
         .filter((pane) => pane.kind === "secondary")
         .map((pane) => ({
           height: pane.preferredHeight,
@@ -2266,7 +2279,7 @@ export class PhaseOneChartHarness {
     this.clearRestorableChartSeries();
     this.clearTradeLocation();
 
-    const currentSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
+    const currentSecondaryPanes = this.panes.list().filter((pane) => pane.kind === "secondary");
     const targetPaneCount = state.panes.length;
 
     for (let index = currentSecondaryPanes.length - 1; index >= targetPaneCount; index -= 1) {
@@ -2277,7 +2290,7 @@ export class PhaseOneChartHarness {
       this.removePaneById(pane.id);
     }
 
-    const nextSecondaryPanes = this.panes.filter((pane) => pane.kind === "secondary");
+    const nextSecondaryPanes = this.panes.list().filter((pane) => pane.kind === "secondary");
     while (nextSecondaryPanes.length < targetPaneCount) {
       const nextPane = this.addPane({
         height: state.panes[nextSecondaryPanes.length]?.height ?? undefined,
@@ -2287,7 +2300,7 @@ export class PhaseOneChartHarness {
     }
 
     state.panes.forEach((paneState, index) => {
-      const pane = this.panes.filter((entry) => entry.kind === "secondary")[index];
+      const pane = this.panes.list().filter((entry) => entry.kind === "secondary")[index];
       if (pane === undefined) {
         return;
       }
@@ -2526,7 +2539,7 @@ export class PhaseOneChartHarness {
 
   private restoreChartSeries(series: PhaseOneChartStateSnapshot["series"]): void {
     for (const item of series) {
-      const pane = this.panes[item.paneIndex];
+      const pane = this.panes.getByIndex(item.paneIndex);
       if (pane === undefined) {
         throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
       }
@@ -2581,7 +2594,7 @@ export class PhaseOneChartHarness {
 
   private restoreChartStudies(studies: PhaseOneChartStateSnapshot["studies"]): void {
     for (const study of studies) {
-      const pane = this.panes[study.paneIndex];
+      const pane = this.panes.getByIndex(study.paneIndex);
       if (pane === undefined) {
         throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
       }
@@ -2610,7 +2623,7 @@ export class PhaseOneChartHarness {
 
   private restoreChartDrawings(drawings: PhaseOneChartStateSnapshot["drawings"]): void {
     for (const drawing of drawings) {
-      const pane = this.panes[drawing.paneIndex];
+      const pane = this.panes.getByIndex(drawing.paneIndex);
       if (pane === undefined) {
         throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
       }
@@ -3730,12 +3743,12 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private getPaneById(paneId: string): PaneSpec | undefined {
-    return this.panes.find((pane) => pane.id === paneId);
+  private getPaneById(paneId: string): PaneModelState | undefined {
+    return this.panes.getById(paneId);
   }
 
   private getPaneIndex(paneId: string): number {
-    const index = this.panes.findIndex((pane) => pane.id === paneId);
+    const index = this.panes.getIndex(paneId);
     if (index === -1) {
       throw new Error("chartx phase-one pane has been removed");
     }
@@ -3753,7 +3766,11 @@ export class PhaseOneChartHarness {
     }
 
     const layout = measureLayout(this.canvas, this.manualLayout);
-    const frames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const frames = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    );
     const frame = frames.find((entry) => entry.id === paneId);
     if (frame === undefined) {
       throw new Error("chartx phase-one pane has been removed");
@@ -3866,11 +3883,16 @@ export class PhaseOneChartHarness {
     }
 
     if (this.canvas !== null) {
-      const updatedFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+      const updatedFrames = buildPaneFrames(
+        this.panes.list(),
+        layout.height - layout.top - layout.bottom,
+        PANE_GAP,
+      );
       const divider = resolvePaneDividerByIds(
         updatedFrames,
         this.paneResizeState.dividerAfterPaneId,
         this.paneResizeState.dividerBeforePaneId,
+        PANE_GAP,
       );
       if (divider !== null) {
         this.crosshair = {
@@ -3894,7 +3916,7 @@ export class PhaseOneChartHarness {
         return { kind: "primary" };
       }
 
-      const existing = this.panes.find((pane) => pane.kind === "secondary")?.id;
+      const existing = this.panes.list().find((pane) => pane.kind === "secondary")?.id;
       if (existing !== undefined) {
         return { kind: "secondary", paneId: existing };
       }
@@ -3909,7 +3931,7 @@ export class PhaseOneChartHarness {
 
     const pane =
       typeof target.pane === "number"
-        ? this.panes[target.pane]
+        ? this.panes.getByIndex(target.pane)
         : this.getPaneByHandle(target.pane);
     if (pane === undefined) {
       throw new Error("chartx phase-one chart series pane index is out of range");
@@ -3924,7 +3946,7 @@ export class PhaseOneChartHarness {
     return { kind: "secondary", paneId: pane.id };
   }
 
-  private getPaneByHandle(handle: PhaseOnePaneApi): PaneSpec | undefined {
+  private getPaneByHandle(handle: PhaseOnePaneApi): PaneModelState | undefined {
     const paneId = this.paneHandleIds.get(handle);
     if (paneId === undefined) {
       throw new Error("chartx phase-one chart pane handle must come from this chart");
@@ -3952,8 +3974,7 @@ export class PhaseOneChartHarness {
     }
 
     const removedPaneState = this.buildPaneState(paneId);
-    const index = this.getPaneIndex(paneId);
-    this.panes.splice(index, 1);
+    this.panes.removeById(paneId);
     this.paneResizeHandlers.delete(paneId);
     this.secondaryPanePriceScales.delete(paneId);
     this.emitPaneEvent("removed", paneId, removedPaneState, this.buildPaneStateSnapshot());
@@ -4025,6 +4046,7 @@ export class PhaseOneChartHarness {
 
   private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
     return this.panes
+      .list()
       .map((pane) => this.buildPaneState(pane.id))
       .filter((pane): pane is PhaseOnePaneState => pane !== null);
   }
@@ -4791,7 +4813,7 @@ export class PhaseOneChartHarness {
   private resolveHitDrawing(
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
   ): ChartDrawingDescriptor | null {
     const activePane = resolveActivePane(paneFrames, point.y);
     if (activePane === null) {
@@ -4829,7 +4851,7 @@ export class PhaseOneChartHarness {
   private resolveSelectedTrendLineDragHandle(
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
   ): DrawingDragState | null {
     if (this.selectedDrawingId === null) {
       return null;
@@ -4889,7 +4911,7 @@ export class PhaseOneChartHarness {
     drag: DrawingDragState,
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom),
+    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
   ): void {
     const drawing = this.getDrawingById(drag.drawingId);
     if (drawing === undefined || drawing.kind !== "trend-line") {
@@ -5118,7 +5140,11 @@ export class PhaseOneChartHarness {
     for (const study of primaryStudies) {
       primaryRowSets.set(study.id, study.store.setData(study.data));
     }
-    const paneFrames = buildPaneFrames(this.panes, layout.height - layout.top - layout.bottom);
+    const paneFrames = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    );
     const activePane = point === null ? null : resolveActivePane(paneFrames, point.y);
     const logicalPoint = point === null ? null : resolveLocalPanePoint(activePane, point);
     const activePaneIndex = activePane === null ? null : this.getPaneIndex(activePane.id);
@@ -5300,7 +5326,7 @@ export class PhaseOneChartHarness {
       rightOffset: this.rightOffset,
     });
 
-    const paneFrames = buildPaneFrames(this.panes, plotHeight);
+    const paneFrames = buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP);
     const activePane = this.crosshair === null ? null : resolveActivePane(paneFrames, this.crosshair.y);
     const barWidth = paneWidth / Math.max(pointCount * 1.8, 24);
 
@@ -5957,122 +5983,6 @@ function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string
       },
     ]),
   );
-}
-
-function normalizePaneHeight(height: number | undefined): number {
-  if (height === undefined || !Number.isFinite(height)) {
-    return 136;
-  }
-  return Math.max(72, Math.round(height));
-}
-
-function buildPaneFrames(
-  panes: readonly PaneSpec[],
-  plotHeight: number,
-): PaneFrame[] {
-  if (panes.length === 0) {
-    return [];
-  }
-
-  const gap = panes.length > 1 ? PANE_GAP : 0;
-  const totalGap = gap * Math.max(0, panes.length - 1);
-  const secondaryPanes = panes.filter((pane) => pane.kind === "secondary");
-  const preferredSecondaryTotal = secondaryPanes.reduce(
-    (sum, pane) => sum + normalizePaneHeight(pane.preferredHeight ?? undefined),
-    0,
-  );
-  const maxSecondaryTotal = Math.max(0, plotHeight - totalGap - 160);
-  const secondaryScale =
-    preferredSecondaryTotal > 0 && preferredSecondaryTotal > maxSecondaryTotal
-      ? maxSecondaryTotal / preferredSecondaryTotal
-      : 1;
-
-  const secondaryHeights = new Map<string, number>();
-  for (const pane of secondaryPanes) {
-    secondaryHeights.set(
-      pane.id,
-      Math.round(normalizePaneHeight(pane.preferredHeight ?? undefined) * secondaryScale),
-    );
-  }
-
-  const secondaryTotal = Array.from(secondaryHeights.values()).reduce((sum, height) => sum + height, 0);
-  const primaryHeight = Math.max(160, plotHeight - totalGap - secondaryTotal);
-
-  const frames: PaneFrame[] = [];
-  let top = 0;
-  for (const pane of panes) {
-    const height = pane.kind === "primary" ? primaryHeight : secondaryHeights.get(pane.id) ?? normalizePaneHeight(undefined);
-    frames.push({
-      id: pane.id,
-      kind: pane.kind,
-      top,
-      height,
-    });
-    top += height + gap;
-  }
-
-  if (frames.length > 0) {
-    const last = frames[frames.length - 1];
-    last.height = Math.max(48, plotHeight - last.top);
-  }
-
-  return frames;
-}
-
-function resolvePaneDivider(
-  paneSpecs: readonly PaneSpec[],
-  panes: readonly PaneFrame[],
-  y: number | null,
-): { upperPaneId: string; lowerPaneId: string; upperHeight: number; lowerHeight: number; position: number } | null {
-  if (y === null) {
-    return null;
-  }
-
-  for (let index = 0; index < panes.length - 1; index += 1) {
-    const upper = panes[index];
-    const lower = panes[index + 1];
-    const upperSpec = paneSpecs.find((pane) => pane.id === upper.id);
-    const lowerSpec = paneSpecs.find((pane) => pane.id === lower.id);
-    const canResize =
-      upper.kind === "primary"
-        ? (lowerSpec?.resizable ?? false)
-        : (upperSpec?.resizable ?? false);
-    if (!canResize) {
-      continue;
-    }
-    const dividerPosition = upper.top + upper.height + PANE_GAP / 2;
-    if (Math.abs(y - dividerPosition) <= PANE_DIVIDER_HIT_SLOP) {
-      return {
-        upperPaneId: upper.id,
-        lowerPaneId: lower.id,
-        upperHeight: upper.height,
-        lowerHeight: lower.height,
-        position: dividerPosition,
-      };
-    }
-  }
-
-  return null;
-}
-
-function resolvePaneDividerByIds(
-  panes: readonly PaneFrame[],
-  upperPaneId: string,
-  lowerPaneId: string,
-): { upperPaneId: string; lowerPaneId: string; upperHeight: number; lowerHeight: number; position: number } | null {
-  const upper = panes.find((pane) => pane.id === upperPaneId);
-  const lower = panes.find((pane) => pane.id === lowerPaneId);
-  if (upper === undefined || lower === undefined) {
-    return null;
-  }
-
-  return {
-    upperPaneId,
-    lowerPaneId,
-    upperHeight: upper.height,
-    lowerHeight: lower.height,
-    position: upper.top + upper.height + PANE_GAP / 2,
-  };
 }
 
 function resolveActivePane(

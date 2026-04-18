@@ -47,4 +47,59 @@ describe("chart model", () => {
     model.removeSecondaryScale(pane.id);
     expect(model.getSecondaryScale(pane.id)).toBeUndefined();
   });
+
+  it("routes main-source registration and binding through the chart owner", () => {
+    const model = new ChartModel<TestKind, TestApi, TestSource, "candlestick" | "line">();
+    const api = { handle: "main" };
+    const source: TestSource = {
+      id: "series-1",
+      label: "Main",
+      kind: "candlestick",
+      role: "main-series",
+      paneId: "primary",
+      priceScaleId: "primary-right",
+      visible: true,
+      api,
+      pointCount: 10,
+    };
+
+    model.registerSource(source);
+    model.bindMainSource(
+      source.id,
+      "candlestick",
+      createTimeBasedChartBarSequence([]),
+    );
+
+    expect(model.getSourceByApiOrThrow(api, "missing source")).toBe(source);
+    expect(model.getSourceByIdAndRole(source.id, "main-series")).toBe(source);
+    expect(model.mainSourceId()).toBe(source.id);
+  });
+
+  it("clears the main-source context when the chart owner removes the active source", () => {
+    const model = new ChartModel<TestKind, TestApi, TestSource, "candlestick" | "line">();
+    const api = { handle: "main" };
+
+    model.registerSource({
+      id: "series-1",
+      label: "Main",
+      kind: "candlestick",
+      role: "main-series",
+      paneId: "primary",
+      priceScaleId: "primary-right",
+      visible: true,
+      api,
+      pointCount: 10,
+    });
+    model.bindMainSource(
+      "series-1",
+      "candlestick",
+      createTimeBasedChartBarSequence([]),
+    );
+
+    const removed = model.removeSourceByApi(api);
+
+    expect(removed?.id).toBe("series-1");
+    expect(model.mainSourceId()).toBeNull();
+    expect(model.sources().getByApi(api)).toBeUndefined();
+  });
 });

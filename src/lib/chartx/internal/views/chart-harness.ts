@@ -4,7 +4,6 @@ import {
   createTimeBasedChartBarSequence,
   createVersionedChartTemplate,
   findNearestRowByLogical,
-  ChartContext,
   applyMainSeriesStyleOptions,
   applyMainSeriesBuilder,
   buildHeikinAshiData,
@@ -1218,10 +1217,6 @@ export class PhaseOneChartHarness {
     return this.chartModel.sources();
   }
 
-  private get chartContext(): ChartContext<number, PhaseOneMainChartType> {
-    return this.chartModel.context();
-  }
-
   private get primaryPriceScale(): PriceScale {
     return this.chartModel.primaryScale();
   }
@@ -1552,7 +1547,7 @@ export class PhaseOneChartHarness {
       previousStyleSchemaId?: PhaseOneMainStyleSchemaId;
     },
   ): PhaseOneMainSeriesApi {
-    if (this.chartContext.snapshot().mainSourceId !== null) {
+    if (this.chartModel.mainSourceId() !== null) {
       throw new Error("chartx phase-one chart supports only one primary series");
     }
 
@@ -1586,7 +1581,7 @@ export class PhaseOneChartHarness {
       }
     }
     source.data = applyMainSeriesBuilderData(source.inputData, source);
-    this.sourceRegistry.register(source);
+    this.chartModel.registerSource(source);
     this.syncChartContextFromMainSource(source);
     return api;
   }
@@ -1771,12 +1766,11 @@ export class PhaseOneChartHarness {
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
-    const removed = this.sourceRegistry.removeByApi(series);
+    const removed = this.chartModel.removeSourceByApi(series);
     if (removed === undefined) {
       throw new Error("chartx phase-one chart can remove only the currently attached series");
     }
     if (removed.role === "main-series") {
-      this.chartContext.clearMainSource();
       this.primaryPriceRangeOverride = null;
     }
     this.crosshair = null;
@@ -2116,7 +2110,7 @@ export class PhaseOneChartHarness {
   }
 
   public getChartType(): PhaseOneMainChartType | null {
-    return this.chartContext.snapshot().chartType;
+    return this.chartModel.context().snapshot().chartType;
   }
 
   public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
@@ -2670,12 +2664,11 @@ export class PhaseOneChartHarness {
       return current.api as PhaseOneMainSeriesApi;
     }
 
-    const removed = this.sourceRegistry.removeByApi(current.api);
+    const removed = this.chartModel.removeSourceByApi(current.api);
     if (removed === undefined) {
       throw new Error("chartx phase-one chart could not replace the active main series");
     }
 
-    this.chartContext.clearMainSource();
     this.primaryPriceRangeOverride = null;
     const nextSeries = this.attachPrimarySeries(type, {
       id: current.id,
@@ -2752,8 +2745,8 @@ export class PhaseOneChartHarness {
   private getPointCount(): number {
     let pointCount = this.buildMainBarSequence(this.getMainSource()).logicalLength;
     for (const state of this.sourceRegistry.list()) {
-      const rows = state.role === "main-series" && this.chartContext.snapshot().mainSourceId === state.id
-        ? this.chartContext.snapshot().barSequence.bars
+      const rows = state.role === "main-series" && this.chartModel.context().snapshot().mainSourceId === state.id
+        ? this.chartModel.context().snapshot().barSequence.bars
         : state.store.setData(state.data);
       const logicalLength =
         rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
@@ -3601,7 +3594,7 @@ export class PhaseOneChartHarness {
       ? this.primaryPriceScale
       : this.getOrCreateSecondaryPanePriceScale(paneId);
     const priceScaleId = paneId === "primary" ? "primary-right" : `${paneId}-right`;
-    this.sourceRegistry.register(
+    this.chartModel.registerSource(
       this.createStudySourceState(
         paneId,
         kind,
@@ -4293,7 +4286,7 @@ export class PhaseOneChartHarness {
     PhaseOneTrendLineDrawingOptions,
     "startTime" | "startPrice" | "endTime" | "endPrice"
   >> {
-    const mainBars = this.chartContext.snapshot().barSequence.axisBars;
+    const mainBars = this.chartModel.context().snapshot().barSequence.axisBars;
     if (mainBars.length >= 2) {
       const first = mainBars[0]!;
       const last = mainBars[mainBars.length - 1]!;
@@ -4604,13 +4597,13 @@ export class PhaseOneChartHarness {
 
   private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {
     if (source === null) {
-      this.chartContext.clearMainSource();
+      this.chartModel.clearMainSource();
       this.syncStudyContextData();
       this.refreshTradeLocation();
       return;
     }
 
-    this.chartContext.bindMainSource(
+    this.chartModel.bindMainSource(
       source.id,
       source.chartType,
       this.createMainBarSequenceFromSource(source),
@@ -4637,10 +4630,10 @@ export class PhaseOneChartHarness {
   }
 
   private getMainSource(): MainSeriesSourceState | null {
-    const mainSourceId = this.chartContext.snapshot().mainSourceId;
+    const mainSourceId = this.chartModel.mainSourceId();
     return mainSourceId === null
       ? null
-      : ((this.sourceRegistry.getByIdAndRole(mainSourceId, "main-series") as MainSeriesSourceState | undefined) ?? null);
+      : ((this.chartModel.getSourceByIdAndRole(mainSourceId, "main-series") as MainSeriesSourceState | undefined) ?? null);
   }
 
   private refreshTradeLocation(): void {
@@ -4702,7 +4695,7 @@ export class PhaseOneChartHarness {
     api: ChartSeriesApi,
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
-    const source = this.sourceRegistry.getByApiOrThrow(api, "chartx phase-one series has been removed");
+    const source = this.chartModel.getSourceByApiOrThrow(api, "chartx phase-one series has been removed");
     if (kind !== undefined && source.kind !== kind) {
       throw new Error("chartx phase-one series is attached to an unexpected pane/source kind");
     }
@@ -4815,7 +4808,7 @@ export class PhaseOneChartHarness {
       return null;
     }
 
-    const axisBars = this.chartContext.snapshot().barSequence.axisBars;
+    const axisBars = this.chartModel.context().snapshot().barSequence.axisBars;
     let best: { drawing: ChartDrawingDescriptor; distance: number } | null = null;
     for (const drawing of this.drawingRegistry.listByPane(activePane.id)) {
       if (!drawing.visible) {
@@ -4863,7 +4856,7 @@ export class PhaseOneChartHarness {
       return null;
     }
 
-    const axisBars = this.chartContext.snapshot().barSequence.axisBars;
+    const axisBars = this.chartModel.context().snapshot().barSequence.axisBars;
     const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, this.timeScale);
     const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, this.timeScale);
     const startY = priceScale.priceToCoordinate(drawing.startPrice);
@@ -4925,7 +4918,7 @@ export class PhaseOneChartHarness {
 
     const nextTime = resolveSnappedDrawingTime(
       localPoint.x,
-      this.chartContext.snapshot().barSequence.axisBars,
+      this.chartModel.context().snapshot().barSequence.axisBars,
       this.timeScale,
       drawingOptions.timeMagnetEnabled,
       drawingOptions.timeMagnetPolicy,
@@ -4934,7 +4927,7 @@ export class PhaseOneChartHarness {
     const nextPrice = resolveSnappedDrawingPrice(
       localPoint.x,
       localPoint.y,
-      this.chartContext.snapshot().barSequence,
+      this.chartModel.context().snapshot().barSequence,
       priceScale,
       this.timeScale,
       drawingOptions.magnetEnabled,
@@ -5052,7 +5045,7 @@ export class PhaseOneChartHarness {
       return createTimeBasedChartBarSequence([]);
     }
 
-    const context = this.chartContext.snapshot();
+    const context = this.chartModel.context().snapshot();
     if (context.mainSourceId === source.id) {
       return context.barSequence;
     }
@@ -5064,11 +5057,11 @@ export class PhaseOneChartHarness {
     if (
       state.studyKind === "series" &&
       state.inputContext.mode === "chart-context" &&
-      this.chartContext.snapshot().barSequence.kind === "price-based"
+      this.chartModel.context().snapshot().barSequence.kind === "price-based"
     ) {
       return this.studyMergeEngine.mergeToChartContext({
         inputData: state.inputData,
-        axisBars: this.chartContext.snapshot().barSequence.axisBars,
+        axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
         mergePolicy: "carry-forward",
       });
     }
@@ -5078,10 +5071,10 @@ export class PhaseOneChartHarness {
         state.inputContext.mode === "requested-context"
           ? this.studyMergeEngine.mergeToChartContext({
               inputData: state.inputData,
-              axisBars: this.chartContext.snapshot().barSequence.axisBars,
+              axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
               mergePolicy: state.inputContext.mergePolicy,
             })
-          : this.chartContext.snapshot().barSequence.bars.map((row) => ({
+          : this.chartModel.context().snapshot().barSequence.bars.map((row) => ({
               time: row.time,
               open: row.value[PlotRowValueIndex.Open],
               high: row.value[PlotRowValueIndex.High],
@@ -5094,7 +5087,7 @@ export class PhaseOneChartHarness {
     if (state.inputContext.mode === "requested-context" && state.studyKind === "compare") {
       return this.studyMergeEngine.mergeToChartContext({
         inputData: state.inputData,
-        axisBars: this.chartContext.snapshot().barSequence.axisBars,
+        axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
         mergePolicy: state.inputContext.mergePolicy,
       });
     }
@@ -5379,7 +5372,7 @@ export class PhaseOneChartHarness {
         drawPaneDrawings(
           context,
           this.drawingRegistry.listByPane("primary"),
-          this.chartContext.snapshot().barSequence.axisBars,
+          this.chartModel.context().snapshot().barSequence.axisBars,
           this.timeScale,
           this.primaryPriceScale,
           this.selectedDrawingId,
@@ -5398,7 +5391,7 @@ export class PhaseOneChartHarness {
           paneWidth,
           pane.height,
           this.primaryPriceScale,
-          this.chartContext.snapshot().barSequence.axisBars,
+          this.chartModel.context().snapshot().barSequence.axisBars,
           this.timeScale,
           this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
         );
@@ -5449,7 +5442,7 @@ export class PhaseOneChartHarness {
           drawPaneDrawings(
             context,
             this.drawingRegistry.listByPane(pane.id),
-            this.chartContext.snapshot().barSequence.axisBars,
+            this.chartModel.context().snapshot().barSequence.axisBars,
             this.timeScale,
             panePriceScale,
             this.selectedDrawingId,
@@ -5461,7 +5454,7 @@ export class PhaseOneChartHarness {
             paneWidth,
             pane.height,
             panePriceScale,
-            this.chartContext.snapshot().barSequence.axisBars,
+            this.chartModel.context().snapshot().barSequence.axisBars,
             this.timeScale,
             this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
           );

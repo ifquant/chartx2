@@ -1,4 +1,5 @@
 import { ChartContext } from "./chart-context";
+import type { ChartBarSequence } from "./chart-bar-sequence";
 import { PaneCollection } from "./pane-model";
 import { PriceScale } from "./price-scale";
 import { SourceRegistry } from "./source-registry";
@@ -24,8 +25,48 @@ export class ChartModel<
     return this.sourceRegistry;
   }
 
+  public registerSource(source: State): void {
+    this.sourceRegistry.register(source);
+  }
+
+  public removeSourceByApi(api: Api): State | undefined {
+    const removed = this.sourceRegistry.removeByApi(api);
+    if (removed?.role === "main-series") {
+      this.chartContext.clearMainSource();
+    }
+    return removed;
+  }
+
+  public getSourceByApiOrThrow(api: Api, message: string): State {
+    return this.sourceRegistry.getByApiOrThrow(api, message);
+  }
+
+  public getSourceByIdAndRole(id: string, role: State["role"]): State | undefined {
+    return this.sourceRegistry.getByIdAndRole(id, role);
+  }
+
+  public listSourcesByPaneAndRole(paneId: string, role: State["role"]): readonly State[] {
+    return this.sourceRegistry.listByPaneAndRole(paneId, role);
+  }
+
   public context(): ChartContext<number, ChartType> {
     return this.chartContext;
+  }
+
+  public bindMainSource(
+    mainSourceId: string,
+    chartType: ChartType,
+    barSequence: ChartBarSequence<number>,
+  ): void {
+    this.chartContext.bindMainSource(mainSourceId, chartType, barSequence);
+  }
+
+  public clearMainSource(): void {
+    this.chartContext.clearMainSource();
+  }
+
+  public mainSourceId(): string | null {
+    return this.chartContext.snapshot().mainSourceId;
   }
 
   public primaryScale(): PriceScale {

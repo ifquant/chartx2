@@ -42,13 +42,45 @@ export class SourceRegistry<
     return this.list().filter((source) => source.paneId === paneId);
   }
 
+  public listByRole<Role extends State["role"]>(
+    role: Role,
+  ): readonly State[] {
+    return this.list().filter((source) => source.role === role);
+  }
+
+  public listByPaneAndRole<Role extends State["role"]>(
+    paneId: string,
+    role: Role,
+  ): readonly State[] {
+    return this.listByPane(paneId).filter((source) => source.role === role);
+  }
+
   public getById(id: string): State | undefined {
     return this.byId.get(id);
+  }
+
+  public getByIdAndRole<Role extends State["role"]>(
+    id: string,
+    role: Role,
+  ): State | undefined {
+    const source = this.byId.get(id);
+    if (source === undefined || source.role !== role) {
+      return undefined;
+    }
+    return source;
   }
 
   public getByApi(api: Api): State | undefined {
     const id = this.byApi.get(api);
     return id === undefined ? undefined : this.byId.get(id);
+  }
+
+  public getByApiOrThrow(api: Api, message: string): State {
+    const source = this.getByApi(api);
+    if (source === undefined) {
+      throw new Error(message);
+    }
+    return source;
   }
 
   public hasApi(api: Api): boolean {

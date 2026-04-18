@@ -40,6 +40,9 @@ describe("source registry", () => {
     expect(registry.list().map((source) => source.id)).toEqual(["series-1", "series-2"]);
     expect(registry.listByPane("primary").map((source) => source.label)).toEqual(["Candlestick 1"]);
     expect(registry.listByPane("pane-1").map((source) => source.label)).toEqual(["Line 2"]);
+    expect(registry.listByRole("main-series").map((source) => source.id)).toEqual(["series-1"]);
+    expect(registry.listByPaneAndRole("pane-1", "study").map((source) => source.id)).toEqual(["series-2"]);
+    expect(registry.getByIdAndRole("series-1", "main-series")?.label).toBe("Candlestick 1");
     expect(registry.getByApi(studyApi)?.role).toBe("study");
   });
 
@@ -66,10 +69,12 @@ describe("source registry", () => {
     expect(moved?.paneId).toBe("pane-2");
     expect(moved?.priceScaleId).toBe("pane-2-right");
     expect(moved?.visible).toBe(false);
+    expect(registry.getByApiOrThrow(api, "missing").id).toBe("series-2");
 
     const removed = registry.removeByApi(api);
     expect(removed?.id).toBe("series-2");
     expect(registry.getByApi(api)).toBeUndefined();
     expect(registry.list()).toEqual([]);
+    expect(() => registry.getByApiOrThrow(api, "missing")).toThrow(/missing/);
   });
 });

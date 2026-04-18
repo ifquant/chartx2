@@ -4622,7 +4622,7 @@ export class PhaseOneChartHarness {
     const mainSourceId = this.chartContext.snapshot().mainSourceId;
     return mainSourceId === null
       ? null
-      : ((this.sourceRegistry.getById(mainSourceId) as MainSeriesSourceState | undefined) ?? null);
+      : ((this.sourceRegistry.getByIdAndRole(mainSourceId, "main-series") as MainSeriesSourceState | undefined) ?? null);
   }
 
   private refreshTradeLocation(): void {
@@ -4672,7 +4672,7 @@ export class PhaseOneChartHarness {
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {
     return this.sourceRegistry
-      .listByPane(paneId)
+      .listByPaneAndRole(paneId, "study")
       .filter((entry): entry is StudySourceState => entry.role === "study");
   }
 
@@ -4684,10 +4684,7 @@ export class PhaseOneChartHarness {
     api: ChartSeriesApi,
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
-    const source = this.sourceRegistry.getByApi(api);
-    if (source === undefined) {
-      throw new Error("chartx phase-one series has been removed");
-    }
+    const source = this.sourceRegistry.getByApiOrThrow(api, "chartx phase-one series has been removed");
     if (kind !== undefined && source.kind !== kind) {
       throw new Error("chartx phase-one series is attached to an unexpected pane/source kind");
     }

@@ -2501,26 +2501,18 @@ export class PhaseOneChartHarness {
   }
 
   private clearRestorableChartStudies(): void {
-    for (const source of this.sourceRegistry.list()) {
-      if (source.role !== "study") {
-        continue;
-      }
-      if (
+    this.chartModel.removeSourcesWhere((source) =>
+      source.role === "study" &&
+      (
         source.studyKind === "overlay" ||
         source.studyKind === "compare" ||
         (source.studyKind === "indicator" && source.indicator?.kind === "moving-average")
-      ) {
-        this.sourceRegistry.removeByApi(source.api);
-      }
-    }
+      ));
   }
 
   private clearRestorableChartSeries(): void {
-    for (const source of this.sourceRegistry.list()) {
-      if (source.role === "study" && source.studyKind === "series") {
-        this.sourceRegistry.removeByApi(source.api);
-      }
-    }
+    this.chartModel.removeSourcesWhere((source) =>
+      source.role === "study" && source.studyKind === "series");
   }
 
   private clearRestorableChartDrawings(): void {
@@ -2744,7 +2736,7 @@ export class PhaseOneChartHarness {
 
   private getPointCount(): number {
     let pointCount = this.buildMainBarSequence(this.getMainSource()).logicalLength;
-    for (const state of this.sourceRegistry.list()) {
+    for (const state of this.chartModel.listSources()) {
       const rows = state.role === "main-series" && this.chartModel.context().snapshot().mainSourceId === state.id
         ? this.chartModel.context().snapshot().barSequence.bars
         : state.store.setData(state.data);
@@ -3895,7 +3887,7 @@ export class PhaseOneChartHarness {
   }
 
   private paneHasSeries(paneId: string): boolean {
-    return this.sourceRegistry.listByPane(paneId).length > 0 || this.drawingRegistry.listByPane(paneId).length > 0;
+    return this.chartModel.listSourcesByPane(paneId).length > 0 || this.drawingRegistry.listByPane(paneId).length > 0;
   }
 
   private resolveSeriesTarget(
@@ -4043,7 +4035,7 @@ export class PhaseOneChartHarness {
   }
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return this.sourceRegistry.listByPane(paneId).map((source) => ({
+    return this.chartModel.listSourcesByPane(paneId).map((source) => ({
       ...(source.role === "main-series"
         ? {
             styleOptionSurface: mainSeriesStyleSchemaSpec(source.styleSchemaId).optionSurface,
@@ -5096,7 +5088,7 @@ export class PhaseOneChartHarness {
   }
 
   private syncStudyContextData(): void {
-    for (const state of this.sourceRegistry.list().filter((entry): entry is StudySourceState => entry.role === "study")) {
+    for (const state of this.chartModel.listSourcesByRole("study") as readonly StudySourceState[]) {
       state.data = this.resolveStudyDisplayData(state);
     }
   }
@@ -5275,7 +5267,7 @@ export class PhaseOneChartHarness {
     }
     const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
     let pointCount = mainSequence.logicalLength;
-    for (const state of this.sourceRegistry.list().filter((entry) => entry.role === "study")) {
+    for (const state of this.chartModel.listSourcesByRole("study")) {
       const seriesId = state.id;
       const rows = state.paneId === "primary"
         ? (primaryRowSets.get(state.id) ?? state.store.setData(state.data))

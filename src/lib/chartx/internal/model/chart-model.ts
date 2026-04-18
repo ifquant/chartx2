@@ -25,6 +25,18 @@ export class ChartModel<
     return this.sourceRegistry;
   }
 
+  public listSources(): readonly State[] {
+    return this.sourceRegistry.list();
+  }
+
+  public listSourcesByPane(paneId: string): readonly State[] {
+    return this.sourceRegistry.listByPane(paneId);
+  }
+
+  public listSourcesByRole<Role extends State["role"]>(role: Role): readonly State[] {
+    return this.sourceRegistry.listByRole(role);
+  }
+
   public registerSource(source: State): void {
     this.sourceRegistry.register(source);
   }
@@ -47,6 +59,20 @@ export class ChartModel<
 
   public listSourcesByPaneAndRole(paneId: string, role: State["role"]): readonly State[] {
     return this.sourceRegistry.listByPaneAndRole(paneId, role);
+  }
+
+  public removeSourcesWhere(predicate: (source: State) => boolean): readonly State[] {
+    const removed: State[] = [];
+    for (const source of this.sourceRegistry.list()) {
+      if (!predicate(source)) {
+        continue;
+      }
+      const nextRemoved = this.removeSourceByApi(source.api);
+      if (nextRemoved !== undefined) {
+        removed.push(nextRemoved);
+      }
+    }
+    return removed;
   }
 
   public context(): ChartContext<number, ChartType> {

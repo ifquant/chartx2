@@ -102,4 +102,43 @@ describe("chart model", () => {
     expect(model.mainSourceId()).toBeNull();
     expect(model.sources().getByApi(api)).toBeUndefined();
   });
+
+  it("lists sources by pane and role and supports owner-driven bulk removal", () => {
+    const model = new ChartModel<TestKind, TestApi, TestSource, "candlestick" | "line">();
+    const mainApi = { handle: "main" };
+    const studyApi = { handle: "study" };
+
+    model.registerSource({
+      id: "series-1",
+      label: "Main",
+      kind: "candlestick",
+      role: "main-series",
+      paneId: "primary",
+      priceScaleId: "primary-right",
+      visible: true,
+      api: mainApi,
+      pointCount: 10,
+    });
+    model.registerSource({
+      id: "series-2",
+      label: "Study",
+      kind: "line",
+      role: "study",
+      paneId: "pane-1",
+      priceScaleId: "pane-1-right",
+      visible: true,
+      api: studyApi,
+      pointCount: 6,
+    });
+
+    expect(model.listSources().map((source) => source.id)).toEqual(["series-1", "series-2"]);
+    expect(model.listSourcesByPane("pane-1").map((source) => source.id)).toEqual(["series-2"]);
+    expect(model.listSourcesByRole("study").map((source) => source.id)).toEqual(["series-2"]);
+    expect(model.listSourcesByPaneAndRole("pane-1", "study").map((source) => source.id)).toEqual(["series-2"]);
+
+    const removed = model.removeSourcesWhere((source) => source.role === "study");
+
+    expect(removed.map((source) => source.id)).toEqual(["series-2"]);
+    expect(model.listSources().map((source) => source.id)).toEqual(["series-1"]);
+  });
 });

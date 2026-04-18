@@ -13,9 +13,7 @@ import {
   buildMovingAverageStudyData,
   assertDrawingTargetValid,
   ChartModel,
-  createDefaultStudyInputContext,
   createMainSeriesStateSnapshot,
-  createSeriesRuntimeFields,
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
@@ -107,6 +105,7 @@ import {
   getMovingAverageStudyOptions,
 } from "./chart-study-options";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
+import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import {
   buildDrawingStateSnapshots,
@@ -2756,21 +2755,35 @@ export class PhaseOneChartHarness {
     studyKind: StudySourceKind = "series",
     indicator?: MovingAverageIndicatorState,
   ): void {
-    const priceScale = paneId === "primary"
-      ? this.primaryPriceScale
-      : this.getOrCreateSecondaryPanePriceScale(paneId);
-    const priceScaleId = paneId === "primary" ? "primary-right" : `${paneId}-right`;
-    this.chartModel.registerSource(
-      this.createStudySourceState(
-        paneId,
-        kind,
-        api,
-        meta,
-        priceScale,
-        priceScaleId,
-        studyKind,
-        indicator,
-      ),
+    attachStudySource(
+      { paneId, kind, api, meta, studyKind, indicator },
+      {
+        primaryPriceScale: this.primaryPriceScale,
+        getOrCreateSecondaryPriceScale: (nextPaneId) => this.getOrCreateSecondaryPanePriceScale(nextPaneId),
+        createSourceState: ({ paneId: nextPaneId, kind: nextKind, api: nextApi, meta: nextMeta, priceScale, priceScaleId, studyKind: nextStudyKind, indicator: nextIndicator }) =>
+          createStudySourceState<
+            PhaseOneCandlestickData,
+            ChartSeriesApi,
+            ChartSeriesKind,
+            StudySourceState["options"],
+            HistogramVisual,
+            PriceLineState,
+            SeriesMarkerState,
+            Required<PhaseOneCompareSeriesOptions>
+          >({
+            paneId: nextPaneId,
+            kind: nextKind as ChartSeriesKind,
+            api: nextApi as ChartSeriesApi,
+            meta: nextMeta,
+            priceScale,
+            priceScaleId,
+            studyKind: nextStudyKind,
+            indicator: nextIndicator,
+            defaultCompareOptions: this.defaultCompareOptions,
+            createOptions: (createKind) => this.createSeriesOptions(createKind),
+          }),
+        registerSource: (source) => this.chartModel.registerSource(source),
+      },
     );
   }
 
@@ -3824,47 +3837,6 @@ export class PhaseOneChartHarness {
       },
       createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
     });
-  }
-
-  private createStudySourceState(
-    paneId: string,
-    kind: ChartSeriesKind,
-    api: ChartSeriesApi,
-    meta: { id: string; label: string },
-    priceScale: PriceScale,
-    priceScaleId: string,
-    studyKind: StudySourceKind = "series",
-    indicator?: MovingAverageIndicatorState,
-  ): StudySourceState {
-    return {
-      id: meta.id,
-      label: meta.label,
-      kind,
-      role: "study",
-      studyKind,
-      inputData: [],
-      inputContext: createDefaultStudyInputContext(),
-      indicator,
-      compareOptions:
-        studyKind === "compare"
-          ? { ...this.defaultCompareOptions }
-          : undefined,
-      paneId,
-      priceScaleId,
-      visible: true,
-      ...createSeriesRuntimeFields<
-        PhaseOneCandlestickData,
-        ChartSeriesApi,
-        StudySourceState["options"],
-        HistogramVisual,
-        PriceLineState,
-        SeriesMarkerState
-      >({
-        api,
-        priceScale,
-        options: this.createSeriesOptions(kind),
-      }),
-    };
   }
 
   private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {

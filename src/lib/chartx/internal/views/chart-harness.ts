@@ -78,6 +78,7 @@ import {
   PointFigureRenderer,
 } from "../renderers";
 import type { Coordinate } from "../model";
+import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
 import { restoreChartState } from "./chart-state-restore";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -1017,6 +1018,49 @@ type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & Base
 };
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
+type PhaseOneRestorableSeriesSnapshot =
+  | {
+      kind: "candlestick";
+      paneIndex: number;
+      options: PhaseOneCandlestickSeriesOptions;
+      data: readonly PhaseOneCandlestickData[];
+    }
+  | {
+      kind: "bar";
+      paneIndex: number;
+      options: PhaseOneBarSeriesOptions;
+      data: readonly PhaseOneCandlestickData[];
+    }
+  | {
+      kind: "line";
+      paneIndex: number;
+      options: PhaseOneLineSeriesOptions;
+      data: readonly PhaseOneLineData[];
+    }
+  | {
+      kind: "area";
+      paneIndex: number;
+      options: PhaseOneAreaSeriesOptions;
+      data: readonly PhaseOneLineData[];
+    }
+  | {
+      kind: "baseline";
+      paneIndex: number;
+      options: PhaseOneBaselineSeriesOptions;
+      data: readonly PhaseOneLineData[];
+    }
+  | {
+      kind: "histogram";
+      paneIndex: number;
+      options: PhaseOneHistogramSeriesOptions;
+      data: readonly PhaseOneHistogramData[];
+    }
+  | {
+      kind: "volume";
+      paneIndex: number;
+      options: PhaseOneVolumeSeriesOptions;
+      data: readonly PhaseOneVolumeData[];
+    };
 
 type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
 
@@ -2530,87 +2574,78 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
-    for (const item of series) {
-      const pane = this.panes.getByIndex(item.paneIndex);
-      if (pane === undefined) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      const target = { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
-
-      switch (item.kind) {
-        case "candlestick": {
-          const restored = this.addCandlestickSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data);
-          break;
+    restoreSeriesCollection(series as readonly PhaseOneRestorableSeriesSnapshot[], {
+      resolvePaneTarget: (paneIndex) => {
+        const pane = this.panes.getByIndex(paneIndex);
+        if (pane === undefined) {
+          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
         }
-        case "bar": {
-          const restored = this.addBarSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data);
-          break;
-        }
-        case "line": {
-          const restored = this.addLineSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data);
-          break;
-        }
-        case "area": {
-          const restored = this.addAreaSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data);
-          break;
-        }
-        case "baseline": {
-          const restored = this.addBaselineSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data);
-          break;
-        }
-        case "histogram": {
-          const restored = this.addHistogramSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data as readonly PhaseOneHistogramData[]);
-          break;
-        }
-        case "volume": {
-          const restored = this.addVolumeSeries(target);
-          restored.applyOptions(item.options);
-          restored.setData(item.data as readonly PhaseOneVolumeData[]);
-          break;
-        }
-      }
-    }
+        return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
+      },
+      restoreCandlestick: (target, snapshot) => {
+        const restored = this.addCandlestickSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreBar: (target, snapshot) => {
+        const restored = this.addBarSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreLine: (target, snapshot) => {
+        const restored = this.addLineSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreArea: (target, snapshot) => {
+        const restored = this.addAreaSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreBaseline: (target, snapshot) => {
+        const restored = this.addBaselineSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreHistogram: (target, snapshot) => {
+        const restored = this.addHistogramSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+      restoreVolume: (target, snapshot) => {
+        const restored = this.addVolumeSeries(target);
+        restored.applyOptions(snapshot.options);
+        restored.setData(snapshot.data);
+      },
+    });
   }
 
   private restoreChartStudies(studies: readonly PhaseOneChartStateSnapshot["studies"][number][]): void {
-    for (const study of studies) {
-      const pane = this.panes.getByIndex(study.paneIndex);
-      if (pane === undefined) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      const paneId = pane.id;
-
-      if (study.type === "overlay") {
+    restoreStudyCollection(studies, {
+      resolvePaneId: (paneIndex) => {
+        const pane = this.panes.getByIndex(paneIndex);
+        if (pane === undefined) {
+          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+        }
+        return pane.id;
+      },
+      restoreOverlay: (paneId, snapshot) => {
         const overlay = this.addStudyLineSeries(paneId, "overlay");
-        overlay.applyOptions(study.seriesOptions);
-        overlay.setData(study.data);
-        continue;
-      }
-
-      if (study.type === "compare") {
+        overlay.applyOptions(snapshot.seriesOptions);
+        overlay.setData(snapshot.data);
+      },
+      restoreCompare: (paneId, snapshot) => {
         const compare = this.addCompareStudySeries(paneId);
-        compare.applyOptions(study.seriesOptions);
-        compare.applyCompareOptions(study.compareOptions);
-        compare.setData(study.data);
-        continue;
-      }
-
-      const movingAverage = this.addMovingAverageStudySeries(paneId);
-      movingAverage.applyOptions(study.seriesOptions);
-      movingAverage.applyStudyOptions(study.studyOptions);
-    }
+        compare.applyOptions(snapshot.seriesOptions);
+        compare.applyCompareOptions(snapshot.compareOptions);
+        compare.setData(snapshot.data);
+      },
+      restoreMovingAverage: (paneId, snapshot) => {
+        const movingAverage = this.addMovingAverageStudySeries(paneId);
+        movingAverage.applyOptions(snapshot.seriesOptions);
+        movingAverage.applyStudyOptions(snapshot.studyOptions);
+      },
+    });
   }
 
   private restoreChartDrawings(drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][]): void {

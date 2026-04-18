@@ -123,6 +123,7 @@ import {
   renderPriceAxes as renderPriceAxesUseCase,
   renderTimeAxis as renderTimeAxisUseCase,
 } from "./chart-axis-render";
+import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
@@ -4398,29 +4399,30 @@ export class PhaseOneChartHarness {
     const plotHeight = layout.height - layout.top - layout.bottom;
     const mainSource = this.getMainSource();
     const mainSequence = this.buildMainBarSequence(mainSource);
-    const primaryRows = mainSequence.bars;
-    const primaryTimeAxisRows = mainSequence.axisBars;
     const primaryStudies = this.getStudySourcesForPane("primary");
     const primarySources = this.buildPrimaryPaneSeries(mainSource);
-    const primaryRowSets = new Map<string, RowSet>();
-    if (mainSource !== null) {
-      primaryRowSets.set(mainSource.id, primaryRows);
-    }
-    for (const state of primaryStudies) {
-      primaryRowSets.set(state.id, state.store.setData(state.data));
-    }
-    const secondaryRows = new Map<string, ReturnType<SeriesDataStore<number>["setData"]>>();
-    let pointCount = mainSequence.logicalLength;
-    for (const state of this.chartModel.listSourcesByRole("study")) {
-      const seriesId = state.id;
-      const rows = state.paneId === "primary"
-        ? (primaryRowSets.get(state.id) ?? state.store.setData(state.data))
-        : state.store.setData(state.data);
-      secondaryRows.set(seriesId, rows);
-      const rowLogicalLength =
-        rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
-      pointCount = Math.max(pointCount, rowLogicalLength);
-    }
+    const renderState = buildChartRenderStateUseCase({
+      paneSpecs: this.panes.list(),
+      plotHeight,
+      paneGap: PANE_GAP,
+      paneWidth,
+      crosshair: this.crosshair,
+      mainSourceId: mainSource?.id ?? null,
+      mainSequence,
+      primaryStudies,
+      primarySources,
+      studySources: this.chartModel.listSourcesByRole("study"),
+    });
+    const {
+      primaryRows,
+      primaryTimeAxisRows,
+      primaryRowSets,
+      secondaryRows,
+      pointCount,
+      paneFrames,
+      activePane,
+      barWidth,
+    } = renderState;
 
     if (pointCount === 0) {
       context.save();
@@ -4439,10 +4441,6 @@ export class PhaseOneChartHarness {
       barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, pointCount),
       rightOffset: this.rightOffset,
     });
-
-    const paneFrames = buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP);
-    const activePane = this.crosshair === null ? null : resolveActivePane(paneFrames, this.crosshair.y);
-    const barWidth = paneWidth / Math.max(pointCount * 1.8, 24);
 
     for (const pane of paneFrames) {
       context.save();

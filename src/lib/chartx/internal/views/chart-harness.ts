@@ -119,6 +119,7 @@ import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
+import { buildPaneLegendEntries as buildPaneLegendEntriesUseCase } from "./chart-pane-legend";
 import { restoreChartSeries as restoreChartSeriesUseCase } from "./chart-series-restore";
 import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
@@ -4607,17 +4608,18 @@ export class PhaseOneChartHarness {
 
       context.restore();
 
-      const legendEntries =
-        pane.kind === "primary"
-          ? this.buildReadoutSeriesForPrimary(
-              primarySources,
-              primaryRowSets,
-              resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
-            )
-          : this.buildReadoutSeriesForPane(
-              this.getSecondarySeriesForPane(pane.id),
-              resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair),
-            );
+      const legendEntries = buildPaneLegendEntriesUseCase({
+        pane,
+        activePane,
+        crosshair: this.crosshair,
+        primarySources,
+        primaryRowSets,
+        getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
+        buildReadoutSeriesForPrimary: (nextPrimarySources, rowSets, crosshair) =>
+          this.buildReadoutSeriesForPrimary(nextPrimarySources, rowSets as ReadonlyMap<string, RowSet>, crosshair),
+        buildReadoutSeriesForPane: (paneSeries, crosshair) =>
+          this.buildReadoutSeriesForPane(paneSeries, crosshair),
+      });
       drawPaneLegend(context, legendEntries);
 
       const paneCrosshair = resolveLocalPanePoint(activePane?.id === pane.id ? activePane : null, this.crosshair);

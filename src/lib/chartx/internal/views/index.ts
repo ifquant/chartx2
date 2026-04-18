@@ -5,6 +5,7 @@ export * from "./chart-primary-series-api";
 export * from "./chart-main-series-source";
 export * from "./chart-main-series-state";
 export * from "./chart-series-mutation";
+export * from "./chart-study-options";
 export * from "./chart-state";
 export * from "./chart-state-snapshot-builders";
 export * from "./chart-state-restore";

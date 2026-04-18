@@ -89,6 +89,12 @@ import {
   updateStudyHistogramLikeData,
   updateStudySeriesData,
 } from "./chart-series-mutation";
+import {
+  applyCompareStudyOptions,
+  applyMovingAverageStudyOptions,
+  getCompareStudyOptions,
+  getMovingAverageStudyOptions,
+} from "./chart-study-options";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import {
@@ -2787,52 +2793,22 @@ export class PhaseOneChartHarness {
       },
       applyCompareOptions: (options) => {
         this.assertSeriesActive(api);
-        const state = this.getCompareStudyState(api);
-        if (options.affectMainScale !== undefined) {
-          state.compareOptions = {
-            ...(state.compareOptions ?? this.defaultCompareOptions),
-            affectMainScale: options.affectMainScale,
-          };
-        }
-        const nextInputContext = {
-          ...state.inputContext,
-          mode: options.inputContextMode ?? state.inputContext.mode,
-          symbol:
-            options.requestedSymbol !== undefined
-              ? options.requestedSymbol
-              : state.inputContext.symbol,
-          resolution:
-            options.requestedResolution !== undefined
-              ? options.requestedResolution
-              : state.inputContext.resolution,
-          session:
-            options.requestedSession !== undefined
-              ? options.requestedSession
-              : state.inputContext.session,
-          timezone:
-            options.requestedTimezone !== undefined
-              ? options.requestedTimezone
-              : state.inputContext.timezone,
-          mergePolicy: options.mergePolicy ?? state.inputContext.mergePolicy,
-        } satisfies StudyInputContextState;
-        state.inputContext = nextInputContext;
-        state.data = this.resolveStudyDisplayData(state);
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        applyCompareStudyOptions(this.getCompareStudyState(api), options, {
+          defaultCompareOptions: this.defaultCompareOptions,
+          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        });
       },
       getCompareOptions: () => {
         this.assertSeriesActive(api);
-        const state = this.getCompareStudyState(api);
-        return {
-          ...(state.compareOptions ?? this.defaultCompareOptions),
-          inputContextMode: state.inputContext.mode,
-          requestedSymbol: state.inputContext.symbol,
-          requestedResolution: state.inputContext.resolution,
-          requestedSession: state.inputContext.session,
-          requestedTimezone: state.inputContext.timezone,
-          mergePolicy: state.inputContext.mergePolicy,
-        };
+        return getCompareStudyOptions(
+          this.getCompareStudyState(api),
+          this.defaultCompareOptions,
+        );
       },
       setMarkers: (markers) => {
         this.assertSeriesActive(api);
@@ -2882,41 +2858,22 @@ export class PhaseOneChartHarness {
       },
       applyStudyOptions: (options) => {
         this.assertSeriesActive(api);
-        const state = this.getMovingAverageStudyState(api);
-        state.indicator = {
-          kind: "moving-average",
-          length: Math.max(1, options.length ?? state.indicator?.length ?? this.defaultMovingAverageOptions.length),
-        };
-        state.inputContext = {
-          ...state.inputContext,
-          mode: options.inputContextMode ?? state.inputContext.mode,
-          symbol:
-            options.requestedSymbol !== undefined ? options.requestedSymbol : state.inputContext.symbol,
-          resolution:
-            options.requestedResolution !== undefined ? options.requestedResolution : state.inputContext.resolution,
-          session:
-            options.requestedSession !== undefined ? options.requestedSession : state.inputContext.session,
-          timezone:
-            options.requestedTimezone !== undefined ? options.requestedTimezone : state.inputContext.timezone,
-          mergePolicy: options.mergePolicy ?? state.inputContext.mergePolicy,
-        };
-        state.data = this.resolveStudyDisplayData(state);
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        applyMovingAverageStudyOptions(this.getMovingAverageStudyState(api), options, {
+          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
+          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        });
       },
       getStudyOptions: () => {
         this.assertSeriesActive(api);
-        const state = this.getMovingAverageStudyState(api);
-        return {
-          length: state.indicator?.length ?? this.defaultMovingAverageOptions.length,
-          inputContextMode: state.inputContext.mode,
-          requestedSymbol: state.inputContext.symbol,
-          requestedResolution: state.inputContext.resolution,
-          requestedSession: state.inputContext.session,
-          requestedTimezone: state.inputContext.timezone,
-          mergePolicy: state.inputContext.mergePolicy,
-        };
+        return getMovingAverageStudyOptions(
+          this.getMovingAverageStudyState(api),
+          this.defaultMovingAverageOptions,
+        );
       },
       setMarkers: (markers) => {
         this.assertSeriesActive(api);

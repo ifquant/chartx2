@@ -116,6 +116,10 @@ import {
 } from "./chart-state-snapshot-builders";
 import { buildRawReadout as buildRawReadoutUseCase } from "./chart-readout";
 import {
+  renderPrimaryPaneContent as renderPrimaryPaneContentUseCase,
+  renderSecondaryPaneContent as renderSecondaryPaneContentUseCase,
+} from "./chart-pane-render";
+import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
@@ -4454,156 +4458,184 @@ export class PhaseOneChartHarness {
       context.rect(0, 0, paneWidth, pane.height);
       context.clip();
 
-      if (pane.kind === "primary" && primaryRows.length > 0 && mainSource !== null) {
-        let computedPrimaryRange = mainSource.store.priceRange(
+      if (pane.kind === "primary") {
+        let computedPrimaryRange = mainSource === null ? null : mainSource.store.priceRange(
           0 as TimePointIndex,
           (mainSource.data.length - 1) as TimePointIndex,
         );
-        for (const state of primaryStudies) {
-          if (
-            state.studyKind === "compare" &&
-            (this.primaryScaleSeriesOnly || state.compareOptions?.affectMainScale === false)
-          ) {
-            continue;
+        if (mainSource !== null) {
+          for (const state of primaryStudies) {
+            if (
+              state.studyKind === "compare" &&
+              (this.primaryScaleSeriesOnly || state.compareOptions?.affectMainScale === false)
+            ) {
+              continue;
+            }
+            const rows = primaryRowSets.get(state.id) ?? [];
+            computedPrimaryRange = this.mergeSeriesRange(rows, state, computedPrimaryRange);
           }
-          const rows = primaryRowSets.get(state.id) ?? [];
-          computedPrimaryRange = this.mergeSeriesRange(rows, state, computedPrimaryRange);
         }
         this.primaryPriceScale.applyOptions({
           height: pane.height,
           priceRange: this.primaryPriceRangeOverride ?? computedPrimaryRange,
         });
-
         const primaryRangeMin = (this.primaryPriceRangeOverride ?? computedPrimaryRange)?.minValue() ?? 0;
-        for (const state of primarySources) {
-          const rows = primaryRowSets.get(state.id) ?? [];
-          this.renderSeriesSource(
-            context,
-            state,
-            rows,
-            pane.height,
-            barWidth,
-            this.primaryPriceScale,
-            primaryRangeMin,
-          );
-        }
 
-        drawPriceLines(
-          context,
-          paneWidth,
-          pane.height,
-          this.primaryPriceScale,
-          this.collectPanePriceLines("primary", primarySources),
-          this.chartOptions,
-          this.priceAxisFormatter,
-        );
-        drawPaneDrawings(
-          context,
-          this.drawingRegistry.listByPane("primary"),
-          this.chartModel.context().snapshot().barSequence.axisBars,
-          this.timeScale,
-          this.primaryPriceScale,
-          this.selectedDrawingId,
-          this.hoveredDrawingId,
-          this.hoveredDrawingHandle,
-        );
-        drawTradeLocationOverlay(
-          context,
-          this.activeTradeLocation?.state ?? null,
-          pane.height,
-          this.timeScale,
-          this.primaryPriceScale,
-        );
-        drawDrawingSnapGuide(
-          context,
-          paneWidth,
-          pane.height,
-          this.primaryPriceScale,
-          this.chartModel.context().snapshot().barSequence.axisBars,
-          this.timeScale,
-          this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
-        );
-
-        for (const state of primarySources) {
-          const rows = primaryRowSets.get(state.id) ?? [];
-          drawSeriesMarkers(
-            context,
-            rows,
-            state.markers,
-            this.timeScale,
-            this.primaryPriceScale,
-            pane.height,
-            state.kind,
-          );
-        }
+        renderPrimaryPaneContentUseCase({
+          hasPrimaryData: primaryRows.length > 0,
+          mainSourceExists: mainSource !== null,
+          primarySources,
+          primaryRowsFor: (source) => primaryRowSets.get(source.id) ?? [],
+          renderSeries: (source, rows) => {
+            this.renderSeriesSource(
+              context,
+              source,
+              rows,
+              pane.height,
+              barWidth,
+              this.primaryPriceScale,
+              primaryRangeMin,
+            );
+          },
+          drawPriceLines: () => {
+            drawPriceLines(
+              context,
+              paneWidth,
+              pane.height,
+              this.primaryPriceScale,
+              this.collectPanePriceLines("primary", primarySources),
+              this.chartOptions,
+              this.priceAxisFormatter,
+            );
+          },
+          drawDrawings: (drawings) => {
+            drawPaneDrawings(
+              context,
+              drawings,
+              this.chartModel.context().snapshot().barSequence.axisBars,
+              this.timeScale,
+              this.primaryPriceScale,
+              this.selectedDrawingId,
+              this.hoveredDrawingId,
+              this.hoveredDrawingHandle,
+            );
+          },
+          primaryDrawings: this.drawingRegistry.listByPane("primary"),
+          drawTradeLocationOverlay: () => {
+            drawTradeLocationOverlay(
+              context,
+              this.activeTradeLocation?.state ?? null,
+              pane.height,
+              this.timeScale,
+              this.primaryPriceScale,
+            );
+          },
+          drawDrawingSnapGuide: () => {
+            drawDrawingSnapGuide(
+              context,
+              paneWidth,
+              pane.height,
+              this.primaryPriceScale,
+              this.chartModel.context().snapshot().barSequence.axisBars,
+              this.timeScale,
+              this.drawingSnapGuide?.paneId === "primary" ? this.drawingSnapGuide : null,
+            );
+          },
+          drawMarkers: (source, rows) => {
+            drawSeriesMarkers(
+              context,
+              rows,
+              source.markers,
+              this.timeScale,
+              this.primaryPriceScale,
+              pane.height,
+              source.kind,
+            );
+          },
+        });
       }
 
       if (pane.kind === "secondary") {
         const paneSeries = this.getSecondarySeriesForPane(pane.id);
         const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
         const range = this.resolveSecondaryPanePriceRange(paneSeries, secondaryRows);
-        if (panePriceScale !== undefined && range !== null) {
-          panePriceScale.applyOptions({
-            height: pane.height,
-            priceRange: range,
-          });
-        }
-
-        for (const state of paneSeries) {
-          const rows = secondaryRows.get(state.id);
-          if (rows === undefined || rows.length === 0) {
-            continue;
-          }
-          this.renderSeriesSource(context, state, rows, pane.height, barWidth, state.priceScale, range?.minValue() ?? 0);
-        }
-
-        if (panePriceScale !== undefined) {
-          drawPriceLines(
-            context,
-            paneWidth,
-            pane.height,
-            panePriceScale,
-            this.collectPanePriceLines(pane.id, paneSeries),
-            this.chartOptions,
-            this.priceAxisFormatter,
-          );
-          drawPaneDrawings(
-            context,
-            this.drawingRegistry.listByPane(pane.id),
-            this.chartModel.context().snapshot().barSequence.axisBars,
-            this.timeScale,
-            panePriceScale,
-            this.selectedDrawingId,
-            this.hoveredDrawingId,
-            this.hoveredDrawingHandle,
-          );
-          drawDrawingSnapGuide(
-            context,
-            paneWidth,
-            pane.height,
-            panePriceScale,
-            this.chartModel.context().snapshot().barSequence.axisBars,
-            this.timeScale,
-            this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
-          );
-        }
-
-        for (const state of paneSeries) {
-          const rows = secondaryRows.get(state.id);
-          if (rows === undefined || rows.length === 0) {
-            continue;
-          }
-
-          drawSeriesMarkers(
-            context,
-            rows,
-            state.markers,
-            this.timeScale,
-            state.priceScale,
-            pane.height,
-            state.kind,
-          );
-        }
+        renderSecondaryPaneContentUseCase({
+          paneSeries,
+          hasPriceScale: panePriceScale !== undefined && range !== null,
+          rowsFor: (source) => secondaryRows.get(source.id),
+          hasRows: (rows) => (rows?.length ?? 0) > 0,
+          applyPriceScaleRange: () => {
+            if (panePriceScale !== undefined && range !== null) {
+              panePriceScale.applyOptions({
+                height: pane.height,
+                priceRange: range,
+              });
+            }
+          },
+          renderSeries: (source, rows) => {
+            this.renderSeriesSource(
+              context,
+              source,
+              rows,
+              pane.height,
+              barWidth,
+              source.priceScale,
+              range?.minValue() ?? 0,
+            );
+          },
+          drawPriceLines: () => {
+            if (panePriceScale !== undefined) {
+              drawPriceLines(
+                context,
+                paneWidth,
+                pane.height,
+                panePriceScale,
+                this.collectPanePriceLines(pane.id, paneSeries),
+                this.chartOptions,
+                this.priceAxisFormatter,
+              );
+            }
+          },
+          drawDrawings: (drawings) => {
+            if (panePriceScale !== undefined) {
+              drawPaneDrawings(
+                context,
+                drawings,
+                this.chartModel.context().snapshot().barSequence.axisBars,
+                this.timeScale,
+                panePriceScale,
+                this.selectedDrawingId,
+                this.hoveredDrawingId,
+                this.hoveredDrawingHandle,
+              );
+            }
+          },
+          paneDrawings: this.drawingRegistry.listByPane(pane.id),
+          drawDrawingSnapGuide: () => {
+            if (panePriceScale !== undefined) {
+              drawDrawingSnapGuide(
+                context,
+                paneWidth,
+                pane.height,
+                panePriceScale,
+                this.chartModel.context().snapshot().barSequence.axisBars,
+                this.timeScale,
+                this.drawingSnapGuide?.paneId === pane.id ? this.drawingSnapGuide : null,
+              );
+            }
+          },
+          drawMarkers: (source, rows) => {
+            drawSeriesMarkers(
+              context,
+              rows,
+              source.markers,
+              this.timeScale,
+              source.priceScale,
+              pane.height,
+              source.kind,
+            );
+          },
+        });
       }
 
       context.restore();

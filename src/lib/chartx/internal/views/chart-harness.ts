@@ -124,6 +124,10 @@ import {
   renderTimeAxis as renderTimeAxisUseCase,
 } from "./chart-axis-render";
 import {
+  buildCrosshairMoveEvent as buildCrosshairMoveEventUseCase,
+  finishChartRender as finishChartRenderUseCase,
+} from "./chart-render-tail";
+import {
   applyPrimaryPaneScale as applyPrimaryPaneScaleUseCase,
   applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
 } from "./chart-pane-scale";
@@ -4669,34 +4673,45 @@ export class PhaseOneChartHarness {
     });
 
     const firstSecondaryRows = secondaryRows.values().next().value;
-    renderTimeAxisUseCase({
+    finishChartRenderUseCase({
       primaryRows: primaryTimeAxisRows,
       firstSecondaryRows,
       hasRows: (rows) => (rows?.length ?? 0) > 0,
-      draw: (rows) => {
-        drawTimeAxis(
-          context,
-          layout,
-          rows,
-          this.timeScale,
-          this.crosshair,
-          this.chartOptions,
-          this.timeAxisFormatter,
-          this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
-            ? buildMagnetTimeAxisTag(
-                layout,
-                rows,
-                this.timeScale,
-                this.drawingSnapGuide!,
-                this.timeAxisFormatter,
-              )
-            : null,
-        );
+      renderTimeAxis: (rows) => {
+        renderTimeAxisUseCase({
+          primaryRows: rows,
+          firstSecondaryRows: undefined,
+          hasRows: (rows) => (rows?.length ?? 0) > 0,
+          draw: (rows) => {
+            drawTimeAxis(
+              context,
+              layout,
+              rows,
+              this.timeScale,
+              this.crosshair,
+              this.chartOptions,
+              this.timeAxisFormatter,
+              this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
+                ? buildMagnetTimeAxisTag(
+                    layout,
+                    rows,
+                    this.timeScale,
+                    this.drawingSnapGuide!,
+                    this.timeAxisFormatter,
+                  )
+                : null,
+            );
+          },
+        });
+      },
+      buildReadout: () => this.buildReadout(this.crosshair, layout),
+      publishReadout: (readout) => {
+        emitReadout(canvas, readout);
+      },
+      publishCrosshairMove: (readout) => {
+        this.emitCrosshairMove(readout);
       },
     });
-    const readout = this.buildReadout(this.crosshair, layout);
-    emitReadout(canvas, readout);
-    this.emitCrosshairMove(readout);
   }
 
   private assertSeriesActive(series: ChartSeriesApi): void {
@@ -4706,16 +4721,7 @@ export class PhaseOneChartHarness {
   }
 
   private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
-    const event: PhaseOneCrosshairMoveEvent = {
-      ...readout,
-      point:
-        this.crosshair === null
-          ? null
-          : {
-              x: this.crosshair.x,
-              y: this.crosshair.y,
-            },
-    };
+    const event: PhaseOneCrosshairMoveEvent = buildCrosshairMoveEventUseCase(readout, this.crosshair);
 
     for (const handler of this.crosshairMoveHandlers) {
       handler(event);

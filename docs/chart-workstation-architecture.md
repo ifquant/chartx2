@@ -126,5 +126,6 @@ Current direction on that path:
 - series/study content rebuild should follow the same path, moving snapshot-kind dispatch into dedicated internal restore modules rather than leaving switch-heavy restore code embedded in `chart-harness`
 - drawing restore should follow the same path, so `chart-harness` no longer owns a third snapshot-type dispatch loop for state rebuild
 - chart state serialization should now follow the same direction, with series/study/drawing snapshot builders extracted from `chart-harness` into a dedicated internal module
+- chart state read/apply orchestration should also become an explicit internal use-case, so `chart-harness` no longer inlines full snapshot build/apply flows
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

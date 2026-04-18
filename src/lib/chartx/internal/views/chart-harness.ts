@@ -80,6 +80,7 @@ import {
 import type { Coordinate } from "../model";
 import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
+import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import {
   buildDrawingStateSnapshots,
@@ -2173,76 +2174,42 @@ export class PhaseOneChartHarness {
 
   public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
     const source = this.getMainSource();
-    if (source === null) {
-      return null;
-    }
-
-    return createMainSeriesStateSnapshot({
-      chartType: source.chartType,
-      options: source.options as Record<string, unknown>,
-      lineBreakOptions: source.lineBreakOptions,
-      renkoOptions: source.renkoOptions,
-      pointFigureOptions: source.pointFigureOptions,
-      kagiOptions: source.kagiOptions,
-    });
+    return buildMainSeriesStateSnapshot(
+      source === null
+        ? null
+        : {
+            chartType: source.chartType,
+            options: source.options as Record<string, unknown>,
+            lineBreakOptions: source.lineBreakOptions,
+            renkoOptions: source.renkoOptions,
+            pointFigureOptions: source.pointFigureOptions,
+            kagiOptions: source.kagiOptions,
+          },
+    );
   }
 
   public applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi {
-    const current = this.getMainSource();
-    const nextApi =
-      current === null
-        ? this.attachPrimarySeries(state.chartType)
-        : current.chartType === state.chartType
-          ? (current.api as PhaseOneMainSeriesApi)
-          : this.setChartType(state.chartType);
-
-    const source = this.getMainSourceOrThrow();
-    source.options = this.createMainSeriesOptions(source.styleSchemaId);
-
-    for (const [key, value] of Object.entries(state.styleOptions)) {
-      (source.options as Record<string, unknown>)[key] = value;
-    }
-
-    source.lineBreakOptions = {
-      lineCount: Math.max(1, Math.floor(state.lineBreakOptions.lineCount)),
-    };
-    source.renkoOptions = {
-      boxSize:
-        state.renkoOptions.boxSize !== null && state.renkoOptions.boxSize > 0
-          ? state.renkoOptions.boxSize
-          : null,
-      boxSizeMode: state.renkoOptions.boxSizeMode,
-    };
-    source.pointFigureOptions = {
-      boxSize:
-        state.pointFigureOptions.boxSize !== null && state.pointFigureOptions.boxSize > 0
-          ? state.pointFigureOptions.boxSize
-          : null,
-      boxSizeMode: state.pointFigureOptions.boxSizeMode,
-      boxSizeScale: Math.min(4, Math.max(0.25, state.pointFigureOptions.boxSizeScale)),
-      reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
-      atrLength: Math.max(2, Math.floor(state.pointFigureOptions.atrLength)),
-      percentageValue: Math.min(25, Math.max(0.1, state.pointFigureOptions.percentageValue)),
-    };
-    source.kagiOptions = {
-      reversalMode: state.kagiOptions.reversalMode,
-      reversalSize:
-        state.kagiOptions.reversalSize !== null && state.kagiOptions.reversalSize > 0
-          ? state.kagiOptions.reversalSize
-          : null,
-      reversalScale: Math.min(4, Math.max(0.25, state.kagiOptions.reversalScale)),
-      atrLength: Math.max(2, Math.floor(state.kagiOptions.atrLength)),
-      percentageValue: Math.min(25, Math.max(0.1, state.kagiOptions.percentageValue)),
-    };
-    source.data = applyMainSeriesBuilderData(source.inputData, source);
-    this.syncChartContextFromMainSource(source);
-    this.primaryPriceRangeOverride = null;
-
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
-
-    return nextApi;
+    return applyMainSeriesStateSnapshot(state, {
+      current: this.getMainSource(),
+      ensureAttached: (chartType) => this.attachPrimarySeries(chartType),
+      switchChartType: (chartType) => this.setChartType(chartType),
+      getCurrentSource: () => this.getMainSourceOrThrow(),
+      createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
+      rebuildData: (source) => {
+        source.data = applyMainSeriesBuilderData(source.inputData, source);
+      },
+      syncContext: (source) => {
+        this.syncChartContextFromMainSource(source);
+      },
+      resetPrimaryPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      finalize: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   public getChartState(): PhaseOneChartStateSnapshot {

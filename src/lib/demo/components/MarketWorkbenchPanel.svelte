@@ -4,6 +4,7 @@
     PhaseOneDrawingPropertyFieldSchema,
     PhaseOneReadoutDetail,
   } from "$lib/chartx/public/market";
+  import type { ChartWorkbenchModel } from "$lib/chartx/public/workbench";
   import type {
     DemoAction,
     DemoSnapshot,
@@ -23,6 +24,7 @@
   export let activeDrawingTool: WorkbenchDrawingTool = "none";
   export let readout: PhaseOneReadoutDetail;
   export let snapshot: DemoSnapshot;
+  export let workbench: ChartWorkbenchModel | null = null;
   export let canvasElement: HTMLCanvasElement | undefined = undefined;
   export let error = "";
   export let inspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
@@ -68,8 +70,8 @@
 <article class="demo-card workbench-card" data-demo-tab="workbench">
   <div class="card-head compact-head">
     <div class="toolbar-strip workstation-toolbar">
-      <button>NDX</button>
-      <button>1D</button>
+      <button>{workbench?.toolbar.activeSymbol ?? "NDX"}</button>
+      <button>{workbench?.toolbar.timeframeLabel ?? "1D"}</button>
       <div class="type-picker" aria-label="main chart type picker">
         {#each chartTypeActions as action}
           <button
@@ -80,9 +82,10 @@
           </button>
         {/each}
       </div>
-      <button>Indicators</button>
-      <button>Alert</button>
-      <button>Replay</button>
+      <button>{workbench?.toolbar.indicatorsLabel ?? "Indicators"}</button>
+      <button>{workbench?.toolbar.alertLabel ?? "Alert"}</button>
+      <button>{workbench?.toolbar.replayLabel ?? "Replay"}</button>
+      <button>{workbench?.toolbar.layoutLabel ?? "Layout single"}</button>
     </div>
   </div>
 
@@ -111,9 +114,9 @@
     <div class="workbench-main">
       <div class="chart-meta">
         <div class="market-line">
-          <strong>Nasdaq 100 Index</strong>
-          <span>1D</span>
-          <span>NASDAQ</span>
+          <strong>{workbench?.toolbar.activeSymbol ?? "NDX"} {workbench?.layout.preset === "single" ? "Workbench" : "Layout"}</strong>
+          <span>{workbench?.toolbar.timeframeLabel ?? "1D"}</span>
+          <span>{workbench?.toolbar.exchangeLabel ?? "NASDAQ"}</span>
           <span>O {readout.formatted.open}</span>
           <span>H {readout.formatted.high}</span>
           <span>L {readout.formatted.low}</span>
@@ -182,15 +185,9 @@
 
       <div class="workbench-footer">
         <div class="time-strip">
-          <button class="active">1D</button>
-          <button>5D</button>
-          <button>1M</button>
-          <button>3M</button>
-          <button>6M</button>
-          <button>YTD</button>
-          <button>1Y</button>
-          <button>5Y</button>
-          <button>All</button>
+          {#each workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as range}
+            <button class:active={range === (workbench?.bottomPanel.activeRange ?? "1D")}>{range}</button>
+          {/each}
         </div>
         {#if renkoActions.length > 0}
           <div class="mode-strip">
@@ -232,7 +229,7 @@
     <aside class="workbench-sidebar">
       <section class="mini-card watch-card">
         <div class="sidebar-head">
-          <h4>Watchlist</h4>
+          <h4>{workbench?.rightSidebar.watchlist.title ?? "Watchlist"}</h4>
           <button>＋</button>
         </div>
         <div class="watch-head">
@@ -241,17 +238,41 @@
           <span>Chg</span>
         </div>
         <div class="watch-body">
-          <article><strong>SPX</strong><span>6,368.86</span><span>-1.67%</span></article>
-          <article><strong>NDQ</strong><span>23,132.77</span><span>-1.93%</span></article>
-          <article><strong>DJI</strong><span>45,166.64</span><span>-1.73%</span></article>
-          <article><strong>VIX</strong><span>30.73</span><span>-1.03%</span></article>
+          {#each workbench?.rightSidebar.watchlist.items ?? [] as item}
+            <article>
+              <strong>{item.symbol}</strong>
+              <span>{item.lastLabel}</span>
+              <span>{item.changeLabel}</span>
+            </article>
+          {/each}
+        </div>
+      </section>
+
+      <section class="mini-card watch-card">
+        <div class="sidebar-head">
+          <h4>{workbench?.rightSidebar.alerts.title ?? "Alerts"}</h4>
+          <button>＋</button>
+        </div>
+        <div class="watch-head">
+          <span>Name</span>
+          <span>Rule</span>
+          <span>State</span>
+        </div>
+        <div class="watch-body">
+          {#each workbench?.rightSidebar.alerts.items ?? [] as item}
+            <article>
+              <strong>{item.label}</strong>
+              <span>{item.conditionLabel}</span>
+              <span>{item.status}</span>
+            </article>
+          {/each}
         </div>
       </section>
 
       <section class="mini-card symbol-card">
         <div class="sidebar-head">
-          <h4>NDX</h4>
-          <span>NASDAQ</span>
+          <h4>{workbench?.toolbar.activeSymbol ?? "NDX"}</h4>
+          <span>{workbench?.toolbar.exchangeLabel ?? "NASDAQ"}</span>
         </div>
         <strong class="big-price">{readout.formatted.close}</strong>
         <div class="metric-list compact">

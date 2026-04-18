@@ -23,6 +23,12 @@ import {
   type PhaseOneTrendLineDrawingOptions,
   type PhaseOneVolumeData,
 } from "$lib/chartx/public/market";
+import {
+  createChartWorkbenchModel,
+  type AlertSummaryModel,
+  type ChartWorkbenchModel,
+  type WatchlistItemModel,
+} from "$lib/chartx/public/workbench";
 import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 import {
   createCompressedPriceBasedChartBarSequence,
@@ -74,6 +80,7 @@ export type DemoSnapshot = {
   summary: string;
   metrics: readonly DemoMetric[];
   eventLog: readonly string[];
+  workbench?: ChartWorkbenchModel | null;
   note?: string;
   featureGap?: string;
   drawingTool?: {
@@ -144,6 +151,40 @@ export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
+
+function drawingToolsForSnapshot(
+  activeTool: WorkbenchDrawingTool,
+): ReadonlyArray<{
+  id: string;
+  label: string;
+  icon: string;
+  enabled: boolean;
+  active?: boolean;
+}> {
+  return [
+    {
+      id: "horizontal-line",
+      label: "Horizontal line",
+      icon: "—",
+      enabled: true,
+      active: activeTool === "horizontal-line",
+    },
+    {
+      id: "trend-line",
+      label: "Trend line",
+      icon: "／",
+      enabled: true,
+      active: activeTool === "trend-line",
+    },
+    {
+      id: "none",
+      label: "Clear drawing tool",
+      icon: "⌖",
+      enabled: true,
+      active: activeTool === "none",
+    },
+  ];
+}
 
 type DefaultDrawingAnchors = {
   horizontalPrice: number;
@@ -478,10 +519,44 @@ export function mountWorkbenchDemo(
         ? null
         : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
 
+    const workbenchWatchlist: WatchlistItemModel[] = [
+      { id: "spx", symbol: "SPX", lastLabel: "6,368.86", changeLabel: "-1.67%", changeTone: "negative" },
+      { id: "ndq", symbol: "NDQ", lastLabel: "23,132.77", changeLabel: "-1.93%", changeTone: "negative" },
+      { id: "dji", symbol: "DJI", lastLabel: "45,166.64", changeLabel: "-1.73%", changeTone: "negative" },
+      { id: "vix", symbol: "VIX", lastLabel: "30.73", changeLabel: "-1.03%", changeTone: "negative" },
+    ];
+    const workbenchAlerts: AlertSummaryModel[] = [
+      { id: "alert-breakout", label: "NDX breakout", conditionLabel: "Price crosses 23,250", status: "armed" },
+      { id: "alert-draw", label: "Trend line touch", conditionLabel: "Trend line revisit on 1D", status: "armed" },
+    ];
+    const workbenchModel = createChartWorkbenchModel({
+      title: "Market Workbench",
+      symbol: "NDX",
+      exchangeLabel: "NASDAQ",
+      timeframeLabel: "1D",
+      chartTypeLabel: formatWorkbenchChartType(mainChartType),
+      drawingTools: drawingToolsForSnapshot(drawingTool),
+      activeToolId: drawingTool,
+      watchlistItems: workbenchWatchlist,
+      alertItems: workbenchAlerts,
+      activeRange: "1D",
+      layoutPreset: "single",
+      chartHosts: [
+        {
+          id: "market-main",
+          family: "market",
+          title: "Primary market chart",
+          slotId: "slot-main",
+          active: true,
+        },
+      ],
+    });
+
     publish({
       title: "Workbench",
       summary:
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
+      workbench: workbenchModel,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
         { label: "Main type", value: formatWorkbenchChartType(mainChartType) },

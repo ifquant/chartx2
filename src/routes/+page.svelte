@@ -685,6 +685,7 @@
           activeDrawingTool={activeWorkbenchDrawingTool}
           readout={workbenchReadout}
           snapshot={workbenchSnapshot}
+          workbench={workbenchSnapshot.workbench ?? null}
           error={workbenchError}
           inspectorErrors={workbenchInspectorErrors}
           showHorizontalPreview={showWorkbenchHorizontalLinePreview}

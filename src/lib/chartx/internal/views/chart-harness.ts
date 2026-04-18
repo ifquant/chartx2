@@ -72,7 +72,6 @@ import {
   PointFigureRenderer,
 } from "../renderers";
 import type { Coordinate } from "../model";
-import { restoreSeriesCollection } from "./chart-content-restore";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
 import { createPrimarySeriesApi } from "./chart-primary-series-api";
 import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
@@ -115,6 +114,7 @@ import {
   buildSeriesStateSnapshots,
   buildStudyStateSnapshots,
 } from "./chart-state-snapshot-builders";
+import { restoreChartSeries as restoreChartSeriesUseCase } from "./chart-series-restore";
 import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
@@ -2395,14 +2395,9 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
-    restoreSeriesCollection(series as readonly PhaseOneRestorableSeriesSnapshot[], {
-      resolvePaneTarget: (paneIndex) => {
-        const pane = this.panes.getByIndex(paneIndex);
-        if (pane === undefined) {
-          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-        }
-        return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
-      },
+    restoreChartSeriesUseCase(series as readonly PhaseOneRestorableSeriesSnapshot[], {
+      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
+      createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget),
       restoreCandlestick: (target, snapshot) => {
         const restored = this.addCandlestickSeries(target);
         restored.applyOptions(snapshot.options);

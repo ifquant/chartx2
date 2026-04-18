@@ -137,5 +137,6 @@ Current direction on that path:
 - study-source state construction and attach wiring should follow the same direction, so primary-vs-secondary price-scale selection and study source registration stop living as harness-local procedures
 - study display/context resolution should follow the same direction, so merge-to-chart-context rules and moving-average rebuild inputs stop living as harness-local branches
 - study restore wiring should follow the same direction, so pane-index resolution and overlay/compare/moving-average restore dispatch stop living as harness-local procedures
+- series restore wiring should follow the same direction, so pane-index resolution and per-series-kind restore dispatch stop living as harness-local procedures
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

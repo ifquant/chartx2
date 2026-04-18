@@ -72,7 +72,7 @@ import {
   PointFigureRenderer,
 } from "../renderers";
 import type { Coordinate } from "../model";
-import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
+import { restoreSeriesCollection } from "./chart-content-restore";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
 import { createPrimarySeriesApi } from "./chart-primary-series-api";
 import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
@@ -115,6 +115,7 @@ import {
   buildSeriesStateSnapshots,
   buildStudyStateSnapshots,
 } from "./chart-state-snapshot-builders";
+import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -2441,14 +2442,9 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartStudies(studies: readonly PhaseOneChartStateSnapshot["studies"][number][]): void {
-    restoreStudyCollection(studies, {
-      resolvePaneId: (paneIndex) => {
-        const pane = this.panes.getByIndex(paneIndex);
-        if (pane === undefined) {
-          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-        }
-        return pane.id;
-      },
+    restoreChartStudiesUseCase(studies, {
+      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
+      getPaneId: (pane) => pane.id,
       restoreOverlay: (paneId, snapshot) => {
         const overlay = this.addStudyLineSeries(paneId, "overlay");
         overlay.applyOptions(snapshot.seriesOptions);

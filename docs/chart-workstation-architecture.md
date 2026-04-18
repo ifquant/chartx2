@@ -139,5 +139,6 @@ Current direction on that path:
 - study restore wiring should follow the same direction, so pane-index resolution and overlay/compare/moving-average restore dispatch stop living as harness-local procedures
 - series restore wiring should follow the same direction, so pane-index resolution and per-series-kind restore dispatch stop living as harness-local procedures
 - readout composition should follow the same direction, so active-pane selection and primary-vs-secondary readout assembly stop living as a harness-local orchestration branch
+- readout series entry composition should follow the same direction, so per-series value lookup, formatting, and color resolution stop living as harness-local helpers
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

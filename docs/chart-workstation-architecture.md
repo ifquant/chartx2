@@ -145,5 +145,6 @@ Current direction on that path:
 - axis render orchestration should follow the same direction, so primary/secondary price-axis routing and time-axis row-source selection stop living as harness-local render branches
 - pane chrome orchestration should follow the same direction, so legend dispatch, pane-local crosshair routing, and frame-border drawing stop living as harness-local render branches
 - render-state preparation should follow the same direction, so row-set materialization, point-count calculation, pane-frame resolution, and active-pane selection stop living as one large harness-local pre-render block
+- pane scale setup should follow the same direction, so primary/secondary range merge rules and price-scale application stop living as harness-local pane render setup branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

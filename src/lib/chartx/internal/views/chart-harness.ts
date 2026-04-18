@@ -123,6 +123,10 @@ import {
   renderPriceAxes as renderPriceAxesUseCase,
   renderTimeAxis as renderTimeAxisUseCase,
 } from "./chart-axis-render";
+import {
+  applyPrimaryPaneScale as applyPrimaryPaneScaleUseCase,
+  applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
+} from "./chart-pane-scale";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3973,42 +3977,6 @@ export class PhaseOneChartHarness {
     return this.chartModel.getOrCreateSecondaryScale(paneId);
   }
 
-  private resolveSecondaryPanePriceRange(
-    paneSeries: readonly SeriesSourceState[],
-    secondaryRows: ReadonlyMap<string, RowSet>,
-  ): PriceRangeImpl | null {
-    let merged: PriceRangeImpl | null = null;
-
-    for (const state of paneSeries) {
-      const rows = secondaryRows.get(state.id);
-      if (rows === undefined || rows.length === 0) {
-        continue;
-      }
-
-      const nextRange = state.store.priceRange(rows[0].index, rows[rows.length - 1].index);
-      if (nextRange !== null) {
-        merged = merged === null ? nextRange : merged.merge(nextRange);
-      }
-    }
-
-    return merged;
-  }
-
-  private mergeSeriesRange(
-    rows: RowSet,
-    source: SeriesSourceState,
-    merged: PriceRangeImpl | null,
-  ): PriceRangeImpl | null {
-    if (rows.length === 0) {
-      return merged;
-    }
-    const nextRange = source.store.priceRange(rows[0].index, rows[rows.length - 1].index);
-    if (nextRange === null) {
-      return merged;
-    }
-    return merged === null ? nextRange : merged.merge(nextRange);
-  }
-
   private buildPrimaryPaneSeries(
     mainSource: MainSeriesSourceState | null,
   ): readonly SeriesSourceState[] {
@@ -4461,27 +4429,15 @@ export class PhaseOneChartHarness {
       context.clip();
 
       if (pane.kind === "primary") {
-        let computedPrimaryRange = mainSource === null ? null : mainSource.store.priceRange(
-          0 as TimePointIndex,
-          (mainSource.data.length - 1) as TimePointIndex,
-        );
-        if (mainSource !== null) {
-          for (const state of primaryStudies) {
-            if (
-              state.studyKind === "compare" &&
-              (this.primaryScaleSeriesOnly || state.compareOptions?.affectMainScale === false)
-            ) {
-              continue;
-            }
-            const rows = primaryRowSets.get(state.id) ?? [];
-            computedPrimaryRange = this.mergeSeriesRange(rows, state, computedPrimaryRange);
-          }
-        }
-        this.primaryPriceScale.applyOptions({
-          height: pane.height,
-          priceRange: this.primaryPriceRangeOverride ?? computedPrimaryRange,
+        const { rangeMin: primaryRangeMin } = applyPrimaryPaneScaleUseCase({
+          mainSource,
+          primaryStudies,
+          primaryRowSets,
+          primaryScaleSeriesOnly: this.primaryScaleSeriesOnly,
+          priceRangeOverride: this.primaryPriceRangeOverride,
+          paneHeight: pane.height,
+          priceScale: this.primaryPriceScale,
         });
-        const primaryRangeMin = (this.primaryPriceRangeOverride ?? computedPrimaryRange)?.minValue() ?? 0;
 
         renderPrimaryPaneContentUseCase({
           hasPrimaryData: primaryRows.length > 0,
@@ -4560,20 +4516,21 @@ export class PhaseOneChartHarness {
       if (pane.kind === "secondary") {
         const paneSeries = this.getSecondarySeriesForPane(pane.id);
         const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
-        const range = this.resolveSecondaryPanePriceRange(paneSeries, secondaryRows);
+        const {
+          hasPriceScale,
+          rangeMin,
+        } = applySecondaryPaneScaleUseCase({
+          paneSeries,
+          secondaryRows,
+          paneHeight: pane.height,
+          priceScale: panePriceScale,
+        });
         renderSecondaryPaneContentUseCase({
           paneSeries,
-          hasPriceScale: panePriceScale !== undefined && range !== null,
+          hasPriceScale,
           rowsFor: (source) => secondaryRows.get(source.id),
           hasRows: (rows) => (rows?.length ?? 0) > 0,
-          applyPriceScaleRange: () => {
-            if (panePriceScale !== undefined && range !== null) {
-              panePriceScale.applyOptions({
-                height: pane.height,
-                priceRange: range,
-              });
-            }
-          },
+          applyPriceScaleRange: () => {},
           renderSeries: (source, rows) => {
             this.renderSeriesSource(
               context,
@@ -4582,7 +4539,7 @@ export class PhaseOneChartHarness {
               pane.height,
               barWidth,
               source.priceScale,
-              range?.minValue() ?? 0,
+              rangeMin,
             );
           },
           drawPriceLines: () => {

@@ -10,7 +10,6 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
-  buildMovingAverageStudyData,
   assertDrawingTargetValid,
   ChartModel,
   createMainSeriesStateSnapshot,
@@ -104,6 +103,10 @@ import {
   getCompareStudyOptions,
   getMovingAverageStudyOptions,
 } from "./chart-study-options";
+import {
+  resolveStudyDisplayData as resolveStudyDisplayDataUseCase,
+  syncStudyContextData as syncStudyContextDataUseCase,
+} from "./chart-study-context";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
@@ -4296,51 +4299,30 @@ export class PhaseOneChartHarness {
   }
 
   private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
-    if (
-      state.studyKind === "series" &&
-      state.inputContext.mode === "chart-context" &&
-      this.chartModel.context().snapshot().barSequence.kind === "price-based"
-    ) {
-      return this.studyMergeEngine.mergeToChartContext({
-        inputData: state.inputData,
-        axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-        mergePolicy: "carry-forward",
-      });
-    }
-
-    if (state.studyKind === "indicator" && state.indicator?.kind === "moving-average") {
-      const input =
-        state.inputContext.mode === "requested-context"
-          ? this.studyMergeEngine.mergeToChartContext({
-              inputData: state.inputData,
-              axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-              mergePolicy: state.inputContext.mergePolicy,
-            })
-          : this.chartModel.context().snapshot().barSequence.bars.map((row) => ({
-              time: row.time,
-              open: row.value[PlotRowValueIndex.Open],
-              high: row.value[PlotRowValueIndex.High],
-              low: row.value[PlotRowValueIndex.Low],
-              close: row.value[PlotRowValueIndex.Close],
-            }));
-      return buildMovingAverageStudyData(input, state.indicator.length);
-    }
-
-    if (state.inputContext.mode === "requested-context" && state.studyKind === "compare") {
-      return this.studyMergeEngine.mergeToChartContext({
-        inputData: state.inputData,
-        axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-        mergePolicy: state.inputContext.mergePolicy,
-      });
-    }
-
-    return [...state.inputData];
+    return resolveStudyDisplayDataUseCase(state, {
+      contextBarSequence: {
+        kind: this.chartModel.context().snapshot().barSequence.kind,
+        bars: this.chartModel.context().snapshot().barSequence.bars.map((row) => ({
+          time: row.time,
+          open: row.value[PlotRowValueIndex.Open],
+          high: row.value[PlotRowValueIndex.High],
+          low: row.value[PlotRowValueIndex.Low],
+          close: row.value[PlotRowValueIndex.Close],
+        })),
+      },
+      mergeToChartContext: (inputData, mergePolicy) =>
+        this.studyMergeEngine.mergeToChartContext({
+          inputData,
+          axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
+          mergePolicy,
+        }),
+    });
   }
 
   private syncStudyContextData(): void {
-    for (const state of this.chartModel.listSourcesByRole("study")) {
-      state.data = this.resolveStudyDisplayData(state);
-    }
+    syncStudyContextDataUseCase(this.chartModel.listSourcesByRole("study"), {
+      resolveDisplayData: (state) => this.resolveStudyDisplayData(state),
+    });
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {

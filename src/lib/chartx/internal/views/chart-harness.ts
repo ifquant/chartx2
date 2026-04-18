@@ -2381,10 +2381,7 @@ export class PhaseOneChartHarness {
   private buildChartStudyStateSnapshots(): PhaseOneChartStateSnapshot["studies"] {
     const snapshots: PhaseOneChartStateSnapshot["studies"] = [];
 
-    for (const source of this.sourceRegistry.list()) {
-      if (source.role !== "study") {
-        continue;
-      }
+    for (const source of this.chartModel.listSourcesByRole("study")) {
       const paneIndex = this.getPaneIndex(source.paneId);
       const seriesOptions = {
         ...(source.options as Required<PhaseOneLineSeriesOptions>),
@@ -2449,8 +2446,8 @@ export class PhaseOneChartHarness {
   private buildChartSeriesStateSnapshots(): PhaseOneChartStateSnapshot["series"] {
     const snapshots: PhaseOneChartStateSnapshot["series"] = [];
 
-    for (const source of this.sourceRegistry.list()) {
-      if (source.role !== "study" || source.studyKind !== "series") {
+    for (const source of this.chartModel.listSourcesByRole("study")) {
+      if (source.studyKind !== "series") {
         continue;
       }
 
@@ -4625,7 +4622,7 @@ export class PhaseOneChartHarness {
     const mainSourceId = this.chartModel.mainSourceId();
     return mainSourceId === null
       ? null
-      : ((this.chartModel.getSourceByIdAndRole(mainSourceId, "main-series") as MainSeriesSourceState | undefined) ?? null);
+      : (this.chartModel.getSourceByIdAndRole(mainSourceId, "main-series") ?? null);
   }
 
   private refreshTradeLocation(): void {
@@ -5088,7 +5085,7 @@ export class PhaseOneChartHarness {
   }
 
   private syncStudyContextData(): void {
-    for (const state of this.chartModel.listSourcesByRole("study") as readonly StudySourceState[]) {
+    for (const state of this.chartModel.listSourcesByRole("study")) {
       state.data = this.resolveStudyDisplayData(state);
     }
   }

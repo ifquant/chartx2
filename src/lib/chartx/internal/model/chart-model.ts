@@ -5,6 +5,15 @@ import { PriceScale } from "./price-scale";
 import { SourceRegistry } from "./source-registry";
 import type { SourceDescriptor } from "./source-registry";
 
+type SourceWithRole<
+  State,
+  Role extends "main-series" | "study",
+> = State extends { role: infer CurrentRole }
+  ? Role extends CurrentRole
+    ? State & { role: Role }
+    : never
+  : never;
+
 export class ChartModel<
   Kind extends string,
   Api,
@@ -33,7 +42,9 @@ export class ChartModel<
     return this.sourceRegistry.listByPane(paneId);
   }
 
-  public listSourcesByRole<Role extends State["role"]>(role: Role): readonly State[] {
+  public listSourcesByRole<Role extends State["role"]>(
+    role: Role,
+  ): readonly SourceWithRole<State, Role>[] {
     return this.sourceRegistry.listByRole(role);
   }
 
@@ -53,11 +64,17 @@ export class ChartModel<
     return this.sourceRegistry.getByApiOrThrow(api, message);
   }
 
-  public getSourceByIdAndRole(id: string, role: State["role"]): State | undefined {
+  public getSourceByIdAndRole<Role extends State["role"]>(
+    id: string,
+    role: Role,
+  ): SourceWithRole<State, Role> | undefined {
     return this.sourceRegistry.getByIdAndRole(id, role);
   }
 
-  public listSourcesByPaneAndRole(paneId: string, role: State["role"]): readonly State[] {
+  public listSourcesByPaneAndRole<Role extends State["role"]>(
+    paneId: string,
+    role: Role,
+  ): readonly SourceWithRole<State, Role>[] {
     return this.sourceRegistry.listByPaneAndRole(paneId, role);
   }
 

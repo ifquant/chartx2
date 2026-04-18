@@ -121,5 +121,6 @@ Current direction on that path:
 - source-state construction should keep moving out of `chart-harness`, starting with model-layer helpers for main-series descriptors, default study context, and empty runtime state allocation
 - `ChartModel` should now own source registration, source removal, and main-source context binding, while broader restore/mutation orchestration can move later in smaller slices
 - source enumeration and bulk-remove cleanup paths should continue moving into `ChartModel`, while snapshot restore and template rebuild logic can remain in `chart-harness` until a later slice
+- role-aware source lookup should be modeled as typed owner APIs so `chart-harness` can stop re-checking source roles and stop relying on local casts
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

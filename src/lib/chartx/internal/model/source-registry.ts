@@ -1,5 +1,14 @@
 export type ChartSourceRole = "main-series" | "study";
 
+type SourceWithRole<
+  State,
+  Role extends ChartSourceRole,
+> = State extends { role: infer CurrentRole }
+  ? Role extends CurrentRole
+    ? State & { role: Role }
+    : never
+  : never;
+
 export type SourceDescriptor<Kind extends string, Api> = {
   id: string;
   label: string;
@@ -44,15 +53,15 @@ export class SourceRegistry<
 
   public listByRole<Role extends State["role"]>(
     role: Role,
-  ): readonly State[] {
-    return this.list().filter((source) => source.role === role);
+  ): readonly SourceWithRole<State, Role>[] {
+    return this.list().filter((source): source is SourceWithRole<State, Role> => source.role === role);
   }
 
   public listByPaneAndRole<Role extends State["role"]>(
     paneId: string,
     role: Role,
-  ): readonly State[] {
-    return this.listByPane(paneId).filter((source) => source.role === role);
+  ): readonly SourceWithRole<State, Role>[] {
+    return this.listByPane(paneId).filter((source): source is SourceWithRole<State, Role> => source.role === role);
   }
 
   public getById(id: string): State | undefined {
@@ -62,12 +71,12 @@ export class SourceRegistry<
   public getByIdAndRole<Role extends State["role"]>(
     id: string,
     role: Role,
-  ): State | undefined {
+  ): SourceWithRole<State, Role> | undefined {
     const source = this.byId.get(id);
     if (source === undefined || source.role !== role) {
       return undefined;
     }
-    return source;
+    return source as SourceWithRole<State, Role>;
   }
 
   public getByApi(api: Api): State | undefined {

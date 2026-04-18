@@ -2,6 +2,7 @@ export * from "./chart-harness";
 export * from "./chart-content-restore";
 export * from "./chart-drawing-restore";
 export * from "./chart-primary-series-api";
+export * from "./chart-secondary-series-api";
 export * from "./chart-main-series-source";
 export * from "./chart-main-series-state";
 export * from "./chart-series-mutation";

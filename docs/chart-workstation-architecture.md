@@ -133,5 +133,6 @@ Current direction on that path:
 - primary-series API factories should follow the same direction, so chart-harness stops owning the method glue between series APIs and main-series mutation/render callbacks
 - primary and secondary series mutation paths should follow the same direction, so canonical data replacement/update, histogram visual sync, and viewport-reset orchestration stop living as harness-local procedures
 - compare and moving-average study option flows should follow the same direction, so default merge, input-context updates, display rebuild, and readback stop living as harness-local branches
+- secondary and study-family API factories should follow the same direction, so chart-harness stops owning the method glue between secondary series APIs, study hooks, and attach wiring
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

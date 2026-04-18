@@ -80,6 +80,17 @@ import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./char
 import { createPrimarySeriesApi } from "./chart-primary-series-api";
 import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
 import {
+  createCompareStudySeriesApi,
+  createMovingAverageStudySeriesApi,
+  createSecondaryAreaSeriesApi,
+  createSecondaryBarSeriesApi,
+  createSecondaryBaselineSeriesApi,
+  createSecondaryCandlestickSeriesApi,
+  createSecondaryHistogramSeriesApi,
+  createSecondaryLineSeriesApi,
+  createSecondaryVolumeSeriesApi,
+} from "./chart-secondary-series-api";
+import {
   replaceMainHistogramLikeData,
   replaceMainSeriesData,
   replaceStudyHistogramLikeData,
@@ -1041,6 +1052,7 @@ type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & Base
 };
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
+type SecondaryApiSourceState = Pick<SeriesSourceState, "options" | "priceLines">;
 type PhaseOneRestorableSeriesSnapshot =
   | {
       kind: "candlestick";
@@ -2665,49 +2677,7 @@ export class PhaseOneChartHarness {
 
   private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
     const meta = this.createSeriesMeta("candlestick");
-    const api: PhaseOneCandlestickSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, data, "candlestick");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, bar, "candlestick");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
-        const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (options.wickColor !== undefined) {
-          seriesOptions.wickColor = options.wickColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "candlestick");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryCandlestickSeriesApi(deps));
     this.attachStudySeries(target, "candlestick", api, meta);
     return api;
   }
@@ -2721,176 +2691,21 @@ export class PhaseOneChartHarness {
     studyKind: StudySourceKind,
   ): PhaseOneLineSeriesApi {
     const meta = this.createSeriesMeta("line");
-    const api: PhaseOneLineSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, normalizeLineData(data), "line");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, normalizeLineBar(bar), "line");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.color !== undefined) {
-          seriesOptions.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "line");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryLineSeriesApi(deps));
     this.attachStudySeries(paneId, "line", api, meta, studyKind);
     return api;
   }
 
   private addCompareStudySeries(paneId: string): PhaseOneCompareSeriesApi {
     const meta = this.createSeriesMeta("line");
-    const api: PhaseOneCompareSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, normalizeLineData(data), "line");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, normalizeLineBar(bar), "line");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.color !== undefined) {
-          seriesOptions.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      applyCompareOptions: (options) => {
-        this.assertSeriesActive(api);
-        applyCompareStudyOptions(this.getCompareStudyState(api), options, {
-          defaultCompareOptions: this.defaultCompareOptions,
-          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
-          render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
-          },
-        });
-      },
-      getCompareOptions: () => {
-        this.assertSeriesActive(api);
-        return getCompareStudyOptions(
-          this.getCompareStudyState(api),
-          this.defaultCompareOptions,
-        );
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "line");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createCompareStudySeriesApi(deps));
     this.attachStudySeries(paneId, "line", api, meta, "compare");
     return api;
   }
 
   private addMovingAverageStudySeries(paneId: string): PhaseOneMovingAverageStudyApi {
     const meta = this.createSeriesMeta("line");
-    const api: PhaseOneMovingAverageStudyApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, normalizeLineData(data), "line");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, normalizeLineBar(bar), "line");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.color !== undefined) {
-          seriesOptions.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      applyStudyOptions: (options) => {
-        this.assertSeriesActive(api);
-        applyMovingAverageStudyOptions(this.getMovingAverageStudyState(api), options, {
-          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
-          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
-          render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
-          },
-        });
-      },
-      getStudyOptions: () => {
-        this.assertSeriesActive(api);
-        return getMovingAverageStudyOptions(
-          this.getMovingAverageStudyState(api),
-          this.defaultMovingAverageOptions,
-        );
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "line");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createMovingAverageStudySeriesApi(deps));
     this.attachStudySeries(paneId, "line", api, meta, "indicator", {
       kind: "moving-average",
       length: this.defaultMovingAverageOptions.length,
@@ -2900,254 +2715,35 @@ export class PhaseOneChartHarness {
 
   private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
     const meta = this.createSeriesMeta("area");
-    const api: PhaseOneAreaSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, normalizeLineData(data), "area");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, normalizeLineBar(bar), "area");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.lineColor !== undefined) {
-          seriesOptions.lineColor = options.lineColor;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.topColor !== undefined) {
-          seriesOptions.topColor = options.topColor;
-        }
-        if (options.bottomColor !== undefined) {
-          seriesOptions.bottomColor = options.bottomColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "area");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryAreaSeriesApi(deps));
     this.attachStudySeries(paneId, "area", api, meta);
     return api;
   }
 
   private addSecondaryBaselineSeries(paneId: string): PhaseOneBaselineSeriesApi {
     const meta = this.createSeriesMeta("baseline");
-    const api: PhaseOneBaselineSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, normalizeLineData(data), "baseline");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, normalizeLineBar(bar), "baseline");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.baseValue !== undefined) {
-          seriesOptions.baseValue = options.baseValue;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.topLineColor !== undefined) {
-          seriesOptions.topLineColor = options.topLineColor;
-        }
-        if (options.topFillTopColor !== undefined) {
-          seriesOptions.topFillTopColor = options.topFillTopColor;
-        }
-        if (options.topFillBottomColor !== undefined) {
-          seriesOptions.topFillBottomColor = options.topFillBottomColor;
-        }
-        if (options.bottomLineColor !== undefined) {
-          seriesOptions.bottomLineColor = options.bottomLineColor;
-        }
-        if (options.bottomFillTopColor !== undefined) {
-          seriesOptions.bottomFillTopColor = options.bottomFillTopColor;
-        }
-        if (options.bottomFillBottomColor !== undefined) {
-          seriesOptions.bottomFillBottomColor = options.bottomFillBottomColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "baseline");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryBaselineSeriesApi(deps));
     this.attachStudySeries(paneId, "baseline", api, meta);
     return api;
   }
 
   private addSecondaryBarSeries(paneId: string): PhaseOneBarSeriesApi {
     const meta = this.createSeriesMeta("bar");
-    const api: PhaseOneBarSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryData(api, data, "bar");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondary(api, bar, "bar");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "bar");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryBarSeriesApi(deps));
     this.attachStudySeries(paneId, "bar", api, meta);
     return api;
   }
 
   private addSecondaryHistogramSeries(paneId: string): PhaseOneHistogramSeriesApi {
     const meta = this.createSeriesMeta("histogram");
-    const api: PhaseOneHistogramSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryHistogramLikeData(api, data, "histogram");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondaryHistogramLike(api, bar, "histogram");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        const seriesOptions = state.options as Required<PhaseOneHistogramSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "histogram");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryHistogramSeriesApi(deps));
     this.attachStudySeries(paneId, "histogram", api, meta);
     return api;
   }
 
   private addSecondaryVolumeSeries(paneId: string): PhaseOneVolumeSeriesApi {
     const meta = this.createSeriesMeta("volume");
-    const api: PhaseOneVolumeSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryHistogramLikeData(api, data, "volume");
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updateSecondaryHistogramLike(api, bar, "volume");
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "volume");
-        const seriesOptions = state.options as Required<PhaseOneVolumeSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "volume");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "volume");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "volume");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
+    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryVolumeSeriesApi(deps));
     this.attachStudySeries(paneId, "volume", api, meta);
     return api;
   }
@@ -3176,6 +2772,100 @@ export class PhaseOneChartHarness {
         indicator,
       ),
     );
+  }
+
+  private createSecondarySeriesApiDeps<T>(build: (deps: {
+    assertSeriesActive(api: unknown): void;
+    getSource(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): SecondaryApiSourceState;
+    applySeriesFormatterOptions(seriesOptions: object, options: object): void;
+    render(): void;
+    setSecondaryData(api: unknown, data: readonly PhaseOneCandlestickData[], kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
+    updateSecondary(api: unknown, bar: PhaseOneCandlestickData, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
+    setSecondaryHistogramLikeData(
+      api: unknown,
+      data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
+      kind: "histogram" | "volume",
+    ): void;
+    updateSecondaryHistogramLike(
+      api: unknown,
+      bar: PhaseOneHistogramData | PhaseOneVolumeData,
+      kind: "histogram" | "volume",
+    ): void;
+    normalizeLineData(data: readonly PhaseOneLineData[]): readonly PhaseOneCandlestickData[];
+    normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData;
+    setMarkers(api: unknown, markers: readonly PhaseOneSeriesMarker[], kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
+    createPriceLine(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume", options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
+    removePriceLine(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume", line: PhaseOnePriceLineApi): void;
+    applyCompareOptions(api: unknown, options: PhaseOneCompareSeriesOptions): void;
+    getCompareOptions(api: unknown): Required<PhaseOneCompareSeriesOptions>;
+    applyMovingAverageStudyOptions(api: unknown, options: PhaseOneMovingAverageStudyOptions): void;
+    getMovingAverageStudyOptions(api: unknown): Required<PhaseOneMovingAverageStudyOptions>;
+  }) => T): T {
+    return build({
+      assertSeriesActive: (api) => this.assertSeriesActive(api as SeriesSourceState["api"]),
+      getSource: (api, kind) => this.getSourceByApi(api as ChartSeriesApi, kind),
+      applySeriesFormatterOptions: (seriesOptions, options) =>
+        this.applySeriesFormatterOptions(
+          seriesOptions as PhaseOneSeriesFormatterOptions,
+          options as PhaseOneSeriesFormatterOptions,
+        ),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      setSecondaryData: (api, data, kind) => this.setSecondaryData(api as SeriesSourceState["api"], data, kind),
+      updateSecondary: (api, bar, kind) => this.updateSecondary(api as SeriesSourceState["api"], bar, kind),
+      setSecondaryHistogramLikeData: (api, data, kind) =>
+        this.setSecondaryHistogramLikeData(api as SeriesSourceState["api"], data, kind),
+      updateSecondaryHistogramLike: (api, bar, kind) =>
+        this.updateSecondaryHistogramLike(api as SeriesSourceState["api"], bar, kind),
+      normalizeLineData,
+      normalizeLineBar,
+      setMarkers: (api, markers, kind) =>
+        this.setSecondaryMarkers(api as SeriesSourceState["api"], markers, kind),
+      createPriceLine: (api, kind, options) => {
+        const state = this.getSourceByApi(api as ChartSeriesApi, kind);
+        const priceLine = this.createPriceLineState(options);
+        return this.createPriceLineApi(state.priceLines, priceLine);
+      },
+      removePriceLine: (api, kind, line) => {
+        const state = this.getSourceByApi(api as ChartSeriesApi, kind);
+        this.removePriceLineFromMap(state.priceLines, line);
+      },
+      applyCompareOptions: (api, options) => {
+        applyCompareStudyOptions(this.getCompareStudyState(api as PhaseOneCompareSeriesApi), options, {
+          defaultCompareOptions: this.defaultCompareOptions,
+          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        });
+      },
+      getCompareOptions: (api) =>
+        getCompareStudyOptions(
+          this.getCompareStudyState(api as PhaseOneCompareSeriesApi),
+          this.defaultCompareOptions,
+        ),
+      applyMovingAverageStudyOptions: (api, options) => {
+        applyMovingAverageStudyOptions(this.getMovingAverageStudyState(api as PhaseOneMovingAverageStudyApi), options, {
+          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
+          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        });
+      },
+      getMovingAverageStudyOptions: (api) =>
+        getMovingAverageStudyOptions(
+          this.getMovingAverageStudyState(api as PhaseOneMovingAverageStudyApi),
+          this.defaultMovingAverageOptions,
+        ),
+    });
   }
 
   private setSecondaryData(

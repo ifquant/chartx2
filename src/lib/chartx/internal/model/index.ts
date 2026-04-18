@@ -18,6 +18,7 @@ export * from "./price-scale";
 export * from "./range-impl";
 export * from "./series-data";
 export * from "./source-registry";
+export * from "./source-state";
 export * from "./study-data-merge";
 export * from "./time-data";
 export * from "./time-scale";

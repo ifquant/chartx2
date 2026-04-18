@@ -14,8 +14,10 @@ import {
   buildRenkoData,
   buildMovingAverageStudyData,
   assertDrawingTargetValid,
+  createDefaultStudyInputContext,
+  createMainSeriesDescriptor,
   createMainSeriesStateSnapshot,
-  mainSeriesChartTypeSpec,
+  createSeriesRuntimeFields,
   mainSeriesKindForChartType,
   mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
@@ -53,8 +55,12 @@ import {
   type MainSeriesStyleOptionsPatch,
   type PointFigureStyleOptionsState,
   type MainSeriesStateSnapshot,
+  type MovingAverageIndicatorState,
   type RenkoStyleOptionsState,
+  type SeriesRuntimeFields,
   type SourceDescriptor,
+  type StudyInputContextState,
+  type StudySourceKind,
   type Logical,
   type TimePointIndex,
   type ChartBarSequence,
@@ -972,32 +978,20 @@ type ChartSeriesApi =
   | PhaseOneHistogramSeriesApi
   | PhaseOneVolumeSeriesApi;
 
-type StudySourceKind = "series" | "indicator" | "overlay" | "compare";
-
-type BaseSeriesSourceState = {
-  api:
-    | PhaseOneCandlestickSeriesApi
-    | PhaseOneBarSeriesApi
-    | PhaseOneLineSeriesApi
-    | PhaseOneAreaSeriesApi
-    | PhaseOneBaselineSeriesApi
-    | PhaseOneHistogramSeriesApi
-    | PhaseOneVolumeSeriesApi;
-  data: readonly PhaseOneCandlestickData[];
-  store: SeriesDataStore<number>;
-  priceScale: PriceScale;
-  visuals: Map<number, HistogramVisual>;
-  priceLines: Map<string, PriceLineState>;
-  markers: readonly SeriesMarkerState[];
-  options:
-    | Required<PhaseOneCandlestickSeriesOptions>
-    | Required<PhaseOneBarSeriesOptions>
-    | Required<PhaseOneLineSeriesOptions>
-    | Required<PhaseOneAreaSeriesOptions>
-    | Required<PhaseOneBaselineSeriesOptions>
-    | Required<PhaseOneHistogramSeriesOptions>
-    | Required<PhaseOneVolumeSeriesOptions>;
-};
+type BaseSeriesSourceState = SeriesRuntimeFields<
+  PhaseOneCandlestickData,
+  ChartSeriesApi,
+  | Required<PhaseOneCandlestickSeriesOptions>
+  | Required<PhaseOneBarSeriesOptions>
+  | Required<PhaseOneLineSeriesOptions>
+  | Required<PhaseOneAreaSeriesOptions>
+  | Required<PhaseOneBaselineSeriesOptions>
+  | Required<PhaseOneHistogramSeriesOptions>
+  | Required<PhaseOneVolumeSeriesOptions>,
+  HistogramVisual,
+  PriceLineState,
+  SeriesMarkerState
+>;
 
 type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
   role: "main-series";
@@ -1011,20 +1005,6 @@ type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> &
   builder: PhaseOneMainSeriesBuilder;
   renderer: PhaseOneMainSeriesRenderer;
   styleSchemaId: PhaseOneMainStyleSchemaId;
-};
-
-type StudyInputContextState = {
-  mode: "chart-context" | "requested-context";
-  symbol: string | null;
-  resolution: string | null;
-  session: string | null;
-  timezone: string | null;
-  mergePolicy: "carry-forward" | "gaps" | "exact";
-};
-
-type MovingAverageIndicatorState = {
-  kind: "moving-average";
-  length: number;
 };
 
 type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
@@ -4515,13 +4495,13 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     priceScaleId: string,
   ): MainSeriesSourceState {
-    const chartTypeSpec = mainSeriesChartTypeSpec(chartType);
+    const chartTypeDescriptor = createMainSeriesDescriptor(chartType);
     return {
       id: meta.id,
       label: meta.label,
       kind,
       role: "main-series",
-      chartType,
+      ...chartTypeDescriptor,
       inputData: [],
       lineBreakOptions: {
         lineCount: this.candlestickOptions.lineBreakCount,
@@ -4545,21 +4525,21 @@ export class PhaseOneChartHarness {
         atrLength: this.lineOptions.kagiAtrLength,
         percentageValue: this.lineOptions.kagiPercentageValue,
       },
-      inputCapability: chartTypeSpec.inputCapability,
-      builder: chartTypeSpec.builder,
-      renderer: chartTypeSpec.renderer,
-      styleSchemaId: chartTypeSpec.styleSchemaId,
       paneId,
       priceScaleId,
       visible: true,
-      api,
-      data: [],
-      store: new SeriesDataStore<number>(),
-      priceScale,
-      visuals: new Map<number, HistogramVisual>(),
-      priceLines: new Map<string, PriceLineState>(),
-      markers: [],
-      options: this.createMainSeriesOptions(chartTypeSpec.styleSchemaId),
+      ...createSeriesRuntimeFields<
+        PhaseOneCandlestickData,
+        ChartSeriesApi,
+        MainSeriesSourceState["options"],
+        HistogramVisual,
+        PriceLineState,
+        SeriesMarkerState
+      >({
+        api,
+        priceScale,
+        options: this.createMainSeriesOptions(chartTypeDescriptor.styleSchemaId),
+      }),
     };
   }
 
@@ -4580,14 +4560,7 @@ export class PhaseOneChartHarness {
       role: "study",
       studyKind,
       inputData: [],
-      inputContext: {
-        mode: "chart-context",
-        symbol: null,
-        resolution: null,
-        session: null,
-        timezone: null,
-        mergePolicy: "carry-forward",
-      },
+      inputContext: createDefaultStudyInputContext(),
       indicator,
       compareOptions:
         studyKind === "compare"
@@ -4596,14 +4569,18 @@ export class PhaseOneChartHarness {
       paneId,
       priceScaleId,
       visible: true,
-      api,
-      data: [],
-      store: new SeriesDataStore<number>(),
-      priceScale,
-      visuals: new Map<number, HistogramVisual>(),
-      priceLines: new Map<string, PriceLineState>(),
-      markers: [],
-      options: this.createSeriesOptions(kind),
+      ...createSeriesRuntimeFields<
+        PhaseOneCandlestickData,
+        ChartSeriesApi,
+        StudySourceState["options"],
+        HistogramVisual,
+        PriceLineState,
+        SeriesMarkerState
+      >({
+        api,
+        priceScale,
+        options: this.createSeriesOptions(kind),
+      }),
     };
   }
 

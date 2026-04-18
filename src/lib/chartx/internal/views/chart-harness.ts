@@ -14,6 +14,7 @@ import {
   buildRenkoData,
   buildMovingAverageStudyData,
   assertDrawingTargetValid,
+  ChartModel,
   createDefaultStudyInputContext,
   createMainSeriesDescriptor,
   createMainSeriesStateSnapshot,
@@ -1041,12 +1042,15 @@ export class PhaseOneChartHarness {
   private readonly paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
   private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
-  private readonly sourceRegistry = new SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState>();
+  private readonly chartModel = new ChartModel<
+    ChartSeriesKind,
+    ChartSeriesApi,
+    SeriesSourceState,
+    PhaseOneMainChartType
+  >();
   private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, ChartDrawingDescriptor>();
-  private readonly chartContext = new ChartContext<number, PhaseOneMainChartType>();
   private readonly studyMergeEngine = DEFAULT_STUDY_MERGE_ENGINE;
   private readonly timeScale = new TimeScale();
-  private readonly primaryPriceScale = new PriceScale();
   private readonly barRenderer = new BarRenderer();
   private readonly candlesRenderer = new CandlesticksRenderer();
   private readonly gridRenderer = new GridRenderer();
@@ -1056,11 +1060,9 @@ export class PhaseOneChartHarness {
   private readonly kagiRenderer = new KagiRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
-  private readonly panes = new PaneCollection();
   private nextSeriesId = 1;
   private nextPriceLineId = 1;
   private nextDrawingId = 1;
-  private readonly secondaryPanePriceScales = new Map<string, PriceScale>();
   private readonly priceLineHandleIds = new WeakMap<PhaseOnePriceLineApi, string>();
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -1207,6 +1209,22 @@ export class PhaseOneChartHarness {
   private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
   private readonly clickHandlers = new Set<PhaseOneClickHandler>();
   private readonly drawingSelectionHandlers = new Set<PhaseOneDrawingSelectionChangeHandler>();
+
+  private get panes(): PaneCollection {
+    return this.chartModel.panes();
+  }
+
+  private get sourceRegistry(): SourceRegistry<ChartSeriesKind, ChartSeriesApi, SeriesSourceState> {
+    return this.chartModel.sources();
+  }
+
+  private get chartContext(): ChartContext<number, PhaseOneMainChartType> {
+    return this.chartModel.context();
+  }
+
+  private get primaryPriceScale(): PriceScale {
+    return this.chartModel.primaryScale();
+  }
   private readonly handleResize = () => {
     if (this.canvas !== null && this.manualLayout === null) {
       this.render(this.canvas);
@@ -1987,7 +2005,7 @@ export class PhaseOneChartHarness {
       getVisibleRange: () =>
         this.primaryPriceRangeOverride?.toRaw() ??
         this.primaryPriceScale.getPriceRange()?.toRaw() ??
-        Array.from(this.secondaryPanePriceScales.values())[0]?.getPriceRange()?.toRaw() ??
+        this.chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ??
         null,
       setVisibleRange: (range) => {
         this.primaryPriceRangeOverride = PriceRangeImpl.fromRaw(range);
@@ -3956,7 +3974,7 @@ export class PhaseOneChartHarness {
     const removedPaneState = this.buildPaneState(paneId);
     this.panes.removeById(paneId);
     this.paneResizeHandlers.delete(paneId);
-    this.secondaryPanePriceScales.delete(paneId);
+    this.chartModel.removeSecondaryScale(paneId);
     this.emitPaneEvent("removed", paneId, removedPaneState, this.buildPaneStateSnapshot());
     if (this.canvas !== null) {
       this.render(this.canvas);
@@ -4708,14 +4726,7 @@ export class PhaseOneChartHarness {
   }
 
   private getOrCreateSecondaryPanePriceScale(paneId: string): PriceScale {
-    const existing = this.secondaryPanePriceScales.get(paneId);
-    if (existing !== undefined) {
-      return existing;
-    }
-
-    const scale = new PriceScale();
-    this.secondaryPanePriceScales.set(paneId, scale);
-    return scale;
+    return this.chartModel.getOrCreateSecondaryScale(paneId);
   }
 
   private resolveSecondaryPanePriceRange(
@@ -4799,7 +4810,7 @@ export class PhaseOneChartHarness {
     }
     const priceScale = activePane.kind === "primary"
       ? this.primaryPriceScale
-      : this.secondaryPanePriceScales.get(activePane.id);
+      : this.chartModel.getSecondaryScale(activePane.id);
     if (priceScale === undefined) {
       return null;
     }
@@ -4847,7 +4858,7 @@ export class PhaseOneChartHarness {
 
     const priceScale = activePane.kind === "primary"
       ? this.primaryPriceScale
-      : this.secondaryPanePriceScales.get(activePane.id);
+      : this.chartModel.getSecondaryScale(activePane.id);
     if (priceScale === undefined) {
       return null;
     }
@@ -4906,7 +4917,7 @@ export class PhaseOneChartHarness {
     }
     const priceScale = pane.kind === "primary"
       ? this.primaryPriceScale
-      : this.secondaryPanePriceScales.get(pane.id);
+      : this.chartModel.getSecondaryScale(pane.id);
     if (priceScale === undefined) {
       return;
     }
@@ -5408,7 +5419,7 @@ export class PhaseOneChartHarness {
 
       if (pane.kind === "secondary") {
         const paneSeries = this.getSecondarySeriesForPane(pane.id);
-        const panePriceScale = this.secondaryPanePriceScales.get(pane.id);
+        const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
         const range = this.resolveSecondaryPanePriceRange(paneSeries, secondaryRows);
         if (panePriceScale !== undefined && range !== null) {
           panePriceScale.applyOptions({

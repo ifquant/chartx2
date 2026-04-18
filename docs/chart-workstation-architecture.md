@@ -116,6 +116,7 @@ Near-term work should continue to prioritize chart-core ownership cleanup:
 
 Current direction on that path:
 
+- a new internal `ChartModel` owner should aggregate pane collection, source registry, chart context, and pane price-scale state so `chart-harness` can degrade toward an adapter instead of staying the runtime container
 - pane list, pane height normalization, and pane frame/divider layout logic should live in dedicated model-layer code instead of remaining embedded in `chart-harness`
 - source-state construction should keep moving out of `chart-harness`, starting with model-layer helpers for main-series descriptors, default study context, and empty runtime state allocation
 - `SourceRegistry` and higher-level source ownership still need a later slice to become a more explicit `ChartModel` concern

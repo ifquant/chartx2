@@ -128,5 +128,6 @@ Current direction on that path:
 - chart state serialization should now follow the same direction, with series/study/drawing snapshot builders extracted from `chart-harness` into a dedicated internal module
 - chart state read/apply orchestration should also become an explicit internal use-case, so `chart-harness` no longer inlines full snapshot build/apply flows
 - main-series state snapshot/apply should follow the same direction, so chart-type switching and style-state sanitation stop living as a long harness-local procedure
+- chart template create/normalize/apply should also be treated as a dedicated internal use-case instead of staying as thin harness-local wrappers
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

@@ -2,7 +2,6 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
-  createVersionedChartTemplate,
   findNearestRowByLogical,
   applyMainSeriesStyleOptions,
   applyMainSeriesBuilder,
@@ -25,7 +24,6 @@ import {
   resolveTradeOverlayOptions,
   DrawingRegistry,
   DEFAULT_STUDY_MERGE_ENGINE,
-  normalizeVersionedChartTemplate,
   PaneCollection,
   PlotRowValueIndex,
   PriceRangeImpl,
@@ -87,6 +85,7 @@ import {
   buildSeriesStateSnapshots,
   buildStudyStateSnapshots,
 } from "./chart-state-snapshot-builders";
+import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
 const CHART_BACKGROUND = "#fffdf7";
 const PANE_BACKGROUND = "#fffaf0";
@@ -703,13 +702,13 @@ export type PhaseOneDrawingPropertySchema = {
 export type PhaseOneChartTypeChangeHandler = (type: PhaseOneMainChartType) => void;
 
 export function createPhaseOneChartTemplate(chart: PhaseOneChartStateSnapshot): PhaseOneChartTemplateV1 {
-  return createVersionedChartTemplate(chart);
+  return createChartTemplate(chart);
 }
 
 export function normalizePhaseOneChartTemplate(
   input: PhaseOneChartTemplateInput,
 ): PhaseOneChartTemplateV1 {
-  return normalizeVersionedChartTemplate(input);
+  return normalizeChartTemplate(input);
 }
 
 const COMMON_DRAWING_MAGNET_PROPERTY_FIELDS = [
@@ -2266,12 +2265,16 @@ export class PhaseOneChartHarness {
   }
 
   public getChartTemplate(): PhaseOneChartTemplate {
-    return createPhaseOneChartTemplate(this.getChartState());
+    return createChartTemplate(this.getChartState());
   }
 
   public applyChartTemplate(template: PhaseOneChartTemplateInput): void {
-    const normalized = normalizePhaseOneChartTemplate(template);
-    this.applyChartStateSnapshot(normalized.chart);
+    applyChartTemplate(template, {
+      normalize: normalizeChartTemplate,
+      applyChartState: (state) => {
+        this.applyChartStateSnapshot(state);
+      },
+    });
   }
 
   public locateTrade(

@@ -77,6 +77,7 @@ import {
 import type { Coordinate } from "../model";
 import { restoreSeriesCollection, restoreStudyCollection } from "./chart-content-restore";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
+import { createPrimarySeriesApi } from "./chart-primary-series-api";
 import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
@@ -1635,90 +1636,45 @@ export class PhaseOneChartHarness {
   private createPrimarySeriesApi(
     kind: PhaseOneMainChartType,
   ): PhaseOneMainSeriesApi {
-    switch (kind) {
-      case "candlestick":
-      case "line-break":
-      case "point-figure":
-      case "columns":
-      case "volume-candles":
-      case "hollow-candles":
-      case "hlc-area":
-        return this.createPrimaryCandlestickSeriesApi();
-      case "heikin-ashi":
-        return this.createPrimaryCandlestickSeriesApi();
-      case "renko":
-        return this.createPrimaryCandlestickSeriesApi();
-      case "bar":
-      case "hlc-bars":
-      case "high-low":
-        return this.createPrimaryBarSeriesApi();
-      case "kagi":
-      case "line":
-      case "line-markers":
-      case "stepline":
-        return this.createPrimaryLineSeriesApi();
-      case "area":
-        return this.createPrimaryAreaSeriesApi();
-      case "baseline":
-        return this.createPrimaryBaselineSeriesApi();
-      case "histogram":
-        return this.createPrimaryHistogramSeriesApi();
-    }
-  }
-
-  private addPrimaryCandlestickSeries(): PhaseOneCandlestickSeriesApi {
-    return this.attachPrimarySeries("candlestick") as PhaseOneCandlestickSeriesApi;
-  }
-
-  private createPrimaryCandlestickSeriesApi(): PhaseOneCandlestickSeriesApi {
-    const api: PhaseOneCandlestickSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(data);
+    return createPrimarySeriesApi(kind, {
+      assertSeriesActive: (api) => this.assertSeriesActive(api),
+      getSource: (api, sourceKind) => this.getSourceByApi(api, sourceKind),
+      applySeriesFormatterOptions: (seriesOptions, options) =>
+        this.applySeriesFormatterOptions(
+          seriesOptions as PhaseOneSeriesFormatterOptions,
+          options as PhaseOneSeriesFormatterOptions,
+        ),
+      applyMainSeriesTypeSpecificOptions,
+      rebuildMainSource: (source) => {
+        source.data = applyMainSeriesBuilderData(source.inputData as readonly PhaseOneCandlestickData[], source as MainSeriesSourceState);
+        this.syncChartContextFromMainSource(source as MainSeriesSourceState);
       },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
-        const seriesOptions = state.options as Required<PhaseOneCandlestickSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (options.wickColor !== undefined) {
-          seriesOptions.wickColor = options.wickColor;
-        }
-        if (state.role === "main-series" && applyMainSeriesTypeSpecificOptions(state, options)) {
-          state.data = applyMainSeriesBuilderData(state.inputData, state);
-          this.syncChartContextFromMainSource(state);
-        }
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "candlestick");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
+      setPrimaryData: (data) => this.setPrimaryData(data),
+      updatePrimary: (bar) => this.updatePrimary(bar),
+      setPrimaryHistogramLikeData: (data) => this.setPrimaryHistogramLikeData(data),
+      updatePrimaryHistogramLike: (bar) => this.updatePrimaryHistogramLike(bar),
+      normalizeLineData,
+      normalizeLineBar,
+      setMarkers: (api, markers, sourceKind) => this.setSecondaryMarkers(api, markers, sourceKind),
+      createPriceLine: (api, sourceKind, options) => {
+        const state = this.getSourceByApi(api, sourceKind);
         const priceLine = this.createPriceLineState(options);
         return this.createPriceLineApi(state.priceLines, priceLine);
       },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "candlestick");
+      removePriceLine: (api, sourceKind, line) => {
+        const state = this.getSourceByApi(api, sourceKind);
         this.removePriceLineFromMap(state.priceLines, line);
       },
-    };
-    return api;
+    });
+  }
+
+  private addPrimaryCandlestickSeries(): PhaseOneCandlestickSeriesApi {
+    return this.attachPrimarySeries("candlestick") as PhaseOneCandlestickSeriesApi;
   }
 
   public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
@@ -2638,280 +2594,20 @@ export class PhaseOneChartHarness {
     return this.attachPrimarySeries("line") as PhaseOneLineSeriesApi;
   }
 
-  private createPrimaryLineSeriesApi(): PhaseOneLineSeriesApi {
-    const api: PhaseOneLineSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(normalizeLineData(data));
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(normalizeLineBar(bar));
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const seriesOptions = state.options as Required<PhaseOneLineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.color !== undefined) {
-          seriesOptions.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.kagiYangColor !== undefined) {
-          seriesOptions.kagiYangColor = options.kagiYangColor;
-        }
-        if (options.kagiYinColor !== undefined) {
-          seriesOptions.kagiYinColor = options.kagiYinColor;
-        }
-        if (options.kagiYangLineWidth !== undefined) {
-          seriesOptions.kagiYangLineWidth = Math.max(1, options.kagiYangLineWidth);
-        }
-        if (options.kagiYinLineWidth !== undefined) {
-          seriesOptions.kagiYinLineWidth = Math.max(1, options.kagiYinLineWidth);
-        }
-        if (state.role === "main-series" && applyMainSeriesTypeSpecificOptions(state, options)) {
-          state.data = applyMainSeriesBuilderData(state.inputData, state);
-          this.syncChartContextFromMainSource(state);
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "line");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "line");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
-    return api;
-  }
-
   private addPrimaryAreaSeries(): PhaseOneAreaSeriesApi {
     return this.attachPrimarySeries("area") as PhaseOneAreaSeriesApi;
-  }
-
-  private createPrimaryAreaSeriesApi(): PhaseOneAreaSeriesApi {
-    const api: PhaseOneAreaSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(normalizeLineData(data));
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(normalizeLineBar(bar));
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        const seriesOptions = state.options as Required<PhaseOneAreaSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.lineColor !== undefined) {
-          seriesOptions.lineColor = options.lineColor;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.topColor !== undefined) {
-          seriesOptions.topColor = options.topColor;
-        }
-        if (options.bottomColor !== undefined) {
-          seriesOptions.bottomColor = options.bottomColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "area");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "area");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
-    return api;
   }
 
   private addPrimaryBaselineSeries(): PhaseOneBaselineSeriesApi {
     return this.attachPrimarySeries("baseline") as PhaseOneBaselineSeriesApi;
   }
 
-  private createPrimaryBaselineSeriesApi(): PhaseOneBaselineSeriesApi {
-    const api: PhaseOneBaselineSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(normalizeLineData(data));
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(normalizeLineBar(bar));
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        const seriesOptions = state.options as Required<PhaseOneBaselineSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.baseValue !== undefined) {
-          seriesOptions.baseValue = options.baseValue;
-        }
-        if (options.lineWidth !== undefined) {
-          seriesOptions.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.topLineColor !== undefined) {
-          seriesOptions.topLineColor = options.topLineColor;
-        }
-        if (options.topFillTopColor !== undefined) {
-          seriesOptions.topFillTopColor = options.topFillTopColor;
-        }
-        if (options.topFillBottomColor !== undefined) {
-          seriesOptions.topFillBottomColor = options.topFillBottomColor;
-        }
-        if (options.bottomLineColor !== undefined) {
-          seriesOptions.bottomLineColor = options.bottomLineColor;
-        }
-        if (options.bottomFillTopColor !== undefined) {
-          seriesOptions.bottomFillTopColor = options.bottomFillTopColor;
-        }
-        if (options.bottomFillBottomColor !== undefined) {
-          seriesOptions.bottomFillBottomColor = options.bottomFillBottomColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "baseline");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "baseline");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
-    return api;
-  }
-
   private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
     return this.attachPrimarySeries("bar") as PhaseOneBarSeriesApi;
   }
 
-  private createPrimaryBarSeriesApi(): PhaseOneBarSeriesApi {
-    const api: PhaseOneBarSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryData(data);
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimary(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        const seriesOptions = state.options as Required<PhaseOneBarSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "bar");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "bar");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
-    return api;
-  }
-
   private addPrimaryHistogramSeries(): PhaseOneHistogramSeriesApi {
     return this.attachPrimarySeries("histogram") as PhaseOneHistogramSeriesApi;
-  }
-
-  private createPrimaryHistogramSeriesApi(): PhaseOneHistogramSeriesApi {
-    const api: PhaseOneHistogramSeriesApi = {
-      setData: (data) => {
-        this.assertSeriesActive(api);
-        this.setPrimaryHistogramLikeData(data);
-      },
-      update: (bar) => {
-        this.assertSeriesActive(api);
-        this.updatePrimaryHistogramLike(bar);
-      },
-      applyOptions: (options) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        const seriesOptions = state.options as Required<PhaseOneHistogramSeriesOptions>;
-        this.applySeriesFormatterOptions(seriesOptions, options);
-        if (options.upColor !== undefined) {
-          seriesOptions.upColor = options.upColor;
-        }
-        if (options.downColor !== undefined) {
-          seriesOptions.downColor = options.downColor;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setMarkers: (markers) => {
-        this.assertSeriesActive(api);
-        this.setSecondaryMarkers(api, markers, "histogram");
-      },
-      createPriceLine: (options = {}) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (line) => {
-        this.assertSeriesActive(api);
-        const state = this.getSourceByApi(api, "histogram");
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    };
-    return api;
   }
 
   private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {

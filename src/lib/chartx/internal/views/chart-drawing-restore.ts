@@ -1,3 +1,5 @@
+import { assertDrawingTargetValid } from "../model";
+
 export type RestorableHorizontalLineDrawingSnapshot = {
   type: "horizontal-line";
   paneIndex: number;
@@ -13,6 +15,9 @@ export type RestorableTrendLineDrawingSnapshot = {
 export type RestorableDrawingSnapshot =
   | RestorableHorizontalLineDrawingSnapshot
   | RestorableTrendLineDrawingSnapshot;
+
+export const INVALID_DRAWING_PANE_INDEX_ERROR =
+  "chartx phase-one chart state refers to a pane index that does not exist";
 
 export type DrawingRestoreDependencies<
   PaneTarget,
@@ -51,6 +56,40 @@ export function restoreDrawingCollection<
           target,
           drawing as Extract<DrawingSnapshot, RestorableTrendLineDrawingSnapshot>,
         );
+        break;
+    }
+  }
+}
+
+export function validateDrawingCollectionSnapshots<
+  DrawingSnapshot extends RestorableDrawingSnapshot,
+>(
+  drawings: readonly DrawingSnapshot[],
+  secondaryPaneCount: number,
+): void {
+  const maxPaneIndex = secondaryPaneCount;
+  for (const drawing of drawings) {
+    if (drawing.paneIndex < 0 || drawing.paneIndex > maxPaneIndex) {
+      throw new Error(INVALID_DRAWING_PANE_INDEX_ERROR);
+    }
+
+    switch (drawing.type) {
+      case "horizontal-line":
+        assertDrawingTargetValid({
+          kind: "horizontal-line",
+          price: (drawing.options as { price?: number }).price ?? Number.NaN,
+          lineWidth: (drawing.options as { lineWidth?: number }).lineWidth ?? 1,
+        });
+        break;
+      case "trend-line":
+        assertDrawingTargetValid({
+          kind: "trend-line",
+          startTime: (drawing.options as { startTime?: number }).startTime ?? Number.NaN,
+          startPrice: (drawing.options as { startPrice?: number }).startPrice ?? Number.NaN,
+          endTime: (drawing.options as { endTime?: number }).endTime ?? Number.NaN,
+          endPrice: (drawing.options as { endPrice?: number }).endPrice ?? Number.NaN,
+          lineWidth: (drawing.options as { lineWidth?: number }).lineWidth ?? 1,
+        });
         break;
     }
   }

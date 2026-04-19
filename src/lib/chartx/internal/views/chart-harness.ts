@@ -9,7 +9,6 @@ import {
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
-  assertDrawingTargetValid,
   ChartModel,
   createMainSeriesStateSnapshot,
   mainSeriesKindForChartType,
@@ -69,7 +68,12 @@ import {
   PointFigureRenderer,
 } from "../renderers";
 import type { Coordinate } from "../model";
-import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
+import {
+  INVALID_DRAWING_PANE_INDEX_ERROR,
+  restoreDrawingCollection,
+  type RestorableDrawingSnapshot,
+  validateDrawingCollectionSnapshots,
+} from "./chart-drawing-restore";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import {
   addPrimarySeries as addPrimarySeriesUseCase,
@@ -2205,9 +2209,7 @@ export class PhaseOneChartHarness {
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
     applyValidatedChartState(state, {
-      validateDrawings: (drawings, secondaryPaneCount) => {
-        this.assertChartDrawingSnapshotsValid(drawings, secondaryPaneCount);
-      },
+      validateDrawings: validateDrawingCollectionSnapshots,
       restoreDeps: {
         applyOptions: (options) => {
           this.applyOptions(options);
@@ -2382,7 +2384,7 @@ export class PhaseOneChartHarness {
       resolvePaneTarget: (paneIndex) => {
         const pane = this.panes.getByIndex(paneIndex);
         if (pane === undefined) {
-          throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
+          throw new Error(INVALID_DRAWING_PANE_INDEX_ERROR);
         }
         return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
       },
@@ -2393,34 +2395,6 @@ export class PhaseOneChartHarness {
         this.addTrendLineDrawing(target, snapshot.options);
       },
     });
-  }
-
-  private assertChartDrawingSnapshotsValid(
-    drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][],
-    secondaryPaneCount: number,
-  ): void {
-    const maxPaneIndex = secondaryPaneCount;
-    for (const drawing of drawings) {
-      if (drawing.paneIndex < 0 || drawing.paneIndex > maxPaneIndex) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      if (drawing.type === "horizontal-line") {
-        assertDrawingTargetValid({
-          kind: "horizontal-line",
-          price: drawing.options.price,
-          lineWidth: drawing.options.lineWidth ?? 1,
-        });
-        continue;
-      }
-      assertDrawingTargetValid({
-        kind: "trend-line",
-        startTime: drawing.options.startTime ?? Number.NaN,
-        startPrice: drawing.options.startPrice ?? Number.NaN,
-        endTime: drawing.options.endTime ?? Number.NaN,
-        endPrice: drawing.options.endPrice ?? Number.NaN,
-        lineWidth: drawing.options.lineWidth ?? 1,
-      });
-    }
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {

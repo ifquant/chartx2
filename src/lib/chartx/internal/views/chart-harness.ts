@@ -199,9 +199,7 @@ import {
 } from "./chart-layout-geometry";
 import {
   resolveHitDrawing as resolveHitDrawingUseCase,
-  resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
 } from "./chart-drawing-hit-test";
-import { applyTrendLineDrag as applyTrendLineDragUseCase } from "./chart-drawing-drag";
 import {
   resolveDrawingMagnetOptions as resolveDrawingMagnetOptionsUseCase,
   resolveSnappedDrawingPrice as resolveSnappedDrawingPriceUseCase,
@@ -330,11 +328,13 @@ import {
   type PaneResizeState,
 } from "./chart-view-state";
 import {
-  removeDrawing as removeDrawingUseCase,
-  removeSelectedDrawing as removeSelectedDrawingUseCase,
-  requireDrawingByApi as requireDrawingByApiUseCase,
-  selectDrawing as selectDrawingUseCase,
-} from "./chart-drawing-session";
+  applyActiveTrendLineDrag as applyActiveTrendLineDragUseCase,
+  removeActiveDrawing as removeActiveDrawingUseCase,
+  removeSelectedActiveDrawing as removeSelectedActiveDrawingUseCase,
+  requireActiveDrawingByApi as requireActiveDrawingByApiUseCase,
+  resolveSelectedTrendLineDrag as resolveSelectedTrendLineDragUseCase,
+  selectActiveDrawing as selectActiveDrawingUseCase,
+} from "./chart-drawing-runtime";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3209,7 +3209,9 @@ export class PhaseOneChartHarness {
   }
 
   private getDrawingByApi(api: ChartDrawingApi) {
-    return requireDrawingByApiUseCase(api, this.drawingRegistry);
+    return requireActiveDrawingByApiUseCase(api, {
+      getByApi: (nextApi) => this.drawingRegistry.getByApi(nextApi),
+    });
   }
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
@@ -3217,7 +3219,7 @@ export class PhaseOneChartHarness {
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
-    this.viewState.setSelectedDrawingId(selectDrawingUseCase({
+    selectActiveDrawingUseCase({
       selectedDrawingId: this.viewState.selectedDrawingId(),
       nextId: id,
       shouldRender,
@@ -3231,7 +3233,10 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
-    }));
+      setSelectedDrawingId: (drawingId) => {
+        this.viewState.setSelectedDrawingId(drawingId);
+      },
+    });
   }
 
   private assertDrawingActive(api: ChartDrawingApi): void {
@@ -3241,10 +3246,10 @@ export class PhaseOneChartHarness {
   }
 
   private removeDrawing(api: ChartDrawingApi): void {
-    removeDrawingUseCase({
+    removeActiveDrawingUseCase({
       api,
       selectedDrawingId: this.viewState.selectedDrawingId(),
-      registry: this.drawingRegistry,
+      removeByApi: (nextApi) => this.drawingRegistry.removeByApi(nextApi),
       clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
       render: () => {
         if (this.canvas !== null) {
@@ -3255,7 +3260,7 @@ export class PhaseOneChartHarness {
   }
 
   private removeSelectedDrawing(): void {
-    removeSelectedDrawingUseCase({
+    removeSelectedActiveDrawingUseCase({
       selectedDrawingId: this.viewState.selectedDrawingId(),
       getById: (id) => this.getDrawingById(id),
       clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
@@ -3461,14 +3466,14 @@ export class PhaseOneChartHarness {
       PANE_GAP,
     ),
   ): DrawingDragState | null {
-    const drawing =
-      this.viewState.selectedDrawingId() === null
-        ? null
-        : this.getDrawingById(this.viewState.selectedDrawingId()!);
-    return resolveSelectedTrendLineDragHandleUseCase({
+    return resolveSelectedTrendLineDragUseCase({
       point,
       paneFrames,
-      selectedDrawing: drawing?.kind === "trend-line" ? drawing : null,
+      selectedDrawingId: this.viewState.selectedDrawingId(),
+      getById: (id) => {
+        const drawing = this.getDrawingById(id);
+        return drawing?.kind === "trend-line" ? drawing : undefined;
+      },
       primaryPriceScale: this.primaryPriceScale,
       getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
       axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
@@ -3488,16 +3493,16 @@ export class PhaseOneChartHarness {
     ),
   ): void {
     const drawing = this.getDrawingById(drag.drawingId);
-    if (drawing === undefined || drawing.kind !== "trend-line") {
-      this.viewState.clearDrawingSnapGuide();
-      return;
-    }
-    const drawingOptions = resolveDrawingMagnetOptionsUseCase(drawing, this.drawingOptions);
-    const nextState = applyTrendLineDragUseCase({
+    const drawingOptions =
+      drawing === undefined ? this.drawingOptions : resolveDrawingMagnetOptionsUseCase(drawing, this.drawingOptions);
+    applyActiveTrendLineDragUseCase({
       drag,
       point,
       paneFrames,
-      drawing,
+      getById: (id) => {
+        const nextDrawing = this.getDrawingById(id);
+        return nextDrawing?.kind === "trend-line" ? nextDrawing : undefined;
+      },
       primaryPriceScale: this.primaryPriceScale,
       getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
       drawingOptions: {
@@ -3524,15 +3529,9 @@ export class PhaseOneChartHarness {
           drawingOptions.magnetTolerancePx,
           drawingOptions.magnetSources,
         ),
+      clearDrawingSnapGuide: () => this.viewState.clearDrawingSnapGuide(),
+      setDrawingSnapGuide: (guide) => this.viewState.setDrawingSnapGuide(guide),
     });
-    this.viewState.setDrawingSnapGuide(nextState.snapGuide);
-    if (nextState.nextDrawing === null) {
-      return;
-    }
-    drawing.startTime = nextState.nextDrawing.startTime;
-    drawing.startPrice = nextState.nextDrawing.startPrice;
-    drawing.endTime = nextState.nextDrawing.endTime;
-    drawing.endPrice = nextState.nextDrawing.endPrice;
   }
 
   private renderSeriesSource(

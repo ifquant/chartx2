@@ -191,6 +191,11 @@ import {
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
+  buildPaneSeriesStates as buildPaneSeriesStatesUseCase,
+  buildPaneState as buildPaneStateUseCase,
+  buildPaneStateSnapshot as buildPaneStateSnapshotUseCase,
+} from "./chart-pane-state";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
   subscribeHandler as subscribeHandlerUseCase,
@@ -3303,59 +3308,25 @@ export class PhaseOneChartHarness {
   }
 
   private buildPaneState(paneId: string): PhaseOnePaneState | null {
-    const pane = this.getPaneById(paneId);
-    if (pane === undefined) {
-      return null;
-    }
-    const series = this.getPaneSeriesStates(paneId);
-    const seriesKinds = series.map((item) => item.kind);
-    return {
-      paneIndex: this.getPaneIndex(paneId),
-      height: this.getPaneHeight(paneId),
-      isPrimary: pane.kind === "primary",
-      resizable: pane.resizable,
-      hasSeries: seriesKinds.length > 0,
-      seriesCount: seriesKinds.length,
-      seriesKinds,
-      series,
-    };
+    return buildPaneStateUseCase(paneId, {
+      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
+      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
+      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
+      getPaneSeriesStates: (nextPaneId) => this.getPaneSeriesStates(nextPaneId),
+    });
   }
 
   private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
-    return this.panes
-      .list()
-      .map((pane) => this.buildPaneState(pane.id))
-      .filter((pane): pane is PhaseOnePaneState => pane !== null);
+    return buildPaneStateSnapshotUseCase(
+      this.panes.list().map((pane) => pane.id),
+      {
+        buildPaneState: (paneId) => this.buildPaneState(paneId),
+      },
+    );
   }
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return this.chartModel.listSourcesByPane(paneId).map((source) => ({
-      ...(source.role === "main-series"
-        ? {
-            styleOptionSurface: mainSeriesStyleSchemaSpec(source.styleSchemaId).optionSurface,
-            styleOptionKeys: mainSeriesStyleSchemaSpec(source.styleSchemaId).optionKeys,
-            styleTypeSpecificOptionKeys:
-              mainSeriesStyleSchemaSpec(source.styleSchemaId).typeSpecificOptionKeys,
-          }
-        : {
-            styleOptionSurface: null,
-            styleOptionKeys: [],
-            styleTypeSpecificOptionKeys: [],
-          }),
-      id: source.id,
-      label: source.label,
-      kind: source.kind,
-      chartType: source.role === "main-series" ? source.chartType : null,
-      sourceRole: source.role,
-      studyKind: source.role === "study" ? source.studyKind : null,
-      inputContextMode: source.role === "study" ? source.inputContext.mode : null,
-      priceScaleId: source.priceScaleId,
-      inputCapability: source.role === "main-series" ? source.inputCapability : null,
-      builder: source.role === "main-series" ? source.builder : null,
-      renderer: source.role === "main-series" ? source.renderer : null,
-      styleSchemaId: source.role === "main-series" ? source.styleSchemaId : null,
-      pointCount: source.data.length,
-    }));
+    return buildPaneSeriesStatesUseCase(this.chartModel.listSourcesByPane(paneId));
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {

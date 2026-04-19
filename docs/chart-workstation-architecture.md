@@ -165,5 +165,6 @@ Current direction on that path:
 - pointer-leave, pointer-up, wheel, and keyboard viewport commands should follow the same direction, so settled input-state transitions stop living as harness-local interaction branches
 - pointer-down and pointer-move orchestration should now follow the same direction, so divider detection, drawing-drag start, drag-pan routing, hover resolution, and cursor selection stop living as one large harness-local interaction branch
 - click routing and canvas attach/detach lifecycle should follow the same direction, so canvas event binding, resize-observer wiring, selection-on-click, and detach cleanup stop living as harness-local shell/runtime branches
+- pane state and pane snapshot builders should follow the same direction, so pane event payloads and pane API read-model assembly stop living as harness-local bookkeeping branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

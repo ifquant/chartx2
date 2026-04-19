@@ -170,5 +170,6 @@ Current direction on that path:
 - pane resize subscriptions, pane option mutation, pane height measurement, and pane handle resolution should follow the same direction, so pane runtime bookkeeping stops living as harness-local helper branches
 - price-line state construction, API wrapper creation, and active/remove validation should follow the same direction, so price-line bookkeeping stops living as harness-local helper branches
 - series meta/label builders, default series option builders, and main-source state assembly should follow the same direction, so source bootstrap logic stops living as harness-local builder branches
+- main-source lookup, bar-sequence rebuild, chart-context sync, and trade-location refresh should follow the same direction, so source-context runtime logic stops living as harness-local owner branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

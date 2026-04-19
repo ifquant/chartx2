@@ -229,6 +229,13 @@ import {
   createSeriesOptions as createSeriesOptionsUseCase,
 } from "./chart-series-builders";
 import {
+  createMainBarSequenceFromSource as createMainBarSequenceFromSourceUseCase,
+  getMainSource as getMainSourceUseCase,
+  getMainSourceOrThrow as getMainSourceOrThrowUseCase,
+  refreshTradeLocation as refreshTradeLocationUseCase,
+  syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
+} from "./chart-main-source-runtime";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -3536,89 +3543,51 @@ export class PhaseOneChartHarness {
   }
 
   private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {
-    if (source === null) {
-      this.chartModel.clearMainSource();
-      this.syncStudyContextData();
-      this.refreshTradeLocation();
-      return;
-    }
-
-    this.chartModel.bindMainSource(
-      source.id,
-      source.chartType,
-      this.createMainBarSequenceFromSource(source),
-    );
-    this.syncStudyContextData();
-    this.refreshTradeLocation();
+    syncChartContextFromMainSourceUseCase(source, {
+      clearMainSource: () => this.chartModel.clearMainSource(),
+      bindMainSource: (mainSourceId, chartType, barSequence) =>
+        this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
+      createMainBarSequenceFromSource: (nextSource) => this.createMainBarSequenceFromSource(nextSource),
+      syncStudyContextData: () => this.syncStudyContextData(),
+      refreshTradeLocation: () => this.refreshTradeLocation(),
+    });
   }
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
-    const rows = source.store.setData(source.data);
-    if (source.builder === "point-figure") {
-      return createDirectionColumnPriceBasedChartBarSequence(rows);
-    }
-
-    if (
-      source.builder === "line-break" ||
-      source.builder === "renko" ||
-      source.builder === "kagi"
-    ) {
-      return createCompressedPriceBasedChartBarSequence(rows);
-    }
-
-    return createTimeBasedChartBarSequence(rows);
+    return createMainBarSequenceFromSourceUseCase(source);
   }
 
   private getMainSource(): MainSeriesSourceState | null {
-    const mainSourceId = this.chartModel.mainSourceId();
-    return mainSourceId === null
-      ? null
-      : (this.chartModel.getSourceByIdAndRole(mainSourceId, "main-series") ?? null);
+    return getMainSourceUseCase({
+      mainSourceId: () => this.chartModel.mainSourceId(),
+      getSourceByIdAndRole: (id, role) => this.chartModel.getSourceByIdAndRole(id, role),
+    });
   }
 
   private refreshTradeLocation(): void {
-    if (this.activeTradeLocation === null) {
-      return;
-    }
-
-    const source = this.getMainSource();
-    const state =
-      source === null
-        ? null
-        : resolveTradeLocationState(
-            this.activeTradeLocation.request,
-            {
-              chartType: source.chartType,
-              inputData: source.inputData,
-              lineBreakOptions: source.lineBreakOptions,
-              renkoOptions: source.renkoOptions,
-              pointFigureOptions: source.pointFigureOptions,
-              kagiOptions: source.kagiOptions,
-            },
-            this.activeTradeLocation.options,
-          );
-    this.activeTradeLocation = {
-      ...this.activeTradeLocation,
-      state,
-    };
-
-    if (this.activeTradeLocation.options.fitRange && state !== null) {
-      this.timeScaleApi().setVisibleLogicalRange(state.logicalRange);
-      this.priceScaleApi().setVisibleRange(state.priceRange);
-      return;
-    }
-
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    refreshTradeLocationUseCase(this.activeTradeLocation, {
+      getMainSource: () => this.getMainSource(),
+      setActiveTradeLocation: (next) => {
+        this.activeTradeLocation = next;
+      },
+      setVisibleLogicalRange: (range) => {
+        this.timeScaleApi().setVisibleLogicalRange(range);
+      },
+      setVisiblePriceRange: (range) => {
+        this.priceScaleApi().setVisibleRange(range);
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private getMainSourceOrThrow(): MainSeriesSourceState {
-    const source = this.getMainSource();
-    if (source === null) {
-      throw new Error("chartx phase-one chart requires a primary series before this operation");
-    }
-    return source;
+    return getMainSourceOrThrowUseCase({
+      getMainSource: () => this.getMainSource(),
+    });
   }
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {

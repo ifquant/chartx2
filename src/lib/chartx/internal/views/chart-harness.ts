@@ -141,6 +141,10 @@ import {
   collectPanePriceLines as collectPanePriceLinesUseCase,
   selectPaneDrawingSnapGuide as selectPaneDrawingSnapGuideUseCase,
 } from "./chart-pane-decorations";
+import {
+  resolveHitDrawing as resolveHitDrawingUseCase,
+  resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
+} from "./chart-drawing-hit-test";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -4003,37 +4007,16 @@ export class PhaseOneChartHarness {
     layout: Layout,
     paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
   ): ChartDrawingDescriptor | null {
-    const activePane = resolveActivePane(paneFrames, point.y);
-    if (activePane === null) {
-      return null;
-    }
-    const localPoint = resolveLocalPanePoint(activePane, point);
-    if (localPoint === null) {
-      return null;
-    }
-    const priceScale = activePane.kind === "primary"
-      ? this.primaryPriceScale
-      : this.chartModel.getSecondaryScale(activePane.id);
-    if (priceScale === undefined) {
-      return null;
-    }
-
-    const axisBars = this.chartModel.context().snapshot().barSequence.axisBars;
-    let best: { drawing: ChartDrawingDescriptor; distance: number } | null = null;
-    for (const drawing of this.drawingRegistry.listByPane(activePane.id)) {
-      if (!drawing.visible) {
-        continue;
-      }
-      const distance = drawingHitDistance(localPoint, drawing, axisBars, this.timeScale, priceScale);
-      if (distance === null || distance > DRAWING_HIT_TOLERANCE) {
-        continue;
-      }
-      if (best === null || distance < best.distance) {
-        best = { drawing, distance };
-      }
-    }
-
-    return best?.drawing ?? null;
+    return resolveHitDrawingUseCase({
+      point,
+      paneFrames,
+      primaryPriceScale: this.primaryPriceScale,
+      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+      axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
+      timeScale: this.timeScale,
+      drawingsForPane: (paneId) => this.drawingRegistry.listByPane(paneId),
+      hitTolerance: DRAWING_HIT_TOLERANCE,
+    });
   }
 
   private resolveSelectedTrendLineDragHandle(
@@ -4041,58 +4024,20 @@ export class PhaseOneChartHarness {
     layout: Layout,
     paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
   ): DrawingDragState | null {
-    if (this.selectedDrawingId === null) {
-      return null;
-    }
-
-    const drawing = this.getDrawingById(this.selectedDrawingId);
-    if (drawing === undefined || drawing.kind !== "trend-line" || !drawing.visible) {
-      return null;
-    }
-
-    const activePane = resolveActivePane(paneFrames, point.y);
-    if (activePane === null || activePane.id !== drawing.paneId) {
-      return null;
-    }
-    const localPoint = resolveLocalPanePoint(activePane, point);
-    if (localPoint === null) {
-      return null;
-    }
-
-    const priceScale = activePane.kind === "primary"
-      ? this.primaryPriceScale
-      : this.chartModel.getSecondaryScale(activePane.id);
-    if (priceScale === undefined) {
-      return null;
-    }
-
-    const axisBars = this.chartModel.context().snapshot().barSequence.axisBars;
-    const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, this.timeScale);
-    const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, this.timeScale);
-    const startY = priceScale.priceToCoordinate(drawing.startPrice);
-    const endY = priceScale.priceToCoordinate(drawing.endPrice);
-    if (startY === null || endY === null) {
-      return null;
-    }
-
-    const startDistance = Math.hypot(localPoint.x - startX, localPoint.y - startY);
-    const endDistance = Math.hypot(localPoint.x - endX, localPoint.y - endY);
-    if (startDistance <= DRAWING_HIT_TOLERANCE) {
-      return { drawingId: drawing.id, handle: "start" };
-    }
-    if (endDistance <= DRAWING_HIT_TOLERANCE) {
-      return { drawingId: drawing.id, handle: "end" };
-    }
-
-    const lineDistance = distanceToLineSegment(localPoint.x, localPoint.y, startX, startY, endX, endY);
-    if (lineDistance <= DRAWING_HIT_TOLERANCE) {
-      return {
-        drawingId: drawing.id,
-        handle: startDistance <= endDistance ? "start" : "end",
-      };
-    }
-
-    return null;
+    const drawing =
+      this.selectedDrawingId === null
+        ? null
+        : this.getDrawingById(this.selectedDrawingId);
+    return resolveSelectedTrendLineDragHandleUseCase({
+      point,
+      paneFrames,
+      selectedDrawing: drawing?.kind === "trend-line" ? drawing : null,
+      primaryPriceScale: this.primaryPriceScale,
+      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+      axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
+      timeScale: this.timeScale,
+      hitTolerance: DRAWING_HIT_TOLERANCE,
+    });
   }
 
   private applyDrawingDrag(

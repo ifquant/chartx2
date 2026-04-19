@@ -133,6 +133,10 @@ import {
 } from "./chart-state-snapshot-builders";
 import { buildRawReadout as buildRawReadoutUseCase } from "./chart-readout";
 import {
+  formatReadoutDetail as formatReadoutDetailUseCase,
+  formatSeriesReadoutValue as formatSeriesReadoutValueForStateUseCase,
+} from "./chart-readout-format";
+import {
   renderPrimaryPaneContent as renderPrimaryPaneContentUseCase,
   renderSecondaryPaneContent as renderSecondaryPaneContentUseCase,
 } from "./chart-pane-render";
@@ -269,7 +273,6 @@ import {
 } from "./chart-source-accessors";
 import {
   applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
-  formatSeriesReadoutValue as formatSeriesReadoutValueUseCase,
   setSeriesMarkers as setSeriesMarkersUseCase,
 } from "./chart-series-presentation";
 import {
@@ -388,7 +391,7 @@ export type PhaseOneReadoutDetail = {
   series: readonly PhaseOneReadoutSeriesDetail[];
 };
 
-type PhaseOneReadoutBody = Omit<PhaseOneReadoutDetail, "formatted">;
+export type PhaseOneReadoutBody = Omit<PhaseOneReadoutDetail, "formatted">;
 
 export type PhaseOnePriceLineOptions = {
   price?: number;
@@ -3871,7 +3874,10 @@ export class PhaseOneChartHarness {
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
-    return this.formatReadoutDetail(this.buildRawReadout(point, layout));
+    return formatReadoutDetailUseCase(this.buildRawReadout(point, layout), {
+      formatTime: (value) => formatTimeAxisLabel(value, this.timeAxisFormatter),
+      formatPrice: (value) => formatPriceAxisLabel(value, this.priceAxisFormatter),
+    });
   }
 
   private buildRawReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutBody {
@@ -3899,30 +3905,8 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private formatReadoutDetail(readout: PhaseOneReadoutBody): PhaseOneReadoutDetail {
-    return {
-      ...readout,
-      formatted: {
-        time: this.formatReadoutTime(readout.time),
-        open: this.formatPriceReadoutValue(readout.open),
-        high: this.formatPriceReadoutValue(readout.high),
-        low: this.formatPriceReadoutValue(readout.low),
-        close: this.formatPriceReadoutValue(readout.close),
-        price: this.formatPriceReadoutValue(readout.price),
-      },
-    };
-  }
-
-  private formatPriceReadoutValue(value: number | null): string {
-    return value === null ? "--" : formatPriceAxisLabel(value, this.priceAxisFormatter);
-  }
-
-  private formatReadoutTime(value: number | null): string {
-    return value === null ? "--" : formatTimeAxisLabel(value, this.timeAxisFormatter);
-  }
-
   private formatSeriesReadoutValueForState(state: SeriesSourceState, value: number | null): string {
-    return formatSeriesReadoutValueUseCase(state, value, {
+    return formatSeriesReadoutValueForStateUseCase(state, value, {
       formatPrice: (nextValue) => formatPriceAxisLabel(nextValue, this.priceAxisFormatter),
       formatVolume: (nextValue) => formatVolumeAxisLabel(nextValue),
     });

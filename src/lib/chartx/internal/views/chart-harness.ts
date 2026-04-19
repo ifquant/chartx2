@@ -142,6 +142,14 @@ import {
   formatVolumeAxisLabel,
 } from "./chart-axis-format";
 import {
+  type AxisTag,
+  buildMagnetAxisTag,
+  buildMagnetTimeAxisTag,
+  drawAxisTag,
+  drawPriceAxis,
+  drawTimeAxis,
+} from "./chart-axis-tags";
+import {
   renderPrimaryPaneContent as renderPrimaryPaneContentUseCase,
   renderSecondaryPaneContent as renderSecondaryPaneContentUseCase,
 } from "./chart-pane-render";
@@ -1141,16 +1149,6 @@ type PaneResizeState = {
   startClientY: number;
   startUpperHeight: number;
   startLowerHeight: number;
-};
-
-type AxisTag = {
-  text: string;
-  x: number;
-  y: number;
-  active?: boolean;
-  backgroundColor?: string;
-  borderColor?: string;
-  textColor?: string;
 };
 
 type HistogramVisual = {
@@ -4976,233 +4974,6 @@ function drawMarkerShape(
   context.closePath();
   context.fill();
   context.restore();
-}
-
-function drawPriceAxis(
-  context: CanvasRenderingContext2D,
-  layout: Layout,
-  paneTop: number,
-  paneHeight: number,
-  priceScale: PriceScale,
-  crosshair: PanePoint | null,
-  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
-  axisType: "primary" | "volume",
-  formatter: ((value: number) => string) | null,
-  overlayTag: AxisTag | null = null,
-): void {
-  const range = priceScale.getPriceRange();
-  if (range === null) {
-    return;
-  }
-
-  const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
-  const labels: AxisTag[] = Array.from({ length: tickCount }, (_, index) => {
-    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
-    const price = range.maxValue() - range.length() * ratio;
-    return {
-      text:
-        axisType === "volume"
-          ? formatVolumeAxisLabel(price)
-          : formatPriceAxisLabel(price, formatter),
-      x: layout.width - layout.right + 6,
-      y: layout.top + paneTop + paneHeight * ratio - 9,
-    };
-  });
-
-  context.save();
-  context.font = '11px "SF Mono", "Menlo", monospace';
-  context.textBaseline = "middle";
-
-  for (const label of labels) {
-    drawAxisTag(context, label, options);
-  }
-
-  if (crosshair !== null) {
-    const price = priceScale.coordinateToPrice(crosshair.y);
-    if (price !== null) {
-      drawAxisTag(context, {
-        text:
-          axisType === "volume"
-            ? formatVolumeAxisLabel(price)
-            : formatPriceAxisLabel(price, formatter),
-        x: layout.width - layout.right + 6,
-        y: layout.top + paneTop + crosshair.y - 9,
-        active: true,
-      }, options);
-    }
-  }
-
-  if (overlayTag !== null) {
-    drawAxisTag(context, overlayTag, options);
-  }
-
-  context.restore();
-}
-
-function buildMagnetAxisTag(
-  layout: Layout,
-  paneTop: number,
-  priceScale: PriceScale,
-  guide: DrawingSnapGuideState,
-  formatter: ((value: number) => string) | null,
-): AxisTag | null {
-  if (guide.price === null) {
-    return null;
-  }
-  const y = priceScale.priceToCoordinate(guide.price);
-  if (y === null) {
-    return null;
-  }
-
-  return {
-    text: `MAG ${guide.source?.toUpperCase() ?? "PRICE"} ${formatPriceAxisLabel(guide.price, formatter)}`,
-    x: layout.width - layout.right + 6,
-    y: layout.top + paneTop + y - 9,
-    backgroundColor: guide.color,
-    borderColor: guide.color,
-    textColor: "#fffdf7",
-  };
-}
-
-function drawTimeAxis(
-  context: CanvasRenderingContext2D,
-  layout: Layout,
-  rows: readonly { time: number; index: number }[],
-  timeScale: TimeScale,
-  crosshair: PanePoint | null,
-  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
-  formatter: ((time: number) => string) | null,
-  overlayTag: AxisTag | null = null,
-): void {
-  if (rows.length === 0) {
-    return;
-  }
-
-  const paneHeight = layout.height - layout.top - layout.bottom;
-  const visible = timeScale.visibleStrictRange();
-  const minIndex = rows[0]?.index ?? 0;
-  const maxIndex = rows[rows.length - 1]?.index ?? 0;
-  const start = visible === null ? minIndex : clamp(visible.left(), minIndex, maxIndex);
-  const end = visible === null ? maxIndex : clamp(visible.right(), minIndex, maxIndex);
-  const tickCount = clamp(Math.floor((layout.width - layout.left - layout.right) / 140), 3, 7);
-  const anchors = collectVisibleTimeAnchors(rows, start, end, tickCount);
-
-  context.save();
-  context.font = '11px "SF Mono", "Menlo", monospace';
-  context.textBaseline = "top";
-  context.fillStyle = options.axisTextColor;
-
-  for (const row of anchors) {
-    const text = formatTimeAxisLabel(row.time, formatter);
-    const x = layout.left + timeScale.indexToCoordinate(row.index as never);
-    drawAxisTag(context, {
-      text,
-      x: clampCenterTag(x, context.measureText(text).width, layout.left, layout.width - layout.right),
-      y: layout.top + paneHeight + 8,
-    }, options);
-  }
-
-  if (crosshair !== null) {
-    const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-    const row = findNearestRowByLogical(rows, logical);
-    if (row === null) {
-      context.restore();
-      return;
-    }
-    const text = formatTimeAxisLabel(row.time, formatter);
-    drawAxisTag(context, {
-      text,
-      x: clampCenterTag(layout.left + crosshair.x, context.measureText(text).width, layout.left, layout.width - layout.right),
-      y: layout.top + paneHeight + 8,
-      active: true,
-    }, options);
-  }
-
-  if (overlayTag !== null) {
-    drawAxisTag(context, overlayTag, options);
-  }
-
-  context.restore();
-}
-
-function buildMagnetTimeAxisTag(
-  layout: Layout,
-  rows: readonly { time: number; index: TimePointIndex }[],
-  timeScale: TimeScale,
-  guide: DrawingSnapGuideState,
-  formatter: ((time: number) => string) | null,
-): AxisTag | null {
-  if (guide.time === null || rows.length === 0) {
-    return null;
-  }
-  const x = resolveDrawingTimeCoordinate(guide.time, rows, timeScale);
-  const text = `MAG ${formatTimeAxisLabel(guide.time, formatter)}`;
-  const estimatedWidth = text.length * 7;
-  return {
-    text,
-    x: clampCenterTag(layout.left + x, estimatedWidth, layout.left, layout.width - layout.right),
-    y: layout.top + (layout.height - layout.top - layout.bottom) + 8,
-    backgroundColor: guide.color,
-    borderColor: guide.color,
-    textColor: "#fffdf7",
-  };
-}
-
-function drawAxisTag(
-  context: CanvasRenderingContext2D,
-  tag: AxisTag,
-  options: Required<NonNullable<PhaseOneChartOptions["layout"]>>,
-): void {
-  const textWidth = context.measureText(tag.text).width;
-  const boxWidth = Math.ceil(textWidth + 12);
-  const boxHeight = 18;
-
-  context.fillStyle = tag.backgroundColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBackground);
-  context.strokeStyle = tag.borderColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBorder);
-  context.lineWidth = 1;
-  context.fillRect(tag.x, tag.y, boxWidth, boxHeight);
-  context.strokeRect(tag.x + 0.5, tag.y + 0.5, boxWidth - 1, boxHeight - 1);
-  context.fillStyle = tag.textColor ?? (tag.active ? options.axisActiveText : options.axisTextColor);
-  context.fillText(
-    tag.text,
-    tag.x + 6,
-    tag.y + (context.textBaseline === "middle" ? boxHeight / 2 : 4),
-  );
-}
-
-function collectVisibleTimeAnchors(
-  rows: readonly { time: number; index: number }[],
-  start: number,
-  end: number,
-  tickCount: number,
-): Array<{ time: number; index: number }> {
-  const anchors: Array<{ time: number; index: number }> = [];
-  const seen = new Set<string>();
-
-  for (let index = 0; index < tickCount; index += 1) {
-    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
-    const candidate = start + (end - start) * ratio;
-    const row = findNearestRowByLogical(rows, candidate);
-    if (row !== null) {
-      const key = `${row.index}:${row.time}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        anchors.push(row);
-      }
-    }
-  }
-
-  return anchors;
-}
-
-function clampCenterTag(
-  centerX: number,
-  textWidth: number,
-  minX: number,
-  maxX: number,
-): number {
-  const boxWidth = Math.ceil(textWidth + 12);
-  return clamp(centerX - boxWidth / 2, minX, maxX - boxWidth);
 }
 
 function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {

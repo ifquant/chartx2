@@ -176,6 +176,12 @@ import {
   resolveSeriesTarget as resolveSeriesTargetUseCase,
 } from "./chart-add-commands";
 import {
+  addPaneCommand as addPaneCommandUseCase,
+  createPaneHandle as createPaneHandleUseCase,
+  removePaneByHandleCommand as removePaneByHandleCommandUseCase,
+  removeSeriesCommand as removeSeriesCommandUseCase,
+} from "./chart-structure-commands";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1894,20 +1900,24 @@ export class PhaseOneChartHarness {
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
-    const removed = this.chartModel.removeSourceByApi(series);
-    if (removed === undefined) {
-      throw new Error("chartx phase-one chart can remove only the currently attached series");
-    }
-    if (removed.role === "main-series") {
-      this.primaryPriceRangeOverride = null;
-    }
-    this.crosshair = null;
-    this.barSpacing = null;
-    this.rightOffset = DEFAULT_RIGHT_OFFSET;
-
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    removeSeriesCommandUseCase(series, {
+      removeSourceByApi: (currentSeries) => this.chartModel.removeSourceByApi(currentSeries),
+      resetPrimaryRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      resetViewportState: () => {
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
+      clearCrosshair: () => {
+        this.crosshair = null;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   public panesApi(): readonly PhaseOnePaneApi[] {
@@ -1915,21 +1925,23 @@ export class PhaseOneChartHarness {
   }
 
   public addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
-    const pane = this.panes.addSecondaryPane(options);
-    this.emitPaneEvent("added", pane.id);
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
-    return this.createPaneHandle(pane.id);
+    return addPaneCommandUseCase(options, {
+      addSecondaryPane: (nextOptions) => this.panes.addSecondaryPane(nextOptions),
+      emitAdded: (paneId) => this.emitPaneEvent("added", paneId),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      createPaneHandle: (paneId) => this.createPaneHandle(paneId),
+    });
   }
 
   public removePaneByHandle(paneHandle: PhaseOnePaneApi): void {
-    const paneId = this.paneHandleIds.get(paneHandle);
-    if (paneId === undefined) {
-      throw new Error("chartx phase-one chart removePane requires a pane handle created by this chart");
-    }
-
-    this.removePaneById(paneId);
+    removePaneByHandleCommandUseCase(paneHandle, {
+      getPaneId: (handle) => this.paneHandleIds.get(handle),
+      removePaneById: (paneId) => this.removePaneById(paneId),
+    });
   }
 
   public applyOptions(options: PhaseOneChartOptions): void {
@@ -3057,31 +3069,22 @@ export class PhaseOneChartHarness {
   }
 
   private createPaneHandle(paneId: string): PhaseOnePaneApi {
-    const pane: PhaseOnePaneApi = {
-      paneIndex: () => this.getPaneIndex(paneId),
-      getHeight: () => this.getPaneHeight(paneId),
-      getOptions: () => this.getPaneOptions(paneId),
-      applyOptions: (options) => {
-        this.applyPaneOptions(paneId, options);
+    return createPaneHandleUseCase(paneId, {
+      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
+      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
+      getPaneOptions: (nextPaneId) => this.getPaneOptions(nextPaneId),
+      applyPaneOptions: (nextPaneId, options) => this.applyPaneOptions(nextPaneId, options),
+      setPaneHeight: (nextPaneId, height) => this.setPaneHeight(nextPaneId, height),
+      isPrimary: (nextPaneId) => this.getPaneById(nextPaneId)?.kind === "primary",
+      isResizable: (nextPaneId) => this.getPaneById(nextPaneId)?.resizable ?? false,
+      subscribeResize: (nextPaneId, handler) => this.subscribePaneResize(nextPaneId, handler),
+      unsubscribeResize: (nextPaneId, handler) => this.unsubscribePaneResize(nextPaneId, handler),
+      hasSeries: (nextPaneId) => this.paneHasSeries(nextPaneId),
+      removePaneById: (nextPaneId) => this.removePaneById(nextPaneId),
+      registerPaneHandle: (pane, nextPaneId) => {
+        this.paneHandleIds.set(pane, nextPaneId);
       },
-      setHeight: (height) => {
-        this.setPaneHeight(paneId, height);
-      },
-      isPrimary: () => this.getPaneById(paneId)?.kind === "primary",
-      isResizable: () => this.getPaneById(paneId)?.resizable ?? false,
-      subscribeResize: (handler) => {
-        this.subscribePaneResize(paneId, handler);
-      },
-      unsubscribeResize: (handler) => {
-        this.unsubscribePaneResize(paneId, handler);
-      },
-      hasSeries: () => this.paneHasSeries(paneId),
-      remove: () => {
-        this.removePaneById(paneId);
-      },
-    };
-    this.paneHandleIds.set(pane, paneId);
-    return pane;
+    });
   }
 
   private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {

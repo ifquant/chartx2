@@ -177,5 +177,6 @@ Current direction on that path:
 - main-series replace/update and histogram-like replace/update should follow the same direction, so primary data mutation orchestration stops living as harness-local mutation branches
 - main-series chart-type replacement should follow the same direction, so remove-preserve-reattach orchestration stops living as a harness-local public branch
 - main-series attach/add orchestration should follow the same direction, so primary api creation, source attachment, and add-primary command wiring stop living as harness-local factory branches
+- secondary/study attach/add orchestration should follow the same direction, so secondary api deps, study-source attachment, and add-secondary/add-study command wiring stop living as harness-local factory branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

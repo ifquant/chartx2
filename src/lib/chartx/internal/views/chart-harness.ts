@@ -91,6 +91,12 @@ import {
   createSecondaryVolumeSeriesApi,
 } from "./chart-secondary-series-api";
 import {
+  addSecondarySeries as addSecondarySeriesUseCase,
+  attachStudySeries as attachStudySeriesUseCase,
+  createSecondarySeriesApiDeps as createSecondarySeriesApiDepsUseCase,
+  type SecondarySeriesApiDepsBuilder,
+} from "./chart-secondary-series-factory";
+import {
   replaceMainHistogramLikeData,
   replaceMainSeriesData,
   replaceStudyHistogramLikeData,
@@ -2788,10 +2794,14 @@ export class PhaseOneChartHarness {
   }
 
   private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
-    const meta = this.createSeriesMeta("candlestick");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryCandlestickSeriesApi(deps));
-    this.attachStudySeries(target, "candlestick", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId: target,
+        kind: "candlestick",
+        createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneCandlestickSeriesApi;
   }
 
   private addSecondaryLineSeries(paneId: string): PhaseOneLineSeriesApi {
@@ -2802,62 +2812,98 @@ export class PhaseOneChartHarness {
     paneId: string,
     studyKind: StudySourceKind,
   ): PhaseOneLineSeriesApi {
-    const meta = this.createSeriesMeta("line");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryLineSeriesApi(deps));
-    this.attachStudySeries(paneId, "line", api, meta, studyKind);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "line",
+        studyKind,
+        createApi: (deps) => createSecondaryLineSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneLineSeriesApi;
   }
 
   private addCompareStudySeries(paneId: string): PhaseOneCompareSeriesApi {
-    const meta = this.createSeriesMeta("line");
-    const api = this.createSecondarySeriesApiDeps((deps) => createCompareStudySeriesApi(deps));
-    this.attachStudySeries(paneId, "line", api, meta, "compare");
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "line",
+        studyKind: "compare",
+        createApi: (deps) => createCompareStudySeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneCompareSeriesApi;
   }
 
   private addMovingAverageStudySeries(paneId: string): PhaseOneMovingAverageStudyApi {
-    const meta = this.createSeriesMeta("line");
-    const api = this.createSecondarySeriesApiDeps((deps) => createMovingAverageStudySeriesApi(deps));
-    this.attachStudySeries(paneId, "line", api, meta, "indicator", {
-      kind: "moving-average",
-      length: this.defaultMovingAverageOptions.length,
-    });
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "line",
+        studyKind: "indicator",
+        indicator: {
+          kind: "moving-average",
+          length: this.defaultMovingAverageOptions.length,
+        },
+        createApi: (deps) => createMovingAverageStudySeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneMovingAverageStudyApi;
   }
 
   private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
-    const meta = this.createSeriesMeta("area");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryAreaSeriesApi(deps));
-    this.attachStudySeries(paneId, "area", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "area",
+        createApi: (deps) => createSecondaryAreaSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneAreaSeriesApi;
   }
 
   private addSecondaryBaselineSeries(paneId: string): PhaseOneBaselineSeriesApi {
-    const meta = this.createSeriesMeta("baseline");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryBaselineSeriesApi(deps));
-    this.attachStudySeries(paneId, "baseline", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "baseline",
+        createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneBaselineSeriesApi;
   }
 
   private addSecondaryBarSeries(paneId: string): PhaseOneBarSeriesApi {
-    const meta = this.createSeriesMeta("bar");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryBarSeriesApi(deps));
-    this.attachStudySeries(paneId, "bar", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "bar",
+        createApi: (deps) => createSecondaryBarSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneBarSeriesApi;
   }
 
   private addSecondaryHistogramSeries(paneId: string): PhaseOneHistogramSeriesApi {
-    const meta = this.createSeriesMeta("histogram");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryHistogramSeriesApi(deps));
-    this.attachStudySeries(paneId, "histogram", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "histogram",
+        createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneHistogramSeriesApi;
   }
 
   private addSecondaryVolumeSeries(paneId: string): PhaseOneVolumeSeriesApi {
-    const meta = this.createSeriesMeta("volume");
-    const api = this.createSecondarySeriesApiDeps((deps) => createSecondaryVolumeSeriesApi(deps));
-    this.attachStudySeries(paneId, "volume", api, meta);
-    return api;
+    return addSecondarySeriesUseCase(
+      {
+        paneId,
+        kind: "volume",
+        createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
+      },
+      this.createSecondarySeriesFactoryDeps(),
+    ) as PhaseOneVolumeSeriesApi;
   }
 
   private attachStudySeries(
@@ -2868,7 +2914,7 @@ export class PhaseOneChartHarness {
     studyKind: StudySourceKind = "series",
     indicator?: MovingAverageIndicatorState,
   ): void {
-    attachStudySource(
+    attachStudySeriesUseCase(
       { paneId, kind, api, meta, studyKind, indicator },
       {
         primaryPriceScale: this.primaryPriceScale,
@@ -2900,34 +2946,10 @@ export class PhaseOneChartHarness {
     );
   }
 
-  private createSecondarySeriesApiDeps<T>(build: (deps: {
-    assertSeriesActive(api: unknown): void;
-    getSource(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): SecondaryApiSourceState;
-    applySeriesFormatterOptions(seriesOptions: object, options: object): void;
-    render(): void;
-    setSecondaryData(api: unknown, data: readonly PhaseOneCandlestickData[], kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
-    updateSecondary(api: unknown, bar: PhaseOneCandlestickData, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
-    setSecondaryHistogramLikeData(
-      api: unknown,
-      data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
-      kind: "histogram" | "volume",
-    ): void;
-    updateSecondaryHistogramLike(
-      api: unknown,
-      bar: PhaseOneHistogramData | PhaseOneVolumeData,
-      kind: "histogram" | "volume",
-    ): void;
-    normalizeLineData(data: readonly PhaseOneLineData[]): readonly PhaseOneCandlestickData[];
-    normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData;
-    setMarkers(api: unknown, markers: readonly PhaseOneSeriesMarker[], kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume"): void;
-    createPriceLine(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume", options?: PhaseOnePriceLineOptions): PhaseOnePriceLineApi;
-    removePriceLine(api: unknown, kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume", line: PhaseOnePriceLineApi): void;
-    applyCompareOptions(api: unknown, options: PhaseOneCompareSeriesOptions): void;
-    getCompareOptions(api: unknown): Required<PhaseOneCompareSeriesOptions>;
-    applyMovingAverageStudyOptions(api: unknown, options: PhaseOneMovingAverageStudyOptions): void;
-    getMovingAverageStudyOptions(api: unknown): Required<PhaseOneMovingAverageStudyOptions>;
-  }) => T): T {
-    return build({
+  private createSecondarySeriesApiDeps<T>(
+    build: (deps: SecondarySeriesApiDepsBuilder) => T,
+  ): T {
+    return createSecondarySeriesApiDepsUseCase(build, {
       assertSeriesActive: (api) => this.assertSeriesActive(api as SeriesSourceState["api"]),
       getSource: (api, kind) => this.getSourceByApi(api as ChartSeriesApi, kind),
       applySeriesFormatterOptions: (seriesOptions, options) =>
@@ -2992,6 +3014,31 @@ export class PhaseOneChartHarness {
           this.defaultMovingAverageOptions,
         ),
     });
+  }
+
+  private createSecondarySeriesFactoryDeps() {
+    return {
+      createMeta: (kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume") =>
+        this.createSeriesMeta(kind),
+      createApiDeps: <T>(build: (deps: SecondarySeriesApiDepsBuilder) => T) =>
+        this.createSecondarySeriesApiDeps(build),
+      attachStudySeries: (params: {
+        paneId: string;
+        kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
+        api: unknown;
+        meta: { id: string; label: string };
+        studyKind?: StudySourceKind;
+        indicator?: MovingAverageIndicatorState;
+      }) =>
+        this.attachStudySeries(
+          params.paneId,
+          params.kind,
+          params.api as SeriesSourceState["api"],
+          params.meta,
+          params.studyKind,
+          params.indicator,
+        ),
+    };
   }
 
   private setSecondaryData(

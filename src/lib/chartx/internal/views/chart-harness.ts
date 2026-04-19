@@ -186,6 +186,7 @@ import {
   resolveDrawingTimeCoordinate,
 } from "./chart-drawing-geometry";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
+import { createChartInteractionHandlers } from "./chart-interaction-handlers";
 import {
   calculateBaseBarSpacing,
   clamp,
@@ -328,18 +329,7 @@ import {
 import {
   attachCanvasRuntime as attachCanvasRuntimeUseCase,
   detachCanvasRuntime as detachCanvasRuntimeUseCase,
-  handleClickRuntime as handleClickRuntimeUseCase,
 } from "./chart-canvas-runtime";
-import {
-  handleKeyboardViewportRuntime as handleKeyboardViewportRuntimeUseCase,
-  handlePointerLeaveRuntime as handlePointerLeaveRuntimeUseCase,
-  handlePointerUpRuntime as handlePointerUpRuntimeUseCase,
-  handleWheelZoomRuntime as handleWheelZoomRuntimeUseCase,
-} from "./chart-input-runtime";
-import {
-  handlePointerDownRuntime as handlePointerDownRuntimeUseCase,
-  handlePointerMoveRuntime as handlePointerMoveRuntimeUseCase,
-} from "./chart-pointer-runtime";
 import {
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1529,258 +1519,87 @@ export class PhaseOneChartHarness {
   private get primaryPriceScale(): PriceScale {
     return this.chartModel.primaryScale();
   }
-  private readonly handleResize = () => {
-    if (this.canvas !== null && this.manualLayout === null) {
-      this.render(this.canvas);
-    }
-  };
-  private readonly handlePointerMove = (event: PointerEvent) => {
-    const deps: Parameters<typeof handlePointerMoveRuntimeUseCase>[1] = {
-      hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
-      getPaneFrames: (layout) =>
-        buildPaneFrames(
-          this.panes.list(),
-          layout.height - layout.top - layout.bottom,
-          PANE_GAP,
-        ),
-      listPanes: () => this.panes.list(),
-      hasPaneResizeState: () => this.paneResizeState !== null,
-      clearDrawingSnapGuide: () => {
-        this.drawingSnapGuide = null;
-      },
-      applyPaneResize: (clientY, layout, paneFrames) => {
-        this.applyPaneResize(clientY, layout, paneFrames as readonly PaneFrame[]);
-      },
-      hasDrawingDragState: () => this.drawingDragState !== null,
-      getDrawingDragState: () => this.drawingDragState,
-      resolvePanePoint: (pointerEvent, layout) =>
-        this.canvas === null ? null : resolvePanePoint(this.canvas, pointerEvent, layout),
-      setCrosshair: (point) => {
-        this.crosshair = point;
-      },
-      applyDrawingDrag: (dragState, point, layout, paneFrames) => {
-        this.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
-      },
-      setCursor: (cursor) => {
-        if (this.canvas !== null) {
-          this.canvas.style.cursor = cursor;
-        }
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      hasDragState: () => this.dragState !== null,
-      getDragState: () => this.dragState,
-      getPointCount: () => this.getPointCount(),
-      getBarSpacing: () => this.barSpacing,
-      resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
-        resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
-      setRightOffset: (value) => {
-        this.rightOffset = value;
-      },
-      resolvePaneDivider: (panes, paneFrames, y) =>
-        resolvePaneDivider(panes, paneFrames as readonly PaneFrame[], y, PANE_GAP, PANE_DIVIDER_HIT_SLOP),
-      resolveHitDrawing: (point, layout, paneFrames) =>
-        this.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[]),
-      resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
-        this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
-      setHoveredDrawingId: (id) => {
-        this.hoveredDrawingId = id;
-      },
-      setHoveredDrawingHandle: (handle) => {
-        this.hoveredDrawingHandle = handle;
-      },
-    };
-    handlePointerMoveRuntimeUseCase(event, deps);
-  };
-  private readonly handlePointerLeave = () => {
-    handlePointerLeaveRuntimeUseCase({
-      hasCanvas: () => this.canvas !== null,
-      hasCrosshair: () => this.crosshair !== null,
-      hasDragState: () => this.dragState !== null,
-      hasDrawingDragState: () => this.drawingDragState !== null,
-      hasPaneResizeState: () => this.paneResizeState !== null,
-      clearCrosshair: () => {
-        this.crosshair = null;
-      },
-      clearHoveredDrawing: () => {
-        this.hoveredDrawingId = null;
-      },
-      clearHoveredDrawingHandle: () => {
-        this.hoveredDrawingHandle = null;
-      },
-      clearDrawingSnapGuide: () => {
-        this.drawingSnapGuide = null;
-      },
-      setCursor: (cursor) => {
-        if (this.canvas !== null) {
-          this.canvas.style.cursor = cursor;
-        }
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
-  };
-  private readonly handlePointerDown = (event: PointerEvent) => {
-    const deps: Parameters<typeof handlePointerDownRuntimeUseCase>[1] = {
-      hasCanvas: () => this.canvas !== null,
-      getPointCount: () => this.getPointCount(),
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
-      getPaneFrames: (layout) =>
-        buildPaneFrames(
-          this.panes.list(),
-          layout.height - layout.top - layout.bottom,
-          PANE_GAP,
-        ),
-      listPanes: () => this.panes.list(),
-      resolvePanePoint: (pointerEvent, layout) =>
-        this.canvas === null ? null : resolvePanePoint(this.canvas, pointerEvent, layout),
-      resolvePaneDivider: (panes, paneFrames, y) =>
-        resolvePaneDivider(panes, paneFrames as readonly PaneFrame[], y, PANE_GAP, PANE_DIVIDER_HIT_SLOP),
-      resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
-        this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
-      focusCanvas: () => {
-        this.canvas?.focus({ preventScroll: true });
-      },
-      setPaneResizeState: (state) => {
-        this.paneResizeState = state;
-      },
-      setCrosshair: (point) => {
-        this.crosshair = point;
-      },
-      setDrawingDragState: (state) => {
-        this.drawingDragState = state;
-      },
-      setHoveredDrawingId: (id) => {
-        this.hoveredDrawingId = id;
-      },
-      setHoveredDrawingHandle: (handle) => {
-        this.hoveredDrawingHandle = handle;
-      },
-      setDragState: (state) => {
-        this.dragState = state;
-      },
-      getRightOffset: () => this.rightOffset,
-      setCursor: (cursor) => {
-        if (this.canvas !== null) {
-          this.canvas.style.cursor = cursor;
-        }
-      },
-      setPointerCapture: (pointerId) => {
-        this.canvas?.setPointerCapture(pointerId);
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
-    handlePointerDownRuntimeUseCase(event, deps);
-  };
-  private readonly handlePointerUp = (event: PointerEvent) => {
-    handlePointerUpRuntimeUseCase(event.pointerId, {
-      hasCanvas: () => this.canvas !== null,
-      hasPointerCapture: (pointerId) => this.canvas?.hasPointerCapture(pointerId) ?? false,
-      releasePointerCapture: (pointerId) => {
-        this.canvas?.releasePointerCapture(pointerId);
-      },
-      clearDragState: () => {
-        this.dragState = null;
-      },
-      clearDrawingDragState: () => {
-        this.drawingDragState = null;
-      },
-      clearPaneResizeState: () => {
-        this.paneResizeState = null;
-      },
-      clearHoveredDrawingHandle: () => {
-        this.hoveredDrawingHandle = null;
-      },
-      clearDrawingSnapGuide: () => {
-        this.drawingSnapGuide = null;
-      },
-      hasCrosshair: () => this.crosshair !== null,
-      setCursor: (cursor) => {
-        if (this.canvas !== null) {
-          this.canvas.style.cursor = cursor;
-        }
-      },
-    });
-  };
-  private readonly handleWheel = (event: WheelEvent) => {
-    handleWheelZoomRuntimeUseCase(event.deltaY, {
-      hasCanvas: () => this.canvas !== null,
-      getPointCount: () => this.getPointCount(),
-      preventDefault: () => {
-        event.preventDefault();
-      },
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
-      getBarSpacing: () => this.barSpacing,
-      setBarSpacing: (value) => {
-        this.barSpacing = value;
-      },
-      calculateBaseBarSpacing,
-      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
-  };
-  private readonly handleClick = (event: MouseEvent) => {
-    handleClickRuntimeUseCase(event, {
-      hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
-      resolvePanePoint: (mouseEvent, layout) =>
-        this.canvas === null ? null : resolvePanePoint(this.canvas, mouseEvent, layout),
-      resolveHitDrawing: (point, layout) => this.resolveHitDrawing(point, layout),
-      selectDrawing: (id) => {
-        this.selectDrawing(id);
-      },
-      buildReadout: (point, layout) => this.buildReadout(point, layout),
-      emitClick: (readout, point) => {
-        emitClickRuntimeUseCase(this.clickHandlers, readout, point);
-      },
-    });
-  };
-  private readonly handleKeyDown = (event: KeyboardEvent) => {
-    handleKeyboardViewportRuntimeUseCase(event.key, {
-      hasCanvas: () => this.canvas !== null,
-      getPointCount: () => this.getPointCount(),
-      hasSelectedDrawing: () => this.selectedDrawingId !== null,
-      preventDefault: () => {
-        event.preventDefault();
-      },
-      clearSelectedDrawing: () => {
-        this.selectDrawing(null);
-      },
-      removeSelectedDrawing: () => {
-        this.removeSelectedDrawing();
-      },
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
-      getBarSpacing: () => this.barSpacing,
-      setBarSpacing: (value) => {
-        this.barSpacing = value;
-      },
-      adjustRightOffset: (delta) => {
-        this.rightOffset += delta;
-      },
-      calculateBaseBarSpacing,
-      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
-  };
+  private readonly interactionHandlers = createChartInteractionHandlers({
+    defaultLayout: DEFAULT_LAYOUT,
+    paneGap: PANE_GAP,
+    paneDividerHitSlop: PANE_DIVIDER_HIT_SLOP,
+    barSpacingBounds: BAR_SPACING_BOUNDS,
+    getCanvas: () => this.canvas,
+    getManualLayout: () => this.manualLayout,
+    listPanes: () => this.panes.list(),
+    getPointCount: () => this.getPointCount(),
+    getBarSpacing: () => this.barSpacing,
+    setBarSpacing: (value) => {
+      this.barSpacing = value;
+    },
+    getRightOffset: () => this.rightOffset,
+    setRightOffset: (value) => {
+      this.rightOffset = value;
+    },
+    getCrosshair: () => this.crosshair,
+    setCrosshair: (point) => {
+      this.crosshair = point;
+    },
+    getDragState: () => this.dragState,
+    setDragState: (state) => {
+      this.dragState = state;
+    },
+    getDrawingDragState: () => this.drawingDragState,
+    setDrawingDragState: (state) => {
+      this.drawingDragState = state;
+    },
+    getPaneResizeState: () => this.paneResizeState,
+    setPaneResizeState: (state) => {
+      this.paneResizeState = state;
+    },
+    setHoveredDrawingId: (id) => {
+      this.hoveredDrawingId = id;
+    },
+    setHoveredDrawingHandle: (handle) => {
+      this.hoveredDrawingHandle = handle;
+    },
+    clearDrawingSnapGuide: () => {
+      this.drawingSnapGuide = null;
+    },
+    resolveHitDrawing: (point, layout, paneFrames) =>
+      this.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[] | undefined),
+    resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
+      this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+    applyPaneResize: (clientY, layout, paneFrames) => {
+      this.applyPaneResize(clientY, layout, paneFrames as readonly PaneFrame[]);
+    },
+    applyDrawingDrag: (dragState, point, layout, paneFrames) => {
+      this.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
+    },
+    focusCanvas: () => {
+      this.canvas?.focus({ preventScroll: true });
+    },
+    renderCanvas: (canvas) => {
+      this.render(canvas);
+    },
+    selectDrawing: (id) => {
+      this.selectDrawing(id);
+    },
+    buildReadout: (point, layout) => this.buildReadout(point, layout),
+    emitClick: (readout, point) => {
+      emitClickRuntimeUseCase(this.clickHandlers, readout, point);
+    },
+    hasSelectedDrawing: () => this.selectedDrawingId !== null,
+    clearSelectedDrawing: () => {
+      this.selectDrawing(null);
+    },
+    removeSelectedDrawing: () => {
+      this.removeSelectedDrawing();
+    },
+  });
+  private readonly handleResize = this.interactionHandlers.handleResize;
+  private readonly handlePointerMove = this.interactionHandlers.handlePointerMove;
+  private readonly handlePointerLeave = this.interactionHandlers.handlePointerLeave;
+  private readonly handlePointerDown = this.interactionHandlers.handlePointerDown;
+  private readonly handlePointerUp = this.interactionHandlers.handlePointerUp;
+  private readonly handleWheel = this.interactionHandlers.handleWheel;
+  private readonly handleClick = this.interactionHandlers.handleClick;
+  private readonly handleKeyDown = this.interactionHandlers.handleKeyDown;
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);

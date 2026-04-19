@@ -1,0 +1,364 @@
+import {
+  buildPaneFrames,
+  resolvePaneDivider,
+  type PaneFrame,
+  type PaneModelState,
+} from "../model";
+import {
+  calculateBaseBarSpacing,
+  clamp,
+  measureLayout,
+  resolveBarSpacing,
+  resolvePanePoint,
+  type LayoutGeometry,
+  type PanePoint,
+} from "./chart-layout-geometry";
+import { handleClickRuntime } from "./chart-canvas-runtime";
+import {
+  handleKeyboardViewportRuntime,
+  handlePointerLeaveRuntime,
+  handlePointerUpRuntime,
+  handleWheelZoomRuntime,
+} from "./chart-input-runtime";
+import {
+  handlePointerDownRuntime,
+  handlePointerMoveRuntime,
+} from "./chart-pointer-runtime";
+
+type DragState = {
+  startClientX: number;
+  startRightOffset: number;
+};
+
+type DrawingDragHandle = "start" | "end";
+
+type DrawingDragState = {
+  drawingId: string;
+  handle: DrawingDragHandle;
+};
+
+type PaneResizeState = {
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  startClientY: number;
+  startUpperHeight: number;
+  startLowerHeight: number;
+};
+
+export function createChartInteractionHandlers<Readout>(deps: {
+  defaultLayout: LayoutGeometry;
+  paneGap: number;
+  paneDividerHitSlop: number;
+  barSpacingBounds: {
+    minBarSpacing: number;
+    maxBarSpacing: number;
+  };
+  getCanvas(): HTMLCanvasElement | null;
+  getManualLayout(): Pick<LayoutGeometry, "width" | "height"> | null;
+  listPanes(): readonly PaneModelState[];
+  getPointCount(): number;
+  getBarSpacing(): number | null;
+  setBarSpacing(value: number): void;
+  getRightOffset(): number;
+  setRightOffset(value: number): void;
+  getCrosshair(): PanePoint | null;
+  setCrosshair(point: PanePoint | null): void;
+  getDragState(): DragState | null;
+  setDragState(state: DragState | null): void;
+  getDrawingDragState(): DrawingDragState | null;
+  setDrawingDragState(state: DrawingDragState | null): void;
+  getPaneResizeState(): PaneResizeState | null;
+  setPaneResizeState(state: PaneResizeState | null): void;
+  setHoveredDrawingId(id: string | null): void;
+  setHoveredDrawingHandle(handle: DrawingDragHandle | null): void;
+  clearDrawingSnapGuide(): void;
+  resolveHitDrawing(
+    point: PanePoint,
+    layout: LayoutGeometry,
+    paneFrames?: readonly PaneFrame[],
+  ): { id: string } | null;
+  resolveSelectedTrendLineDragHandle(
+    point: PanePoint,
+    layout: LayoutGeometry,
+    paneFrames: readonly PaneFrame[],
+  ): DrawingDragState | null;
+  applyPaneResize(clientY: number, layout: LayoutGeometry, paneFrames: readonly PaneFrame[]): void;
+  applyDrawingDrag(
+    dragState: DrawingDragState,
+    point: PanePoint,
+    layout: LayoutGeometry,
+    paneFrames: readonly PaneFrame[],
+  ): void;
+  focusCanvas(): void;
+  renderCanvas(canvas: HTMLCanvasElement): void;
+  selectDrawing(id: string | null): void;
+  buildReadout(point: PanePoint | null, layout: LayoutGeometry): Readout;
+  emitClick(readout: Readout, point: PanePoint | null): void;
+  hasSelectedDrawing(): boolean;
+  clearSelectedDrawing(): void;
+  removeSelectedDrawing(): void;
+}): {
+  handleResize(): void;
+  handlePointerMove(event: PointerEvent): void;
+  handlePointerLeave(): void;
+  handlePointerDown(event: PointerEvent): void;
+  handlePointerUp(event: PointerEvent): void;
+  handleWheel(event: WheelEvent): void;
+  handleClick(event: MouseEvent): void;
+  handleKeyDown(event: KeyboardEvent): void;
+} {
+  const getLayout = (): LayoutGeometry => {
+    const canvas = deps.getCanvas();
+    return canvas === null
+      ? deps.defaultLayout
+      : measureLayout(canvas, deps.defaultLayout, deps.getManualLayout());
+  };
+
+  const getPaneFrames = (layout: LayoutGeometry): readonly PaneFrame[] =>
+    buildPaneFrames(
+      deps.listPanes(),
+      layout.height - layout.top - layout.bottom,
+      deps.paneGap,
+    );
+
+  const resolvePoint = (
+    event: Pick<MouseEvent, "clientX" | "clientY">,
+    layout: LayoutGeometry,
+  ): PanePoint | null => {
+    const canvas = deps.getCanvas();
+    return canvas === null ? null : resolvePanePoint(canvas, event, layout);
+  };
+
+  const renderIfAttached = (): void => {
+    const canvas = deps.getCanvas();
+    if (canvas !== null) {
+      deps.renderCanvas(canvas);
+    }
+  };
+
+  const setCursor = (cursor: string): void => {
+    const canvas = deps.getCanvas();
+    if (canvas !== null) {
+      canvas.style.cursor = cursor;
+    }
+  };
+
+  return {
+    handleResize: () => {
+      const canvas = deps.getCanvas();
+      if (canvas !== null && deps.getManualLayout() === null) {
+        deps.renderCanvas(canvas);
+      }
+    },
+    handlePointerMove: (event) => {
+      handlePointerMoveRuntime(event, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        getLayout,
+        getPaneFrames,
+        listPanes: () => deps.listPanes(),
+        hasPaneResizeState: () => deps.getPaneResizeState() !== null,
+        clearDrawingSnapGuide: () => {
+          deps.clearDrawingSnapGuide();
+        },
+        applyPaneResize: (clientY, layout, paneFrames) => {
+          deps.applyPaneResize(clientY, layout, paneFrames as readonly PaneFrame[]);
+        },
+        hasDrawingDragState: () => deps.getDrawingDragState() !== null,
+        getDrawingDragState: () => deps.getDrawingDragState(),
+        resolvePanePoint: resolvePoint,
+        setCrosshair: (point) => {
+          deps.setCrosshair(point);
+        },
+        applyDrawingDrag: (dragState, point, layout, paneFrames) => {
+          deps.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
+        },
+        setCursor,
+        render: renderIfAttached,
+        hasDragState: () => deps.getDragState() !== null,
+        getDragState: () => deps.getDragState(),
+        getPointCount: () => deps.getPointCount(),
+        getBarSpacing: () => deps.getBarSpacing(),
+        resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
+          resolveBarSpacing(currentSpacing, paneWidth, pointCount, deps.barSpacingBounds),
+        setRightOffset: (value) => {
+          deps.setRightOffset(value);
+        },
+        resolvePaneDivider: (panes, paneFrames, y) =>
+          resolvePaneDivider(
+            panes,
+            paneFrames as readonly PaneFrame[],
+            y,
+            deps.paneGap,
+            deps.paneDividerHitSlop,
+          ),
+        resolveHitDrawing: (point, layout, paneFrames) =>
+          deps.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[]),
+        resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
+          deps.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+        setHoveredDrawingId: (id) => {
+          deps.setHoveredDrawingId(id);
+        },
+        setHoveredDrawingHandle: (handle) => {
+          deps.setHoveredDrawingHandle(handle);
+        },
+      });
+    },
+    handlePointerLeave: () => {
+      handlePointerLeaveRuntime({
+        hasCanvas: () => deps.getCanvas() !== null,
+        hasCrosshair: () => deps.getCrosshair() !== null,
+        hasDragState: () => deps.getDragState() !== null,
+        hasDrawingDragState: () => deps.getDrawingDragState() !== null,
+        hasPaneResizeState: () => deps.getPaneResizeState() !== null,
+        clearCrosshair: () => {
+          deps.setCrosshair(null);
+        },
+        clearHoveredDrawing: () => {
+          deps.setHoveredDrawingId(null);
+        },
+        clearHoveredDrawingHandle: () => {
+          deps.setHoveredDrawingHandle(null);
+        },
+        clearDrawingSnapGuide: () => {
+          deps.clearDrawingSnapGuide();
+        },
+        setCursor,
+        render: renderIfAttached,
+      });
+    },
+    handlePointerDown: (event) => {
+      handlePointerDownRuntime(event, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        getPointCount: () => deps.getPointCount(),
+        getLayout,
+        getPaneFrames,
+        listPanes: () => deps.listPanes(),
+        resolvePanePoint: resolvePoint,
+        resolvePaneDivider: (panes, paneFrames, y) =>
+          resolvePaneDivider(
+            panes,
+            paneFrames as readonly PaneFrame[],
+            y,
+            deps.paneGap,
+            deps.paneDividerHitSlop,
+          ),
+        resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
+          deps.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+        focusCanvas: () => {
+          deps.focusCanvas();
+        },
+        setPaneResizeState: (state) => {
+          deps.setPaneResizeState(state);
+        },
+        setCrosshair: (point) => {
+          deps.setCrosshair(point);
+        },
+        setDrawingDragState: (state) => {
+          deps.setDrawingDragState(state);
+        },
+        setHoveredDrawingId: (id) => {
+          deps.setHoveredDrawingId(id);
+        },
+        setHoveredDrawingHandle: (handle) => {
+          deps.setHoveredDrawingHandle(handle);
+        },
+        setDragState: (state) => {
+          deps.setDragState(state);
+        },
+        getRightOffset: () => deps.getRightOffset(),
+        setCursor,
+        setPointerCapture: (pointerId) => {
+          deps.getCanvas()?.setPointerCapture(pointerId);
+        },
+        render: renderIfAttached,
+      });
+    },
+    handlePointerUp: (event) => {
+      handlePointerUpRuntime(event.pointerId, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        hasPointerCapture: (pointerId) => deps.getCanvas()?.hasPointerCapture(pointerId) ?? false,
+        releasePointerCapture: (pointerId) => {
+          deps.getCanvas()?.releasePointerCapture(pointerId);
+        },
+        clearDragState: () => {
+          deps.setDragState(null);
+        },
+        clearDrawingDragState: () => {
+          deps.setDrawingDragState(null);
+        },
+        clearPaneResizeState: () => {
+          deps.setPaneResizeState(null);
+        },
+        clearHoveredDrawingHandle: () => {
+          deps.setHoveredDrawingHandle(null);
+        },
+        clearDrawingSnapGuide: () => {
+          deps.clearDrawingSnapGuide();
+        },
+        hasCrosshair: () => deps.getCrosshair() !== null,
+        setCursor,
+      });
+    },
+    handleWheel: (event) => {
+      handleWheelZoomRuntime(event.deltaY, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        getPointCount: () => deps.getPointCount(),
+        preventDefault: () => {
+          event.preventDefault();
+        },
+        getLayout,
+        getBarSpacing: () => deps.getBarSpacing(),
+        setBarSpacing: (value) => {
+          deps.setBarSpacing(value);
+        },
+        calculateBaseBarSpacing,
+        clampBarSpacing: (value) =>
+          clamp(value, deps.barSpacingBounds.minBarSpacing, deps.barSpacingBounds.maxBarSpacing),
+        render: renderIfAttached,
+      });
+    },
+    handleClick: (event) => {
+      handleClickRuntime(event, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        getLayout,
+        resolvePanePoint: resolvePoint,
+        resolveHitDrawing: (point, layout) => deps.resolveHitDrawing(point, layout),
+        selectDrawing: (id) => {
+          deps.selectDrawing(id);
+        },
+        buildReadout: (point, layout) => deps.buildReadout(point, layout),
+        emitClick: (readout, point) => {
+          deps.emitClick(readout, point);
+        },
+      });
+    },
+    handleKeyDown: (event) => {
+      handleKeyboardViewportRuntime(event.key, {
+        hasCanvas: () => deps.getCanvas() !== null,
+        getPointCount: () => deps.getPointCount(),
+        hasSelectedDrawing: () => deps.hasSelectedDrawing(),
+        preventDefault: () => {
+          event.preventDefault();
+        },
+        clearSelectedDrawing: () => {
+          deps.clearSelectedDrawing();
+        },
+        removeSelectedDrawing: () => {
+          deps.removeSelectedDrawing();
+        },
+        getLayout,
+        getBarSpacing: () => deps.getBarSpacing(),
+        setBarSpacing: (value) => {
+          deps.setBarSpacing(value);
+        },
+        adjustRightOffset: (delta) => {
+          deps.setRightOffset(deps.getRightOffset() + delta);
+        },
+        calculateBaseBarSpacing,
+        clampBarSpacing: (value) =>
+          clamp(value, deps.barSpacingBounds.minBarSpacing, deps.barSpacingBounds.maxBarSpacing),
+        render: renderIfAttached,
+      });
+    },
+  };
+}

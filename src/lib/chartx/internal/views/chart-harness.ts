@@ -236,6 +236,15 @@ import {
   syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
 } from "./chart-main-source-runtime";
 import {
+  buildPrimaryPaneSeries as buildPrimaryPaneSeriesUseCase,
+  getCompareStudyState as getCompareStudyStateUseCase,
+  getMovingAverageStudyState as getMovingAverageStudyStateUseCase,
+  getOrCreateSecondaryPanePriceScale as getOrCreateSecondaryPanePriceScaleUseCase,
+  getSecondarySeriesForPane as getSecondarySeriesForPaneUseCase,
+  getSourceByApi as getSourceByApiUseCase,
+  getStudySourcesForPane as getStudySourcesForPaneUseCase,
+} from "./chart-source-accessors";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -3592,49 +3601,50 @@ export class PhaseOneChartHarness {
   }
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {
-    return [...this.chartModel.listSourcesByPaneAndRole(paneId, "study")];
+    return getStudySourcesForPaneUseCase(paneId, {
+      listSourcesByPaneAndRole: (nextPaneId, role) => this.chartModel.listSourcesByPaneAndRole(nextPaneId, role),
+    });
   }
 
   private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
-    return this.getStudySourcesForPane(paneId);
+    return getSecondarySeriesForPaneUseCase(paneId, {
+      getStudySourcesForPane: (nextPaneId) => this.getStudySourcesForPane(nextPaneId),
+    });
   }
 
   private getSourceByApi(
     api: ChartSeriesApi,
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
-    const source = this.chartModel.getSourceByApiOrThrow(api, "chartx phase-one series has been removed");
-    if (kind !== undefined && source.kind !== kind) {
-      throw new Error("chartx phase-one series is attached to an unexpected pane/source kind");
-    }
-    return source;
+    return getSourceByApiUseCase<SeriesSourceState, ChartSeriesKind>(api, {
+      getSourceByApiOrThrow: (nextApi, message) => this.chartModel.getSourceByApiOrThrow(nextApi as ChartSeriesApi, message),
+    }, kind);
   }
 
   private getCompareStudyState(api: PhaseOneCompareSeriesApi): StudySourceState {
-    const source = this.getSourceByApi(api, "line");
-    if (source.role !== "study" || source.studyKind !== "compare") {
-      throw new Error("chartx phase-one compare api is attached to an unexpected source kind");
-    }
-    return source;
+    return getCompareStudyStateUseCase<StudySourceState>(api, {
+      getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
+    });
   }
 
   private getMovingAverageStudyState(api: PhaseOneMovingAverageStudyApi): StudySourceState {
-    const source = this.getSourceByApi(api, "line");
-    if (source.role !== "study" || source.studyKind !== "indicator" || source.indicator?.kind !== "moving-average") {
-      throw new Error("chartx phase-one moving average api is attached to an unexpected source kind");
-    }
-    return source;
+    return getMovingAverageStudyStateUseCase<StudySourceState>(api, {
+      getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
+    });
   }
 
   private getOrCreateSecondaryPanePriceScale(paneId: string): PriceScale {
-    return this.chartModel.getOrCreateSecondaryScale(paneId);
+    return getOrCreateSecondaryPanePriceScaleUseCase(paneId, {
+      getOrCreateSecondaryScale: (nextPaneId) => this.chartModel.getOrCreateSecondaryScale(nextPaneId),
+    });
   }
 
   private buildPrimaryPaneSeries(
     mainSource: MainSeriesSourceState | null,
   ): readonly SeriesSourceState[] {
-    const studies = this.getStudySourcesForPane("primary");
-    return mainSource === null ? studies : [mainSource, ...studies];
+    return buildPrimaryPaneSeriesUseCase(mainSource, {
+      getStudySourcesForPane: (paneId) => this.getStudySourcesForPane(paneId),
+    });
   }
 
   private resolveHitDrawing(

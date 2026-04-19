@@ -124,10 +124,13 @@ import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./ch
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import {
+  applyRestorableMainSeriesState,
   applyRestorablePriceScaleState,
   applyRestorableTimeScaleState,
   applySecondaryPaneState as applySecondaryPaneStateUseCase,
+  finalizeRestoredChart,
   listSecondaryPaneIds as listSecondaryPaneIdsUseCase,
+  locateRestorableTrade,
 } from "./chart-state-runtime";
 import {
   clearRestorableDrawings as clearRestorableDrawingsUseCase,
@@ -2250,14 +2253,18 @@ export class PhaseOneChartHarness {
           listPanes: () => this.panes.list(),
           emitPaneEvent: (type, paneId) => this.emitPaneEvent(type, paneId),
         }),
-        applyMainSeriesState: (mainSeriesState) => {
-          this.applyMainSeriesState(mainSeriesState);
-        },
+        applyMainSeriesState: (mainSeriesState) => applyRestorableMainSeriesState(mainSeriesState, {
+          applyMainSeriesState: (nextState) => {
+            this.applyMainSeriesState(nextState);
+          },
+        }),
         restoreSeries: (series) => this.restoreChartSeries(series),
         restoreStudies: (studies) => this.restoreChartStudies(studies),
-        locateTrade: (request, overlay) => {
-          this.locateTrade(request, overlay);
-        },
+        locateTrade: (request, overlay) => locateRestorableTrade({ request, overlay }, {
+          locateTrade: (nextRequest, nextOverlay) => {
+            this.locateTrade(nextRequest, nextOverlay);
+          },
+        }),
         restoreDrawings: (drawings) => this.restoreChartDrawings(drawings),
         applyTimeScaleState: (timeScaleState) => applyRestorableTimeScaleState(timeScaleState, {
           applyOptions: (options) => this.timeScaleApi().applyOptions(options),
@@ -2267,11 +2274,14 @@ export class PhaseOneChartHarness {
           applyOptions: (options) => this.priceScaleApi().applyOptions(options),
           setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
         }),
-        finalize: () => {
-          if (this.canvas !== null) {
-            this.render(this.canvas);
-          }
-        },
+        finalize: () => finalizeRestoredChart({
+          hasCanvas: () => this.canvas !== null,
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
       },
     });
   }

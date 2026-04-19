@@ -2,6 +2,7 @@ import { normalizePaneHeight } from "../model";
 
 import type { PhaseOnePaneEventType } from "./chart-harness";
 import type {
+  RestorableTradeLocationState,
   RestorablePriceScaleState,
   RestorableSecondaryPaneState,
   RestorableTimeScaleState,
@@ -76,4 +77,33 @@ export function applyRestorablePriceScaleState(
     scaleSeriesOnly: state.scaleSeriesOnly,
   });
   deps.setVisibleRange(state.visibleRange);
+}
+
+export function applyRestorableMainSeriesState<MainSeriesState>(
+  state: MainSeriesState,
+  deps: {
+    applyMainSeriesState(state: MainSeriesState): void;
+  },
+): void {
+  deps.applyMainSeriesState(state);
+}
+
+export function locateRestorableTrade<TradeRequest, TradeOverlay>(
+  state: RestorableTradeLocationState<TradeRequest, TradeOverlay>,
+  deps: {
+    locateTrade(request: TradeRequest, overlay: TradeOverlay): void;
+  },
+): void {
+  deps.locateTrade(state.request, state.overlay);
+}
+
+export function finalizeRestoredChart(
+  deps: {
+    hasCanvas(): boolean;
+    render(): void;
+  },
+): void {
+  if (deps.hasCanvas()) {
+    deps.render();
+  }
 }

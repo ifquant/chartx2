@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyRestorableMainSeriesState,
   applyRestorablePriceScaleState,
   applyRestorableTimeScaleState,
   applySecondaryPaneState,
+  finalizeRestoredChart,
   listSecondaryPaneIds,
+  locateRestorableTrade,
 } from "../../src/lib/chartx/internal/views/chart-state-runtime";
 
 describe("chart state runtime", () => {
@@ -71,5 +74,43 @@ describe("chart state runtime", () => {
       "options:true",
       "range:100:200",
     ]);
+  });
+
+  it("applies main-series restore state through shared runtime", () => {
+    const calls: string[] = [];
+
+    applyRestorableMainSeriesState({ chartType: "candlestick" }, {
+      applyMainSeriesState: (state) => calls.push(`main:${state.chartType}`),
+    });
+
+    expect(calls).toEqual(["main:candlestick"]);
+  });
+
+  it("routes trade-location restore through shared runtime", () => {
+    const calls: string[] = [];
+
+    locateRestorableTrade({
+      request: { tradeId: "t-1" },
+      overlay: { color: "#3b82f6" },
+    }, {
+      locateTrade: (request, overlay) => calls.push(`trade:${request.tradeId}:${overlay.color}`),
+    });
+
+    expect(calls).toEqual(["trade:t-1:#3b82f6"]);
+  });
+
+  it("renders only when finalize sees an attached canvas", () => {
+    const calls: string[] = [];
+
+    finalizeRestoredChart({
+      hasCanvas: () => true,
+      render: () => calls.push("render"),
+    });
+    finalizeRestoredChart({
+      hasCanvas: () => false,
+      render: () => calls.push("unexpected"),
+    });
+
+    expect(calls).toEqual(["render"]);
   });
 });

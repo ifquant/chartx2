@@ -241,11 +241,9 @@ import {
   unsubscribePaneResize as unsubscribePaneResizeUseCase,
 } from "./chart-pane-runtime";
 import {
-  assertPriceLineActive as assertPriceLineActiveUseCase,
-  createPriceLineApi as createPriceLineApiUseCase,
-  createPriceLineState as createPriceLineStateUseCase,
-  removePriceLineFromMap as removePriceLineFromMapUseCase,
+  type PriceLineState,
 } from "./chart-price-line-runtime";
+import { createPriceLineManager } from "./chart-price-line-management";
 import {
   createMainSeriesOptions as createMainSeriesOptionsUseCase,
   createMainSourceState as createMainSourceStateUseCase,
@@ -1152,14 +1150,6 @@ type HistogramVisual = {
   isUp: boolean;
 };
 
-type PriceLineState = {
-  id: string;
-  price: number;
-  color: string;
-  lineWidth: number;
-  title: string;
-};
-
 type ChartDrawingKind = "horizontal-line" | "trend-line";
 
 type HorizontalLineDrawingState = {
@@ -1350,9 +1340,7 @@ export class PhaseOneChartHarness {
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
   private nextSeriesId = 1;
-  private nextPriceLineId = 1;
   private nextDrawingId = 1;
-  private readonly priceLineHandleIds = new WeakMap<PhaseOnePriceLineApi, string>();
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
@@ -1486,6 +1474,14 @@ export class PhaseOneChartHarness {
     lineWidth: 1,
     title: "Price line",
   };
+  private readonly priceLineManager = createPriceLineManager({
+    defaultOptions: this.defaultPriceLineOptions,
+    render: () => {
+      if (this.canvas !== null) {
+        this.render(this.canvas);
+      }
+    },
+  });
   private selectedDrawingId: string | null = null;
   private hoveredDrawingId: string | null = null;
   private hoveredDrawingHandle: DrawingDragHandle | null = null;
@@ -1924,9 +1920,9 @@ export class PhaseOneChartHarness {
       normalizeLineData,
       normalizeLineBar,
       setMarkers: (api, markers, sourceKind) => this.setSecondaryMarkers(api, markers, sourceKind),
-      createPriceLineState: (options) => this.createPriceLineState(options),
-      createPriceLine: (lines, state) => this.createPriceLineApi(lines, state),
-      removePriceLine: (lines, line) => this.removePriceLineFromMap(lines, line),
+      createPriceLineState: (options) => this.priceLineManager.createState(options),
+      createPriceLine: (lines, state) => this.priceLineManager.createApi(lines, state),
+      removePriceLine: (lines, line) => this.priceLineManager.remove(lines, line),
     };
   }
 
@@ -2982,12 +2978,12 @@ export class PhaseOneChartHarness {
         this.setSecondaryMarkers(api as SeriesSourceState["api"], markers, kind),
       createPriceLine: (api, kind, options) => {
         const state = this.getSourceByApi(api as ChartSeriesApi, kind);
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
+        const priceLine = this.priceLineManager.createState(options);
+        return this.priceLineManager.createApi(state.priceLines, priceLine);
       },
       removePriceLine: (api, kind, line) => {
         const state = this.getSourceByApi(api as ChartSeriesApi, kind);
-        this.removePriceLineFromMap(state.priceLines, line);
+        this.priceLineManager.remove(state.priceLines, line);
       },
       applyCompareOptions: (api, options) => {
         applyCompareStudyOptions(this.getCompareStudyState(api as PhaseOneCompareSeriesApi), options, {
@@ -3357,14 +3353,6 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private createPriceLineState(options: PhaseOnePriceLineOptions = {}): PriceLineState {
-    const ordinal = this.nextPriceLineId;
-    this.nextPriceLineId += 1;
-    return createPriceLineStateUseCase(ordinal, options, {
-      defaultOptions: this.defaultPriceLineOptions,
-    });
-  }
-
   private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
     const ordinal = this.nextDrawingId;
     this.nextDrawingId += 1;
@@ -3389,7 +3377,7 @@ export class PhaseOneChartHarness {
       drawingId: meta.id,
       drawingTitle: meta.title,
       registry: this.drawingRegistry,
-      createPriceLineState: (nextOptions) => this.createPriceLineState(nextOptions),
+      createPriceLineState: (nextOptions) => this.priceLineManager.createState(nextOptions),
       assertDrawingActive: (entry) => this.assertDrawingActive(entry),
       getDrawing: (entry) => {
         const drawing = this.getDrawingByApi(entry);
@@ -3450,40 +3438,6 @@ export class PhaseOneChartHarness {
     "startTime" | "startPrice" | "endTime" | "endPrice"
   >> {
     return resolveTrendLineDefaultsUseCase(this.chartModel.context().snapshot().barSequence.axisBars);
-  }
-
-  private createPriceLineApi(
-    lines: Map<string, PriceLineState>,
-    lineState: PriceLineState,
-  ): PhaseOnePriceLineApi {
-    return createPriceLineApiUseCase(lines, lineState, {
-      setLineId: (line, lineId) => {
-        this.priceLineHandleIds.set(line, lineId);
-      },
-      getLineId: (line) => this.priceLineHandleIds.get(line),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
-  }
-
-  private removePriceLineFromMap(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
-    removePriceLineFromMapUseCase(lines, line, {
-      getLineId: (nextLine) => this.priceLineHandleIds.get(nextLine),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
-  }
-
-  private assertPriceLineActive(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
-    assertPriceLineActiveUseCase(lines, line, {
-      getLineId: (nextLine) => this.priceLineHandleIds.get(nextLine),
-    });
   }
 
   private getDrawingByApi(api: ChartDrawingApi) {

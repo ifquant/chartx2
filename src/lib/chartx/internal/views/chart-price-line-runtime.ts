@@ -3,7 +3,7 @@ import type {
   PhaseOnePriceLineOptions,
 } from "./chart-harness";
 
-type PriceLineState = {
+export type PriceLineState = {
   id: string;
   price: number;
   color: string;

@@ -222,6 +222,13 @@ import {
   removePriceLineFromMap as removePriceLineFromMapUseCase,
 } from "./chart-price-line-runtime";
 import {
+  createMainSeriesOptions as createMainSeriesOptionsUseCase,
+  createMainSourceState as createMainSourceStateUseCase,
+  createSeriesLabel as createSeriesLabelUseCase,
+  createSeriesMeta as createSeriesMetaUseCase,
+  createSeriesOptions as createSeriesOptionsUseCase,
+} from "./chart-series-builders";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -3259,15 +3266,15 @@ export class PhaseOneChartHarness {
   private createSeriesMeta(kind: string): { id: string; label: string } {
     const ordinal = this.nextSeriesId;
     this.nextSeriesId += 1;
-    return {
-      id: `series-${ordinal}`,
-      label: this.createSeriesLabel(kind, `series-${ordinal}`),
-    };
+    return createSeriesMetaUseCase(kind, ordinal, {
+      formatSeriesKindLabel,
+    });
   }
 
   private createSeriesLabel(kind: string, id: string): string {
-    const ordinal = id.startsWith("series-") ? id.slice("series-".length) : id;
-    return `${formatSeriesKindLabel(kind)} ${ordinal}`;
+    return createSeriesLabelUseCase(kind, id, {
+      formatSeriesKindLabel,
+    });
   }
 
   private createPriceLineState(options: PhaseOnePriceLineOptions = {}): PriceLineState {
@@ -3471,22 +3478,15 @@ export class PhaseOneChartHarness {
     | Required<PhaseOneBaselineSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions>
     | Required<PhaseOneVolumeSeriesOptions> {
-    switch (kind) {
-      case "candlestick":
-        return { ...this.candlestickOptions };
-      case "bar":
-        return { ...this.barOptions };
-      case "line":
-        return { ...this.lineOptions };
-      case "area":
-        return { ...this.areaOptions };
-      case "baseline":
-        return { ...this.baselineOptions };
-      case "histogram":
-        return { ...this.histogramOptions };
-      case "volume":
-        return { ...this.volumeOptions };
-    }
+    return createSeriesOptionsUseCase(kind, {
+      candlestickOptions: this.candlestickOptions,
+      barOptions: this.barOptions,
+      lineOptions: this.lineOptions,
+      areaOptions: this.areaOptions,
+      baselineOptions: this.baselineOptions,
+      histogramOptions: this.histogramOptions,
+      volumeOptions: this.volumeOptions,
+    });
   }
 
   private createMainSeriesOptions(
@@ -3498,20 +3498,16 @@ export class PhaseOneChartHarness {
     | Required<PhaseOneAreaSeriesOptions>
     | Required<PhaseOneBaselineSeriesOptions>
     | Required<PhaseOneHistogramSeriesOptions> {
-    switch (mainSeriesStyleSchemaSpec(styleSchemaId).optionSurface) {
-      case "candlestick":
-        return { ...this.candlestickOptions };
-      case "bar":
-        return { ...this.barOptions };
-      case "line":
-        return { ...this.lineOptions };
-      case "area":
-        return { ...this.areaOptions };
-      case "baseline":
-        return { ...this.baselineOptions };
-      case "histogram":
-        return { ...this.histogramOptions };
-    }
+    return createMainSeriesOptionsUseCase(styleSchemaId, {
+      candlestickOptions: this.candlestickOptions,
+      barOptions: this.barOptions,
+      lineOptions: this.lineOptions,
+      areaOptions: this.areaOptions,
+      baselineOptions: this.baselineOptions,
+      histogramOptions: this.histogramOptions,
+    }, {
+      optionSurface: (nextStyleSchemaId) => mainSeriesStyleSchemaSpec(nextStyleSchemaId).optionSurface,
+    });
   }
 
   private createMainSourceState(
@@ -3523,15 +3519,7 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     priceScaleId: string,
   ): MainSeriesSourceState {
-    return createMainSeriesSourceState<
-      PhaseOneCandlestickData,
-      ChartSeriesApi,
-      ChartSeriesKind,
-      MainSeriesSourceState["options"],
-      HistogramVisual,
-      PriceLineState,
-      SeriesMarkerState
-    >({
+    return createMainSourceStateUseCase({
       paneId,
       chartType,
       kind,
@@ -3539,31 +3527,11 @@ export class PhaseOneChartHarness {
       meta,
       priceScale,
       priceScaleId,
-      defaults: {
-        lineBreakOptions: {
-          lineCount: this.candlestickOptions.lineBreakCount,
-        },
-        renkoOptions: {
-          boxSize: this.candlestickOptions.renkoBoxSize,
-          boxSizeMode: this.candlestickOptions.renkoBoxSizeMode,
-        },
-        pointFigureOptions: {
-          boxSize: this.candlestickOptions.pointFigureBoxSize,
-          boxSizeMode: this.candlestickOptions.pointFigureBoxSizeMode,
-          boxSizeScale: this.candlestickOptions.pointFigureBoxSizeScale,
-          reversalBoxes: this.candlestickOptions.pointFigureReversalBoxes,
-          atrLength: this.candlestickOptions.pointFigureAtrLength,
-          percentageValue: this.candlestickOptions.pointFigurePercentageValue,
-        },
-        kagiOptions: {
-          reversalMode: this.lineOptions.kagiReversalMode,
-          reversalSize: this.lineOptions.kagiReversalSize,
-          reversalScale: this.lineOptions.kagiReversalScale,
-          atrLength: this.lineOptions.kagiAtrLength,
-          percentageValue: this.lineOptions.kagiPercentageValue,
-        },
-      },
-      createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
+    }, {
+      candlestickOptions: this.candlestickOptions,
+      lineOptions: this.lineOptions,
+    }, {
+      createMainSeriesOptions: (nextStyleSchemaId) => this.createMainSeriesOptions(nextStyleSchemaId),
     });
   }
 

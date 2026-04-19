@@ -172,5 +172,6 @@ Current direction on that path:
 - series meta/label builders, default series option builders, and main-source state assembly should follow the same direction, so source bootstrap logic stops living as harness-local builder branches
 - main-source lookup, bar-sequence rebuild, chart-context sync, and trade-location refresh should follow the same direction, so source-context runtime logic stops living as harness-local owner branches
 - study/secondary source lookup, study accessor guards, secondary scale lookup, and primary-pane series assembly should follow the same direction, so source accessor logic stops living as harness-local lookup branches
+- series formatter patching, marker mutation, and readout value formatting should follow the same direction, so source presentation glue stops living as harness-local helper branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

@@ -245,6 +245,11 @@ import {
   getStudySourcesForPane as getStudySourcesForPaneUseCase,
 } from "./chart-source-accessors";
 import {
+  applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
+  formatSeriesReadoutValue as formatSeriesReadoutValueUseCase,
+  setSeriesMarkers as setSeriesMarkersUseCase,
+} from "./chart-series-presentation";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -2751,9 +2756,7 @@ export class PhaseOneChartHarness {
     seriesOptions: PhaseOneSeriesFormatterOptions,
     options: PhaseOneSeriesFormatterOptions,
   ): void {
-    if (options.valueFormatter !== undefined) {
-      seriesOptions.valueFormatter = options.valueFormatter;
-    }
+    applySeriesFormatterOptionsUseCase(seriesOptions, options);
   }
 
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
@@ -3071,10 +3074,14 @@ export class PhaseOneChartHarness {
     kind: ChartSeriesKind,
   ): void {
     const state = this.getSourceByApi(api, kind);
-    state.markers = normalizeMarkers(markers);
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    setSeriesMarkersUseCase(state, markers, {
+      normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private createPaneHandle(paneId: string): PhaseOnePaneApi {
@@ -3904,16 +3911,10 @@ export class PhaseOneChartHarness {
   }
 
   private formatSeriesReadoutValueForState(state: SeriesSourceState, value: number | null): string {
-    if (value === null) {
-      return "--";
-    }
-    const formatter = state.options.valueFormatter;
-    if (formatter !== null) {
-      return formatter(value);
-    }
-    return state.kind === "volume"
-      ? formatVolumeAxisLabel(value)
-      : formatPriceAxisLabel(value, this.priceAxisFormatter);
+    return formatSeriesReadoutValueUseCase(state, value, {
+      formatPrice: (nextValue) => formatPriceAxisLabel(nextValue, this.priceAxisFormatter),
+      formatVolume: (nextValue) => formatVolumeAxisLabel(nextValue),
+    });
   }
 
   public render(canvas: HTMLCanvasElement): void {

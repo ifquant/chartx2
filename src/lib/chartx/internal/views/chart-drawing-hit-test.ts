@@ -1,4 +1,8 @@
 import type { PaneFrame, PriceScale, TimeScale, TimePointIndex } from "../model";
+import {
+  distanceToLineSegment,
+  resolveDrawingTimeCoordinate,
+} from "./chart-drawing-geometry";
 
 type PanePoint = {
   x: number;
@@ -185,35 +189,6 @@ function drawingHitDistance(
   }
 
   return distanceToLineSegment(point.x, point.y, startX, startY, endX, endY);
-}
-
-function resolveDrawingTimeCoordinate(
-  time: number,
-  rows: readonly AxisBar[],
-  timeScale: TimeScale,
-): number {
-  const match = rows.find((row) => row.time === time);
-  return timeScale.indexToCoordinate(match?.index ?? 0 as TimePointIndex);
-}
-
-function distanceToLineSegment(
-  pointX: number,
-  pointY: number,
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-): number {
-  const dx = endX - startX;
-  const dy = endY - startY;
-  if (dx === 0 && dy === 0) {
-    return Math.hypot(pointX - startX, pointY - startY);
-  }
-
-  const t = clamp(((pointX - startX) * dx + (pointY - startY) * dy) / (dx * dx + dy * dy), 0, 1);
-  const projectionX = startX + dx * t;
-  const projectionY = startY + dy * t;
-  return Math.hypot(pointX - projectionX, pointY - projectionY);
 }
 
 function clamp(value: number, min: number, max: number): number {

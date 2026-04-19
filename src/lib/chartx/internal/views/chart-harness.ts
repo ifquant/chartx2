@@ -54,8 +54,6 @@ import {
   type SourceDescriptor,
   type StudyInputContextState,
   type StudySourceKind,
-  type Logical,
-  type TimePointIndex,
   type ChartBarSequence,
   type VersionedChartTemplateInput,
 } from "../model";
@@ -184,6 +182,10 @@ import {
   drawDrawingSnapGuide,
   drawPaneDrawings,
 } from "./chart-pane-drawing-render";
+import {
+  distanceToLineSegment,
+  resolveDrawingTimeCoordinate,
+} from "./chart-drawing-geometry";
 import {
   resolveHitDrawing as resolveHitDrawingUseCase,
   resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
@@ -4800,81 +4802,6 @@ function buildCrosshairReadout(
     price: priceScale.coordinateToPrice(crosshair.y),
     series: [],
   };
-}
-
-function resolveDrawingTimeCoordinate(
-  time: number,
-  axisBars: readonly { time: number; index: TimePointIndex }[],
-  timeScale: TimeScale,
-): number {
-  if (axisBars.length === 0) {
-    return 0;
-  }
-  if (time <= axisBars[0]!.time) {
-    return timeScale.indexToCoordinate(axisBars[0]!.index);
-  }
-  if (time >= axisBars[axisBars.length - 1]!.time) {
-    return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index);
-  }
-
-  for (let index = 1; index < axisBars.length; index += 1) {
-    const previous = axisBars[index - 1]!;
-    const next = axisBars[index]!;
-    if (time <= next.time) {
-      if (next.time === previous.time) {
-        return timeScale.indexToCoordinate(previous.index);
-      }
-      const ratio = (time - previous.time) / (next.time - previous.time);
-      const logical = previous.index + (next.index - previous.index) * ratio;
-      return timeScale.logicalToCoordinate(logical as Logical);
-    }
-  }
-
-  return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index);
-}
-
-
-function drawingHitDistance(
-  point: PanePoint,
-  drawing: ChartDrawingDescriptor,
-  axisBars: readonly { time: number; index: TimePointIndex }[],
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-): number | null {
-  if (drawing.kind === "horizontal-line") {
-    const y = priceScale.priceToCoordinate(drawing.line.price);
-    return y === null ? null : Math.abs(point.y - y);
-  }
-
-  const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, timeScale);
-  const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, timeScale);
-  const startY = priceScale.priceToCoordinate(drawing.startPrice);
-  const endY = priceScale.priceToCoordinate(drawing.endPrice);
-  if (startY === null || endY === null) {
-    return null;
-  }
-
-  return distanceToLineSegment(point.x, point.y, startX, startY, endX, endY);
-}
-
-function distanceToLineSegment(
-  pointX: number,
-  pointY: number,
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-): number {
-  const dx = endX - startX;
-  const dy = endY - startY;
-  if (dx === 0 && dy === 0) {
-    return Math.hypot(pointX - startX, pointY - startY);
-  }
-
-  const t = clamp(((pointX - startX) * dx + (pointY - startY) * dy) / (dx * dx + dy * dy), 0, 1);
-  const projectionX = startX + dx * t;
-  const projectionY = startY + dy * t;
-  return Math.hypot(pointX - projectionX, pointY - projectionY);
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

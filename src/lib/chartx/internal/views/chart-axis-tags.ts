@@ -4,6 +4,7 @@ import {
   formatTimeAxisLabel,
   formatVolumeAxisLabel,
 } from "./chart-axis-format";
+import { resolveDrawingTimeCoordinate } from "./chart-drawing-geometry";
 
 type Layout = {
   width: number;
@@ -271,37 +272,6 @@ function clampCenterTag(
 ): number {
   const boxWidth = Math.ceil(textWidth + 12);
   return clamp(centerX - boxWidth / 2, minX, maxX - boxWidth);
-}
-
-function resolveDrawingTimeCoordinate(
-  time: number,
-  axisBars: readonly { time: number; index: number }[],
-  timeScale: TimeScale,
-): number {
-  if (axisBars.length === 0) {
-    return 0;
-  }
-  if (time <= axisBars[0]!.time) {
-    return timeScale.indexToCoordinate(axisBars[0]!.index as never);
-  }
-  if (time >= axisBars[axisBars.length - 1]!.time) {
-    return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index as never);
-  }
-
-  for (let index = 1; index < axisBars.length; index += 1) {
-    const previous = axisBars[index - 1]!;
-    const next = axisBars[index]!;
-    if (time <= next.time) {
-      if (next.time === previous.time) {
-        return timeScale.indexToCoordinate(previous.index as never);
-      }
-      const ratio = (time - previous.time) / (next.time - previous.time);
-      const logical = previous.index + (next.index - previous.index) * ratio;
-      return timeScale.logicalToCoordinate(logical as never);
-    }
-  }
-
-  return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index as never);
 }
 
 function clamp(value: number, min: number, max: number): number {

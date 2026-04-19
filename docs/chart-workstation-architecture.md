@@ -185,5 +185,6 @@ Current direction on that path:
 - price-axis/time-axis tag assembly and magnet tag builders should follow the same direction, so axis-tag presentation stops living as a large harness-local render branch
 - price-line, marker, and trade-overlay pane decoration rendering should follow the same direction, so pane decoration presentation stops living as another harness-local render block
 - pane drawing rendering and drawing snap-guide rendering should follow the same direction, so pane drawing presentation stops living as another harness-local render block
+- drawing time-coordinate interpolation and line-distance geometry should follow the same direction, so shared drawing geometry stops living as duplicated harness-local and hit-test-local helpers
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

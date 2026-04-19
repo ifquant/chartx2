@@ -186,6 +186,10 @@ import {
   createTimeScaleApi as createTimeScaleApiUseCase,
 } from "./chart-scale-commands";
 import {
+  applyChartOptions as applyChartOptionsUseCase,
+  resizeChart as resizeChartUseCase,
+} from "./chart-shell-commands";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1949,118 +1953,49 @@ export class PhaseOneChartHarness {
   }
 
   public applyOptions(options: PhaseOneChartOptions): void {
-    if (options.layout?.backgroundColor !== undefined) {
-      this.chartOptions.backgroundColor = options.layout.backgroundColor;
-    }
-    if (options.layout?.paneBackgroundColor !== undefined) {
-      this.chartOptions.paneBackgroundColor = options.layout.paneBackgroundColor;
-    }
-    if (options.layout?.gridColor !== undefined) {
-      this.chartOptions.gridColor = options.layout.gridColor;
-    }
-    if (options.layout?.frameColor !== undefined) {
-      this.chartOptions.frameColor = options.layout.frameColor;
-    }
-    if (options.layout?.axisTextColor !== undefined) {
-      this.chartOptions.axisTextColor = options.layout.axisTextColor;
-    }
-    if (options.layout?.axisLabelBackground !== undefined) {
-      this.chartOptions.axisLabelBackground = options.layout.axisLabelBackground;
-    }
-    if (options.layout?.axisLabelBorder !== undefined) {
-      this.chartOptions.axisLabelBorder = options.layout.axisLabelBorder;
-    }
-    if (options.layout?.axisActiveBackground !== undefined) {
-      this.chartOptions.axisActiveBackground = options.layout.axisActiveBackground;
-    }
-    if (options.layout?.axisActiveText !== undefined) {
-      this.chartOptions.axisActiveText = options.layout.axisActiveText;
-    }
-    if (options.crosshair?.lineColor !== undefined) {
-      this.crosshairOptions.lineColor = options.crosshair.lineColor;
-    }
-    if (options.crosshair?.pointColor !== undefined) {
-      this.crosshairOptions.pointColor = options.crosshair.pointColor;
-    }
-    if (options.drawings?.magnetEnabled !== undefined) {
-      this.drawingOptions.magnetEnabled = options.drawings.magnetEnabled;
-      if (!this.drawingOptions.magnetEnabled) {
+    applyChartOptionsUseCase(options, {
+      setLayoutOption: (key, value) => {
+        this.chartOptions[key] = value;
+      },
+      setCrosshairOption: (key, value) => {
+        this.crosshairOptions[key] = value;
+      },
+      setDrawingOption: (key, value) => {
+        this.drawingOptions[key] = value as never;
+      },
+      setDrawingMagnetSource: (key, value) => {
+        this.drawingOptions.magnetSources[key] = value;
+      },
+      clearDrawingSnapGuide: () => {
         this.drawingSnapGuide = null;
-      }
-    }
-    if (options.drawings?.magnetGuideVisible !== undefined) {
-      this.drawingOptions.magnetGuideVisible = options.drawings.magnetGuideVisible;
-      if (!this.drawingOptions.magnetGuideVisible) {
-        this.drawingSnapGuide = null;
-      }
-    }
-    if (options.drawings?.magnetLabelVisible !== undefined) {
-      this.drawingOptions.magnetLabelVisible = options.drawings.magnetLabelVisible;
-    }
-    if (options.drawings?.magnetTolerancePx !== undefined) {
-      this.drawingOptions.magnetTolerancePx = Math.max(0, options.drawings.magnetTolerancePx);
-    }
-    if (options.drawings?.timeMagnetEnabled !== undefined) {
-      this.drawingOptions.timeMagnetEnabled = options.drawings.timeMagnetEnabled;
-      if (!this.drawingOptions.timeMagnetEnabled) {
+      },
+      clearDrawingSnapGuideTimeOnly: () => {
         this.drawingSnapGuide = this.drawingSnapGuide !== null && this.drawingSnapGuide.price !== null
           ? {
               ...this.drawingSnapGuide,
               time: null,
             }
           : null;
-      }
-    }
-    if (options.drawings?.timeMagnetPolicy !== undefined) {
-      this.drawingOptions.timeMagnetPolicy = options.drawings.timeMagnetPolicy;
-    }
-    if (options.drawings?.timeMagnetGuideVisible !== undefined) {
-      this.drawingOptions.timeMagnetGuideVisible = options.drawings.timeMagnetGuideVisible;
-      if (!this.drawingOptions.timeMagnetGuideVisible && this.drawingSnapGuide !== null) {
-        this.drawingSnapGuide = {
-          ...this.drawingSnapGuide,
-          time: null,
-        };
-      }
-    }
-    if (options.drawings?.timeMagnetLabelVisible !== undefined) {
-      this.drawingOptions.timeMagnetLabelVisible = options.drawings.timeMagnetLabelVisible;
-    }
-    if (options.drawings?.timeMagnetTolerancePx !== undefined) {
-      this.drawingOptions.timeMagnetTolerancePx = Math.max(0, options.drawings.timeMagnetTolerancePx);
-    }
-    if (options.drawings?.magnetSources !== undefined) {
-      if (options.drawings.magnetSources.open !== undefined) {
-        this.drawingOptions.magnetSources.open = options.drawings.magnetSources.open;
-      }
-      if (options.drawings.magnetSources.high !== undefined) {
-        this.drawingOptions.magnetSources.high = options.drawings.magnetSources.high;
-      }
-      if (options.drawings.magnetSources.low !== undefined) {
-        this.drawingOptions.magnetSources.low = options.drawings.magnetSources.low;
-      }
-      if (options.drawings.magnetSources.close !== undefined) {
-        this.drawingOptions.magnetSources.close = options.drawings.magnetSources.close;
-      }
-    }
-
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   public resize(width: number, height: number): void {
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-      throw new Error("chartx phase-one chart resize requires positive finite width and height");
-    }
-
-    this.manualLayout = {
-      width: Math.round(width),
-      height: Math.round(height),
-    };
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    resizeChartUseCase(width, height, {
+      setManualLayout: (layout) => {
+        this.manualLayout = layout;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   public timeScaleApi(): PhaseOneTimeScaleApi {

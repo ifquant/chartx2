@@ -175,5 +175,6 @@ Current direction on that path:
 - series formatter patching, marker mutation, and readout value formatting should follow the same direction, so source presentation glue stops living as harness-local helper branches
 - secondary study replace/update and histogram-like replace/update should follow the same direction, so study data mutation orchestration stops living as harness-local mutation branches
 - main-series replace/update and histogram-like replace/update should follow the same direction, so primary data mutation orchestration stops living as harness-local mutation branches
+- main-series chart-type replacement should follow the same direction, so remove-preserve-reattach orchestration stops living as a harness-local public branch
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

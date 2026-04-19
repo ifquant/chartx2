@@ -115,6 +115,7 @@ import {
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
+import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
 import {
   buildDrawingStateSnapshots,
   buildSeriesStateSnapshots,
@@ -2631,33 +2632,34 @@ export class PhaseOneChartHarness {
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
-    const current = this.getMainSourceOrThrow();
-    if (current.chartType === type) {
-      return current.api as PhaseOneMainSeriesApi;
-    }
-
-    const removed = this.chartModel.removeSourceByApi(current.api);
-    if (removed === undefined) {
-      throw new Error("chartx phase-one chart could not replace the active main series");
-    }
-
-    this.primaryPriceRangeOverride = null;
-    const nextSeries = this.attachPrimarySeries(type, {
-      id: current.id,
-      label: current.label,
-      data: [...current.inputData],
-      visuals: new Map(current.visuals),
-      markers: [...current.markers],
-      priceLines: clonePriceLines(current.priceLines),
-      options: { ...(current.options as Record<string, unknown>) },
-      previousStyleSchemaId: current.styleSchemaId,
+    return setChartTypeUseCase(this.getMainSourceOrThrow(), type, {
+      currentType: (source) => source.chartType,
+      currentApi: (source) => source.api as PhaseOneMainSeriesApi,
+      removeCurrent: (api) => this.chartModel.removeSourceByApi(api) !== undefined,
+      clearPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      buildPreservedState: (source) => ({
+        id: source.id,
+        label: source.label,
+        data: [...source.inputData],
+        visuals: new Map(source.visuals),
+        markers: [...source.markers],
+        priceLines: clonePriceLines(source.priceLines),
+        options: { ...(source.options as Record<string, unknown>) },
+        previousStyleSchemaId: source.styleSchemaId,
+      }),
+      attachSeries: (chartType, preservedState) =>
+        this.attachPrimarySeries(chartType, preservedState) as PhaseOneMainSeriesApi,
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      emitChartTypeChange: (chartType) => {
+        this.emitChartTypeChange(chartType);
+      },
     });
-
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
-    this.emitChartTypeChange(type);
-    return nextSeries;
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {

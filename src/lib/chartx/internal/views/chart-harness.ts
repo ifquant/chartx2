@@ -322,6 +322,14 @@ import {
   detachChartCanvas as detachChartCanvasUseCase,
 } from "./chart-canvas-lifecycle";
 import {
+  createChartViewState,
+  type DragState,
+  type DrawingDragHandle,
+  type DrawingDragState,
+  type DrawingSnapGuideState,
+  type PaneResizeState,
+} from "./chart-view-state";
+import {
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
   requireDrawingByApi as requireDrawingByApiUseCase,
@@ -1125,34 +1133,6 @@ type PanePoint = {
   y: number;
 };
 
-type DragState = {
-  startClientX: number;
-  startRightOffset: number;
-};
-
-type DrawingDragHandle = "start" | "end";
-
-type DrawingDragState = {
-  drawingId: string;
-  handle: DrawingDragHandle;
-};
-
-type DrawingSnapGuideState = {
-  paneId: string;
-  color: string;
-  price: number | null;
-  source: "open" | "high" | "low" | "close" | null;
-  time: number | null;
-};
-
-type PaneResizeState = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
-  startClientY: number;
-  startUpperHeight: number;
-  startLowerHeight: number;
-};
-
 type HistogramVisual = {
   color?: string;
   isUp: boolean;
@@ -1488,15 +1468,7 @@ export class PhaseOneChartHarness {
       }
     },
   });
-  private selectedDrawingId: string | null = null;
-  private hoveredDrawingId: string | null = null;
-  private hoveredDrawingHandle: DrawingDragHandle | null = null;
-  private drawingSnapGuide: DrawingSnapGuideState | null = null;
-  private manualLayout: Pick<Layout, "width" | "height"> | null = null;
-  private dragState: DragState | null = null;
-  private drawingDragState: DrawingDragState | null = null;
-  private paneResizeState: PaneResizeState | null = null;
-  private resizeObserver: ResizeObserver | null = null;
+  private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
   private get panes(): PaneCollection {
     return this.chartModel.panes();
   }
@@ -1510,7 +1482,7 @@ export class PhaseOneChartHarness {
     paneDividerHitSlop: PANE_DIVIDER_HIT_SLOP,
     barSpacingBounds: BAR_SPACING_BOUNDS,
     getCanvas: () => this.canvas,
-    getManualLayout: () => this.manualLayout,
+    getManualLayout: () => this.viewState.manualLayout(),
     listPanes: () => this.panes.list(),
     getPointCount: () => this.getPointCount(),
     getBarSpacing: () => this.barSpacing,
@@ -1521,30 +1493,30 @@ export class PhaseOneChartHarness {
     setRightOffset: (value) => {
       this.rightOffset = value;
     },
-    getCrosshair: () => this.crosshair,
+    getCrosshair: () => this.viewState.crosshair(),
     setCrosshair: (point) => {
-      this.crosshair = point;
+      this.viewState.setCrosshair(point);
     },
-    getDragState: () => this.dragState,
+    getDragState: () => this.viewState.dragState(),
     setDragState: (state) => {
-      this.dragState = state;
+      this.viewState.setDragState(state);
     },
-    getDrawingDragState: () => this.drawingDragState,
+    getDrawingDragState: () => this.viewState.drawingDragState(),
     setDrawingDragState: (state) => {
-      this.drawingDragState = state;
+      this.viewState.setDrawingDragState(state);
     },
-    getPaneResizeState: () => this.paneResizeState,
+    getPaneResizeState: () => this.viewState.paneResizeState(),
     setPaneResizeState: (state) => {
-      this.paneResizeState = state;
+      this.viewState.setPaneResizeState(state);
     },
     setHoveredDrawingId: (id) => {
-      this.hoveredDrawingId = id;
+      this.viewState.setHoveredDrawingId(id);
     },
     setHoveredDrawingHandle: (handle) => {
-      this.hoveredDrawingHandle = handle;
+      this.viewState.setHoveredDrawingHandle(handle);
     },
     clearDrawingSnapGuide: () => {
-      this.drawingSnapGuide = null;
+      this.viewState.clearDrawingSnapGuide();
     },
     resolveHitDrawing: (point, layout, paneFrames) =>
       this.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[] | undefined),
@@ -1566,10 +1538,10 @@ export class PhaseOneChartHarness {
       this.selectDrawing(id);
     },
     buildReadout: (point, layout) => this.buildReadout(point, layout),
-      emitClick: (readout, point) => {
-        this.handlerRegistry.emitClick(readout, point);
-      },
-    hasSelectedDrawing: () => this.selectedDrawingId !== null,
+    emitClick: (readout, point) => {
+      this.handlerRegistry.emitClick(readout, point);
+    },
+    hasSelectedDrawing: () => this.viewState.selectedDrawingId() !== null,
     clearSelectedDrawing: () => {
       this.selectDrawing(null);
     },
@@ -1589,16 +1561,16 @@ export class PhaseOneChartHarness {
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
     attachChartCanvasUseCase(canvas, {
-      getManualLayout: () => this.manualLayout,
+      getManualLayout: () => this.viewState.manualLayout(),
       setCanvas: (nextCanvas) => {
         this.canvas = nextCanvas;
       },
       renderCanvas: (nextCanvas) => {
         this.render(nextCanvas);
       },
-      getResizeObserver: () => this.resizeObserver,
+      getResizeObserver: () => this.viewState.resizeObserver(),
       setResizeObserver: (observer) => {
-        this.resizeObserver = observer;
+        this.viewState.setResizeObserver(observer);
       },
       handlers: {
         handleResize: this.handleResize as EventListener,
@@ -1616,9 +1588,9 @@ export class PhaseOneChartHarness {
   public detach(): void {
     detachChartCanvasUseCase({
       canvas: this.canvas,
-      getResizeObserver: () => this.resizeObserver,
+      getResizeObserver: () => this.viewState.resizeObserver(),
       setResizeObserver: (observer) => {
-        this.resizeObserver = observer;
+        this.viewState.setResizeObserver(observer);
       },
       handlers: {
         handleResize: this.handleResize as EventListener,
@@ -1634,13 +1606,7 @@ export class PhaseOneChartHarness {
         this.canvas = null;
       },
       clearInteractionState: () => {
-        this.crosshair = null;
-        this.hoveredDrawingId = null;
-        this.hoveredDrawingHandle = null;
-        this.drawingSnapGuide = null;
-        this.dragState = null;
-        this.drawingDragState = null;
-        this.paneResizeState = null;
+        this.viewState.clearInteractionState();
       },
       clearSubscriptions: () => {
         this.handlerRegistry.clearAll();
@@ -1859,7 +1825,7 @@ export class PhaseOneChartHarness {
         this.rightOffset = DEFAULT_RIGHT_OFFSET;
       },
       clearCrosshair: () => {
-        this.crosshair = null;
+        this.viewState.setCrosshair(null);
       },
       render: () => {
         if (this.canvas !== null) {
@@ -1908,15 +1874,10 @@ export class PhaseOneChartHarness {
         this.drawingOptions.magnetSources[key] = value;
       },
       clearDrawingSnapGuide: () => {
-        this.drawingSnapGuide = null;
+        this.viewState.clearDrawingSnapGuide();
       },
       clearDrawingSnapGuideTimeOnly: () => {
-        this.drawingSnapGuide = this.drawingSnapGuide !== null && this.drawingSnapGuide.price !== null
-          ? {
-              ...this.drawingSnapGuide,
-              time: null,
-            }
-          : null;
+        this.viewState.clearDrawingSnapGuideTimeOnly();
       },
       render: () => {
         if (this.canvas !== null) {
@@ -1929,7 +1890,7 @@ export class PhaseOneChartHarness {
   public resize(width: number, height: number): void {
     resizeChartUseCase(width, height, {
       setManualLayout: (layout) => {
-        this.manualLayout = layout;
+        this.viewState.setManualLayout(layout);
       },
       render: () => {
         if (this.canvas !== null) {
@@ -1942,7 +1903,9 @@ export class PhaseOneChartHarness {
   public timeScaleApi(): PhaseOneTimeScaleApi {
     return createTimeScaleApiUseCase({
       getPointCount: () => this.getPointCount(),
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
+      getLayout: () => (
+        this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())
+      ),
       getBarSpacing: () => this.barSpacing,
       setBarSpacing: (value) => {
         this.barSpacing = value;
@@ -1980,7 +1943,7 @@ export class PhaseOneChartHarness {
         if (this.primaryPriceRangeOverride === null || this.canvas === null) {
           return;
         }
-        const layout = measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout);
+        const layout = measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
         const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
         const paneHeight =
           buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
@@ -2021,7 +1984,7 @@ export class PhaseOneChartHarness {
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
-    return getSelectedDrawingPublicUseCase(this.selectedDrawingId, {
+    return getSelectedDrawingPublicUseCase(this.viewState.selectedDrawingId(), {
       getById: (id) => this.getDrawingById(id),
       getPaneIndex: (paneId) => this.getPaneIndex(paneId),
     });
@@ -2029,7 +1992,7 @@ export class PhaseOneChartHarness {
 
   public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
     return getSelectedDrawingStatePublicUseCase({
-      selectedDrawingId: this.selectedDrawingId,
+      selectedDrawingId: this.viewState.selectedDrawingId(),
       getDrawingById: (id) => this.getDrawingById(id),
       snapshotDeps: {
         getPaneIndex: (paneId) => this.getPaneIndex(paneId),
@@ -2050,7 +2013,7 @@ export class PhaseOneChartHarness {
     options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
   ): void {
     applySelectedDrawingOptionsPublicUseCase({
-      selectedDrawingId: this.selectedDrawingId,
+      selectedDrawingId: this.viewState.selectedDrawingId(),
       getDrawingById: (id) => this.getDrawingById(id),
       options,
     });
@@ -2991,7 +2954,9 @@ export class PhaseOneChartHarness {
     return getPaneHeightUseCase(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
+      getLayout: () => (
+        this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())
+      ),
       listPanes: () => this.panes.list(),
       gap: PANE_GAP,
     });
@@ -3031,16 +2996,16 @@ export class PhaseOneChartHarness {
 
   private applyPaneResize(clientY: number, layout: Layout, paneFrames: readonly PaneFrame[]): void {
     void paneFrames;
-    applyPaneResizeUseCase(clientY, layout, this.paneResizeState, {
+    applyPaneResizeUseCase(clientY, layout, this.viewState.paneResizeState(), {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       emitPaneResize: (nextPaneId) => this.emitPaneResize(nextPaneId),
       emitPaneEvent: (type, nextPaneId) => this.emitPaneEvent(type, nextPaneId),
       hasCanvas: () => this.canvas !== null,
       listPanes: () => this.panes.list(),
       gap: PANE_GAP,
-      getCrosshair: () => this.crosshair,
+      getCrosshair: () => this.viewState.crosshair(),
       setCrosshair: (point) => {
-        this.crosshair = point;
+        this.viewState.setCrosshair(point);
       },
     });
   }
@@ -3252,8 +3217,8 @@ export class PhaseOneChartHarness {
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
-    this.selectedDrawingId = selectDrawingUseCase({
-      selectedDrawingId: this.selectedDrawingId,
+    this.viewState.setSelectedDrawingId(selectDrawingUseCase({
+      selectedDrawingId: this.viewState.selectedDrawingId(),
       nextId: id,
       shouldRender,
       getById: (drawingId) => this.getDrawingById(drawingId),
@@ -3266,7 +3231,7 @@ export class PhaseOneChartHarness {
           this.render(this.canvas);
         }
       },
-    });
+    }));
   }
 
   private assertDrawingActive(api: ChartDrawingApi): void {
@@ -3278,7 +3243,7 @@ export class PhaseOneChartHarness {
   private removeDrawing(api: ChartDrawingApi): void {
     removeDrawingUseCase({
       api,
-      selectedDrawingId: this.selectedDrawingId,
+      selectedDrawingId: this.viewState.selectedDrawingId(),
       registry: this.drawingRegistry,
       clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
       render: () => {
@@ -3291,7 +3256,7 @@ export class PhaseOneChartHarness {
 
   private removeSelectedDrawing(): void {
     removeSelectedDrawingUseCase({
-      selectedDrawingId: this.selectedDrawingId,
+      selectedDrawingId: this.viewState.selectedDrawingId(),
       getById: (id) => this.getDrawingById(id),
       clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
       removeByApi: (api) => this.removeDrawing(api),
@@ -3497,9 +3462,9 @@ export class PhaseOneChartHarness {
     ),
   ): DrawingDragState | null {
     const drawing =
-      this.selectedDrawingId === null
+      this.viewState.selectedDrawingId() === null
         ? null
-        : this.getDrawingById(this.selectedDrawingId);
+        : this.getDrawingById(this.viewState.selectedDrawingId()!);
     return resolveSelectedTrendLineDragHandleUseCase({
       point,
       paneFrames,
@@ -3524,7 +3489,7 @@ export class PhaseOneChartHarness {
   ): void {
     const drawing = this.getDrawingById(drag.drawingId);
     if (drawing === undefined || drawing.kind !== "trend-line") {
-      this.drawingSnapGuide = null;
+      this.viewState.clearDrawingSnapGuide();
       return;
     }
     const drawingOptions = resolveDrawingMagnetOptionsUseCase(drawing, this.drawingOptions);
@@ -3560,7 +3525,7 @@ export class PhaseOneChartHarness {
           drawingOptions.magnetSources,
         ),
     });
-    this.drawingSnapGuide = nextState.snapGuide;
+    this.viewState.setDrawingSnapGuide(nextState.snapGuide);
     if (nextState.nextDrawing === null) {
       return;
     }
@@ -3712,7 +3677,7 @@ export class PhaseOneChartHarness {
 
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
-    const layout = measureLayout(canvas, DEFAULT_LAYOUT, this.manualLayout);
+    const layout = measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
     const context = canvas.getContext("2d");
     if (context === null) {
       throw new Error("Canvas 2D context is unavailable");
@@ -3737,7 +3702,7 @@ export class PhaseOneChartHarness {
       plotHeight,
       paneGap: PANE_GAP,
       paneWidth,
-      crosshair: this.crosshair,
+      crosshair: this.viewState.crosshair(),
       mainSourceId: mainSource?.id ?? null,
       mainSequence,
       primaryStudies,
@@ -3796,7 +3761,7 @@ export class PhaseOneChartHarness {
         const primaryPaneDecorations = buildPrimaryPaneDecorationsUseCase({
           sources: primarySources,
           drawings: this.drawingRegistry.listByPane("primary"),
-          drawingSnapGuide: this.drawingSnapGuide,
+          drawingSnapGuide: this.viewState.drawingSnapGuide(),
           tradeLocationState: this.activeTradeLocation?.state ?? null,
         });
         const { rangeMin: primaryRangeMin } = applyPrimaryPaneScaleUseCase({
@@ -3848,9 +3813,9 @@ export class PhaseOneChartHarness {
                     this.timeScale,
                   ),
                 priceScale: this.primaryPriceScale,
-                selectedDrawingId: this.selectedDrawingId,
-                hoveredDrawingId: this.hoveredDrawingId,
-                hoveredDrawingHandle: this.hoveredDrawingHandle,
+                selectedDrawingId: this.viewState.selectedDrawingId(),
+                hoveredDrawingId: this.viewState.hoveredDrawingId(),
+                hoveredDrawingHandle: this.viewState.hoveredDrawingHandle(),
               },
             );
           },
@@ -3904,7 +3869,7 @@ export class PhaseOneChartHarness {
           paneId: pane.id,
           sources: paneSeries,
           drawings: this.drawingRegistry.listByPane(pane.id),
-          drawingSnapGuide: this.drawingSnapGuide,
+          drawingSnapGuide: this.viewState.drawingSnapGuide(),
         });
         const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
         const {
@@ -3959,9 +3924,9 @@ export class PhaseOneChartHarness {
                       this.timeScale,
                     ),
                   priceScale: panePriceScale,
-                  selectedDrawingId: this.selectedDrawingId,
-                  hoveredDrawingId: this.hoveredDrawingId,
-                  hoveredDrawingHandle: this.hoveredDrawingHandle,
+                  selectedDrawingId: this.viewState.selectedDrawingId(),
+                  hoveredDrawingId: this.viewState.hoveredDrawingId(),
+                  hoveredDrawingHandle: this.viewState.hoveredDrawingHandle(),
                 },
               );
             }
@@ -4005,7 +3970,7 @@ export class PhaseOneChartHarness {
       renderPaneChromeUseCase({
         pane,
         activePane,
-        crosshair: this.crosshair,
+        crosshair: this.viewState.crosshair(),
         primarySources,
         primaryRowSets,
         getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
@@ -4030,7 +3995,7 @@ export class PhaseOneChartHarness {
     renderPriceAxesUseCase({
       paneFrames,
       activePane,
-      crosshair: this.crosshair,
+      crosshair: this.viewState.crosshair(),
       hasPrimaryRows: primaryRows.length > 0,
       findPrimaryPane: (panes) => panes.find((pane) => pane.kind === "primary"),
       drawPrimaryAxis: (pane, crosshair) => {
@@ -4045,9 +4010,15 @@ export class PhaseOneChartHarness {
           "primary",
           this.priceAxisFormatter,
           this.drawingOptions.magnetLabelVisible
-            && this.drawingSnapGuide?.paneId === "primary"
-            && this.drawingSnapGuide.price !== null
-            ? buildMagnetAxisTag(layout, pane.top, this.primaryPriceScale, this.drawingSnapGuide, this.priceAxisFormatter)
+            && this.viewState.drawingSnapGuide()?.paneId === "primary"
+            && this.viewState.drawingSnapGuide()!.price !== null
+            ? buildMagnetAxisTag(
+              layout,
+              pane.top,
+              this.primaryPriceScale,
+              this.viewState.drawingSnapGuide()!,
+              this.priceAxisFormatter,
+            )
             : null,
         );
       },
@@ -4068,9 +4039,9 @@ export class PhaseOneChartHarness {
           state.kind === "volume" ? "volume" : "primary",
           this.priceAxisFormatter,
           this.drawingOptions.magnetLabelVisible
-            && this.drawingSnapGuide?.paneId === pane.id
-            && this.drawingSnapGuide.price !== null
-            ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.drawingSnapGuide, this.priceAxisFormatter)
+            && this.viewState.drawingSnapGuide()?.paneId === pane.id
+            && this.viewState.drawingSnapGuide()!.price !== null
+            ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.viewState.drawingSnapGuide()!, this.priceAxisFormatter)
             : null,
         );
       },
@@ -4092,15 +4063,15 @@ export class PhaseOneChartHarness {
               layout,
               rows,
               this.timeScale,
-              this.crosshair,
+              this.viewState.crosshair(),
               this.chartOptions,
               this.timeAxisFormatter,
-              this.drawingOptions.timeMagnetLabelVisible && this.drawingSnapGuide?.time != null
+              this.drawingOptions.timeMagnetLabelVisible && this.viewState.drawingSnapGuide()?.time != null
                 ? buildMagnetTimeAxisTag(
                     layout,
                     rows,
                     this.timeScale,
-                    this.drawingSnapGuide!,
+                    this.viewState.drawingSnapGuide()!,
                     this.timeAxisFormatter,
                   )
                 : null,
@@ -4108,7 +4079,7 @@ export class PhaseOneChartHarness {
           },
         });
       },
-      buildReadout: () => this.buildReadout(this.crosshair, layout),
+      buildReadout: () => this.buildReadout(this.viewState.crosshair(), layout),
       publishReadout: (readout) => {
         emitReadout(canvas, readout);
       },
@@ -4125,7 +4096,7 @@ export class PhaseOneChartHarness {
   }
 
   private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
-    this.handlerRegistry.emitCrosshairMove(readout, this.crosshair);
+    this.handlerRegistry.emitCrosshairMove(readout, this.viewState.crosshair());
   }
 
   private emitChartTypeChange(type: PhaseOneMainChartType): void {

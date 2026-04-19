@@ -24,26 +24,12 @@ import {
   handlePointerDownRuntime,
   handlePointerMoveRuntime,
 } from "./chart-pointer-runtime";
-
-type DragState = {
-  startClientX: number;
-  startRightOffset: number;
-};
-
-type DrawingDragHandle = "start" | "end";
-
-type DrawingDragState = {
-  drawingId: string;
-  handle: DrawingDragHandle;
-};
-
-type PaneResizeState = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
-  startClientY: number;
-  startUpperHeight: number;
-  startLowerHeight: number;
-};
+import type {
+  DragState,
+  DrawingDragHandle,
+  DrawingDragState,
+  PaneResizeState,
+} from "./chart-view-state";
 
 export function createChartInteractionHandlers<Readout>(deps: {
   defaultLayout: LayoutGeometry;

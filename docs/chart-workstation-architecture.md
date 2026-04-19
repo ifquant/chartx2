@@ -191,5 +191,6 @@ Current direction on that path:
 - interaction handler construction should follow the same direction, so pointer, keyboard, wheel, click, and resize runtime wiring stops living as one large harness-local closure block
 - canvas lifecycle assembly should follow the same direction, so observer wiring, window resize hooks, and interaction reset cleanup stop living as another harness-local lifecycle block
 - handler registry bookkeeping should follow the same direction, so public subscriptions, pane resize subscriptions, and event fanout stop living as scattered harness-local Set and Map state
+- view-state bookkeeping should follow the same direction, so selected/hovered drawing state, snap-guide state, crosshair state, manual layout overrides, drag state, pane-resize state, and resize-observer ownership stop living as scattered harness-local mutable fields
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "../../src/lib/chartx/internal/views/chart-restore-pane";
 import { restoreChartSeries } from "../../src/lib/chartx/internal/views/chart-series-restore";
 
 describe("chart series restore use-case", () => {
@@ -58,6 +59,6 @@ describe("chart series restore use-case", () => {
           restoreVolume: () => {},
         },
       ),
-    ).toThrow("chartx phase-one chart state refers to a pane index that does not exist");
+    ).toThrow(INVALID_RESTORABLE_PANE_INDEX_ERROR);
   });
 });

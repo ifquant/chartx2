@@ -69,11 +69,11 @@ import {
 } from "../renderers";
 import type { Coordinate } from "../model";
 import {
-  INVALID_DRAWING_PANE_INDEX_ERROR,
   restoreDrawingCollection,
   type RestorableDrawingSnapshot,
   validateDrawingCollectionSnapshots,
 } from "./chart-drawing-restore";
+import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "./chart-restore-pane";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import {
   addPrimarySeries as addPrimarySeriesUseCase,
@@ -2384,7 +2384,7 @@ export class PhaseOneChartHarness {
       resolvePaneTarget: (paneIndex) => {
         const pane = this.panes.getByIndex(paneIndex);
         if (pane === undefined) {
-          throw new Error(INVALID_DRAWING_PANE_INDEX_ERROR);
+          throw new Error(INVALID_RESTORABLE_PANE_INDEX_ERROR);
         }
         return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
       },

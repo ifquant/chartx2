@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "../../src/lib/chartx/internal/views/chart-restore-pane";
 import { restoreChartStudies } from "../../src/lib/chartx/internal/views/chart-study-restore";
 
 describe("chart study restore use-case", () => {
@@ -69,6 +70,6 @@ describe("chart study restore use-case", () => {
           restoreMovingAverage: () => {},
         },
       ),
-    ).toThrow("chartx phase-one chart state refers to a pane index that does not exist");
+    ).toThrow(INVALID_RESTORABLE_PANE_INDEX_ERROR);
   });
 });

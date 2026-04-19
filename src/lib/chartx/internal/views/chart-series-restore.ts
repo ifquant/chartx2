@@ -9,6 +9,7 @@ import {
   type RestorableSeriesSnapshot,
   type RestorableVolumeSeriesSnapshot,
 } from "./chart-content-restore";
+import { requireRestorablePane } from "./chart-restore-pane";
 
 export function restoreChartSeries<
   PaneState,
@@ -50,13 +51,7 @@ export function restoreChartSeries<
   },
 ): void {
   restoreSeriesCollection(series, {
-    resolvePaneTarget: (paneIndex) => {
-      const pane = deps.getPaneByIndex(paneIndex);
-      if (pane === undefined) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      return deps.createPaneTarget(pane);
-    },
+    resolvePaneTarget: (paneIndex) => deps.createPaneTarget(requireRestorablePane(paneIndex, deps)),
     restoreCandlestick: deps.restoreCandlestick,
     restoreBar: deps.restoreBar,
     restoreLine: deps.restoreLine,

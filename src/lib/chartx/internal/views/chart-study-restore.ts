@@ -5,6 +5,7 @@ import {
   type RestorableOverlayStudySnapshot,
   type RestorableStudySnapshot,
 } from "./chart-content-restore";
+import { requireRestorablePane } from "./chart-restore-pane";
 
 export function restoreChartStudies<
   PaneState,
@@ -30,13 +31,7 @@ export function restoreChartStudies<
   },
 ): void {
   restoreStudyCollection(studies, {
-    resolvePaneId: (paneIndex) => {
-      const pane = deps.getPaneByIndex(paneIndex);
-      if (pane === undefined) {
-        throw new Error("chartx phase-one chart state refers to a pane index that does not exist");
-      }
-      return deps.getPaneId(pane);
-    },
+    resolvePaneId: (paneIndex) => deps.getPaneId(requireRestorablePane(paneIndex, deps)),
     restoreOverlay: deps.restoreOverlay,
     restoreCompare: deps.restoreCompare,
     restoreMovingAverage: deps.restoreMovingAverage,

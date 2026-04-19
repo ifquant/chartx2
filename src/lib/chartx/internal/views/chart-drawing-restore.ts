@@ -1,4 +1,5 @@
 import { assertDrawingTargetValid } from "../model";
+import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "./chart-restore-pane";
 
 export type RestorableHorizontalLineDrawingSnapshot = {
   type: "horizontal-line";
@@ -16,8 +17,7 @@ export type RestorableDrawingSnapshot =
   | RestorableHorizontalLineDrawingSnapshot
   | RestorableTrendLineDrawingSnapshot;
 
-export const INVALID_DRAWING_PANE_INDEX_ERROR =
-  "chartx phase-one chart state refers to a pane index that does not exist";
+export const INVALID_DRAWING_PANE_INDEX_ERROR = INVALID_RESTORABLE_PANE_INDEX_ERROR;
 
 export type DrawingRestoreDependencies<
   PaneTarget,

@@ -199,5 +199,6 @@ Current direction on that path:
 - drawing render and snapshot inputs should follow the same direction, so pane-local drawing lists and all-drawing snapshot inputs stop bypassing the shared drawing accessor layer from chart-harness
 - drawing snapshot validation and restore pane-index error semantics should follow the same direction, so chart-state apply no longer depends on another harness-local drawing validation branch
 - series, study, and drawing restore should share the same invalid-pane semantics, so missing-pane restore guards stop drifting across three adjacent restore modules
+- chart-state restore runtime should continue moving toward shared modules, so secondary-pane restore, time-scale apply, and price-scale apply stop living as another harness-local dependency-assembly block
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

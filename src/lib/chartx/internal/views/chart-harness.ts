@@ -23,7 +23,6 @@ import {
   PriceRangeImpl,
   PriceScale,
   buildPaneFrames,
-  normalizePaneHeight,
   resolvePaneDivider,
   resolvePaneDividerByIds,
   SeriesDataStore,
@@ -126,6 +125,12 @@ import {
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
+import {
+  applyRestorablePriceScaleState,
+  applyRestorableTimeScaleState,
+  applySecondaryPaneState as applySecondaryPaneStateUseCase,
+  listSecondaryPaneIds as listSecondaryPaneIdsUseCase,
+} from "./chart-state-runtime";
 import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
 import {
   buildDrawingStateSnapshots,
@@ -2229,11 +2234,9 @@ export class PhaseOneChartHarness {
         clearTradeLocation: () => {
           this.clearTradeLocation();
         },
-        listSecondaryPaneIds: () =>
-          this.panes
-            .list()
-            .filter((pane) => pane.kind === "secondary")
-            .map((pane) => pane.id),
+        listSecondaryPaneIds: () => listSecondaryPaneIdsUseCase({
+          listPanes: () => this.panes.list(),
+        }),
         getSecondarySeriesCountForPane: (paneId) => this.getSecondarySeriesForPane(paneId).length,
         removeSecondaryPane: (paneId) => {
           this.removePaneById(paneId);
@@ -2244,15 +2247,10 @@ export class PhaseOneChartHarness {
             resizable: paneState.resizable,
           });
         },
-        applySecondaryPaneState: (index, paneState) => {
-          const pane = this.panes.list().filter((entry) => entry.kind === "secondary")[index];
-          if (pane === undefined) {
-            return;
-          }
-          pane.preferredHeight = normalizePaneHeight(paneState.height ?? undefined);
-          pane.resizable = paneState.resizable;
-          this.emitPaneEvent("options", pane.id);
-        },
+        applySecondaryPaneState: (index, paneState) => applySecondaryPaneStateUseCase(index, paneState, {
+          listPanes: () => this.panes.list(),
+          emitPaneEvent: (type, paneId) => this.emitPaneEvent(type, paneId),
+        }),
         applyMainSeriesState: (mainSeriesState) => {
           this.applyMainSeriesState(mainSeriesState);
         },
@@ -2268,21 +2266,14 @@ export class PhaseOneChartHarness {
         restoreDrawings: (drawings) => {
           this.restoreChartDrawings(drawings);
         },
-        applyTimeScaleState: (timeScaleState) => {
-          this.timeScaleApi().applyOptions({
-            barSpacing: timeScaleState.barSpacing ?? undefined,
-            rightOffset: timeScaleState.rightOffset,
-          });
-          if (timeScaleState.visibleLogicalRange !== null) {
-            this.timeScaleApi().setVisibleLogicalRange(timeScaleState.visibleLogicalRange);
-          }
-        },
-        applyPriceScaleState: (priceScaleState) => {
-          this.priceScaleApi().applyOptions({
-            scaleSeriesOnly: priceScaleState.scaleSeriesOnly,
-          });
-          this.priceScaleApi().setVisibleRange(priceScaleState.visibleRange);
-        },
+        applyTimeScaleState: (timeScaleState) => applyRestorableTimeScaleState(timeScaleState, {
+          applyOptions: (options) => this.timeScaleApi().applyOptions(options),
+          setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
+        }),
+        applyPriceScaleState: (priceScaleState) => applyRestorablePriceScaleState(priceScaleState, {
+          applyOptions: (options) => this.priceScaleApi().applyOptions(options),
+          setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
+        }),
         finalize: () => {
           if (this.canvas !== null) {
             this.render(this.canvas);

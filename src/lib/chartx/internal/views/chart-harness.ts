@@ -182,6 +182,10 @@ import {
   removeSeriesCommand as removeSeriesCommandUseCase,
 } from "./chart-structure-commands";
 import {
+  createPriceScaleApi as createPriceScaleApiUseCase,
+  createTimeScaleApi as createTimeScaleApiUseCase,
+} from "./chart-scale-commands";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -2060,82 +2064,34 @@ export class PhaseOneChartHarness {
   }
 
   public timeScaleApi(): PhaseOneTimeScaleApi {
-    return {
-      getVisibleLogicalRange: () => {
-        const pointCount = this.getPointCount();
-        if (pointCount <= 0) {
-          return null;
-        }
-
-        const layout = this.canvas === null
-          ? DEFAULT_LAYOUT
-          : measureLayout(this.canvas, this.manualLayout);
-        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
-        const spacing = resolveBarSpacing(this.barSpacing, paneWidth, pointCount);
-        const lastIndex = pointCount - 1;
-
-        return {
-          from: lastIndex - paneWidth / spacing + this.rightOffset,
-          to: lastIndex + this.rightOffset,
-        };
+    return createTimeScaleApiUseCase({
+      getPointCount: () => this.getPointCount(),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, this.manualLayout)),
+      getBarSpacing: () => this.barSpacing,
+      setBarSpacing: (value) => {
+        this.barSpacing = value;
       },
-      setVisibleLogicalRange: (range) => {
-        const pointCount = this.getPointCount();
-        if (!Number.isFinite(range.from) || !Number.isFinite(range.to) || range.to <= range.from) {
-          throw new Error("chartx phase-one time scale visible range requires finite from/to with to > from");
-        }
-        if (pointCount <= 0) {
-          throw new Error("chartx phase-one time scale visible range requires at least one data point");
-        }
-        const layout = this.canvas === null
-          ? DEFAULT_LAYOUT
-          : measureLayout(this.canvas, this.manualLayout);
-        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
-        const spacing = Math.max(MIN_BAR_SPACING, paneWidth / (range.to - range.from));
-        const lastIndex = pointCount - 1;
-        this.barSpacing = spacing;
-        this.rightOffset = range.to - lastIndex;
-        this.timeScale.applyOptions({
-          width: paneWidth,
-          pointCount,
-          barSpacing: this.barSpacing,
-          rightOffset: this.rightOffset,
-        });
+      getRightOffset: () => this.rightOffset,
+      setRightOffset: (value) => {
+        this.rightOffset = value;
+      },
+      resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
+        resolveBarSpacing(currentSpacing, paneWidth, pointCount),
+      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
+      applyTimeScaleOptions: (options) => this.timeScale.applyOptions(options),
+      setTimeAxisFormatter: (formatter) => {
+        this.timeAxisFormatter = formatter;
+      },
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      applyOptions: (options) => {
-        if (options.barSpacing !== undefined) {
-          this.barSpacing = clamp(options.barSpacing, MIN_BAR_SPACING, MAX_BAR_SPACING);
-        }
-        if (options.rightOffset !== undefined) {
-          this.rightOffset = options.rightOffset;
-        }
-        if (options.tickMarkFormatter !== undefined) {
-          this.timeAxisFormatter = options.tickMarkFormatter;
-        }
-
-        const layout = this.canvas === null
-          ? DEFAULT_LAYOUT
-          : measureLayout(this.canvas, this.manualLayout);
-        const paneWidth = Math.max(40, layout.width - layout.left - layout.right);
-        this.timeScale.applyOptions({
-          width: paneWidth,
-          pointCount: this.getPointCount(),
-          barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, this.getPointCount()),
-          rightOffset: this.rightOffset,
-        });
-
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
+    });
   }
 
   public priceScaleApi(): PhaseOnePriceScaleApi {
-    return {
+    return createPriceScaleApiUseCase({
       getVisibleRange: () =>
         this.primaryPriceRangeOverride?.toRaw() ??
         this.primaryPriceScale.getPriceRange()?.toRaw() ??
@@ -2143,33 +2099,33 @@ export class PhaseOneChartHarness {
         null,
       setVisibleRange: (range) => {
         this.primaryPriceRangeOverride = PriceRangeImpl.fromRaw(range);
-        if (this.primaryPriceRangeOverride !== null && this.canvas !== null) {
-          const layout = measureLayout(this.canvas, this.manualLayout);
-          const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
-          const paneHeight =
-            buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
-              ?.height ?? plotHeight;
-          this.primaryPriceScale.applyOptions({
-            height: paneHeight,
-            priceRange: this.primaryPriceRangeOverride,
-          });
+      },
+      applyVisibleRangeIfPresent: () => {
+        if (this.primaryPriceRangeOverride === null || this.canvas === null) {
+          return;
         }
+        const layout = measureLayout(this.canvas, this.manualLayout);
+        const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
+        const paneHeight =
+          buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
+            ?.height ?? plotHeight;
+        this.primaryPriceScale.applyOptions({
+          height: paneHeight,
+          priceRange: this.primaryPriceRangeOverride,
+        });
+      },
+      setPriceFormatter: (formatter) => {
+        this.priceAxisFormatter = formatter;
+      },
+      setScaleSeriesOnly: (value) => {
+        this.primaryScaleSeriesOnly = value;
+      },
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      applyOptions: (options) => {
-        if (options.priceFormatter !== undefined) {
-          this.priceAxisFormatter = options.priceFormatter;
-        }
-        if (options.scaleSeriesOnly !== undefined) {
-          this.primaryScaleSeriesOnly = options.scaleSeriesOnly;
-        }
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    };
+    });
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {

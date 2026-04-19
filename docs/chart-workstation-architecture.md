@@ -157,5 +157,6 @@ Current direction on that path:
 - selected-drawing command entrypoints should follow the same direction, so snapshot lookup, property-schema resolution, selected apply-options, and clear-selection commands stop living as harness-local public branches
 - public add-series, add-study, add-volume, and add-drawing command routing should follow the same direction, so target normalization and family dispatch stop living as repeated harness-local public branches
 - public remove-series, add-pane/remove-pane, and pane-handle wrapper construction should follow the same direction, so chart structure commands and pane API glue stop living as repeated harness-local public branches
+- time-scale and price-scale API wrapper construction should follow the same direction, so visible-range logic, formatter wiring, and scale option apply paths stop living as harness-local public branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

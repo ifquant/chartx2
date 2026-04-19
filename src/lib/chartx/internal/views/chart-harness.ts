@@ -189,6 +189,7 @@ import {
   applyChartOptions as applyChartOptionsUseCase,
   resizeChart as resizeChartUseCase,
 } from "./chart-shell-commands";
+import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
@@ -4452,149 +4453,7 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
   const harness = new PhaseOneChartHarness();
   harness.attach(canvas);
 
-  return {
-    addCandlestickSeries(target) {
-      return harness.addCandlestickSeries(target);
-    },
-    addBarSeries(target) {
-      return harness.addBarSeries(target);
-    },
-    addLineSeries(target) {
-      return harness.addLineSeries(target);
-    },
-    addAreaSeries(target) {
-      return harness.addAreaSeries(target);
-    },
-    addBaselineSeries(target) {
-      return harness.addBaselineSeries(target);
-    },
-    addHistogramSeries(target) {
-      return harness.addHistogramSeries(target);
-    },
-    addVolumeSeries(target) {
-      return harness.addVolumeSeries(target);
-    },
-    addOverlaySeries(target) {
-      return harness.addOverlaySeries(target);
-    },
-    addCompareSeries(target) {
-      return harness.addCompareSeries(target);
-    },
-    addMovingAverageStudy(target) {
-      return harness.addMovingAverageStudy(target);
-    },
-    addHorizontalLineDrawing(target, options) {
-      return harness.addHorizontalLineDrawing(target, options);
-    },
-    addTrendLineDrawing(target, options) {
-      return harness.addTrendLineDrawing(target, options);
-    },
-    getSelectedDrawing() {
-      return harness.getSelectedDrawing();
-    },
-    getSelectedDrawingState() {
-      return harness.getSelectedDrawingState();
-    },
-    getSelectedDrawingPropertySchema() {
-      return harness.getSelectedDrawingPropertySchema();
-    },
-    applySelectedDrawingOptions(options) {
-      harness.applySelectedDrawingOptions(options);
-    },
-    clearSelectedDrawing() {
-      harness.clearSelectedDrawing();
-    },
-    subscribeDrawingSelectionChange(handler) {
-      harness.subscribeDrawingSelectionChange(handler);
-    },
-    unsubscribeDrawingSelectionChange(handler) {
-      harness.unsubscribeDrawingSelectionChange(handler);
-    },
-    panes() {
-      return harness.panesApi();
-    },
-    addPane(options) {
-      return harness.addPane(options);
-    },
-    removePane(pane) {
-      harness.removePaneByHandle(pane);
-    },
-    applyOptions(options) {
-      harness.applyOptions(options);
-    },
-    getChartType() {
-      return harness.getChartType();
-    },
-    getMainSeriesState() {
-      return harness.getMainSeriesState();
-    },
-    applyMainSeriesState(state) {
-      return harness.applyMainSeriesState(state);
-    },
-    getChartState() {
-      return harness.getChartState();
-    },
-    applyChartState(state) {
-      harness.applyChartState(state);
-    },
-    getChartTemplate() {
-      return harness.getChartTemplate();
-    },
-    applyChartTemplate(template) {
-      harness.applyChartTemplate(template);
-    },
-    setChartType(type) {
-      return harness.setChartType(type);
-    },
-    locateTrade(request, options) {
-      return harness.locateTrade(request, options);
-    },
-    clearTradeLocation() {
-      harness.clearTradeLocation();
-    },
-    getTradeLocationState() {
-      return harness.getTradeLocationState();
-    },
-    subscribeChartTypeChange(handler) {
-      harness.subscribeChartTypeChange(handler);
-    },
-    unsubscribeChartTypeChange(handler) {
-      harness.unsubscribeChartTypeChange(handler);
-    },
-    removeSeries(series) {
-      harness.removeSeries(series);
-    },
-    resize(width, height) {
-      harness.resize(width, height);
-    },
-    timeScale() {
-      return harness.timeScaleApi();
-    },
-    priceScale() {
-      return harness.priceScaleApi();
-    },
-    subscribeCrosshairMove(handler) {
-      harness.subscribeCrosshairMove(handler);
-    },
-    unsubscribeCrosshairMove(handler) {
-      harness.unsubscribeCrosshairMove(handler);
-    },
-    subscribeClick(handler) {
-      harness.subscribeClick(handler);
-    },
-    unsubscribeClick(handler) {
-      harness.unsubscribeClick(handler);
-    },
-    subscribePaneEvents(handler) {
-      harness.subscribePaneEvents(handler);
-    },
-    unsubscribePaneEvents(handler) {
-      harness.unsubscribePaneEvents(handler);
-    },
-    destroy() {
-      harness.detach();
-    },
-  };
+  return createChartPublicApiUseCase(harness);
 }
 
 export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {

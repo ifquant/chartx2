@@ -191,6 +191,15 @@ import {
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
+  applySelectedDrawingOptions as applySelectedDrawingOptionsPublicUseCase,
+  clearSelectedDrawing as clearSelectedDrawingPublicUseCase,
+  getSelectedDrawing as getSelectedDrawingPublicUseCase,
+  getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaPublicUseCase,
+  getSelectedDrawingState as getSelectedDrawingStatePublicUseCase,
+  subscribePublicHandler as subscribePublicHandlerUseCase,
+  unsubscribePublicHandler as unsubscribePublicHandlerUseCase,
+} from "./chart-public-state";
+import {
   buildPaneSeriesStates as buildPaneSeriesStatesUseCase,
   buildPaneState as buildPaneStateUseCase,
   buildPaneStateSnapshot as buildPaneStateSnapshotUseCase,
@@ -198,8 +207,6 @@ import {
 import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
-  subscribeHandler as subscribeHandlerUseCase,
-  unsubscribeHandler as unsubscribeHandlerUseCase,
 } from "./chart-runtime-commands";
 import {
   emitChartTypeChangeRuntime as emitChartTypeChangeRuntimeUseCase,
@@ -224,18 +231,11 @@ import {
   handlePointerMoveRuntime as handlePointerMoveRuntimeUseCase,
 } from "./chart-pointer-runtime";
 import {
-  buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
   requireDrawingByApi as requireDrawingByApiUseCase,
   selectDrawing as selectDrawingUseCase,
 } from "./chart-drawing-session";
-import {
-  applySelectedDrawingOptions as applySelectedDrawingOptionsUseCase,
-  clearSelectedDrawing as clearSelectedDrawingUseCase,
-  getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaUseCase,
-  getSelectedDrawingState as getSelectedDrawingStateUseCase,
-} from "./chart-drawing-commands";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -2127,27 +2127,30 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    subscribeHandlerUseCase(this.crosshairMoveHandlers, handler);
+    subscribePublicHandlerUseCase(this.crosshairMoveHandlers, handler);
   }
 
   public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    unsubscribeHandlerUseCase(this.crosshairMoveHandlers, handler);
+    unsubscribePublicHandlerUseCase(this.crosshairMoveHandlers, handler);
   }
 
   public subscribeClick(handler: PhaseOneClickHandler): void {
-    subscribeHandlerUseCase(this.clickHandlers, handler);
+    subscribePublicHandlerUseCase(this.clickHandlers, handler);
   }
 
   public unsubscribeClick(handler: PhaseOneClickHandler): void {
-    unsubscribeHandlerUseCase(this.clickHandlers, handler);
+    unsubscribePublicHandlerUseCase(this.clickHandlers, handler);
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
-    return this.buildSelectedDrawingState();
+    return getSelectedDrawingPublicUseCase(this.selectedDrawingId, {
+      getById: (id) => this.getDrawingById(id),
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    });
   }
 
   public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
-    return getSelectedDrawingStateUseCase({
+    return getSelectedDrawingStatePublicUseCase({
       selectedDrawingId: this.selectedDrawingId,
       getDrawingById: (id) => this.getDrawingById(id),
       snapshotDeps: {
@@ -2159,7 +2162,7 @@ export class PhaseOneChartHarness {
   }
 
   public getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null {
-    return getSelectedDrawingPropertySchemaUseCase(
+    return getSelectedDrawingPropertySchemaPublicUseCase(
       this.getSelectedDrawingState(),
       (type) => DRAWING_PROPERTY_SCHEMAS[type],
     );
@@ -2168,7 +2171,7 @@ export class PhaseOneChartHarness {
   public applySelectedDrawingOptions(
     options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
   ): void {
-    applySelectedDrawingOptionsUseCase({
+    applySelectedDrawingOptionsPublicUseCase({
       selectedDrawingId: this.selectedDrawingId,
       getDrawingById: (id) => this.getDrawingById(id),
       options,
@@ -2176,31 +2179,31 @@ export class PhaseOneChartHarness {
   }
 
   public clearSelectedDrawing(): void {
-    clearSelectedDrawingUseCase(() => this.selectDrawing(null));
+    clearSelectedDrawingPublicUseCase(() => this.selectDrawing(null));
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    subscribeHandlerUseCase(this.drawingSelectionHandlers, handler);
+    subscribePublicHandlerUseCase(this.drawingSelectionHandlers, handler);
   }
 
   public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    unsubscribeHandlerUseCase(this.drawingSelectionHandlers, handler);
+    unsubscribePublicHandlerUseCase(this.drawingSelectionHandlers, handler);
   }
 
   public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    subscribeHandlerUseCase(this.paneEventHandlers, handler);
+    subscribePublicHandlerUseCase(this.paneEventHandlers, handler);
   }
 
   public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    unsubscribeHandlerUseCase(this.paneEventHandlers, handler);
+    unsubscribePublicHandlerUseCase(this.paneEventHandlers, handler);
   }
 
   public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    subscribeHandlerUseCase(this.chartTypeChangeHandlers, handler);
+    subscribePublicHandlerUseCase(this.chartTypeChangeHandlers, handler);
   }
 
   public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    unsubscribeHandlerUseCase(this.chartTypeChangeHandlers, handler);
+    unsubscribePublicHandlerUseCase(this.chartTypeChangeHandlers, handler);
   }
 
   public getChartType(): PhaseOneMainChartType | null {
@@ -3505,13 +3508,6 @@ export class PhaseOneChartHarness {
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
     return this.drawingRegistry.list().find((drawing) => drawing.id === id);
-  }
-
-  private buildSelectedDrawingState(): PhaseOneSelectedDrawing {
-    return buildSelectedDrawingStateUseCase(this.selectedDrawingId, {
-      getById: (id) => this.getDrawingById(id),
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-    });
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {

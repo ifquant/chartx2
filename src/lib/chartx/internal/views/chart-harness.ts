@@ -187,6 +187,15 @@ import {
 } from "./chart-drawing-geometry";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import {
+  calculateBaseBarSpacing,
+  clamp,
+  measureLayout,
+  resolveActivePane,
+  resolveBarSpacing,
+  resolveLocalPanePoint,
+  resolvePanePoint,
+} from "./chart-layout-geometry";
+import {
   resolveHitDrawing as resolveHitDrawingUseCase,
   resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
 } from "./chart-drawing-hit-test";
@@ -365,6 +374,7 @@ const AXIS_ACTIVE_TEXT = "#fffdf7";
 const DEFAULT_RIGHT_OFFSET = 0.8;
 const MIN_BAR_SPACING = 4;
 const MAX_BAR_SPACING = 36;
+const BAR_SPACING_BOUNDS = { minBarSpacing: MIN_BAR_SPACING, maxBarSpacing: MAX_BAR_SPACING } as const;
 const DRAWING_HIT_TOLERANCE = 16;
 const DRAWING_PRICE_SNAP_TOLERANCE = 8;
 const DRAWING_TIME_SNAP_TOLERANCE = 10;
@@ -1527,7 +1537,7 @@ export class PhaseOneChartHarness {
   private readonly handlePointerMove = (event: PointerEvent) => {
     const deps: Parameters<typeof handlePointerMoveRuntimeUseCase>[1] = {
       hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
       getPaneFrames: (layout) =>
         buildPaneFrames(
           this.panes.list(),
@@ -1567,7 +1577,7 @@ export class PhaseOneChartHarness {
       getPointCount: () => this.getPointCount(),
       getBarSpacing: () => this.barSpacing,
       resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
-        resolveBarSpacing(currentSpacing, paneWidth, pointCount),
+        resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
       setRightOffset: (value) => {
         this.rightOffset = value;
       },
@@ -1621,7 +1631,7 @@ export class PhaseOneChartHarness {
     const deps: Parameters<typeof handlePointerDownRuntimeUseCase>[1] = {
       hasCanvas: () => this.canvas !== null,
       getPointCount: () => this.getPointCount(),
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
       getPaneFrames: (layout) =>
         buildPaneFrames(
           this.panes.list(),
@@ -1710,7 +1720,7 @@ export class PhaseOneChartHarness {
       preventDefault: () => {
         event.preventDefault();
       },
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
       getBarSpacing: () => this.barSpacing,
       setBarSpacing: (value) => {
         this.barSpacing = value;
@@ -1727,7 +1737,7 @@ export class PhaseOneChartHarness {
   private readonly handleClick = (event: MouseEvent) => {
     handleClickRuntimeUseCase(event, {
       hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, this.manualLayout)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
       resolvePanePoint: (mouseEvent, layout) =>
         this.canvas === null ? null : resolvePanePoint(this.canvas, mouseEvent, layout),
       resolveHitDrawing: (point, layout) => this.resolveHitDrawing(point, layout),
@@ -1754,7 +1764,7 @@ export class PhaseOneChartHarness {
       removeSelectedDrawing: () => {
         this.removeSelectedDrawing();
       },
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT)),
       getBarSpacing: () => this.barSpacing,
       setBarSpacing: (value) => {
         this.barSpacing = value;
@@ -2147,7 +2157,7 @@ export class PhaseOneChartHarness {
   public timeScaleApi(): PhaseOneTimeScaleApi {
     return createTimeScaleApiUseCase({
       getPointCount: () => this.getPointCount(),
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, this.manualLayout)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
       getBarSpacing: () => this.barSpacing,
       setBarSpacing: (value) => {
         this.barSpacing = value;
@@ -2157,7 +2167,7 @@ export class PhaseOneChartHarness {
         this.rightOffset = value;
       },
       resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
-        resolveBarSpacing(currentSpacing, paneWidth, pointCount),
+        resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
       clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
       applyTimeScaleOptions: (options) => this.timeScale.applyOptions(options),
       setTimeAxisFormatter: (formatter) => {
@@ -2185,7 +2195,7 @@ export class PhaseOneChartHarness {
         if (this.primaryPriceRangeOverride === null || this.canvas === null) {
           return;
         }
-        const layout = measureLayout(this.canvas, this.manualLayout);
+        const layout = measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout);
         const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
         const paneHeight =
           buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
@@ -3205,7 +3215,7 @@ export class PhaseOneChartHarness {
     return getPaneHeightUseCase(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       hasCanvas: () => this.canvas !== null,
-      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, this.manualLayout)),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.manualLayout)),
       listPanes: () => this.panes.list(),
       gap: PANE_GAP,
     });
@@ -3928,7 +3938,7 @@ export class PhaseOneChartHarness {
 
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
-    const layout = measureLayout(canvas, this.manualLayout);
+    const layout = measureLayout(canvas, DEFAULT_LAYOUT, this.manualLayout);
     const context = canvas.getContext("2d");
     if (context === null) {
       throw new Error("Canvas 2D context is unavailable");
@@ -3986,7 +3996,7 @@ export class PhaseOneChartHarness {
     this.timeScale.applyOptions({
       width: paneWidth,
       pointCount,
-      barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, pointCount),
+      barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
       rightOffset: this.rightOffset,
     });
 
@@ -4566,105 +4576,8 @@ function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string
   );
 }
 
-function resolveActivePane(
-  panes: readonly PaneFrame[],
-  y: number,
-): PaneFrame | null {
-  return panes.find((pane) => y >= pane.top && y <= pane.top + pane.height) ?? null;
-}
-
-function resolveLocalPanePoint(
-  pane: PaneFrame | null | undefined,
-  point: PanePoint | null,
-): PanePoint | null {
-  if (pane === null || pane === undefined || point === null) {
-    return null;
-  }
-
-  return {
-    x: point.x,
-    y: point.y - pane.top,
-  };
-}
-
 function toCoordinate(value: Coordinate | null): Coordinate {
   return (value ?? 0) as Coordinate;
-}
-
-function measureLayout(
-  canvas: HTMLCanvasElement,
-  manualLayout: Pick<Layout, "width" | "height"> | null = null,
-): Layout {
-  if (manualLayout !== null) {
-    return {
-      ...DEFAULT_LAYOUT,
-      width: manualLayout.width,
-      height: manualLayout.height,
-    };
-  }
-
-  const container = canvas.parentElement;
-  if (container === null) {
-    return DEFAULT_LAYOUT;
-  }
-
-  const styles = window.getComputedStyle(container);
-  const horizontalPadding =
-    parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
-  const availableWidth = Math.floor(container.clientWidth - horizontalPadding);
-  const width = Math.max(480, availableWidth);
-  const aspectHeight = Math.round((width / DEFAULT_LAYOUT.width) * DEFAULT_LAYOUT.height);
-
-  return {
-    ...DEFAULT_LAYOUT,
-    width,
-    height: Math.max(320, aspectHeight),
-  };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
-function calculateBaseBarSpacing(paneWidth: number, pointCount: number): number {
-  return paneWidth / Math.max(pointCount + 2, 12);
-}
-
-function resolveBarSpacing(
-  currentSpacing: number | null,
-  paneWidth: number,
-  pointCount: number,
-): number {
-  if (currentSpacing !== null) {
-    return Math.max(MIN_BAR_SPACING, currentSpacing);
-  }
-
-  return clamp(
-    calculateBaseBarSpacing(paneWidth, pointCount),
-    MIN_BAR_SPACING,
-    MAX_BAR_SPACING,
-  );
-}
-
-function resolvePanePoint(
-  canvas: HTMLCanvasElement,
-  event: Pick<MouseEvent, "clientX" | "clientY">,
-  layout: Layout,
-): PanePoint | null {
-  const rect = canvas.getBoundingClientRect();
-  const localX = event.clientX - rect.left - layout.left;
-  const localY = event.clientY - rect.top - layout.top;
-  const paneWidth = layout.width - layout.left - layout.right;
-  const paneHeight = layout.height - layout.top - layout.bottom;
-
-  if (localX < 0 || localX > paneWidth || localY < 0 || localY > paneHeight) {
-    return null;
-  }
-
-  return {
-    x: clamp(localX, 0, paneWidth),
-    y: clamp(localY, 0, paneHeight),
-  };
 }
 
 function drawCrosshair(

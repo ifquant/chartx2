@@ -5,6 +5,7 @@ import {
   type PaneModelState,
   type PlotRow,
 } from "../model";
+import { resolveActivePane } from "./chart-layout-geometry";
 
 type PanePoint = {
   x: number;
@@ -86,11 +87,4 @@ export function buildChartRenderState<
     activePane,
     barWidth,
   };
-}
-
-function resolveActivePane(
-  panes: readonly PaneFrame[],
-  y: number,
-): PaneFrame | null {
-  return panes.find((pane) => y >= pane.top && y <= pane.top + pane.height) ?? null;
 }

@@ -1,5 +1,6 @@
 import type { PaneFrame } from "../model";
 import type { PhaseOneReadoutSeriesDetail } from "./chart-harness";
+import { resolveLocalPanePoint } from "./chart-layout-geometry";
 
 type PanePoint = {
   x: number;
@@ -41,18 +42,4 @@ export function buildPaneLegendEntries<
         params.getSecondarySeriesForPane(params.pane.id),
         paneCrosshair,
       );
-}
-
-function resolveLocalPanePoint(
-  pane: PaneFrame | null | undefined,
-  point: PanePoint | null,
-): PanePoint | null {
-  if (pane === null || pane === undefined || point === null) {
-    return null;
-  }
-
-  return {
-    x: point.x,
-    y: point.y - pane.top,
-  };
 }

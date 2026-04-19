@@ -1,6 +1,7 @@
 import { type PaneFrame, type PlotRow } from "../model";
 import { PriceScale, TimeScale } from "../model";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
+import { resolveActivePane, resolveLocalPanePoint } from "./chart-layout-geometry";
 import type {
   PhaseOneCandlestickData,
   PhaseOneReadoutSeriesDetail,
@@ -154,26 +155,5 @@ export function buildRawReadout<
     close: null,
     price: null,
     series: [],
-  };
-}
-
-function resolveActivePane(
-  panes: readonly PaneFrame[],
-  y: number,
-): PaneFrame | null {
-  return panes.find((pane) => y >= pane.top && y <= pane.top + pane.height) ?? null;
-}
-
-function resolveLocalPanePoint(
-  pane: PaneFrame | null | undefined,
-  point: PanePoint | null,
-): PanePoint | null {
-  if (pane === null || pane === undefined || point === null) {
-    return null;
-  }
-
-  return {
-    x: point.x,
-    y: point.y - pane.top,
   };
 }

@@ -3,6 +3,7 @@ import {
   distanceToLineSegment,
   resolveDrawingTimeCoordinate,
 } from "./chart-drawing-geometry";
+import { resolveActivePane, resolveLocalPanePoint } from "./chart-layout-geometry";
 
 type PanePoint = {
   x: number;
@@ -147,27 +148,6 @@ export function resolveSelectedTrendLineDragHandle(
   return null;
 }
 
-function resolveActivePane(
-  panes: readonly PaneFrame[],
-  y: number,
-): PaneFrame | null {
-  return panes.find((pane) => y >= pane.top && y <= pane.top + pane.height) ?? null;
-}
-
-function resolveLocalPanePoint(
-  pane: PaneFrame | null | undefined,
-  point: PanePoint | null,
-): PanePoint | null {
-  if (pane === null || pane === undefined || point === null) {
-    return null;
-  }
-
-  return {
-    x: point.x,
-    y: point.y - pane.top,
-  };
-}
-
 function drawingHitDistance(
   point: PanePoint,
   drawing: DrawingDescriptor,
@@ -189,8 +169,4 @@ function drawingHitDistance(
   }
 
   return distanceToLineSegment(point.x, point.y, startX, startY, endX, endY);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }

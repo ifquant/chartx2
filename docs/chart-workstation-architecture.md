@@ -187,5 +187,6 @@ Current direction on that path:
 - pane drawing rendering and drawing snap-guide rendering should follow the same direction, so pane drawing presentation stops living as another harness-local render block
 - drawing time-coordinate interpolation and line-distance geometry should follow the same direction, so shared drawing geometry stops living as duplicated harness-local and hit-test-local helpers
 - crosshair readout assembly should follow the same direction, so nearest-row OHLC payloads stop living as duplicated harness-local and readout-local helpers
+- pane layout geometry should follow the same direction, so active-pane lookup, local crosshair transforms, layout measurement, and bar-spacing helpers stop living as duplicated harness-local and module-local helpers
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

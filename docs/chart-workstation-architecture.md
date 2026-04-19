@@ -174,5 +174,6 @@ Current direction on that path:
 - study/secondary source lookup, study accessor guards, secondary scale lookup, and primary-pane series assembly should follow the same direction, so source accessor logic stops living as harness-local lookup branches
 - series formatter patching, marker mutation, and readout value formatting should follow the same direction, so source presentation glue stops living as harness-local helper branches
 - secondary study replace/update and histogram-like replace/update should follow the same direction, so study data mutation orchestration stops living as harness-local mutation branches
+- main-series replace/update and histogram-like replace/update should follow the same direction, so primary data mutation orchestration stops living as harness-local mutation branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

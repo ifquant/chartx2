@@ -97,6 +97,12 @@ import {
   updateStudySeriesData,
 } from "./chart-series-mutation";
 import {
+  setPrimaryData as setPrimaryDataUseCase,
+  setPrimaryHistogramLikeData as setPrimaryHistogramLikeDataUseCase,
+  updatePrimaryData as updatePrimaryDataUseCase,
+  updatePrimaryHistogramLikeData as updatePrimaryHistogramLikeDataUseCase,
+} from "./chart-main-series-runtime";
+import {
   applyCompareStudyOptions,
   applyMovingAverageStudyOptions,
   getCompareStudyOptions,
@@ -2663,7 +2669,7 @@ export class PhaseOneChartHarness {
   }
 
   private setPrimaryData(data: readonly PhaseOneCandlestickData[]): void {
-    replaceMainSeriesData(this.getMainSourceOrThrow(), data, {
+    setPrimaryDataUseCase(this.getMainSourceOrThrow(), data, {
       rebuild: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
       },
@@ -2682,7 +2688,7 @@ export class PhaseOneChartHarness {
   }
 
   private updatePrimary(bar: PhaseOneCandlestickData): void {
-    updateMainSeriesData(this.getMainSourceOrThrow(), bar, {
+    updatePrimaryDataUseCase(this.getMainSourceOrThrow(), bar, {
       updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
       rebuild: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
@@ -2702,46 +2708,42 @@ export class PhaseOneChartHarness {
   private setPrimaryHistogramLikeData(
     data: readonly PhaseOneHistogramData[],
   ): void {
-    replaceMainHistogramLikeData(this.getMainSourceOrThrow(), data, {
+    setPrimaryHistogramLikeDataUseCase(this.getMainSourceOrThrow(), data, {
       buildVisuals: (rows) => buildHistogramVisuals(rows),
       normalizeData: (rows) => normalizeHistogramData(rows),
-      replaceMainSeriesData: (source, canonicalData) => replaceMainSeriesData(source, canonicalData, {
-        rebuild: (nextSource) => {
-          nextSource.data = applyMainSeriesBuilderData(nextSource.inputData, nextSource);
-        },
-        syncContext: (nextSource) => this.syncChartContextFromMainSource(nextSource),
-        resetViewport: () => {
-          this.primaryPriceRangeOverride = null;
-          this.barSpacing = null;
-          this.rightOffset = DEFAULT_RIGHT_OFFSET;
-        },
-        render: () => {
-          if (this.canvas !== null) {
-            this.render(this.canvas);
-          }
-        },
-      }),
+      rebuild: (source) => {
+        source.data = applyMainSeriesBuilderData(source.inputData, source);
+      },
+      syncContext: (source) => this.syncChartContextFromMainSource(source),
+      resetViewport: () => {
+        this.primaryPriceRangeOverride = null;
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     });
   }
 
   private updatePrimaryHistogramLike(bar: PhaseOneHistogramData): void {
-    updateMainHistogramLikeData(this.getMainSourceOrThrow(), bar, {
+    updatePrimaryHistogramLikeDataUseCase(this.getMainSourceOrThrow(), bar, {
       normalizeBar: (nextBar) => normalizeHistogramBar(nextBar),
-      updateMainSeriesData: (source, canonicalBar) => updateMainSeriesData(source, canonicalBar, {
-        updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-        rebuild: (nextSource) => {
-          nextSource.data = applyMainSeriesBuilderData(nextSource.inputData, nextSource);
-        },
-        syncContext: (nextSource) => this.syncChartContextFromMainSource(nextSource),
-        clearPriceRangeOverride: () => {
-          this.primaryPriceRangeOverride = null;
-        },
-        render: () => {
-          if (this.canvas !== null) {
-            this.render(this.canvas);
-          }
-        },
-      }),
+      updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
+      rebuild: (source) => {
+        source.data = applyMainSeriesBuilderData(source.inputData, source);
+      },
+      syncContext: (source) => this.syncChartContextFromMainSource(source),
+      clearPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     });
   }
 

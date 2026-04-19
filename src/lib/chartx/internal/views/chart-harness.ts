@@ -3547,7 +3547,8 @@ export class PhaseOneChartHarness {
       clearMainSource: () => this.chartModel.clearMainSource(),
       bindMainSource: (mainSourceId, chartType, barSequence) =>
         this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
-      createMainBarSequenceFromSource: (nextSource) => this.createMainBarSequenceFromSource(nextSource),
+      createMainBarSequenceFromSource: (nextSource: MainSeriesSourceState) =>
+        this.createMainBarSequenceFromSource(nextSource),
       syncStudyContextData: () => this.syncStudyContextData(),
       refreshTradeLocation: () => this.refreshTradeLocation(),
     });

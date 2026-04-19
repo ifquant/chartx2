@@ -4,6 +4,7 @@ import {
   clearDrawingRegistry,
   getDrawingById,
   getDrawingCountForPane,
+  listAllDrawings,
   listDrawingsByPane,
 } from "../../src/lib/chartx/internal/views/chart-drawing-accessors";
 
@@ -26,6 +27,10 @@ describe("chart drawing accessors", () => {
     expect(getDrawingCountForPane("pane-2", {
       listByPane: (paneId) => drawings.filter((drawing) => drawing.paneId === paneId),
     })).toBe(2);
+
+    expect(listAllDrawings({
+      listDrawings: () => drawings,
+    })).toEqual(drawings);
   });
 
   it("clears the registry through the shared bulk-clear accessor", () => {

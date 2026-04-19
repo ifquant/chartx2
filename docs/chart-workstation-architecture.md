@@ -196,5 +196,6 @@ Current direction on that path:
 - drawing pane-aware creation glue should follow the same direction, so active-api validation, registry lookups, kind guards, and pane-existence checks stop living as harness-local wrappers around drawing factories
 - selected-drawing public state and command routing should follow the same direction, so snapshot lookup, property-schema resolution, selected apply-options, and clear-selection commands stop living inside the generic public-state branch or as harness-local drawing glue
 - drawing registry access should follow the same direction, so drawing id lookup, pane-local listing, pane drawing counts, and bulk drawing clear stop living as scattered harness-local registry traversal branches
+- drawing render and snapshot inputs should follow the same direction, so pane-local drawing lists and all-drawing snapshot inputs stop bypassing the shared drawing accessor layer from chart-harness
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

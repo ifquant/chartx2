@@ -19,6 +19,14 @@ export function getDrawingById<Drawing extends DrawingLike>(
   return deps.listDrawings().find((drawing) => drawing.id === drawingId);
 }
 
+export function listAllDrawings<Drawing extends DrawingLike>(
+  deps: {
+    listDrawings(): readonly Drawing[];
+  },
+): readonly Drawing[] {
+  return deps.listDrawings();
+}
+
 export function listDrawingsByPane<Drawing extends DrawingLike>(
   paneId: string,
   deps: {

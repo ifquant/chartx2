@@ -340,6 +340,7 @@ import {
   clearDrawingRegistry as clearDrawingRegistryUseCase,
   getDrawingById as getDrawingByIdUseCase,
   getDrawingCountForPane as getDrawingCountForPaneUseCase,
+  listAllDrawings as listAllDrawingsUseCase,
   listDrawingsByPane as listDrawingsByPaneUseCase,
 } from "./chart-drawing-accessors";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
@@ -2139,7 +2140,7 @@ export class PhaseOneChartHarness {
               overlay: this.activeTradeLocation.options,
             },
       getDrawingsState: () =>
-        buildDrawingStateSnapshots(this.drawingRegistry.list(), {
+        buildDrawingStateSnapshots(this.getAllDrawings(), {
           getPaneIndex: (paneId) => this.getPaneIndex(paneId),
           resolveMagnetOptions: (drawing) =>
             resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
@@ -3222,6 +3223,12 @@ export class PhaseOneChartHarness {
     });
   }
 
+  private getAllDrawings(): readonly ChartDrawingDescriptor[] {
+    return listAllDrawingsUseCase({
+      listDrawings: () => this.drawingRegistry.list(),
+    });
+  }
+
   private getDrawingsByPane(paneId: string): readonly ChartDrawingDescriptor[] {
     return listDrawingsByPaneUseCase(paneId, {
       listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
@@ -3769,7 +3776,7 @@ export class PhaseOneChartHarness {
       if (pane.kind === "primary") {
         const primaryPaneDecorations = buildPrimaryPaneDecorationsUseCase({
           sources: primarySources,
-          drawings: this.drawingRegistry.listByPane("primary"),
+          drawings: this.getDrawingsByPane("primary"),
           drawingSnapGuide: this.viewState.drawingSnapGuide(),
           tradeLocationState: this.activeTradeLocation?.state ?? null,
         });
@@ -3877,7 +3884,7 @@ export class PhaseOneChartHarness {
         const secondaryPaneDecorations = buildSecondaryPaneDecorationsUseCase({
           paneId: pane.id,
           sources: paneSeries,
-          drawings: this.drawingRegistry.listByPane(pane.id),
+          drawings: this.getDrawingsByPane(pane.id),
           drawingSnapGuide: this.viewState.drawingSnapGuide(),
         });
         const panePriceScale = this.chartModel.getSecondaryScale(pane.id);

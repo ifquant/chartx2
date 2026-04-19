@@ -148,5 +148,6 @@ Current direction on that path:
 - pane scale setup should follow the same direction, so primary/secondary range merge rules and price-scale application stop living as harness-local pane render setup branches
 - pane decoration preparation should follow the same direction, so pane price-line merge rules and pane-local snap-guide selection stop living as harness-local pane render wiring
 - render tail orchestration should follow the same direction, so time-axis selection, readout publication, and crosshair-move event assembly stop living as a harness-local render tail branch
+- render surface setup should follow the same direction, so canvas backing-store initialization and empty-plot frame rendering stop living as harness-local render entry branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

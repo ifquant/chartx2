@@ -128,6 +128,10 @@ import {
   finishChartRender as finishChartRenderUseCase,
 } from "./chart-render-tail";
 import {
+  prepareCanvasRenderSurface as prepareCanvasRenderSurfaceUseCase,
+  renderEmptyPlotFrame as renderEmptyPlotFrameUseCase,
+} from "./chart-render-surface";
+import {
   applyPrimaryPaneScale as applyPrimaryPaneScaleUseCase,
   applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
 } from "./chart-pane-scale";
@@ -4334,21 +4338,18 @@ export class PhaseOneChartHarness {
   public render(canvas: HTMLCanvasElement): void {
     const dpr = window.devicePixelRatio || 1;
     const layout = measureLayout(canvas, this.manualLayout);
-    canvas.width = Math.round(layout.width * dpr);
-    canvas.height = Math.round(layout.height * dpr);
-    canvas.style.width = `${layout.width}px`;
-    canvas.style.height = `${layout.height}px`;
-
     const context = canvas.getContext("2d");
     if (context === null) {
       throw new Error("Canvas 2D context is unavailable");
     }
 
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.scale(dpr, dpr);
-    context.clearRect(0, 0, layout.width, layout.height);
-    context.fillStyle = this.chartOptions.backgroundColor;
-    context.fillRect(0, 0, layout.width, layout.height);
+    prepareCanvasRenderSurfaceUseCase({
+      canvas,
+      context,
+      layout,
+      dpr,
+      backgroundColor: this.chartOptions.backgroundColor,
+    });
 
     const paneWidth = layout.width - layout.left - layout.right;
     const plotHeight = layout.height - layout.top - layout.bottom;
@@ -4380,13 +4381,14 @@ export class PhaseOneChartHarness {
     } = renderState;
 
     if (pointCount === 0) {
-      context.save();
-      context.translate(layout.left, layout.top);
-      context.fillStyle = this.chartOptions.paneBackgroundColor;
-      context.fillRect(0, 0, paneWidth, plotHeight);
-      context.strokeStyle = this.chartOptions.frameColor;
-      context.strokeRect(0.5, 0.5, paneWidth - 1, plotHeight - 1);
-      context.restore();
+      renderEmptyPlotFrameUseCase({
+        context,
+        layout,
+        paneWidth,
+        plotHeight,
+        paneBackgroundColor: this.chartOptions.paneBackgroundColor,
+        frameColor: this.chartOptions.frameColor,
+      });
       return;
     }
 

@@ -210,6 +210,10 @@ import {
   handleWheelZoomRuntime as handleWheelZoomRuntimeUseCase,
 } from "./chart-input-runtime";
 import {
+  handlePointerDownRuntime as handlePointerDownRuntimeUseCase,
+  handlePointerMoveRuntime as handlePointerMoveRuntimeUseCase,
+} from "./chart-pointer-runtime";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1422,66 +1426,66 @@ export class PhaseOneChartHarness {
     }
   };
   private readonly handlePointerMove = (event: PointerEvent) => {
-    if (this.canvas === null) {
-      return;
-    }
-
-    const layout = measureLayout(this.canvas);
-    const paneFrames = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    );
-    if (this.paneResizeState !== null) {
-      this.drawingSnapGuide = null;
-      this.applyPaneResize(event.clientY, layout, paneFrames);
-      this.crosshair = resolvePanePoint(this.canvas, event, layout);
-      this.render(this.canvas);
-      return;
-    }
-
-    if (this.drawingDragState !== null) {
-      this.crosshair = resolvePanePoint(this.canvas, event, layout);
-      if (this.crosshair !== null) {
-        this.applyDrawingDrag(this.drawingDragState, this.crosshair, layout, paneFrames);
-      }
-      this.canvas.style.cursor = "grabbing";
-      this.render(this.canvas);
-      return;
-    }
-
-    const pointCount = this.getPointCount();
-    if (this.dragState !== null && pointCount > 0) {
-      const paneWidth = layout.width - layout.left - layout.right;
-      const spacing = resolveBarSpacing(this.barSpacing, paneWidth, pointCount);
-      const deltaBars = (event.clientX - this.dragState.startClientX) / spacing;
-      this.rightOffset = this.dragState.startRightOffset - deltaBars;
-    }
-
-    const divider = resolvePaneDivider(
-      this.panes.list(),
-      paneFrames,
-      resolvePanePoint(this.canvas, event, layout)?.y ?? null,
-      PANE_GAP,
-      PANE_DIVIDER_HIT_SLOP,
-    );
-    this.crosshair = resolvePanePoint(this.canvas, event, layout);
-    const hoveredDrawing =
-      divider === null && this.dragState === null && this.crosshair !== null
-        ? this.resolveHitDrawing(this.crosshair, layout, paneFrames)
-        : null;
-    const hoveredHandle =
-      divider === null && this.dragState === null && this.crosshair !== null
-        ? this.resolveSelectedTrendLineDragHandle(this.crosshair, layout, paneFrames)
-        : null;
-    this.hoveredDrawingId = hoveredDrawing?.id ?? null;
-    this.hoveredDrawingHandle = hoveredHandle?.handle ?? null;
-    this.canvas.style.cursor = divider === null
-      ? (this.dragState === null
-        ? (hoveredHandle !== null ? "move" : hoveredDrawing === null ? "crosshair" : "pointer")
-        : "grabbing")
-      : "row-resize";
-    this.render(this.canvas);
+    const deps: Parameters<typeof handlePointerMoveRuntimeUseCase>[1] = {
+      hasCanvas: () => this.canvas !== null,
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getPaneFrames: (layout) =>
+        buildPaneFrames(
+          this.panes.list(),
+          layout.height - layout.top - layout.bottom,
+          PANE_GAP,
+        ),
+      listPanes: () => this.panes.list(),
+      hasPaneResizeState: () => this.paneResizeState !== null,
+      clearDrawingSnapGuide: () => {
+        this.drawingSnapGuide = null;
+      },
+      applyPaneResize: (clientY, layout, paneFrames) => {
+        this.applyPaneResize(clientY, layout, paneFrames as readonly PaneFrame[]);
+      },
+      hasDrawingDragState: () => this.drawingDragState !== null,
+      getDrawingDragState: () => this.drawingDragState,
+      resolvePanePoint: (pointerEvent, layout) =>
+        this.canvas === null ? null : resolvePanePoint(this.canvas, pointerEvent, layout),
+      setCrosshair: (point) => {
+        this.crosshair = point;
+      },
+      applyDrawingDrag: (dragState, point, layout, paneFrames) => {
+        this.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
+      },
+      setCursor: (cursor) => {
+        if (this.canvas !== null) {
+          this.canvas.style.cursor = cursor;
+        }
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      hasDragState: () => this.dragState !== null,
+      getDragState: () => this.dragState,
+      getPointCount: () => this.getPointCount(),
+      getBarSpacing: () => this.barSpacing,
+      resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
+        resolveBarSpacing(currentSpacing, paneWidth, pointCount),
+      setRightOffset: (value) => {
+        this.rightOffset = value;
+      },
+      resolvePaneDivider: (panes, paneFrames, y) =>
+        resolvePaneDivider(panes, paneFrames as readonly PaneFrame[], y, PANE_GAP, PANE_DIVIDER_HIT_SLOP),
+      resolveHitDrawing: (point, layout, paneFrames) =>
+        this.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[]),
+      resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
+        this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+      setHoveredDrawingId: (id) => {
+        this.hoveredDrawingId = id;
+      },
+      setHoveredDrawingHandle: (handle) => {
+        this.hoveredDrawingHandle = handle;
+      },
+    };
+    handlePointerMoveRuntimeUseCase(event, deps);
   };
   private readonly handlePointerLeave = () => {
     handlePointerLeaveRuntimeUseCase({
@@ -1515,60 +1519,60 @@ export class PhaseOneChartHarness {
     });
   };
   private readonly handlePointerDown = (event: PointerEvent) => {
-    if (this.canvas === null || this.getPointCount() === 0) {
-      return;
-    }
-
-    const layout = measureLayout(this.canvas);
-    const paneFrames = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    );
-    const point = resolvePanePoint(this.canvas, event, layout);
-    const divider = resolvePaneDivider(
-      this.panes.list(),
-      paneFrames,
-      point?.y ?? null,
-      PANE_GAP,
-      PANE_DIVIDER_HIT_SLOP,
-    );
-    if (divider !== null) {
-      this.canvas.focus({ preventScroll: true });
-      this.paneResizeState = {
-        dividerAfterPaneId: divider.upperPaneId,
-        dividerBeforePaneId: divider.lowerPaneId,
-        startClientY: event.clientY,
-        startUpperHeight: divider.upperHeight,
-        startLowerHeight: divider.lowerHeight,
-      };
-      this.canvas.style.cursor = "row-resize";
-      this.canvas.setPointerCapture(event.pointerId);
-      return;
-    }
-
-    if (point !== null) {
-      const hitHandle = this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames);
-      if (hitHandle !== null) {
-        this.canvas.focus({ preventScroll: true });
+    const deps: Parameters<typeof handlePointerDownRuntimeUseCase>[1] = {
+      hasCanvas: () => this.canvas !== null,
+      getPointCount: () => this.getPointCount(),
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getPaneFrames: (layout) =>
+        buildPaneFrames(
+          this.panes.list(),
+          layout.height - layout.top - layout.bottom,
+          PANE_GAP,
+        ),
+      listPanes: () => this.panes.list(),
+      resolvePanePoint: (pointerEvent, layout) =>
+        this.canvas === null ? null : resolvePanePoint(this.canvas, pointerEvent, layout),
+      resolvePaneDivider: (panes, paneFrames, y) =>
+        resolvePaneDivider(panes, paneFrames as readonly PaneFrame[], y, PANE_GAP, PANE_DIVIDER_HIT_SLOP),
+      resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
+        this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+      focusCanvas: () => {
+        this.canvas?.focus({ preventScroll: true });
+      },
+      setPaneResizeState: (state) => {
+        this.paneResizeState = state;
+      },
+      setCrosshair: (point) => {
         this.crosshair = point;
-        this.drawingDragState = hitHandle;
-        this.hoveredDrawingId = hitHandle.drawingId;
-        this.hoveredDrawingHandle = hitHandle.handle;
-        this.canvas.style.cursor = "grabbing";
-        this.canvas.setPointerCapture(event.pointerId);
-        this.render(this.canvas);
-        return;
-      }
-    }
-
-    this.canvas.focus({ preventScroll: true });
-    this.dragState = {
-      startClientX: event.clientX,
-      startRightOffset: this.rightOffset,
+      },
+      setDrawingDragState: (state) => {
+        this.drawingDragState = state;
+      },
+      setHoveredDrawingId: (id) => {
+        this.hoveredDrawingId = id;
+      },
+      setHoveredDrawingHandle: (handle) => {
+        this.hoveredDrawingHandle = handle;
+      },
+      setDragState: (state) => {
+        this.dragState = state;
+      },
+      getRightOffset: () => this.rightOffset,
+      setCursor: (cursor) => {
+        if (this.canvas !== null) {
+          this.canvas.style.cursor = cursor;
+        }
+      },
+      setPointerCapture: (pointerId) => {
+        this.canvas?.setPointerCapture(pointerId);
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     };
-    this.canvas.style.cursor = "grabbing";
-    this.canvas.setPointerCapture(event.pointerId);
+    handlePointerDownRuntimeUseCase(event, deps);
   };
   private readonly handlePointerUp = (event: PointerEvent) => {
     handlePointerUpRuntimeUseCase(event.pointerId, {
@@ -3807,7 +3811,11 @@ export class PhaseOneChartHarness {
   private resolveHitDrawing(
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
+    paneFrames: readonly PaneFrame[] = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    ),
   ): ChartDrawingDescriptor | null {
     return resolveHitDrawingUseCase({
       point,
@@ -3824,7 +3832,11 @@ export class PhaseOneChartHarness {
   private resolveSelectedTrendLineDragHandle(
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
+    paneFrames: readonly PaneFrame[] = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    ),
   ): DrawingDragState | null {
     const drawing =
       this.selectedDrawingId === null
@@ -3846,7 +3858,11 @@ export class PhaseOneChartHarness {
     drag: DrawingDragState,
     point: PanePoint,
     layout: Layout,
-    paneFrames = buildPaneFrames(this.panes.list(), layout.height - layout.top - layout.bottom, PANE_GAP),
+    paneFrames: readonly PaneFrame[] = buildPaneFrames(
+      this.panes.list(),
+      layout.height - layout.top - layout.bottom,
+      PANE_GAP,
+    ),
   ): void {
     const drawing = this.getDrawingById(drag.drawingId);
     if (drawing === undefined || drawing.kind !== "trend-line") {

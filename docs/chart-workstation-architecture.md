@@ -163,5 +163,6 @@ Current direction on that path:
 - runtime subscription and trade-location command routing should follow the same direction, so handler-set mutation and trade location public commands stop living as harness-local public branches
 - pane/chart/crosshair/click event publish paths should follow the same direction, so event assembly and fanout stop living as harness-local emitter branches
 - pointer-leave, pointer-up, wheel, and keyboard viewport commands should follow the same direction, so settled input-state transitions stop living as harness-local interaction branches
+- pointer-down and pointer-move orchestration should now follow the same direction, so divider detection, drawing-drag start, drag-pan routing, hover resolution, and cursor selection stop living as one large harness-local interaction branch
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

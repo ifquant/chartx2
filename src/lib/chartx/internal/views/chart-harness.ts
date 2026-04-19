@@ -187,6 +187,7 @@ import {
 } from "./chart-drawing-geometry";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
+import { createChartHandlerRegistry } from "./chart-handler-registry";
 import {
   calculateBaseBarSpacing,
   clamp,
@@ -251,8 +252,6 @@ import {
   getSelectedDrawing as getSelectedDrawingPublicUseCase,
   getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaPublicUseCase,
   getSelectedDrawingState as getSelectedDrawingStatePublicUseCase,
-  subscribePublicHandler as subscribePublicHandlerUseCase,
-  unsubscribePublicHandler as unsubscribePublicHandlerUseCase,
 } from "./chart-public-state";
 import {
   buildPaneSeriesStates as buildPaneSeriesStatesUseCase,
@@ -262,8 +261,6 @@ import {
 import {
   buildPaneStateById as buildPaneStateByIdUseCase,
   buildPaneStateSnapshotByIds as buildPaneStateSnapshotByIdsUseCase,
-  emitPaneEvent as emitPaneEventUseCase,
-  emitPaneResize as emitPaneResizeUseCase,
   getPaneSeriesStates as getPaneSeriesStatesUseCase,
   removePane as removePaneUseCase,
 } from "./chart-pane-management";
@@ -275,8 +272,6 @@ import {
   getPaneOptions as getPaneOptionsUseCase,
   paneHasSeries as paneHasSeriesUseCase,
   setPaneHeight as setPaneHeightUseCase,
-  subscribePaneResize as subscribePaneResizeUseCase,
-  unsubscribePaneResize as unsubscribePaneResizeUseCase,
 } from "./chart-pane-runtime";
 import {
   type PriceLineState,
@@ -320,11 +315,7 @@ import {
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
 import {
-  emitChartTypeChangeRuntime as emitChartTypeChangeRuntimeUseCase,
   emitClickRuntime as emitClickRuntimeUseCase,
-  emitCrosshairMoveEventRuntime as emitCrosshairMoveEventRuntimeUseCase,
-  emitPaneEventRuntime as emitPaneEventRuntimeUseCase,
-  emitPaneResizeEvent as emitPaneResizeEventUseCase,
 } from "./chart-event-runtime";
 import {
   attachChartCanvas as attachChartCanvasUseCase,
@@ -1335,9 +1326,7 @@ const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
   private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
-  private readonly paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
-  private readonly paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
-  private readonly chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
+  private readonly handlerRegistry = createChartHandlerRegistry();
   private readonly chartModel = new ChartModel<
     ChartSeriesKind,
     ChartSeriesApi,
@@ -1508,10 +1497,6 @@ export class PhaseOneChartHarness {
   private drawingDragState: DrawingDragState | null = null;
   private paneResizeState: PaneResizeState | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private readonly crosshairMoveHandlers = new Set<PhaseOneCrosshairMoveHandler>();
-  private readonly clickHandlers = new Set<PhaseOneClickHandler>();
-  private readonly drawingSelectionHandlers = new Set<PhaseOneDrawingSelectionChangeHandler>();
-
   private get panes(): PaneCollection {
     return this.chartModel.panes();
   }
@@ -1581,9 +1566,9 @@ export class PhaseOneChartHarness {
       this.selectDrawing(id);
     },
     buildReadout: (point, layout) => this.buildReadout(point, layout),
-    emitClick: (readout, point) => {
-      emitClickRuntimeUseCase(this.clickHandlers, readout, point);
-    },
+      emitClick: (readout, point) => {
+        this.handlerRegistry.emitClick(readout, point);
+      },
     hasSelectedDrawing: () => this.selectedDrawingId !== null,
     clearSelectedDrawing: () => {
       this.selectDrawing(null);
@@ -1658,12 +1643,7 @@ export class PhaseOneChartHarness {
         this.paneResizeState = null;
       },
       clearSubscriptions: () => {
-        this.crosshairMoveHandlers.clear();
-        this.clickHandlers.clear();
-        this.drawingSelectionHandlers.clear();
-        this.paneResizeHandlers.clear();
-        this.paneEventHandlers.clear();
-        this.chartTypeChangeHandlers.clear();
+        this.handlerRegistry.clearAll();
       },
     });
   }
@@ -2025,19 +2005,19 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    subscribePublicHandlerUseCase(this.crosshairMoveHandlers, handler);
+    this.handlerRegistry.subscribeCrosshairMove(handler);
   }
 
   public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    unsubscribePublicHandlerUseCase(this.crosshairMoveHandlers, handler);
+    this.handlerRegistry.unsubscribeCrosshairMove(handler);
   }
 
   public subscribeClick(handler: PhaseOneClickHandler): void {
-    subscribePublicHandlerUseCase(this.clickHandlers, handler);
+    this.handlerRegistry.subscribeClick(handler);
   }
 
   public unsubscribeClick(handler: PhaseOneClickHandler): void {
-    unsubscribePublicHandlerUseCase(this.clickHandlers, handler);
+    this.handlerRegistry.unsubscribeClick(handler);
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
@@ -2081,27 +2061,27 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    subscribePublicHandlerUseCase(this.drawingSelectionHandlers, handler);
+    this.handlerRegistry.subscribeDrawingSelectionChange(handler);
   }
 
   public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    unsubscribePublicHandlerUseCase(this.drawingSelectionHandlers, handler);
+    this.handlerRegistry.unsubscribeDrawingSelectionChange(handler);
   }
 
   public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    subscribePublicHandlerUseCase(this.paneEventHandlers, handler);
+    this.handlerRegistry.subscribePaneEvents(handler);
   }
 
   public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    unsubscribePublicHandlerUseCase(this.paneEventHandlers, handler);
+    this.handlerRegistry.unsubscribePaneEvents(handler);
   }
 
   public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    subscribePublicHandlerUseCase(this.chartTypeChangeHandlers, handler);
+    this.handlerRegistry.subscribeChartTypeChange(handler);
   }
 
   public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    unsubscribePublicHandlerUseCase(this.chartTypeChangeHandlers, handler);
+    this.handlerRegistry.unsubscribeChartTypeChange(handler);
   }
 
   public getChartType(): PhaseOneMainChartType | null {
@@ -2986,22 +2966,13 @@ export class PhaseOneChartHarness {
   }
 
   private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    subscribePaneResizeUseCase(paneId, handler, {
+    this.handlerRegistry.subscribePaneResize(paneId, handler, {
       hasPane: (nextPaneId) => this.getPaneById(nextPaneId) !== undefined,
-      getHandlers: (nextPaneId) => this.paneResizeHandlers.get(nextPaneId),
-      setHandlers: (nextPaneId, handlers) => {
-        this.paneResizeHandlers.set(nextPaneId, handlers);
-      },
     });
   }
 
   private unsubscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    unsubscribePaneResizeUseCase(paneId, handler, {
-      getHandlers: (nextPaneId) => this.paneResizeHandlers.get(nextPaneId),
-      deleteHandlers: (nextPaneId) => {
-        this.paneResizeHandlers.delete(nextPaneId);
-      },
-    });
+    this.handlerRegistry.unsubscribePaneResize(paneId, handler);
   }
 
   private getPaneById(paneId: string): PaneModelState | undefined {
@@ -3112,7 +3083,7 @@ export class PhaseOneChartHarness {
         this.panes.removeById(nextPaneId);
       },
       clearPaneResizeHandlers: (nextPaneId) => {
-        this.paneResizeHandlers.delete(nextPaneId);
+        this.handlerRegistry.clearPaneResizeHandlers(nextPaneId);
       },
       removeSecondaryScale: (nextPaneId) => {
         this.chartModel.removeSecondaryScale(nextPaneId);
@@ -3128,7 +3099,7 @@ export class PhaseOneChartHarness {
   }
 
   private emitPaneResize(paneId: string): void {
-    emitPaneResizeUseCase(this.paneResizeHandlers.get(paneId), paneId, {
+    this.handlerRegistry.emitPaneResize(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
@@ -3141,7 +3112,7 @@ export class PhaseOneChartHarness {
     explicitPaneState?: PhaseOnePaneState | null,
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
-    emitPaneEventUseCase(this.paneEventHandlers, type, paneId, {
+    this.handlerRegistry.emitPaneEvent(type, paneId, {
       buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
       buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
     }, explicitPaneState, explicitSnapshot);
@@ -3288,9 +3259,7 @@ export class PhaseOneChartHarness {
       getById: (drawingId) => this.getDrawingById(drawingId),
       getPaneIndex: (paneId) => this.getPaneIndex(paneId),
       notifySelectionChange: (selection) => {
-        for (const handler of this.drawingSelectionHandlers) {
-          handler(selection);
-        }
+        this.handlerRegistry.notifyDrawingSelectionChange(selection);
       },
       render: () => {
         if (this.canvas !== null) {
@@ -4156,11 +4125,11 @@ export class PhaseOneChartHarness {
   }
 
   private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
-    emitCrosshairMoveEventRuntimeUseCase(this.crosshairMoveHandlers, readout, this.crosshair);
+    this.handlerRegistry.emitCrosshairMove(readout, this.crosshair);
   }
 
   private emitChartTypeChange(type: PhaseOneMainChartType): void {
-    emitChartTypeChangeRuntimeUseCase(this.chartTypeChangeHandlers, type);
+    this.handlerRegistry.emitChartTypeChange(type);
   }
 }
 

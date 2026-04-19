@@ -190,5 +190,6 @@ Current direction on that path:
 - pane layout geometry should follow the same direction, so active-pane lookup, local crosshair transforms, layout measurement, and bar-spacing helpers stop living as duplicated harness-local and module-local helpers
 - interaction handler construction should follow the same direction, so pointer, keyboard, wheel, click, and resize runtime wiring stops living as one large harness-local closure block
 - canvas lifecycle assembly should follow the same direction, so observer wiring, window resize hooks, and interaction reset cleanup stop living as another harness-local lifecycle block
+- handler registry bookkeeping should follow the same direction, so public subscriptions, pane resize subscriptions, and event fanout stop living as scattered harness-local Set and Map state
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

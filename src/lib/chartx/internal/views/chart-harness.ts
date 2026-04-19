@@ -181,6 +181,10 @@ import {
   drawTradeLocationOverlay,
 } from "./chart-pane-decoration-render";
 import {
+  drawDrawingSnapGuide,
+  drawPaneDrawings,
+} from "./chart-pane-drawing-render";
+import {
   resolveHitDrawing as resolveHitDrawingUseCase,
   resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
 } from "./chart-drawing-hit-test";
@@ -4050,12 +4054,18 @@ export class PhaseOneChartHarness {
             drawPaneDrawings(
               context,
               drawings,
-              this.chartModel.context().snapshot().barSequence.axisBars,
-              this.timeScale,
-              this.primaryPriceScale,
-              this.selectedDrawingId,
-              this.hoveredDrawingId,
-              this.hoveredDrawingHandle,
+              {
+                resolveDrawingTimeCoordinate: (time) =>
+                  resolveDrawingTimeCoordinate(
+                    time,
+                    this.chartModel.context().snapshot().barSequence.axisBars,
+                    this.timeScale,
+                  ),
+                priceScale: this.primaryPriceScale,
+                selectedDrawingId: this.selectedDrawingId,
+                hoveredDrawingId: this.hoveredDrawingId,
+                hoveredDrawingHandle: this.hoveredDrawingHandle,
+              },
             );
           },
           primaryDrawings: primaryPaneDecorations.drawings,
@@ -4076,10 +4086,16 @@ export class PhaseOneChartHarness {
               context,
               paneWidth,
               pane.height,
-              this.primaryPriceScale,
-              this.chartModel.context().snapshot().barSequence.axisBars,
-              this.timeScale,
               primaryPaneDecorations.snapGuide,
+              {
+                priceScale: this.primaryPriceScale,
+                resolveDrawingTimeCoordinate: (time) =>
+                  resolveDrawingTimeCoordinate(
+                    time,
+                    this.chartModel.context().snapshot().barSequence.axisBars,
+                    this.timeScale,
+                  ),
+              },
             );
           },
           drawMarkers: (source, rows) => {
@@ -4149,12 +4165,18 @@ export class PhaseOneChartHarness {
               drawPaneDrawings(
                 context,
                 drawings,
-                this.chartModel.context().snapshot().barSequence.axisBars,
-                this.timeScale,
-                panePriceScale,
-                this.selectedDrawingId,
-                this.hoveredDrawingId,
-                this.hoveredDrawingHandle,
+                {
+                  resolveDrawingTimeCoordinate: (time) =>
+                    resolveDrawingTimeCoordinate(
+                      time,
+                      this.chartModel.context().snapshot().barSequence.axisBars,
+                      this.timeScale,
+                    ),
+                  priceScale: panePriceScale,
+                  selectedDrawingId: this.selectedDrawingId,
+                  hoveredDrawingId: this.hoveredDrawingId,
+                  hoveredDrawingHandle: this.hoveredDrawingHandle,
+                },
               );
             }
           },
@@ -4165,10 +4187,16 @@ export class PhaseOneChartHarness {
                 context,
                 paneWidth,
                 pane.height,
-                panePriceScale,
-                this.chartModel.context().snapshot().barSequence.axisBars,
-                this.timeScale,
                 secondaryPaneDecorations.snapGuide,
+                {
+                  priceScale: panePriceScale,
+                  resolveDrawingTimeCoordinate: (time) =>
+                    resolveDrawingTimeCoordinate(
+                      time,
+                      this.chartModel.context().snapshot().barSequence.axisBars,
+                      this.timeScale,
+                    ),
+                },
               );
             }
           },
@@ -4772,112 +4800,6 @@ function buildCrosshairReadout(
     price: priceScale.coordinateToPrice(crosshair.y),
     series: [],
   };
-}
-
-function drawPaneDrawings(
-  context: CanvasRenderingContext2D,
-  drawings: readonly ChartDrawingDescriptor[],
-  axisBars: readonly { time: number; index: TimePointIndex }[],
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-  selectedDrawingId: string | null,
-  hoveredDrawingId: string | null,
-  hoveredDrawingHandle: DrawingDragHandle | null,
-): void {
-  for (const drawing of drawings) {
-    if (!drawing.visible) {
-      continue;
-    }
-
-    if (drawing.kind === "horizontal-line") {
-      if (selectedDrawingId === drawing.id) {
-        const y = toCoordinate(priceScale.priceToCoordinate(drawing.line.price));
-        context.save();
-        context.strokeStyle = "rgba(16, 16, 16, 0.18)";
-        context.lineWidth = drawing.line.lineWidth + 6;
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(context.canvas.width, y);
-        context.stroke();
-        context.restore();
-      }
-      continue;
-    }
-
-    const startX = resolveDrawingTimeCoordinate(drawing.startTime, axisBars, timeScale);
-    const endX = resolveDrawingTimeCoordinate(drawing.endTime, axisBars, timeScale);
-    const startY = toCoordinate(priceScale.priceToCoordinate(drawing.startPrice));
-    const endY = toCoordinate(priceScale.priceToCoordinate(drawing.endPrice));
-
-    context.save();
-    context.strokeStyle = drawing.color;
-    context.lineWidth = drawing.lineWidth;
-    context.beginPath();
-    context.moveTo(startX, startY);
-    context.lineTo(endX, endY);
-    context.stroke();
-    if (selectedDrawingId === drawing.id) {
-      context.strokeStyle = "rgba(16, 16, 16, 0.18)";
-      context.lineWidth = drawing.lineWidth + 6;
-      context.beginPath();
-      context.moveTo(startX, startY);
-      context.lineTo(endX, endY);
-      context.stroke();
-      context.fillStyle = drawing.color;
-      context.beginPath();
-      context.arc(startX, startY, 3.5, 0, Math.PI * 2);
-      context.arc(endX, endY, 3.5, 0, Math.PI * 2);
-      context.fill();
-      if (hoveredDrawingId === drawing.id && hoveredDrawingHandle !== null) {
-        const hoveredX = hoveredDrawingHandle === "start" ? startX : endX;
-        const hoveredY = hoveredDrawingHandle === "start" ? startY : endY;
-        context.fillStyle = "#fffdf7";
-        context.strokeStyle = drawing.color;
-        context.lineWidth = 2;
-        context.beginPath();
-        context.arc(hoveredX, hoveredY, 6, 0, Math.PI * 2);
-        context.fill();
-        context.stroke();
-      }
-    }
-    context.restore();
-  }
-}
-
-function drawDrawingSnapGuide(
-  context: CanvasRenderingContext2D,
-  paneWidth: number,
-  paneHeight: number,
-  priceScale: PriceScale,
-  axisBars: readonly { time: number; index: TimePointIndex }[],
-  timeScale: TimeScale,
-  guide: DrawingSnapGuideState | null,
-): void {
-  if (guide === null) {
-    return;
-  }
-
-  context.save();
-  context.strokeStyle = guide.color;
-  context.lineWidth = 1;
-  context.setLineDash([6, 4]);
-  if (guide.price !== null) {
-    const y = priceScale.priceToCoordinate(guide.price);
-    if (y !== null) {
-      context.beginPath();
-      context.moveTo(0, Math.round(y) + 0.5);
-      context.lineTo(paneWidth, Math.round(y) + 0.5);
-      context.stroke();
-    }
-  }
-  if (guide.time !== null) {
-    const x = resolveDrawingTimeCoordinate(guide.time, axisBars, timeScale);
-    context.beginPath();
-    context.moveTo(Math.round(x) + 0.5, 0);
-    context.lineTo(Math.round(x) + 0.5, paneHeight);
-    context.stroke();
-  }
-  context.restore();
 }
 
 function resolveDrawingTimeCoordinate(

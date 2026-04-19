@@ -191,6 +191,12 @@ import {
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
+  clearTradeLocationCommand as clearTradeLocationCommandUseCase,
+  locateTradeCommand as locateTradeCommandUseCase,
+  subscribeHandler as subscribeHandlerUseCase,
+  unsubscribeHandler as unsubscribeHandlerUseCase,
+} from "./chart-runtime-commands";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -2065,19 +2071,19 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.crosshairMoveHandlers.add(handler);
+    subscribeHandlerUseCase(this.crosshairMoveHandlers, handler);
   }
 
   public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.crosshairMoveHandlers.delete(handler);
+    unsubscribeHandlerUseCase(this.crosshairMoveHandlers, handler);
   }
 
   public subscribeClick(handler: PhaseOneClickHandler): void {
-    this.clickHandlers.add(handler);
+    subscribeHandlerUseCase(this.clickHandlers, handler);
   }
 
   public unsubscribeClick(handler: PhaseOneClickHandler): void {
-    this.clickHandlers.delete(handler);
+    unsubscribeHandlerUseCase(this.clickHandlers, handler);
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
@@ -2118,27 +2124,27 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.drawingSelectionHandlers.add(handler);
+    subscribeHandlerUseCase(this.drawingSelectionHandlers, handler);
   }
 
   public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.drawingSelectionHandlers.delete(handler);
+    unsubscribeHandlerUseCase(this.drawingSelectionHandlers, handler);
   }
 
   public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.paneEventHandlers.add(handler);
+    subscribeHandlerUseCase(this.paneEventHandlers, handler);
   }
 
   public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.paneEventHandlers.delete(handler);
+    unsubscribeHandlerUseCase(this.paneEventHandlers, handler);
   }
 
   public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.chartTypeChangeHandlers.add(handler);
+    subscribeHandlerUseCase(this.chartTypeChangeHandlers, handler);
   }
 
   public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.chartTypeChangeHandlers.delete(handler);
+    unsubscribeHandlerUseCase(this.chartTypeChangeHandlers, handler);
   }
 
   public getChartType(): PhaseOneMainChartType | null {
@@ -2255,22 +2261,34 @@ export class PhaseOneChartHarness {
     request: PhaseOneTradeLocationRequest,
     options: PhaseOneTradeOverlayOptions = {},
   ): PhaseOneTradeLocationState | null {
-    this.getMainSourceOrThrow();
-    this.activeTradeLocation = {
-      request,
-      options: resolveTradeOverlayOptions(options),
-      state: null,
-    };
-    this.refreshTradeLocation();
-    return this.activeTradeLocation?.state ?? null;
+    return locateTradeCommandUseCase(request, options, {
+      ensureMainSource: () => {
+        this.getMainSourceOrThrow();
+      },
+      setActiveTradeLocation: (next) => {
+        this.activeTradeLocation = next;
+      },
+      refreshTradeLocation: () => {
+        this.refreshTradeLocation();
+      },
+      getTradeLocationState: () => this.activeTradeLocation?.state ?? null,
+    });
   }
 
   public clearTradeLocation(): void {
-    this.activeTradeLocation = null;
-    this.primaryPriceRangeOverride = null;
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    clearTradeLocationCommandUseCase({
+      clearActiveTradeLocation: () => {
+        this.activeTradeLocation = null;
+      },
+      resetPrimaryPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   public getTradeLocationState(): PhaseOneTradeLocationState | null {

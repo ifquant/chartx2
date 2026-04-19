@@ -160,5 +160,6 @@ Current direction on that path:
 - time-scale and price-scale API wrapper construction should follow the same direction, so visible-range logic, formatter wiring, and scale option apply paths stop living as harness-local public branches
 - chart-wide applyOptions and resize command routing should follow the same direction, so layout/crosshair/drawing option patching and manual layout updates stop living as harness-local public branches
 - bottom-level chart public API wrapper construction should follow the same direction, so createPhaseOneChart degrades toward attach-plus-factory instead of owning the full harness-to-public glue surface
+- runtime subscription and trade-location command routing should follow the same direction, so handler-set mutation and trade location public commands stop living as harness-local public branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

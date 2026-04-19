@@ -123,6 +123,7 @@ import {
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
+import { createValidatedChartStateApplicationDeps } from "./chart-state-apply-runtime";
 import {
   applyRestorableMainSeriesState,
   applyRestorablePriceScaleState,
@@ -2221,12 +2222,14 @@ export class PhaseOneChartHarness {
   }
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
-    applyValidatedChartState(state, {
+    applyValidatedChartState(state, createValidatedChartStateApplicationDeps({
       validateDrawings: validateDrawingCollectionSnapshots,
-      restoreDeps: {
+      options: {
         applyOptions: (options) => {
           this.applyOptions(options);
         },
+      },
+      clearing: {
         clearSelection: () => {
           this.selectDrawing(null, false);
         },
@@ -2236,6 +2239,8 @@ export class PhaseOneChartHarness {
         clearTradeLocation: () => {
           this.clearTradeLocation();
         },
+      },
+      panes: {
         listSecondaryPaneIds: () => listSecondaryPaneIdsUseCase({
           listPanes: () => this.panes.list(),
         }),
@@ -2253,6 +2258,8 @@ export class PhaseOneChartHarness {
           listPanes: () => this.panes.list(),
           emitPaneEvent: (type, paneId) => this.emitPaneEvent(type, paneId),
         }),
+      },
+      content: {
         applyMainSeriesState: (mainSeriesState) => applyRestorableMainSeriesState(mainSeriesState, {
           applyMainSeriesState: (nextState) => {
             this.applyMainSeriesState(nextState);
@@ -2266,6 +2273,8 @@ export class PhaseOneChartHarness {
           },
         }),
         restoreDrawings: (drawings) => this.restoreChartDrawings(drawings),
+      },
+      scales: {
         applyTimeScaleState: (timeScaleState) => applyRestorableTimeScaleState(timeScaleState, {
           applyOptions: (options) => this.timeScaleApi().applyOptions(options),
           setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
@@ -2274,6 +2283,8 @@ export class PhaseOneChartHarness {
           applyOptions: (options) => this.priceScaleApi().applyOptions(options),
           setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
         }),
+      },
+      finalize: {
         finalize: () => finalizeRestoredChart({
           hasCanvas: () => this.canvas !== null,
           render: () => {
@@ -2283,7 +2294,7 @@ export class PhaseOneChartHarness {
           },
         }),
       },
-    });
+    }));
   }
 
   private clearRestorableChartStudies(): void {

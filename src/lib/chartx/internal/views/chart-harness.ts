@@ -166,6 +166,10 @@ import {
   resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
 } from "./chart-drawing-state";
 import {
+  createHorizontalLineDrawingApi as createHorizontalLineDrawingApiUseCase,
+  createTrendLineDrawingApi as createTrendLineDrawingApiUseCase,
+} from "./chart-drawing-api";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -3469,34 +3473,25 @@ export class PhaseOneChartHarness {
       createPriceLineState: (nextOptions) => this.createPriceLineState(nextOptions),
     });
 
-    const api: PhaseOneHorizontalLineDrawingApi = {
-      applyOptions: (nextOptions) => {
-        this.assertDrawingActive(api);
-        const drawing = this.getDrawingByApi(api);
+    const api = createHorizontalLineDrawingApiUseCase({
+      assertDrawingActive: (entry) => this.assertDrawingActive(entry),
+      getDrawing: (entry) => {
+        const drawing = this.getDrawingByApi(entry);
         if (drawing.kind !== "horizontal-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        applyHorizontalLineDrawingOptionsUseCase(drawing, nextOptions);
-        if (nextOptions.visible !== undefined) {
-          this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
-        }
+        return drawing;
+      },
+      setVisible: (id, visible) => this.drawingRegistry.setVisible(id, visible),
+      selectDrawing: (id) => this.selectDrawing(id),
+      removeDrawing: (entry) => this.removeDrawing(entry),
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      select: () => {
-        this.assertDrawingActive(api);
-        const drawing = this.getDrawingByApi(api);
-        this.selectDrawing(drawing.id);
-      },
-      remove: () => {
-        this.removeDrawing(api);
-      },
-      paneIndex: () => {
-        const drawing = this.getDrawingByApi(api);
-        return drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId);
-      },
-    };
+    });
 
     this.drawingRegistry.register({
       id: meta.id,
@@ -3528,34 +3523,25 @@ export class PhaseOneChartHarness {
       resolveDefaults: () => this.resolveTrendLineDefaults(),
     });
 
-    const api: PhaseOneTrendLineDrawingApi = {
-      applyOptions: (nextOptions) => {
-        this.assertDrawingActive(api);
-        const drawing = this.getDrawingByApi(api);
+    const api = createTrendLineDrawingApiUseCase({
+      assertDrawingActive: (entry) => this.assertDrawingActive(entry),
+      getDrawing: (entry) => {
+        const drawing = this.getDrawingByApi(entry);
         if (drawing.kind !== "trend-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        applyTrendLineDrawingOptionsUseCase(drawing, nextOptions);
-        if (nextOptions.visible !== undefined) {
-          this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
-        }
+        return drawing;
+      },
+      setVisible: (id, visible) => this.drawingRegistry.setVisible(id, visible),
+      selectDrawing: (id) => this.selectDrawing(id),
+      removeDrawing: (entry) => this.removeDrawing(entry),
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      select: () => {
-        this.assertDrawingActive(api);
-        const drawing = this.getDrawingByApi(api);
-        this.selectDrawing(drawing.id);
-      },
-      remove: () => {
-        this.removeDrawing(api);
-      },
-      paneIndex: () => {
-        const drawing = this.getDrawingByApi(api);
-        return drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId);
-      },
-    };
+    });
 
     this.drawingRegistry.register({
       id: meta.id,

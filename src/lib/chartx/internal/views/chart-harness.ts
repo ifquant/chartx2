@@ -145,6 +145,7 @@ import {
   resolveHitDrawing as resolveHitDrawingUseCase,
   resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
 } from "./chart-drawing-hit-test";
+import { applyTrendLineDrag as applyTrendLineDragUseCase } from "./chart-drawing-drag";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -4048,71 +4049,50 @@ export class PhaseOneChartHarness {
   ): void {
     const drawing = this.getDrawingById(drag.drawingId);
     if (drawing === undefined || drawing.kind !== "trend-line") {
-      return;
-    }
-
-    const pane = this.getPaneById(drawing.paneId);
-    if (pane === undefined) {
-      return;
-    }
-    const paneFrame = paneFrames.find((entry) => entry.id === pane.id);
-    if (paneFrame === undefined) {
-      return;
-    }
-    const localPoint = resolveLocalPanePoint(paneFrame, point);
-    if (localPoint === null) {
-      return;
-    }
-    const priceScale = pane.kind === "primary"
-      ? this.primaryPriceScale
-      : this.chartModel.getSecondaryScale(pane.id);
-    if (priceScale === undefined) {
-      return;
-    }
-    const drawingOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
-
-    const nextTime = resolveSnappedDrawingTime(
-      localPoint.x,
-      this.chartModel.context().snapshot().barSequence.axisBars,
-      this.timeScale,
-      drawingOptions.timeMagnetEnabled,
-      drawingOptions.timeMagnetPolicy,
-      drawingOptions.timeMagnetTolerancePx,
-    );
-    const nextPrice = resolveSnappedDrawingPrice(
-      localPoint.x,
-      localPoint.y,
-      this.chartModel.context().snapshot().barSequence,
-      priceScale,
-      this.timeScale,
-      drawingOptions.magnetEnabled,
-      drawingOptions.magnetTolerancePx,
-      drawingOptions.magnetSources,
-    );
-    if (nextPrice === null) {
       this.drawingSnapGuide = null;
       return;
     }
-    const showGuide =
-      (this.drawingOptions.magnetGuideVisible && nextPrice.snapped)
-      || (this.drawingOptions.timeMagnetGuideVisible && nextTime.snapped);
-    this.drawingSnapGuide = showGuide
-      ? {
-          paneId: drawing.paneId,
-          price: nextPrice.snapped ? nextPrice.price : null,
-          color: drawing.color,
-          source: nextPrice.snapped ? nextPrice.source : null,
-          time: this.drawingOptions.timeMagnetGuideVisible && nextTime.snapped ? nextTime.time : null,
-        }
-      : null;
-
-    if (drag.handle === "start") {
-      drawing.startTime = nextTime.time;
-      drawing.startPrice = nextPrice.price;
-    } else {
-      drawing.endTime = nextTime.time;
-      drawing.endPrice = nextPrice.price;
+    const drawingOptions = resolveDrawingMagnetOptions(drawing, this.drawingOptions);
+    const nextState = applyTrendLineDragUseCase({
+      drag,
+      point,
+      paneFrames,
+      drawing,
+      primaryPriceScale: this.primaryPriceScale,
+      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+      drawingOptions: {
+        magnetGuideVisible: this.drawingOptions.magnetGuideVisible,
+        timeMagnetGuideVisible: this.drawingOptions.timeMagnetGuideVisible,
+      },
+      resolveSnappedTime: (localX, drawing) =>
+        resolveSnappedDrawingTime(
+          localX,
+          this.chartModel.context().snapshot().barSequence.axisBars,
+          this.timeScale,
+          drawingOptions.timeMagnetEnabled,
+          drawingOptions.timeMagnetPolicy,
+          drawingOptions.timeMagnetTolerancePx,
+        ),
+      resolveSnappedPrice: (localX, localY, _drawing, priceScale) =>
+        resolveSnappedDrawingPrice(
+          localX,
+          localY,
+          this.chartModel.context().snapshot().barSequence,
+          priceScale,
+          this.timeScale,
+          drawingOptions.magnetEnabled,
+          drawingOptions.magnetTolerancePx,
+          drawingOptions.magnetSources,
+        ),
+    });
+    this.drawingSnapGuide = nextState.snapGuide;
+    if (nextState.nextDrawing === null) {
+      return;
     }
+    drawing.startTime = nextState.nextDrawing.startTime;
+    drawing.startPrice = nextState.nextDrawing.startPrice;
+    drawing.endTime = nextState.nextDrawing.endTime;
+    drawing.endPrice = nextState.nextDrawing.endPrice;
   }
 
   private renderSeriesSource(

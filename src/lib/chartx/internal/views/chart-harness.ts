@@ -336,6 +336,12 @@ import {
   createHorizontalLineDrawingForPane as createHorizontalLineDrawingForPaneUseCase,
   createTrendLineDrawingForPane as createTrendLineDrawingForPaneUseCase,
 } from "./chart-drawing-creation";
+import {
+  clearDrawingRegistry as clearDrawingRegistryUseCase,
+  getDrawingById as getDrawingByIdUseCase,
+  getDrawingCountForPane as getDrawingCountForPaneUseCase,
+  listDrawingsByPane as listDrawingsByPaneUseCase,
+} from "./chart-drawing-accessors";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -2299,9 +2305,10 @@ export class PhaseOneChartHarness {
   }
 
   private clearRestorableChartDrawings(): void {
-    for (const drawing of this.drawingRegistry.list()) {
-      this.drawingRegistry.removeByApi(drawing.api);
-    }
+    clearDrawingRegistryUseCase({
+      listDrawings: () => this.drawingRegistry.list(),
+      removeByApi: (api) => this.drawingRegistry.removeByApi(api),
+    });
   }
 
   private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
@@ -3014,7 +3021,7 @@ export class PhaseOneChartHarness {
   private paneHasSeries(paneId: string): boolean {
     return paneHasSeriesUseCase(paneId, {
       getSeriesCount: (nextPaneId) => this.chartModel.listSourcesByPane(nextPaneId).length,
-      getDrawingCount: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId).length,
+      getDrawingCount: (nextPaneId) => this.getDrawingCountForPane(nextPaneId),
     });
   }
 
@@ -3042,7 +3049,7 @@ export class PhaseOneChartHarness {
     removePaneUseCase(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getSeriesCount: (nextPaneId) => this.getSecondarySeriesForPane(nextPaneId).length,
-      getDrawingCount: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId).length,
+      getDrawingCount: (nextPaneId) => this.getDrawingCountForPane(nextPaneId),
       buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
       buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
       removePaneById: (nextPaneId) => {
@@ -3210,7 +3217,21 @@ export class PhaseOneChartHarness {
   }
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
-    return this.drawingRegistry.list().find((drawing) => drawing.id === id);
+    return getDrawingByIdUseCase(id, {
+      listDrawings: () => this.drawingRegistry.list(),
+    });
+  }
+
+  private getDrawingsByPane(paneId: string): readonly ChartDrawingDescriptor[] {
+    return listDrawingsByPaneUseCase(paneId, {
+      listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
+    });
+  }
+
+  private getDrawingCountForPane(paneId: string): number {
+    return getDrawingCountForPaneUseCase(paneId, {
+      listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
+    });
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
@@ -3441,7 +3462,7 @@ export class PhaseOneChartHarness {
       getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
       axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
       timeScale: this.timeScale,
-      drawingsForPane: (paneId) => this.drawingRegistry.listByPane(paneId),
+      drawingsForPane: (paneId) => this.getDrawingsByPane(paneId),
       hitTolerance: DRAWING_HIT_TOLERANCE,
     });
   }

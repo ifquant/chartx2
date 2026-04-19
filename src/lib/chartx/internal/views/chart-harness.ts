@@ -73,8 +73,12 @@ import {
 } from "../renderers";
 import type { Coordinate } from "../model";
 import { restoreDrawingCollection, type RestorableDrawingSnapshot } from "./chart-drawing-restore";
-import { createPrimarySeriesApi } from "./chart-primary-series-api";
-import { attachMainSeriesSource, createMainSeriesSourceState } from "./chart-main-series-source";
+import { createMainSeriesSourceState } from "./chart-main-series-source";
+import {
+  addPrimarySeries as addPrimarySeriesUseCase,
+  attachPrimarySeries as attachPrimarySeriesUseCase,
+  type PrimarySeriesFactoryDeps,
+} from "./chart-primary-series-factory";
 import {
   createCompareStudySeriesApi,
   createMovingAverageStudySeriesApi,
@@ -1843,45 +1847,45 @@ export class PhaseOneChartHarness {
       previousStyleSchemaId?: PhaseOneMainStyleSchemaId;
     },
   ): PhaseOneMainSeriesApi {
-    return attachMainSeriesSource(
-      kind,
-      preserved,
-      {
-        currentMainSourceId: this.chartModel.mainSourceId(),
-        createMeta: (chartType) => this.createSeriesMeta(chartType),
-        createLabel: (chartType, id) => this.createSeriesLabel(chartType, id),
-        createApi: (chartType) => this.createPrimarySeriesApi(chartType),
-        createSourceState: (chartType, api, meta) =>
-          this.createMainSourceState(
-            "primary",
-            chartType,
-            seriesKindForMainChartType(chartType),
-            api,
-            meta,
-            this.primaryPriceScale,
-            "primary-right",
-          ),
-        clonePriceLines,
-        projectOptions: (previousStyleSchemaId, nextStyleSchemaId, preservedOptions, currentOptions) =>
-          projectMainSeriesStyleOptions(
-            previousStyleSchemaId,
-            nextStyleSchemaId,
-            preservedOptions,
-            currentOptions as Record<string, unknown>,
-          ) as typeof currentOptions,
-        rebuildData: (source) => {
-          source.data = applyMainSeriesBuilderData(source.inputData, source);
-        },
-        registerSource: (source) => this.chartModel.registerSource(source),
-        syncContext: (source) => this.syncChartContextFromMainSource(source),
-      },
-    );
+    return attachPrimarySeriesUseCase(kind, preserved, this.createPrimarySeriesFactoryDeps());
   }
 
-  private createPrimarySeriesApi(
-    kind: PhaseOneMainChartType,
-  ): PhaseOneMainSeriesApi {
-    return createPrimarySeriesApi(kind, {
+  private createPrimarySeriesFactoryDeps(): PrimarySeriesFactoryDeps<
+    PhaseOneMainSeriesApi,
+    MainSeriesSourceState,
+    HistogramVisual,
+    SeriesMarkerState,
+    PriceLineState,
+    MainSeriesSourceState["options"],
+    PhaseOneMainStyleSchemaId
+  > {
+    return {
+      currentMainSourceId: this.chartModel.mainSourceId(),
+      createMeta: (chartType) => this.createSeriesMeta(chartType),
+      createLabel: (chartType, id) => this.createSeriesLabel(chartType, id),
+      createSourceState: (chartType, api, meta) =>
+        this.createMainSourceState(
+          "primary",
+          chartType,
+          seriesKindForMainChartType(chartType),
+          api,
+          meta,
+          this.primaryPriceScale,
+          "primary-right",
+        ),
+      clonePriceLines,
+      projectOptions: (previousStyleSchemaId, nextStyleSchemaId, preservedOptions, currentOptions) =>
+        projectMainSeriesStyleOptions(
+          previousStyleSchemaId,
+          nextStyleSchemaId,
+          preservedOptions,
+          currentOptions as Record<string, unknown>,
+        ) as typeof currentOptions,
+      rebuildData: (source) => {
+        source.data = applyMainSeriesBuilderData(source.inputData, source);
+      },
+      registerSource: (source) => this.chartModel.registerSource(source),
+      syncContext: (source) => this.syncChartContextFromMainSource(source),
       assertSeriesActive: (api) => this.assertSeriesActive(api),
       getSource: (api, sourceKind) => this.getSourceByApi(api, sourceKind),
       applySeriesFormatterOptions: (seriesOptions, options) =>
@@ -1906,20 +1910,14 @@ export class PhaseOneChartHarness {
       normalizeLineData,
       normalizeLineBar,
       setMarkers: (api, markers, sourceKind) => this.setSecondaryMarkers(api, markers, sourceKind),
-      createPriceLine: (api, sourceKind, options) => {
-        const state = this.getSourceByApi(api, sourceKind);
-        const priceLine = this.createPriceLineState(options);
-        return this.createPriceLineApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (api, sourceKind, line) => {
-        const state = this.getSourceByApi(api, sourceKind);
-        this.removePriceLineFromMap(state.priceLines, line);
-      },
-    });
+      createPriceLineState: (options) => this.createPriceLineState(options),
+      createPriceLine: (lines, state) => this.createPriceLineApi(lines, state),
+      removePriceLine: (lines, line) => this.removePriceLineFromMap(lines, line),
+    };
   }
 
   private addPrimaryCandlestickSeries(): PhaseOneCandlestickSeriesApi {
-    return this.attachPrimarySeries("candlestick") as PhaseOneCandlestickSeriesApi;
+    return addPrimarySeriesUseCase("candlestick", this.createPrimarySeriesFactoryDeps()) as PhaseOneCandlestickSeriesApi;
   }
 
   public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
@@ -2770,23 +2768,23 @@ export class PhaseOneChartHarness {
   }
 
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
-    return this.attachPrimarySeries("line") as PhaseOneLineSeriesApi;
+    return addPrimarySeriesUseCase("line", this.createPrimarySeriesFactoryDeps()) as PhaseOneLineSeriesApi;
   }
 
   private addPrimaryAreaSeries(): PhaseOneAreaSeriesApi {
-    return this.attachPrimarySeries("area") as PhaseOneAreaSeriesApi;
+    return addPrimarySeriesUseCase("area", this.createPrimarySeriesFactoryDeps()) as PhaseOneAreaSeriesApi;
   }
 
   private addPrimaryBaselineSeries(): PhaseOneBaselineSeriesApi {
-    return this.attachPrimarySeries("baseline") as PhaseOneBaselineSeriesApi;
+    return addPrimarySeriesUseCase("baseline", this.createPrimarySeriesFactoryDeps()) as PhaseOneBaselineSeriesApi;
   }
 
   private addPrimaryBarSeries(): PhaseOneBarSeriesApi {
-    return this.attachPrimarySeries("bar") as PhaseOneBarSeriesApi;
+    return addPrimarySeriesUseCase("bar", this.createPrimarySeriesFactoryDeps()) as PhaseOneBarSeriesApi;
   }
 
   private addPrimaryHistogramSeries(): PhaseOneHistogramSeriesApi {
-    return this.attachPrimarySeries("histogram") as PhaseOneHistogramSeriesApi;
+    return addPrimarySeriesUseCase("histogram", this.createPrimarySeriesFactoryDeps()) as PhaseOneHistogramSeriesApi;
   }
 
   private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {

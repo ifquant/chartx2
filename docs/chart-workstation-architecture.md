@@ -194,5 +194,6 @@ Current direction on that path:
 - view-state bookkeeping should follow the same direction, so selected/hovered drawing state, snap-guide state, crosshair state, manual layout overrides, drag state, pane-resize state, and resize-observer ownership stop living as scattered harness-local mutable fields
 - drawing runtime composition should follow the same direction, so selected-drawing changes, drawing removal, trend-line drag-handle resolution, and drag-apply orchestration stop living as separate harness-local branches over lower-level drawing modules
 - drawing pane-aware creation glue should follow the same direction, so active-api validation, registry lookups, kind guards, and pane-existence checks stop living as harness-local wrappers around drawing factories
+- selected-drawing public state and command routing should follow the same direction, so snapshot lookup, property-schema resolution, selected apply-options, and clear-selection commands stop living inside the generic public-state branch or as harness-local drawing glue
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

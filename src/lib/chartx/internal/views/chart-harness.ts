@@ -241,12 +241,14 @@ import {
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
+} from "./chart-public-state";
+import {
   applySelectedDrawingOptions as applySelectedDrawingOptionsPublicUseCase,
   clearSelectedDrawing as clearSelectedDrawingPublicUseCase,
   getSelectedDrawing as getSelectedDrawingPublicUseCase,
   getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaPublicUseCase,
   getSelectedDrawingState as getSelectedDrawingStatePublicUseCase,
-} from "./chart-public-state";
+} from "./chart-drawing-public";
 import {
   buildPaneSeriesStates as buildPaneSeriesStatesUseCase,
   buildPaneState as buildPaneStateUseCase,

@@ -155,6 +155,10 @@ import {
   applyDrawingMagnetOverrides as applyDrawingMagnetOverridesUseCase,
   normalizeDrawingMagnetOverrides as normalizeDrawingMagnetOverridesUseCase,
 } from "./chart-drawing-magnet";
+import {
+  applyHorizontalLineDrawingOptions as applyHorizontalLineDrawingOptionsUseCase,
+  applyTrendLineDrawingOptions as applyTrendLineDrawingOptionsUseCase,
+} from "./chart-drawing-options";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3466,22 +3470,7 @@ export class PhaseOneChartHarness {
         if (drawing.kind !== "horizontal-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        const nextLine = {
-          price: nextOptions.price ?? drawing.line.price,
-          color: nextOptions.color ?? drawing.line.color,
-          lineWidth: Math.max(1, nextOptions.lineWidth ?? drawing.line.lineWidth),
-          title: nextOptions.title ?? drawing.line.title,
-        };
-        assertDrawingTargetValid({
-          kind: "horizontal-line",
-          price: nextLine.price,
-          lineWidth: nextLine.lineWidth,
-        });
-        drawing.line.price = nextLine.price;
-        drawing.line.color = nextLine.color;
-        drawing.line.lineWidth = nextLine.lineWidth;
-        drawing.line.title = nextLine.title;
-        applyDrawingMagnetOverridesUseCase(drawing, nextOptions);
+        applyHorizontalLineDrawingOptionsUseCase(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }
@@ -3556,26 +3545,7 @@ export class PhaseOneChartHarness {
         if (drawing.kind !== "trend-line") {
           throw new Error("chartx phase-one drawing api is attached to an unexpected drawing kind");
         }
-        const nextGeometry = {
-          startTime: nextOptions.startTime ?? drawing.startTime,
-          startPrice: nextOptions.startPrice ?? drawing.startPrice,
-          endTime: nextOptions.endTime ?? drawing.endTime,
-          endPrice: nextOptions.endPrice ?? drawing.endPrice,
-          lineWidth: Math.max(1, nextOptions.lineWidth ?? drawing.lineWidth),
-        };
-        assertDrawingTargetValid({
-          kind: "trend-line",
-          ...nextGeometry,
-        });
-        drawing.startTime = nextGeometry.startTime;
-        drawing.startPrice = nextGeometry.startPrice;
-        drawing.endTime = nextGeometry.endTime;
-        drawing.endPrice = nextGeometry.endPrice;
-        if (nextOptions.color !== undefined) {
-          drawing.color = nextOptions.color;
-        }
-        drawing.lineWidth = nextGeometry.lineWidth;
-        applyDrawingMagnetOverridesUseCase(drawing, nextOptions);
+        applyTrendLineDrawingOptionsUseCase(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }

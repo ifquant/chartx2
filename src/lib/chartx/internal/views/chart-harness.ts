@@ -204,6 +204,11 @@ import {
   emitPaneResizeEvent as emitPaneResizeEventUseCase,
 } from "./chart-event-runtime";
 import {
+  attachCanvasRuntime as attachCanvasRuntimeUseCase,
+  detachCanvasRuntime as detachCanvasRuntimeUseCase,
+  handleClickRuntime as handleClickRuntimeUseCase,
+} from "./chart-canvas-runtime";
+import {
   handleKeyboardViewportRuntime as handleKeyboardViewportRuntimeUseCase,
   handlePointerLeaveRuntime as handlePointerLeaveRuntimeUseCase,
   handlePointerUpRuntime as handlePointerUpRuntimeUseCase,
@@ -1626,21 +1631,20 @@ export class PhaseOneChartHarness {
     });
   };
   private readonly handleClick = (event: MouseEvent) => {
-    if (this.canvas === null) {
-      return;
-    }
-
-    const layout = measureLayout(this.canvas, this.manualLayout);
-    const point = resolvePanePoint(this.canvas, event, layout);
-    const paneFrames = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    );
-    const hitDrawing = point === null ? null : this.resolveHitDrawing(point, layout, paneFrames);
-    this.selectDrawing(hitDrawing?.id ?? null);
-    const readout = this.buildReadout(point, layout);
-    emitClickRuntimeUseCase(this.clickHandlers, readout, point);
+    handleClickRuntimeUseCase(event, {
+      hasCanvas: () => this.canvas !== null,
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, this.manualLayout)),
+      resolvePanePoint: (mouseEvent, layout) =>
+        this.canvas === null ? null : resolvePanePoint(this.canvas, mouseEvent, layout),
+      resolveHitDrawing: (point, layout) => this.resolveHitDrawing(point, layout),
+      selectDrawing: (id) => {
+        this.selectDrawing(id);
+      },
+      buildReadout: (point, layout) => this.buildReadout(point, layout),
+      emitClick: (readout, point) => {
+        emitClickRuntimeUseCase(this.clickHandlers, readout, point);
+      },
+    });
   };
   private readonly handleKeyDown = (event: KeyboardEvent) => {
     handleKeyboardViewportRuntimeUseCase(event.key, {
@@ -1677,59 +1681,82 @@ export class PhaseOneChartHarness {
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
     this.canvas = canvas;
-    if (!this.canvas.hasAttribute("tabindex")) {
-      this.canvas.tabIndex = 0;
-    }
-    this.canvas.style.cursor = "crosshair";
-    this.render(canvas);
-    window.addEventListener("resize", this.handleResize);
-    const container = canvas.parentElement;
-    if (container !== null && typeof ResizeObserver !== "undefined") {
-      this.resizeObserver = new ResizeObserver(() => {
-        if (this.canvas !== null && this.manualLayout === null) {
-          this.render(this.canvas);
+    this.resizeObserver = attachCanvasRuntimeUseCase(canvas, {
+      ensureCanvasFocusability: () => {
+        if (!canvas.hasAttribute("tabindex")) {
+          canvas.tabIndex = 0;
         }
-      });
-      this.resizeObserver.observe(container);
-    }
-    canvas.addEventListener("pointerdown", this.handlePointerDown);
-    canvas.addEventListener("pointermove", this.handlePointerMove);
-    canvas.addEventListener("pointerup", this.handlePointerUp);
-    canvas.addEventListener("pointercancel", this.handlePointerUp);
-    canvas.addEventListener("pointerleave", this.handlePointerLeave);
-    canvas.addEventListener("wheel", this.handleWheel, { passive: false });
-    canvas.addEventListener("click", this.handleClick);
-    canvas.addEventListener("keydown", this.handleKeyDown);
+      },
+      setCanvasCursor: (cursor) => {
+        canvas.style.cursor = cursor;
+      },
+      render: () => {
+        this.render(canvas);
+      },
+      addWindowResizeListener: () => {
+        window.addEventListener("resize", this.handleResize);
+      },
+      maybeAttachResizeObserver: (nextCanvas) => {
+        const container = nextCanvas.parentElement;
+        if (container === null || typeof ResizeObserver === "undefined") {
+          return null;
+        }
+        const observer = new ResizeObserver(() => {
+          if (this.canvas !== null && this.manualLayout === null) {
+            this.render(this.canvas);
+          }
+        });
+        observer.observe(container);
+        return observer;
+      },
+      handlePointerDown: this.handlePointerDown as EventListener,
+      handlePointerMove: this.handlePointerMove as EventListener,
+      handlePointerUp: this.handlePointerUp as EventListener,
+      handlePointerLeave: this.handlePointerLeave as EventListener,
+      handleWheel: this.handleWheel as EventListener,
+      handleClick: this.handleClick as EventListener,
+      handleKeyDown: this.handleKeyDown as EventListener,
+    });
   }
 
   public detach(): void {
-    if (this.canvas !== null) {
-      this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
-      this.canvas.removeEventListener("pointermove", this.handlePointerMove);
-      this.canvas.removeEventListener("pointerup", this.handlePointerUp);
-      this.canvas.removeEventListener("pointercancel", this.handlePointerUp);
-      this.canvas.removeEventListener("pointerleave", this.handlePointerLeave);
-      this.canvas.removeEventListener("wheel", this.handleWheel);
-      this.canvas.removeEventListener("click", this.handleClick);
-      this.canvas.removeEventListener("keydown", this.handleKeyDown);
-    }
-    window.removeEventListener("resize", this.handleResize);
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    this.canvas = null;
-    this.crosshair = null;
-    this.hoveredDrawingId = null;
-    this.hoveredDrawingHandle = null;
-    this.drawingSnapGuide = null;
-    this.dragState = null;
-    this.drawingDragState = null;
-    this.paneResizeState = null;
-    this.crosshairMoveHandlers.clear();
-    this.clickHandlers.clear();
-    this.drawingSelectionHandlers.clear();
-    this.paneResizeHandlers.clear();
-    this.paneEventHandlers.clear();
-    this.chartTypeChangeHandlers.clear();
+    detachCanvasRuntimeUseCase({
+      canvas: this.canvas,
+      removeWindowResizeListener: () => {
+        window.removeEventListener("resize", this.handleResize);
+      },
+      disconnectResizeObserver: () => {
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = null;
+      },
+      handlePointerDown: this.handlePointerDown as EventListener,
+      handlePointerMove: this.handlePointerMove as EventListener,
+      handlePointerUp: this.handlePointerUp as EventListener,
+      handlePointerLeave: this.handlePointerLeave as EventListener,
+      handleWheel: this.handleWheel as EventListener,
+      handleClick: this.handleClick as EventListener,
+      handleKeyDown: this.handleKeyDown as EventListener,
+      resetCanvasRef: () => {
+        this.canvas = null;
+      },
+      clearInteractionState: () => {
+        this.crosshair = null;
+        this.hoveredDrawingId = null;
+        this.hoveredDrawingHandle = null;
+        this.drawingSnapGuide = null;
+        this.dragState = null;
+        this.drawingDragState = null;
+        this.paneResizeState = null;
+      },
+      clearSubscriptions: () => {
+        this.crosshairMoveHandlers.clear();
+        this.clickHandlers.clear();
+        this.drawingSelectionHandlers.clear();
+        this.paneResizeHandlers.clear();
+        this.paneEventHandlers.clear();
+        this.chartTypeChangeHandlers.clear();
+      },
+    });
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {

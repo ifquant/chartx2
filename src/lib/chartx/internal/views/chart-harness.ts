@@ -204,6 +204,12 @@ import {
   emitPaneResizeEvent as emitPaneResizeEventUseCase,
 } from "./chart-event-runtime";
 import {
+  handleKeyboardViewportRuntime as handleKeyboardViewportRuntimeUseCase,
+  handlePointerLeaveRuntime as handlePointerLeaveRuntimeUseCase,
+  handlePointerUpRuntime as handlePointerUpRuntimeUseCase,
+  handleWheelZoomRuntime as handleWheelZoomRuntimeUseCase,
+} from "./chart-input-runtime";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1478,22 +1484,35 @@ export class PhaseOneChartHarness {
     this.render(this.canvas);
   };
   private readonly handlePointerLeave = () => {
-    if (
-      this.canvas === null ||
-      this.crosshair === null ||
-      this.dragState !== null ||
-      this.drawingDragState !== null ||
-      this.paneResizeState !== null
-    ) {
-      return;
-    }
-
-    this.crosshair = null;
-    this.hoveredDrawingId = null;
-    this.hoveredDrawingHandle = null;
-    this.drawingSnapGuide = null;
-    this.canvas.style.cursor = "default";
-    this.render(this.canvas);
+    handlePointerLeaveRuntimeUseCase({
+      hasCanvas: () => this.canvas !== null,
+      hasCrosshair: () => this.crosshair !== null,
+      hasDragState: () => this.dragState !== null,
+      hasDrawingDragState: () => this.drawingDragState !== null,
+      hasPaneResizeState: () => this.paneResizeState !== null,
+      clearCrosshair: () => {
+        this.crosshair = null;
+      },
+      clearHoveredDrawing: () => {
+        this.hoveredDrawingId = null;
+      },
+      clearHoveredDrawingHandle: () => {
+        this.hoveredDrawingHandle = null;
+      },
+      clearDrawingSnapGuide: () => {
+        this.drawingSnapGuide = null;
+      },
+      setCursor: (cursor) => {
+        if (this.canvas !== null) {
+          this.canvas.style.cursor = cursor;
+        }
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   };
   private readonly handlePointerDown = (event: PointerEvent) => {
     if (this.canvas === null || this.getPointCount() === 0) {
@@ -1552,34 +1571,55 @@ export class PhaseOneChartHarness {
     this.canvas.setPointerCapture(event.pointerId);
   };
   private readonly handlePointerUp = (event: PointerEvent) => {
-    if (this.canvas === null) {
-      return;
-    }
-
-    if (this.canvas.hasPointerCapture(event.pointerId)) {
-      this.canvas.releasePointerCapture(event.pointerId);
-    }
-    this.dragState = null;
-    this.drawingDragState = null;
-    this.paneResizeState = null;
-    this.hoveredDrawingHandle = null;
-    this.drawingSnapGuide = null;
-    this.canvas.style.cursor = this.crosshair === null ? "default" : "crosshair";
+    handlePointerUpRuntimeUseCase(event.pointerId, {
+      hasCanvas: () => this.canvas !== null,
+      hasPointerCapture: (pointerId) => this.canvas?.hasPointerCapture(pointerId) ?? false,
+      releasePointerCapture: (pointerId) => {
+        this.canvas?.releasePointerCapture(pointerId);
+      },
+      clearDragState: () => {
+        this.dragState = null;
+      },
+      clearDrawingDragState: () => {
+        this.drawingDragState = null;
+      },
+      clearPaneResizeState: () => {
+        this.paneResizeState = null;
+      },
+      clearHoveredDrawingHandle: () => {
+        this.hoveredDrawingHandle = null;
+      },
+      clearDrawingSnapGuide: () => {
+        this.drawingSnapGuide = null;
+      },
+      hasCrosshair: () => this.crosshair !== null,
+      setCursor: (cursor) => {
+        if (this.canvas !== null) {
+          this.canvas.style.cursor = cursor;
+        }
+      },
+    });
   };
   private readonly handleWheel = (event: WheelEvent) => {
-    const pointCount = this.getPointCount();
-    if (this.canvas === null || pointCount === 0) {
-      return;
-    }
-
-    event.preventDefault();
-    const layout = measureLayout(this.canvas);
-    const paneWidth = layout.width - layout.left - layout.right;
-    const baseSpacing = calculateBaseBarSpacing(paneWidth, pointCount);
-    const currentSpacing = this.barSpacing ?? baseSpacing;
-    const factor = event.deltaY < 0 ? 1.15 : 0.87;
-    this.barSpacing = clamp(currentSpacing * factor, MIN_BAR_SPACING, MAX_BAR_SPACING);
-    this.render(this.canvas);
+    handleWheelZoomRuntimeUseCase(event.deltaY, {
+      hasCanvas: () => this.canvas !== null,
+      getPointCount: () => this.getPointCount(),
+      preventDefault: () => {
+        event.preventDefault();
+      },
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getBarSpacing: () => this.barSpacing,
+      setBarSpacing: (value) => {
+        this.barSpacing = value;
+      },
+      calculateBaseBarSpacing,
+      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   };
   private readonly handleClick = (event: MouseEvent) => {
     if (this.canvas === null) {
@@ -1599,56 +1639,35 @@ export class PhaseOneChartHarness {
     emitClickRuntimeUseCase(this.clickHandlers, readout, point);
   };
   private readonly handleKeyDown = (event: KeyboardEvent) => {
-    const pointCount = this.getPointCount();
-    if (this.canvas === null || pointCount === 0) {
-      return;
-    }
-
-    if (this.selectedDrawingId !== null) {
-      switch (event.key) {
-        case "Escape":
-          event.preventDefault();
-          this.selectDrawing(null);
-          return;
-        case "Backspace":
-        case "Delete":
-          event.preventDefault();
-          this.removeSelectedDrawing();
-          return;
-        default:
-          break;
-      }
-    }
-
-    const layout = measureLayout(this.canvas);
-    const paneWidth = layout.width - layout.left - layout.right;
-    const baseSpacing = calculateBaseBarSpacing(paneWidth, pointCount);
-    const currentSpacing = this.barSpacing ?? baseSpacing;
-
-    switch (event.key) {
-      case "ArrowUp":
+    handleKeyboardViewportRuntimeUseCase(event.key, {
+      hasCanvas: () => this.canvas !== null,
+      getPointCount: () => this.getPointCount(),
+      hasSelectedDrawing: () => this.selectedDrawingId !== null,
+      preventDefault: () => {
         event.preventDefault();
-        this.barSpacing = clamp(currentSpacing * 1.15, MIN_BAR_SPACING, MAX_BAR_SPACING);
-        this.render(this.canvas);
-        return;
-      case "ArrowDown":
-        event.preventDefault();
-        this.barSpacing = clamp(currentSpacing * 0.87, MIN_BAR_SPACING, MAX_BAR_SPACING);
-        this.render(this.canvas);
-        return;
-      case "ArrowLeft":
-        event.preventDefault();
-        this.rightOffset -= 0.6;
-        this.render(this.canvas);
-        return;
-      case "ArrowRight":
-        event.preventDefault();
-        this.rightOffset += 0.6;
-        this.render(this.canvas);
-        return;
-      default:
-        return;
-    }
+      },
+      clearSelectedDrawing: () => {
+        this.selectDrawing(null);
+      },
+      removeSelectedDrawing: () => {
+        this.removeSelectedDrawing();
+      },
+      getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas)),
+      getBarSpacing: () => this.barSpacing,
+      setBarSpacing: (value) => {
+        this.barSpacing = value;
+      },
+      adjustRightOffset: (delta) => {
+        this.rightOffset += delta;
+      },
+      calculateBaseBarSpacing,
+      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   };
 
   public attach(canvas: HTMLCanvasElement): void {

@@ -183,5 +183,6 @@ Current direction on that path:
 - readout detail formatting and series value formatting should follow the same direction, so readout presentation glue stops living as a harness-local formatting branch
 - price/time/volume axis label formatting should follow the same direction, so shared axis and readout formatter helpers stop living at the bottom of chart-harness
 - price-axis/time-axis tag assembly and magnet tag builders should follow the same direction, so axis-tag presentation stops living as a large harness-local render branch
+- price-line, marker, and trade-overlay pane decoration rendering should follow the same direction, so pane decoration presentation stops living as another harness-local render block
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

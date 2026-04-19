@@ -216,6 +216,12 @@ import {
   unsubscribePaneResize as unsubscribePaneResizeUseCase,
 } from "./chart-pane-runtime";
 import {
+  assertPriceLineActive as assertPriceLineActiveUseCase,
+  createPriceLineApi as createPriceLineApiUseCase,
+  createPriceLineState as createPriceLineStateUseCase,
+  removePriceLineFromMap as removePriceLineFromMapUseCase,
+} from "./chart-price-line-runtime";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -3267,14 +3273,9 @@ export class PhaseOneChartHarness {
   private createPriceLineState(options: PhaseOnePriceLineOptions = {}): PriceLineState {
     const ordinal = this.nextPriceLineId;
     this.nextPriceLineId += 1;
-
-    return {
-      id: `price-line-${ordinal}`,
-      price: options.price ?? this.defaultPriceLineOptions.price,
-      color: options.color ?? this.defaultPriceLineOptions.color,
-      lineWidth: Math.max(1, options.lineWidth ?? this.defaultPriceLineOptions.lineWidth),
-      title: options.title ?? `Line ${ordinal}`,
-    };
+    return createPriceLineStateUseCase(ordinal, options, {
+      defaultOptions: this.defaultPriceLineOptions,
+    });
   }
 
   private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
@@ -3368,56 +3369,34 @@ export class PhaseOneChartHarness {
     lines: Map<string, PriceLineState>,
     lineState: PriceLineState,
   ): PhaseOnePriceLineApi {
-    const api: PhaseOnePriceLineApi = {
-      applyOptions: (options) => {
-        this.assertPriceLineActive(lines, api);
-        const line = lines.get(lineState.id);
-        if (line === undefined) {
-          throw new Error("chartx phase-one price line has been removed");
-        }
-        if (options.price !== undefined) {
-          line.price = options.price;
-        }
-        if (options.color !== undefined) {
-          line.color = options.color;
-        }
-        if (options.lineWidth !== undefined) {
-          line.lineWidth = Math.max(1, options.lineWidth);
-        }
-        if (options.title !== undefined) {
-          line.title = options.title;
-        }
+    return createPriceLineApiUseCase(lines, lineState, {
+      setLineId: (line, lineId) => {
+        this.priceLineHandleIds.set(line, lineId);
+      },
+      getLineId: (line) => this.priceLineHandleIds.get(line),
+      render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      remove: () => {
-        this.removePriceLineFromMap(lines, api);
-      },
-    };
-
-    this.priceLineHandleIds.set(api, lineState.id);
-    lines.set(lineState.id, lineState);
-    return api;
+    });
   }
 
   private removePriceLineFromMap(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
-    const lineId = this.priceLineHandleIds.get(line);
-    if (lineId === undefined || !lines.has(lineId)) {
-      throw new Error("chartx phase-one price line has been removed");
-    }
-
-    lines.delete(lineId);
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    removePriceLineFromMapUseCase(lines, line, {
+      getLineId: (nextLine) => this.priceLineHandleIds.get(nextLine),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private assertPriceLineActive(lines: Map<string, PriceLineState>, line: PhaseOnePriceLineApi): void {
-    const lineId = this.priceLineHandleIds.get(line);
-    if (lineId === undefined || !lines.has(lineId)) {
-      throw new Error("chartx phase-one price line has been removed");
-    }
+    assertPriceLineActiveUseCase(lines, line, {
+      getLineId: (nextLine) => this.priceLineHandleIds.get(nextLine),
+    });
   }
 
   private getDrawingByApi(api: ChartDrawingApi) {

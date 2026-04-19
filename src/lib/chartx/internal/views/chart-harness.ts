@@ -222,6 +222,14 @@ import {
   buildPaneStateSnapshot as buildPaneStateSnapshotUseCase,
 } from "./chart-pane-state";
 import {
+  buildPaneStateById as buildPaneStateByIdUseCase,
+  buildPaneStateSnapshotByIds as buildPaneStateSnapshotByIdsUseCase,
+  emitPaneEvent as emitPaneEventUseCase,
+  emitPaneResize as emitPaneResizeUseCase,
+  getPaneSeriesStates as getPaneSeriesStatesUseCase,
+  removePane as removePaneUseCase,
+} from "./chart-pane-management";
+import {
   applyPaneOptions as applyPaneOptionsUseCase,
   applyPaneResize as applyPaneResizeUseCase,
   getPaneByHandle as getPaneByHandleUseCase,
@@ -3266,32 +3274,33 @@ export class PhaseOneChartHarness {
   }
 
   private removePaneById(paneId: string): void {
-    const pane = this.getPaneById(paneId);
-    if (pane === undefined) {
-      throw new Error("chartx phase-one pane has been removed");
-    }
-    if (pane.kind === "primary") {
-      throw new Error("chartx phase-one chart cannot remove the primary pane");
-    }
-    if (this.getSecondarySeriesForPane(paneId).length > 0) {
-      throw new Error("chartx phase-one chart cannot remove a pane while a series is still attached");
-    }
-    if (this.drawingRegistry.listByPane(paneId).length > 0) {
-      throw new Error("chartx phase-one chart cannot remove a pane while a drawing is still attached");
-    }
-
-    const removedPaneState = this.buildPaneState(paneId);
-    this.panes.removeById(paneId);
-    this.paneResizeHandlers.delete(paneId);
-    this.chartModel.removeSecondaryScale(paneId);
-    this.emitPaneEvent("removed", paneId, removedPaneState, this.buildPaneStateSnapshot());
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    removePaneUseCase(paneId, {
+      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
+      getSeriesCount: (nextPaneId) => this.getSecondarySeriesForPane(nextPaneId).length,
+      getDrawingCount: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId).length,
+      buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
+      buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
+      removePaneById: (nextPaneId) => {
+        this.panes.removeById(nextPaneId);
+      },
+      clearPaneResizeHandlers: (nextPaneId) => {
+        this.paneResizeHandlers.delete(nextPaneId);
+      },
+      removeSecondaryScale: (nextPaneId) => {
+        this.chartModel.removeSecondaryScale(nextPaneId);
+      },
+      emitPaneEvent: (type, nextPaneId, explicitPaneState, explicitSnapshot) =>
+        this.emitPaneEvent(type, nextPaneId, explicitPaneState, explicitSnapshot),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private emitPaneResize(paneId: string): void {
-    emitPaneResizeEventUseCase(this.paneResizeHandlers.get(paneId), paneId, {
+    emitPaneResizeUseCase(this.paneResizeHandlers.get(paneId), paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
@@ -3304,14 +3313,14 @@ export class PhaseOneChartHarness {
     explicitPaneState?: PhaseOnePaneState | null,
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
-    emitPaneEventRuntimeUseCase(this.paneEventHandlers, type, paneId, {
+    emitPaneEventUseCase(this.paneEventHandlers, type, paneId, {
       buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
       buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
     }, explicitPaneState, explicitSnapshot);
   }
 
   private buildPaneState(paneId: string): PhaseOnePaneState | null {
-    return buildPaneStateUseCase(paneId, {
+    return buildPaneStateByIdUseCase(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
@@ -3320,7 +3329,7 @@ export class PhaseOneChartHarness {
   }
 
   private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
-    return buildPaneStateSnapshotUseCase(
+    return buildPaneStateSnapshotByIdsUseCase(
       this.panes.list().map((pane) => pane.id),
       {
         buildPaneState: (paneId) => this.buildPaneState(paneId),
@@ -3329,7 +3338,9 @@ export class PhaseOneChartHarness {
   }
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return buildPaneSeriesStatesUseCase(this.chartModel.listSourcesByPane(paneId));
+    return getPaneSeriesStatesUseCase(paneId, {
+      listSourcesByPane: (nextPaneId) => this.chartModel.listSourcesByPane(nextPaneId),
+    });
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {

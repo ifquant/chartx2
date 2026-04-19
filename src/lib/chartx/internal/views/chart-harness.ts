@@ -165,6 +165,13 @@ import {
   createTrendLineDrawingState as createTrendLineDrawingStateUseCase,
   resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
 } from "./chart-drawing-state";
+import {
+  buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
+  removeDrawing as removeDrawingUseCase,
+  removeSelectedDrawing as removeSelectedDrawingUseCase,
+  requireDrawingByApi as requireDrawingByApiUseCase,
+  selectDrawing as selectDrawingUseCase,
+} from "./chart-drawing-session";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3630,11 +3637,7 @@ export class PhaseOneChartHarness {
   }
 
   private getDrawingByApi(api: ChartDrawingApi) {
-    const drawing = this.drawingRegistry.getByApi(api);
-    if (drawing === undefined) {
-      throw new Error("chartx phase-one drawing has been removed");
-    }
-    return drawing;
+    return requireDrawingByApiUseCase(api, this.drawingRegistry);
   }
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
@@ -3642,37 +3645,30 @@ export class PhaseOneChartHarness {
   }
 
   private buildSelectedDrawingState(): PhaseOneSelectedDrawing {
-    if (this.selectedDrawingId === null) {
-      return null;
-    }
-
-    const drawing = this.getDrawingById(this.selectedDrawingId);
-    if (drawing === undefined) {
-      return null;
-    }
-
-    return {
-      id: drawing.id,
-      kind: drawing.kind,
-      paneIndex: drawing.paneId === "primary" ? 0 : this.getPaneIndex(drawing.paneId),
-    };
+    return buildSelectedDrawingStateUseCase(this.selectedDrawingId, {
+      getById: (id) => this.getDrawingById(id),
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    });
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
-    const nextId = id !== null && this.getDrawingById(id) !== undefined ? id : null;
-    if (this.selectedDrawingId === nextId) {
-      return;
-    }
-
-    this.selectedDrawingId = nextId;
-    const selection = this.buildSelectedDrawingState();
-    for (const handler of this.drawingSelectionHandlers) {
-      handler(selection);
-    }
-
-    if (shouldRender && this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    this.selectedDrawingId = selectDrawingUseCase({
+      selectedDrawingId: this.selectedDrawingId,
+      nextId: id,
+      shouldRender,
+      getById: (drawingId) => this.getDrawingById(drawingId),
+      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+      notifySelectionChange: (selection) => {
+        for (const handler of this.drawingSelectionHandlers) {
+          handler(selection);
+        }
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private assertDrawingActive(api: ChartDrawingApi): void {
@@ -3682,33 +3678,31 @@ export class PhaseOneChartHarness {
   }
 
   private removeDrawing(api: ChartDrawingApi): void {
-    const removed = this.drawingRegistry.removeByApi(api);
-    if (removed === undefined) {
-      throw new Error("chartx phase-one drawing has been removed");
-    }
-    if (this.selectedDrawingId === removed.id) {
-      this.selectDrawing(null, false);
-    }
-    if (this.canvas !== null) {
-      this.render(this.canvas);
-    }
+    removeDrawingUseCase({
+      api,
+      selectedDrawingId: this.selectedDrawingId,
+      registry: this.drawingRegistry,
+      clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private removeSelectedDrawing(): void {
-    if (this.selectedDrawingId === null) {
-      return;
-    }
-
-    const drawing = this.getDrawingById(this.selectedDrawingId);
-    if (drawing === undefined) {
-      this.selectDrawing(null, false);
-      if (this.canvas !== null) {
-        this.render(this.canvas);
-      }
-      return;
-    }
-
-    this.removeDrawing(drawing.api);
+    removeSelectedDrawingUseCase({
+      selectedDrawingId: this.selectedDrawingId,
+      getById: (id) => this.getDrawingById(id),
+      clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
+      removeByApi: (api) => this.removeDrawing(api),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    });
   }
 
   private createSeriesOptions(

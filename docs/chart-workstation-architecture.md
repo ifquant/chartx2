@@ -151,5 +151,6 @@ Current direction on that path:
 - render surface setup should follow the same direction, so canvas backing-store initialization and empty-plot frame rendering stop living as harness-local render entry branches
 - drawing hit testing, drag application, drawing option mutation, magnet override mutation, and magnet/snap resolution should follow the same direction, so pane-local geometry checks, drawing target patching, per-drawing magnet patching, and time/price snap policy resolution stop living as harness-local interaction branches
 - drawing creation state assembly should follow the same direction, so drawing ids/titles, initial target validation, and trend-line default derivation stop living as harness-local create branches
+- drawing selection/remove session handling should follow the same direction, so active drawing lookup, selected-drawing state assembly, selection change dispatch, and removal cleanup stop living as harness-local session branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

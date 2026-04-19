@@ -174,6 +174,12 @@ import {
   requireDrawingByApi as requireDrawingByApiUseCase,
   selectDrawing as selectDrawingUseCase,
 } from "./chart-drawing-session";
+import {
+  applySelectedDrawingOptions as applySelectedDrawingOptionsUseCase,
+  clearSelectedDrawing as clearSelectedDrawingUseCase,
+  getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaUseCase,
+  getSelectedDrawingState as getSelectedDrawingStateUseCase,
+} from "./chart-drawing-commands";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -2152,45 +2158,36 @@ export class PhaseOneChartHarness {
   }
 
   public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
-    if (this.selectedDrawingId === null) {
-      return null;
-    }
-    const drawing = this.getDrawingById(this.selectedDrawingId);
-    if (drawing === undefined) {
-      return null;
-    }
-    return (
-      buildDrawingStateSnapshots([drawing], {
+    return getSelectedDrawingStateUseCase({
+      selectedDrawingId: this.selectedDrawingId,
+      getDrawingById: (id) => this.getDrawingById(id),
+      snapshotDeps: {
         getPaneIndex: (paneId) => this.getPaneIndex(paneId),
         resolveMagnetOptions: (entry) =>
           resolveDrawingMagnetOptionsUseCase(entry as ChartDrawingDescriptor, this.drawingOptions),
-      })[0] ?? null
-    );
+      },
+    });
   }
 
   public getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null {
-    const snapshot = this.getSelectedDrawingState();
-    if (snapshot === null) {
-      return null;
-    }
-    return DRAWING_PROPERTY_SCHEMAS[snapshot.type];
+    return getSelectedDrawingPropertySchemaUseCase(
+      this.getSelectedDrawingState(),
+      (type) => DRAWING_PROPERTY_SCHEMAS[type],
+    );
   }
 
   public applySelectedDrawingOptions(
     options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
   ): void {
-    if (this.selectedDrawingId === null) {
-      throw new Error("chartx phase-one chart has no selected drawing to update");
-    }
-    const drawing = this.getDrawingById(this.selectedDrawingId);
-    if (drawing === undefined) {
-      throw new Error("chartx phase-one chart has no selected drawing to update");
-    }
-    drawing.api.applyOptions(options as never);
+    applySelectedDrawingOptionsUseCase({
+      selectedDrawingId: this.selectedDrawingId,
+      getDrawingById: (id) => this.getDrawingById(id),
+      options,
+    });
   }
 
   public clearSelectedDrawing(): void {
-    this.selectDrawing(null);
+    clearSelectedDrawingUseCase(() => this.selectDrawing(null));
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {

@@ -68,11 +68,9 @@ import {
 } from "../renderers";
 import type { Coordinate } from "../model";
 import {
-  restoreDrawingCollection,
   type RestorableDrawingSnapshot,
   validateDrawingCollectionSnapshots,
 } from "./chart-drawing-restore";
-import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "./chart-restore-pane";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import {
   addPrimarySeries as addPrimarySeriesUseCase,
@@ -136,6 +134,11 @@ import {
   clearRestorableSeries as clearRestorableSeriesUseCase,
   clearRestorableStudies as clearRestorableStudiesUseCase,
 } from "./chart-state-content-runtime";
+import {
+  restoreStateDrawingsContent as restoreStateDrawingsContentUseCase,
+  restoreStateSeriesContent as restoreStateSeriesContentUseCase,
+  restoreStateStudiesContent as restoreStateStudiesContentUseCase,
+} from "./chart-state-restore-content";
 import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
 import {
   buildDrawingStateSnapshots,
@@ -362,8 +365,6 @@ import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
-import { restoreChartSeries as restoreChartSeriesUseCase } from "./chart-series-restore";
-import { restoreChartStudies as restoreChartStudiesUseCase } from "./chart-study-restore";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -2252,18 +2253,12 @@ export class PhaseOneChartHarness {
         applyMainSeriesState: (mainSeriesState) => {
           this.applyMainSeriesState(mainSeriesState);
         },
-        restoreSeries: (series) => {
-          this.restoreChartSeries(series);
-        },
-        restoreStudies: (studies) => {
-          this.restoreChartStudies(studies);
-        },
+        restoreSeries: (series) => this.restoreChartSeries(series),
+        restoreStudies: (studies) => this.restoreChartStudies(studies),
         locateTrade: (request, overlay) => {
           this.locateTrade(request, overlay);
         },
-        restoreDrawings: (drawings) => {
-          this.restoreChartDrawings(drawings);
-        },
+        restoreDrawings: (drawings) => this.restoreChartDrawings(drawings),
         applyTimeScaleState: (timeScaleState) => applyRestorableTimeScaleState(timeScaleState, {
           applyOptions: (options) => this.timeScaleApi().applyOptions(options),
           setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
@@ -2301,84 +2296,38 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
-    restoreChartSeriesUseCase(series as readonly PhaseOneRestorableSeriesSnapshot[], {
+    restoreStateSeriesContentUseCase(series as readonly PhaseOneRestorableSeriesSnapshot[], {
       getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
       createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget),
-      restoreCandlestick: (target, snapshot) => {
-        const restored = this.addCandlestickSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreBar: (target, snapshot) => {
-        const restored = this.addBarSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreLine: (target, snapshot) => {
-        const restored = this.addLineSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreArea: (target, snapshot) => {
-        const restored = this.addAreaSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreBaseline: (target, snapshot) => {
-        const restored = this.addBaselineSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreHistogram: (target, snapshot) => {
-        const restored = this.addHistogramSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
-      restoreVolume: (target, snapshot) => {
-        const restored = this.addVolumeSeries(target);
-        restored.applyOptions(snapshot.options);
-        restored.setData(snapshot.data);
-      },
+      addCandlestick: (target) => this.addCandlestickSeries(target),
+      addBar: (target) => this.addBarSeries(target),
+      addLine: (target) => this.addLineSeries(target),
+      addArea: (target) => this.addAreaSeries(target),
+      addBaseline: (target) => this.addBaselineSeries(target),
+      addHistogram: (target) => this.addHistogramSeries(target),
+      addVolume: (target) => this.addVolumeSeries(target),
     });
   }
 
   private restoreChartStudies(studies: readonly PhaseOneChartStateSnapshot["studies"][number][]): void {
-    restoreChartStudiesUseCase(studies, {
+    restoreStateStudiesContentUseCase(studies, {
       getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
       getPaneId: (pane) => pane.id,
-      restoreOverlay: (paneId, snapshot) => {
-        const overlay = this.addStudyLineSeries(paneId, "overlay");
-        overlay.applyOptions(snapshot.seriesOptions);
-        overlay.setData(snapshot.data);
-      },
-      restoreCompare: (paneId, snapshot) => {
-        const compare = this.addCompareStudySeries(paneId);
-        compare.applyOptions(snapshot.seriesOptions);
-        compare.applyCompareOptions(snapshot.compareOptions);
-        compare.setData(snapshot.data);
-      },
-      restoreMovingAverage: (paneId, snapshot) => {
-        const movingAverage = this.addMovingAverageStudySeries(paneId);
-        movingAverage.applyOptions(snapshot.seriesOptions);
-        movingAverage.applyStudyOptions(snapshot.studyOptions);
-      },
+      addOverlay: (paneId) => this.addStudyLineSeries(paneId, "overlay"),
+      addCompare: (paneId) => this.addCompareStudySeries(paneId),
+      addMovingAverage: (paneId) => this.addMovingAverageStudySeries(paneId),
     });
   }
 
   private restoreChartDrawings(drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][]): void {
-    restoreDrawingCollection(drawings as readonly PhaseOneRestorableDrawingSnapshot[], {
-      resolvePaneTarget: (paneIndex) => {
-        const pane = this.panes.getByIndex(paneIndex);
-        if (pane === undefined) {
-          throw new Error(INVALID_RESTORABLE_PANE_INDEX_ERROR);
-        }
-        return { pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget;
+    restoreStateDrawingsContentUseCase(drawings as readonly PhaseOneRestorableDrawingSnapshot[], {
+      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
+      createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget),
+      addHorizontalLine: (target, options) => {
+        this.addHorizontalLineDrawing(target, options);
       },
-      restoreHorizontalLine: (target, snapshot) => {
-        this.addHorizontalLineDrawing(target, snapshot.options);
-      },
-      restoreTrendLine: (target, snapshot) => {
-        this.addTrendLineDrawing(target, snapshot.options);
+      addTrendLine: (target, options) => {
+        this.addTrendLineDrawing(target, options);
       },
     });
   }

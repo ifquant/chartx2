@@ -201,5 +201,6 @@ Current direction on that path:
 - series, study, and drawing restore should share the same invalid-pane semantics, so missing-pane restore guards stop drifting across three adjacent restore modules
 - chart-state restore runtime should continue moving toward shared modules, so secondary-pane restore, time-scale apply, and price-scale apply stop living as another harness-local dependency-assembly block
 - chart-state content clearing should follow the same direction, so restore-time study/series/drawing cleanup stops living as another harness-local branch before restore runs
+- chart-state content rebuild should follow the same direction, so restore-time add/apply glue for series studies and drawings stops living as three harness-local restore methods
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

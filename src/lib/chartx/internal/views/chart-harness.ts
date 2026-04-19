@@ -197,6 +197,13 @@ import {
   unsubscribeHandler as unsubscribeHandlerUseCase,
 } from "./chart-runtime-commands";
 import {
+  emitChartTypeChangeRuntime as emitChartTypeChangeRuntimeUseCase,
+  emitClickRuntime as emitClickRuntimeUseCase,
+  emitCrosshairMoveEventRuntime as emitCrosshairMoveEventRuntimeUseCase,
+  emitPaneEventRuntime as emitPaneEventRuntimeUseCase,
+  emitPaneResizeEvent as emitPaneResizeEventUseCase,
+} from "./chart-event-runtime";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1589,13 +1596,7 @@ export class PhaseOneChartHarness {
     const hitDrawing = point === null ? null : this.resolveHitDrawing(point, layout, paneFrames);
     this.selectDrawing(hitDrawing?.id ?? null);
     const readout = this.buildReadout(point, layout);
-
-    for (const handler of this.clickHandlers) {
-      handler({
-        ...readout,
-        point,
-      });
-    }
+    emitClickRuntimeUseCase(this.clickHandlers, readout, point);
   };
   private readonly handleKeyDown = (event: KeyboardEvent) => {
     const pointCount = this.getPointCount();
@@ -3232,22 +3233,11 @@ export class PhaseOneChartHarness {
   }
 
   private emitPaneResize(paneId: string): void {
-    const handlers = this.paneResizeHandlers.get(paneId);
-    if (handlers === undefined || handlers.size === 0) {
-      return;
-    }
-    const pane = this.getPaneById(paneId);
-    if (pane === undefined) {
-      return;
-    }
-    const event: PhaseOnePaneResizeEvent = {
-      paneIndex: this.getPaneIndex(paneId),
-      height: this.getPaneHeight(paneId),
-      isPrimary: pane.kind === "primary",
-    };
-    for (const handler of handlers) {
-      handler(event);
-    }
+    emitPaneResizeEventUseCase(this.paneResizeHandlers.get(paneId), paneId, {
+      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
+      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
+      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
+    });
   }
 
   private emitPaneEvent(
@@ -3256,21 +3246,10 @@ export class PhaseOneChartHarness {
     explicitPaneState?: PhaseOnePaneState | null,
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
-    if (this.paneEventHandlers.size === 0) {
-      return;
-    }
-    const paneState = explicitPaneState ?? this.buildPaneState(paneId);
-    if (paneState === null) {
-      return;
-    }
-    const event: PhaseOnePaneEvent = {
-      type,
-      pane: paneState,
-      panes: explicitSnapshot ?? this.buildPaneStateSnapshot(),
-    };
-    for (const handler of this.paneEventHandlers) {
-      handler(event);
-    }
+    emitPaneEventRuntimeUseCase(this.paneEventHandlers, type, paneId, {
+      buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
+      buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
+    }, explicitPaneState, explicitSnapshot);
   }
 
   private buildPaneState(paneId: string): PhaseOnePaneState | null {
@@ -4451,17 +4430,11 @@ export class PhaseOneChartHarness {
   }
 
   private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
-    const event: PhaseOneCrosshairMoveEvent = buildCrosshairMoveEventUseCase(readout, this.crosshair);
-
-    for (const handler of this.crosshairMoveHandlers) {
-      handler(event);
-    }
+    emitCrosshairMoveEventRuntimeUseCase(this.crosshairMoveHandlers, readout, this.crosshair);
   }
 
   private emitChartTypeChange(type: PhaseOneMainChartType): void {
-    for (const handler of this.chartTypeChangeHandlers) {
-      handler(type);
-    }
+    emitChartTypeChangeRuntimeUseCase(this.chartTypeChangeHandlers, type);
   }
 }
 

@@ -155,5 +155,6 @@ Current direction on that path:
 - drawing API wrapper construction should follow the same direction, so apply/select/remove/pane-index behavior for horizontal-line and trend-line drawings stops living as harness-local API glue
 - drawing register/create orchestration should follow the same direction, so drawing state creation, API wrapper construction, registry registration, and initial render dispatch stop living as one harness-local create branch
 - selected-drawing command entrypoints should follow the same direction, so snapshot lookup, property-schema resolution, selected apply-options, and clear-selection commands stop living as harness-local public branches
+- public add-series, add-study, add-volume, and add-drawing command routing should follow the same direction, so target normalization and family dispatch stop living as repeated harness-local public branches
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

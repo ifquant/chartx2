@@ -168,6 +168,14 @@ import {
   createTrendLineDrawing as createTrendLineDrawingUseCase,
 } from "./chart-drawing-factory";
 import {
+  addHorizontalLineDrawingCommand as addHorizontalLineDrawingCommandUseCase,
+  addTargetedSeries as addTargetedSeriesUseCase,
+  addTargetedStudy as addTargetedStudyUseCase,
+  addTrendLineDrawingCommand as addTrendLineDrawingCommandUseCase,
+  addVolumeSeriesCommand as addVolumeSeriesCommandUseCase,
+  resolveSeriesTarget as resolveSeriesTargetUseCase,
+} from "./chart-add-commands";
+import {
   buildSelectedDrawingState as buildSelectedDrawingStateUseCase,
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1680,12 +1688,11 @@ export class PhaseOneChartHarness {
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "secondary") {
-      return this.addSecondaryCandlestickSeries(resolved.paneId);
-    }
-
-    return this.addPrimaryCandlestickSeries();
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryCandlestickSeries(),
+      addSecondary: (paneId) => this.addSecondaryCandlestickSeries(paneId),
+    });
   }
 
   private attachPrimarySeries(
@@ -1781,84 +1788,100 @@ export class PhaseOneChartHarness {
   }
 
   public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "primary") {
-      return this.addPrimaryLineSeries();
-    }
-    return this.addSecondaryLineSeries(resolved.paneId);
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryLineSeries(),
+      addSecondary: (paneId) => this.addSecondaryLineSeries(paneId),
+    });
   }
 
   public addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "primary") {
-      return this.addPrimaryAreaSeries();
-    }
-    return this.addSecondaryAreaSeries(resolved.paneId);
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryAreaSeries(),
+      addSecondary: (paneId) => this.addSecondaryAreaSeries(paneId),
+    });
   }
 
   public addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "primary") {
-      return this.addPrimaryBaselineSeries();
-    }
-    return this.addSecondaryBaselineSeries(resolved.paneId);
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryBaselineSeries(),
+      addSecondary: (paneId) => this.addSecondaryBaselineSeries(paneId),
+    });
   }
 
   public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "primary") {
-      return this.addPrimaryBarSeries();
-    }
-    return this.addSecondaryBarSeries(resolved.paneId);
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryBarSeries(),
+      addSecondary: (paneId) => this.addSecondaryBarSeries(paneId),
+    });
   }
 
   public addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    if (resolved.kind === "primary") {
-      return this.addPrimaryHistogramSeries();
-    }
-    return this.addSecondaryHistogramSeries(resolved.paneId);
+    return addTargetedSeriesUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addPrimary: () => this.addPrimaryHistogramSeries(),
+      addSecondary: (paneId) => this.addSecondaryHistogramSeries(paneId),
+    });
   }
 
   public addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: true, allowPrimary: false });
-    if (resolved.kind === "primary") {
-      throw new Error("chartx phase-one chart volume series requires a secondary pane");
-    }
-    return this.addSecondaryVolumeSeries(resolved.paneId);
+    return addVolumeSeriesCommandUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addSecondary: (paneId) => this.addSecondaryVolumeSeries(paneId),
+    });
   }
 
   public addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    return this.addStudyLineSeries(resolved.kind === "primary" ? "primary" : resolved.paneId, "overlay");
+    return addTargetedStudyUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addToPane: (paneId) => this.addStudyLineSeries(paneId, "overlay"),
+    }, {
+      defaultToSecondary: false,
+      allowPrimary: true,
+    });
   }
 
   public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    return this.addCompareStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
+    return addTargetedStudyUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addToPane: (paneId) => this.addCompareStudySeries(paneId),
+    }, {
+      defaultToSecondary: false,
+      allowPrimary: true,
+    });
   }
 
   public addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: true, allowPrimary: true });
-    return this.addMovingAverageStudySeries(resolved.kind === "primary" ? "primary" : resolved.paneId);
+    return addTargetedStudyUseCase(target, {
+      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      addToPane: (paneId) => this.addMovingAverageStudySeries(paneId),
+    }, {
+      defaultToSecondary: true,
+      allowPrimary: true,
+    });
   }
 
   public addHorizontalLineDrawing(
     target?: PhaseOneSeriesTarget,
     options: PhaseOneHorizontalLineDrawingOptions = {},
   ): PhaseOneHorizontalLineDrawingApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    const paneId = resolved.kind === "primary" ? "primary" : resolved.paneId;
-    return this.createHorizontalLineDrawing(paneId, options);
+    return addHorizontalLineDrawingCommandUseCase(target, options, {
+      resolveTarget: (nextTarget, resolveOptions) => this.resolveSeriesTarget(nextTarget, resolveOptions),
+      createDrawing: (paneId, nextOptions) => this.createHorizontalLineDrawing(paneId, nextOptions),
+    });
   }
 
   public addTrendLineDrawing(
     target?: PhaseOneSeriesTarget,
     options: PhaseOneTrendLineDrawingOptions = {},
   ): PhaseOneTrendLineDrawingApi {
-    const resolved = this.resolveSeriesTarget(target, { defaultToSecondary: false, allowPrimary: true });
-    const paneId = resolved.kind === "primary" ? "primary" : resolved.paneId;
-    return this.createTrendLineDrawing(paneId, options);
+    return addTrendLineDrawingCommandUseCase(target, options, {
+      resolveTarget: (nextTarget, resolveOptions) => this.resolveSeriesTarget(nextTarget, resolveOptions),
+      createDrawing: (paneId, nextOptions) => this.createTrendLineDrawing(paneId, nextOptions),
+    });
   }
 
   public removeSeries(
@@ -3249,39 +3272,13 @@ export class PhaseOneChartHarness {
     target: PhaseOneSeriesTarget | PhaseOneVolumeSeriesTarget | undefined,
     options: { defaultToSecondary: boolean; allowPrimary: boolean },
   ): ResolvedSeriesTarget {
-    if (target?.pane === undefined) {
-      if (!options.defaultToSecondary) {
-        return { kind: "primary" };
-      }
-
-      const existing = this.panes.list().find((pane) => pane.kind === "secondary")?.id;
-      if (existing !== undefined) {
-        return { kind: "secondary", paneId: existing };
-      }
-
-      const pane = this.addPane();
-      const paneId = this.paneHandleIds.get(pane);
-      if (paneId === undefined) {
-        throw new Error("chartx phase-one chart failed to create a secondary pane");
-      }
-      return { kind: "secondary", paneId };
-    }
-
-    const pane =
-      typeof target.pane === "number"
-        ? this.panes.getByIndex(target.pane)
-        : this.getPaneByHandle(target.pane);
-    if (pane === undefined) {
-      throw new Error("chartx phase-one chart series pane index is out of range");
-    }
-
-    if (pane.kind === "primary") {
-      if (!options.allowPrimary) {
-        throw new Error("chartx phase-one chart targeted series requires a secondary pane");
-      }
-      return { kind: "primary" };
-    }
-    return { kind: "secondary", paneId: pane.id };
+    return resolveSeriesTargetUseCase(target, options, {
+      listPanes: () => this.panes.list(),
+      getPaneByIndex: (index) => this.panes.getByIndex(index),
+      getPaneByHandle: (handle) => this.getPaneByHandle(handle),
+      addPane: () => this.addPane(),
+      getPaneId: (handle) => this.paneHandleIds.get(handle),
+    });
   }
 
   private getPaneByHandle(handle: PhaseOnePaneApi): PaneModelState | undefined {

@@ -327,9 +327,9 @@ import {
   emitPaneResizeEvent as emitPaneResizeEventUseCase,
 } from "./chart-event-runtime";
 import {
-  attachCanvasRuntime as attachCanvasRuntimeUseCase,
-  detachCanvasRuntime as detachCanvasRuntimeUseCase,
-} from "./chart-canvas-runtime";
+  attachChartCanvas as attachChartCanvasUseCase,
+  detachChartCanvas as detachChartCanvasUseCase,
+} from "./chart-canvas-lifecycle";
 import {
   removeDrawing as removeDrawingUseCase,
   removeSelectedDrawing as removeSelectedDrawingUseCase,
@@ -1603,62 +1603,48 @@ export class PhaseOneChartHarness {
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
-    this.canvas = canvas;
-    this.resizeObserver = attachCanvasRuntimeUseCase(canvas, {
-      ensureCanvasFocusability: () => {
-        if (!canvas.hasAttribute("tabindex")) {
-          canvas.tabIndex = 0;
-        }
+    attachChartCanvasUseCase(canvas, {
+      getManualLayout: () => this.manualLayout,
+      setCanvas: (nextCanvas) => {
+        this.canvas = nextCanvas;
       },
-      setCanvasCursor: (cursor) => {
-        canvas.style.cursor = cursor;
+      renderCanvas: (nextCanvas) => {
+        this.render(nextCanvas);
       },
-      render: () => {
-        this.render(canvas);
+      getResizeObserver: () => this.resizeObserver,
+      setResizeObserver: (observer) => {
+        this.resizeObserver = observer;
       },
-      addWindowResizeListener: () => {
-        window.addEventListener("resize", this.handleResize);
+      handlers: {
+        handleResize: this.handleResize as EventListener,
+        handlePointerDown: this.handlePointerDown as EventListener,
+        handlePointerMove: this.handlePointerMove as EventListener,
+        handlePointerUp: this.handlePointerUp as EventListener,
+        handlePointerLeave: this.handlePointerLeave as EventListener,
+        handleWheel: this.handleWheel as EventListener,
+        handleClick: this.handleClick as EventListener,
+        handleKeyDown: this.handleKeyDown as EventListener,
       },
-      maybeAttachResizeObserver: (nextCanvas) => {
-        const container = nextCanvas.parentElement;
-        if (container === null || typeof ResizeObserver === "undefined") {
-          return null;
-        }
-        const observer = new ResizeObserver(() => {
-          if (this.canvas !== null && this.manualLayout === null) {
-            this.render(this.canvas);
-          }
-        });
-        observer.observe(container);
-        return observer;
-      },
-      handlePointerDown: this.handlePointerDown as EventListener,
-      handlePointerMove: this.handlePointerMove as EventListener,
-      handlePointerUp: this.handlePointerUp as EventListener,
-      handlePointerLeave: this.handlePointerLeave as EventListener,
-      handleWheel: this.handleWheel as EventListener,
-      handleClick: this.handleClick as EventListener,
-      handleKeyDown: this.handleKeyDown as EventListener,
     });
   }
 
   public detach(): void {
-    detachCanvasRuntimeUseCase({
+    detachChartCanvasUseCase({
       canvas: this.canvas,
-      removeWindowResizeListener: () => {
-        window.removeEventListener("resize", this.handleResize);
+      getResizeObserver: () => this.resizeObserver,
+      setResizeObserver: (observer) => {
+        this.resizeObserver = observer;
       },
-      disconnectResizeObserver: () => {
-        this.resizeObserver?.disconnect();
-        this.resizeObserver = null;
+      handlers: {
+        handleResize: this.handleResize as EventListener,
+        handlePointerDown: this.handlePointerDown as EventListener,
+        handlePointerMove: this.handlePointerMove as EventListener,
+        handlePointerUp: this.handlePointerUp as EventListener,
+        handlePointerLeave: this.handlePointerLeave as EventListener,
+        handleWheel: this.handleWheel as EventListener,
+        handleClick: this.handleClick as EventListener,
+        handleKeyDown: this.handleKeyDown as EventListener,
       },
-      handlePointerDown: this.handlePointerDown as EventListener,
-      handlePointerMove: this.handlePointerMove as EventListener,
-      handlePointerUp: this.handlePointerUp as EventListener,
-      handlePointerLeave: this.handlePointerLeave as EventListener,
-      handleWheel: this.handleWheel as EventListener,
-      handleClick: this.handleClick as EventListener,
-      handleKeyDown: this.handleKeyDown as EventListener,
       resetCanvasRef: () => {
         this.canvas = null;
       },

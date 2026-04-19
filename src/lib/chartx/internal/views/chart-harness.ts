@@ -159,6 +159,12 @@ import {
   applyHorizontalLineDrawingOptions as applyHorizontalLineDrawingOptionsUseCase,
   applyTrendLineDrawingOptions as applyTrendLineDrawingOptionsUseCase,
 } from "./chart-drawing-options";
+import {
+  createDrawingMeta as createDrawingMetaUseCase,
+  createHorizontalLineDrawingState as createHorizontalLineDrawingStateUseCase,
+  createTrendLineDrawingState as createTrendLineDrawingStateUseCase,
+  resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
+} from "./chart-drawing-state";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3437,10 +3443,9 @@ export class PhaseOneChartHarness {
   private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
     const ordinal = this.nextDrawingId;
     this.nextDrawingId += 1;
-    return {
-      id: `drawing-${ordinal}`,
-      title: `${formatSeriesKindLabel(kind)} ${ordinal}`,
-    };
+    return createDrawingMetaUseCase(kind, ordinal, {
+      formatSeriesKindLabel,
+    });
   }
 
   private createHorizontalLineDrawing(
@@ -3452,16 +3457,10 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one drawing target pane has been removed");
     }
     const meta = this.createDrawingMeta("horizontal-line");
-    const line = this.createPriceLineState({
-      ...options,
-      title: options.title ?? meta.title,
+    const state = createHorizontalLineDrawingStateUseCase(options, {
+      title: meta.title,
+      createPriceLineState: (nextOptions) => this.createPriceLineState(nextOptions),
     });
-    assertDrawingTargetValid({
-      kind: "horizontal-line",
-      price: line.price,
-      lineWidth: line.lineWidth,
-    });
-    const magnetState = normalizeDrawingMagnetOverridesUseCase(options);
 
     const api: PhaseOneHorizontalLineDrawingApi = {
       applyOptions: (nextOptions) => {
@@ -3498,8 +3497,7 @@ export class PhaseOneChartHarness {
       paneId,
       visible: options.visible ?? true,
       api,
-      line,
-      ...magnetState,
+      ...state,
     });
 
     if (this.canvas !== null) {
@@ -3518,24 +3516,9 @@ export class PhaseOneChartHarness {
       throw new Error("chartx phase-one drawing target pane has been removed");
     }
     const meta = this.createDrawingMeta("trend-line");
-    const defaults = this.resolveTrendLineDefaults();
-    const magnetState = normalizeDrawingMagnetOverridesUseCase(options);
-    const state = {
-      startTime: options.startTime ?? defaults.startTime,
-      startPrice: options.startPrice ?? defaults.startPrice,
-      endTime: options.endTime ?? defaults.endTime,
-      endPrice: options.endPrice ?? defaults.endPrice,
-      color: options.color ?? LINE_COLOR,
-      lineWidth: Math.max(1, options.lineWidth ?? 2),
-      ...magnetState,
-    };
-    assertDrawingTargetValid({
-      kind: "trend-line",
-      startTime: state.startTime,
-      startPrice: state.startPrice,
-      endTime: state.endTime,
-      endPrice: state.endPrice,
-      lineWidth: state.lineWidth,
+    const state = createTrendLineDrawingStateUseCase(options, {
+      lineColor: LINE_COLOR,
+      resolveDefaults: () => this.resolveTrendLineDefaults(),
     });
 
     const api: PhaseOneTrendLineDrawingApi = {
@@ -3587,24 +3570,7 @@ export class PhaseOneChartHarness {
     PhaseOneTrendLineDrawingOptions,
     "startTime" | "startPrice" | "endTime" | "endPrice"
   >> {
-    const mainBars = this.chartModel.context().snapshot().barSequence.axisBars;
-    if (mainBars.length >= 2) {
-      const first = mainBars[0]!;
-      const last = mainBars[mainBars.length - 1]!;
-      return {
-        startTime: first.time as number,
-        startPrice: first.value[PlotRowValueIndex.Close],
-        endTime: last.time as number,
-        endPrice: last.value[PlotRowValueIndex.Close],
-      };
-    }
-
-    return {
-      startTime: 0,
-      startPrice: 0,
-      endTime: 1,
-      endPrice: 1,
-    };
+    return resolveTrendLineDefaultsUseCase(this.chartModel.context().snapshot().barSequence.axisBars);
   }
 
   private createPriceLineApi(

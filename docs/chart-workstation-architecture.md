@@ -181,5 +181,6 @@ Current direction on that path:
 - pane removal guards, pane-state snapshot assembly, and pane resize/event fanout should follow the same direction, so pane management bookkeeping stops living as scattered harness-local branches
 - price-line ordinal allocation, api registration, and active/remove bookkeeping should follow the same direction, so price-line handle state stops living as a harness-local helper branch
 - readout detail formatting and series value formatting should follow the same direction, so readout presentation glue stops living as a harness-local formatting branch
+- price/time/volume axis label formatting should follow the same direction, so shared axis and readout formatter helpers stop living at the bottom of chart-harness
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

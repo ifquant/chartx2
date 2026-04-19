@@ -131,6 +131,11 @@ import {
   applySecondaryPaneState as applySecondaryPaneStateUseCase,
   listSecondaryPaneIds as listSecondaryPaneIdsUseCase,
 } from "./chart-state-runtime";
+import {
+  clearRestorableDrawings as clearRestorableDrawingsUseCase,
+  clearRestorableSeries as clearRestorableSeriesUseCase,
+  clearRestorableStudies as clearRestorableStudiesUseCase,
+} from "./chart-state-content-runtime";
 import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
 import {
   buildDrawingStateSnapshots,
@@ -346,7 +351,6 @@ import {
   createTrendLineDrawingForPane as createTrendLineDrawingForPaneUseCase,
 } from "./chart-drawing-creation";
 import {
-  clearDrawingRegistry as clearDrawingRegistryUseCase,
   getDrawingById as getDrawingByIdUseCase,
   getDrawingCountForPane as getDrawingCountForPaneUseCase,
   listAllDrawings as listAllDrawingsUseCase,
@@ -2222,15 +2226,9 @@ export class PhaseOneChartHarness {
         clearSelection: () => {
           this.selectDrawing(null, false);
         },
-        clearDrawings: () => {
-          this.clearRestorableChartDrawings();
-        },
-        clearStudies: () => {
-          this.clearRestorableChartStudies();
-        },
-        clearSeries: () => {
-          this.clearRestorableChartSeries();
-        },
+        clearDrawings: () => this.clearRestorableChartDrawings(),
+        clearStudies: () => this.clearRestorableChartStudies(),
+        clearSeries: () => this.clearRestorableChartSeries(),
         clearTradeLocation: () => {
           this.clearTradeLocation();
         },
@@ -2284,22 +2282,19 @@ export class PhaseOneChartHarness {
   }
 
   private clearRestorableChartStudies(): void {
-    this.chartModel.removeSourcesWhere((source) =>
-      source.role === "study" &&
-      (
-        source.studyKind === "overlay" ||
-        source.studyKind === "compare" ||
-        (source.studyKind === "indicator" && source.indicator?.kind === "moving-average")
-      ));
+    clearRestorableStudiesUseCase({
+      removeSourcesWhere: (predicate) => this.chartModel.removeSourcesWhere(predicate),
+    });
   }
 
   private clearRestorableChartSeries(): void {
-    this.chartModel.removeSourcesWhere((source) =>
-      source.role === "study" && source.studyKind === "series");
+    clearRestorableSeriesUseCase({
+      removeSourcesWhere: (predicate) => this.chartModel.removeSourcesWhere(predicate),
+    });
   }
 
   private clearRestorableChartDrawings(): void {
-    clearDrawingRegistryUseCase({
+    clearRestorableDrawingsUseCase({
       listDrawings: () => this.drawingRegistry.list(),
       removeByApi: (api) => this.drawingRegistry.removeByApi(api),
     });

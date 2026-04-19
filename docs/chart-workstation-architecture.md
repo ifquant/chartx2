@@ -193,5 +193,6 @@ Current direction on that path:
 - handler registry bookkeeping should follow the same direction, so public subscriptions, pane resize subscriptions, and event fanout stop living as scattered harness-local Set and Map state
 - view-state bookkeeping should follow the same direction, so selected/hovered drawing state, snap-guide state, crosshair state, manual layout overrides, drag state, pane-resize state, and resize-observer ownership stop living as scattered harness-local mutable fields
 - drawing runtime composition should follow the same direction, so selected-drawing changes, drawing removal, trend-line drag-handle resolution, and drag-apply orchestration stop living as separate harness-local branches over lower-level drawing modules
+- drawing pane-aware creation glue should follow the same direction, so active-api validation, registry lookups, kind guards, and pane-existence checks stop living as harness-local wrappers around drawing factories
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

@@ -151,6 +151,10 @@ import {
   resolveSnappedDrawingPrice as resolveSnappedDrawingPriceUseCase,
   resolveSnappedDrawingTime as resolveSnappedDrawingTimeUseCase,
 } from "./chart-drawing-snap";
+import {
+  applyDrawingMagnetOverrides as applyDrawingMagnetOverridesUseCase,
+  normalizeDrawingMagnetOverrides as normalizeDrawingMagnetOverridesUseCase,
+} from "./chart-drawing-magnet";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3453,7 +3457,7 @@ export class PhaseOneChartHarness {
       price: line.price,
       lineWidth: line.lineWidth,
     });
-    const magnetState = normalizeDrawingMagnetOverrideOptions(options);
+    const magnetState = normalizeDrawingMagnetOverridesUseCase(options);
 
     const api: PhaseOneHorizontalLineDrawingApi = {
       applyOptions: (nextOptions) => {
@@ -3477,7 +3481,7 @@ export class PhaseOneChartHarness {
         drawing.line.color = nextLine.color;
         drawing.line.lineWidth = nextLine.lineWidth;
         drawing.line.title = nextLine.title;
-        applyDrawingMagnetOverrideOptions(drawing, nextOptions);
+        applyDrawingMagnetOverridesUseCase(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }
@@ -3526,7 +3530,7 @@ export class PhaseOneChartHarness {
     }
     const meta = this.createDrawingMeta("trend-line");
     const defaults = this.resolveTrendLineDefaults();
-    const magnetState = normalizeDrawingMagnetOverrideOptions(options);
+    const magnetState = normalizeDrawingMagnetOverridesUseCase(options);
     const state = {
       startTime: options.startTime ?? defaults.startTime,
       startPrice: options.startPrice ?? defaults.startPrice,
@@ -3571,7 +3575,7 @@ export class PhaseOneChartHarness {
           drawing.color = nextOptions.color;
         }
         drawing.lineWidth = nextGeometry.lineWidth;
-        applyDrawingMagnetOverrideOptions(drawing, nextOptions);
+        applyDrawingMagnetOverridesUseCase(drawing, nextOptions);
         if (nextOptions.visible !== undefined) {
           this.drawingRegistry.setVisible(drawing.id, nextOptions.visible);
         }
@@ -5953,46 +5957,6 @@ function resolveDrawingTimeCoordinate(
   }
 
   return timeScale.indexToCoordinate(axisBars[axisBars.length - 1]!.index);
-}
-
-function normalizeDrawingMagnetOverrideOptions(
-  options: PhaseOneDrawingMagnetOverrides,
-): DrawingMagnetOverrideState {
-  return {
-    magnetEnabled: options.magnetEnabled,
-    magnetTolerancePx: options.magnetTolerancePx !== undefined ? Math.max(0, options.magnetTolerancePx) : undefined,
-    timeMagnetEnabled: options.timeMagnetEnabled,
-    timeMagnetPolicy: options.timeMagnetPolicy,
-    timeMagnetTolerancePx: options.timeMagnetTolerancePx !== undefined ? Math.max(0, options.timeMagnetTolerancePx) : undefined,
-    magnetSources: options.magnetSources !== undefined ? { ...options.magnetSources } : undefined,
-  };
-}
-
-function applyDrawingMagnetOverrideOptions(
-  drawing: ChartDrawingDescriptor,
-  options: PhaseOneDrawingMagnetOverrides,
-): void {
-  if (options.magnetEnabled !== undefined) {
-    drawing.magnetEnabled = options.magnetEnabled;
-  }
-  if (options.magnetTolerancePx !== undefined) {
-    drawing.magnetTolerancePx = Math.max(0, options.magnetTolerancePx);
-  }
-  if (options.timeMagnetEnabled !== undefined) {
-    drawing.timeMagnetEnabled = options.timeMagnetEnabled;
-  }
-  if (options.timeMagnetPolicy !== undefined) {
-    drawing.timeMagnetPolicy = options.timeMagnetPolicy;
-  }
-  if (options.timeMagnetTolerancePx !== undefined) {
-    drawing.timeMagnetTolerancePx = Math.max(0, options.timeMagnetTolerancePx);
-  }
-  if (options.magnetSources !== undefined) {
-    drawing.magnetSources = {
-      ...(drawing.magnetSources ?? {}),
-      ...options.magnetSources,
-    };
-  }
 }
 
 

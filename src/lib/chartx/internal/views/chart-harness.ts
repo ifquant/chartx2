@@ -2,7 +2,6 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
   createTimeBasedChartBarSequence,
-  findNearestRowByLogical,
   applyMainSeriesStyleOptions,
   applyMainSeriesBuilder,
   buildHeikinAshiData,
@@ -186,6 +185,7 @@ import {
   distanceToLineSegment,
   resolveDrawingTimeCoordinate,
 } from "./chart-drawing-geometry";
+import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import {
   resolveHitDrawing as resolveHitDrawingUseCase,
   resolveSelectedTrendLineDragHandle as resolveSelectedTrendLineDragHandleUseCase,
@@ -4753,55 +4753,6 @@ function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): 
       detail,
     }),
   );
-}
-
-function buildCrosshairReadout(
-  rows: readonly { index: number; time: number; value: [number, number, number, number] }[],
-  crosshair: PanePoint | null,
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-): PhaseOneReadoutBody {
-  if (crosshair === null || rows.length === 0) {
-    return {
-      active: false,
-      paneIndex: null,
-      time: null,
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      price: null,
-      series: [],
-    };
-  }
-
-  const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-  const row = findNearestRowByLogical(rows, logical);
-  if (row === null) {
-    return {
-      active: false,
-      paneIndex: null,
-      time: null,
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      price: null,
-      series: [],
-    };
-  }
-
-  return {
-    active: true,
-    paneIndex: null,
-    time: row.time,
-    open: row.value[PlotRowValueIndex.Open],
-    high: row.value[PlotRowValueIndex.High],
-    low: row.value[PlotRowValueIndex.Low],
-    close: row.value[PlotRowValueIndex.Close],
-    price: priceScale.coordinateToPrice(crosshair.y),
-    series: [],
-  };
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

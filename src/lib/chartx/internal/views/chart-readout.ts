@@ -1,5 +1,6 @@
-import { findNearestRowByLogical, type PaneFrame, type PlotRow } from "../model";
+import { type PaneFrame, type PlotRow } from "../model";
 import { PriceScale, TimeScale } from "../model";
+import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import type {
   PhaseOneCandlestickData,
   PhaseOneReadoutSeriesDetail,
@@ -174,54 +175,5 @@ function resolveLocalPanePoint(
   return {
     x: point.x,
     y: point.y - pane.top,
-  };
-}
-
-function buildCrosshairReadout(
-  rows: RowSet,
-  crosshair: PanePoint | null,
-  timeScale: TimeScale,
-  priceScale: PriceScale,
-): ReadoutBody {
-  if (crosshair === null || rows.length === 0) {
-    return {
-      active: false,
-      paneIndex: null,
-      time: null,
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      price: null,
-      series: [],
-    };
-  }
-
-  const logical = Math.round(timeScale.coordinateToLogical(crosshair.x));
-  const row = findNearestRowByLogical(rows, logical);
-  if (row === null) {
-    return {
-      active: false,
-      paneIndex: null,
-      time: null,
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      price: null,
-      series: [],
-    };
-  }
-
-  return {
-    active: true,
-    paneIndex: null,
-    time: row.time,
-    open: row.value[0],
-    high: row.value[1],
-    low: row.value[2],
-    close: row.value[3],
-    price: priceScale.coordinateToPrice(crosshair.y),
-    series: [],
   };
 }

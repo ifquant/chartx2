@@ -250,6 +250,12 @@ import {
   setSeriesMarkers as setSeriesMarkersUseCase,
 } from "./chart-series-presentation";
 import {
+  setSecondaryData as setSecondaryDataUseCase,
+  setSecondaryHistogramLikeData as setSecondaryHistogramLikeDataUseCase,
+  updateSecondaryData as updateSecondaryDataUseCase,
+  updateSecondaryHistogramLikeData as updateSecondaryHistogramLikeDataUseCase,
+} from "./chart-secondary-series-runtime";
+import {
   clearTradeLocationCommand as clearTradeLocationCommandUseCase,
   locateTradeCommand as locateTradeCommandUseCase,
 } from "./chart-runtime-commands";
@@ -2991,7 +2997,7 @@ export class PhaseOneChartHarness {
     data: readonly PhaseOneCandlestickData[],
     kind: ChartSeriesKind,
   ): void {
-    replaceStudySeriesData(this.getSourceByApi(api, kind), data, {
+    setSecondaryDataUseCase(this.getSourceByApi(api, kind), data, {
       resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
       resetViewport: () => {
         this.barSpacing = null;
@@ -3010,7 +3016,7 @@ export class PhaseOneChartHarness {
     bar: PhaseOneCandlestickData,
     kind: ChartSeriesKind,
   ): void {
-    updateStudySeriesData(this.getSourceByApi(api, kind), bar, {
+    updateSecondaryDataUseCase(this.getSourceByApi(api, kind), bar, {
       updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
       resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
       render: () => {
@@ -3026,21 +3032,14 @@ export class PhaseOneChartHarness {
     data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
     kind: ChartSeriesKind,
   ): void {
-    replaceStudyHistogramLikeData(this.getSourceByApi(api, kind), data, {
+    setSecondaryHistogramLikeDataUseCase(this.getSourceByApi(api, kind), data, {
       buildVisuals: (rows) => buildHistogramVisuals(rows),
       normalizeData: (rows) => normalizeHistogramData(rows),
-      replaceStudySeriesData: (source, canonicalData) => replaceStudySeriesData(source, canonicalData, {
-        resolveDisplayData: (nextSource) => this.resolveStudyDisplayData(nextSource as StudySourceState),
-        resetViewport: () => {
-          this.barSpacing = null;
-          this.rightOffset = DEFAULT_RIGHT_OFFSET;
-        },
-        render: () => {
-          if (this.canvas !== null) {
-            this.render(this.canvas);
-          }
-        },
-      }),
+      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+      resetViewport: () => {
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
       render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
@@ -3054,17 +3053,15 @@ export class PhaseOneChartHarness {
     bar: PhaseOneHistogramData | PhaseOneVolumeData,
     kind: ChartSeriesKind,
   ): void {
-    updateStudyHistogramLikeData(this.getSourceByApi(api, kind), bar, {
+    updateSecondaryHistogramLikeDataUseCase(this.getSourceByApi(api, kind), bar, {
       normalizeBar: (nextBar) => normalizeHistogramBar(nextBar),
-      updateStudySeriesData: (source, canonicalBar) => updateStudySeriesData(source, canonicalBar, {
-        updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-        resolveDisplayData: (nextSource) => this.resolveStudyDisplayData(nextSource as StudySourceState),
-        render: () => {
-          if (this.canvas !== null) {
-            this.render(this.canvas);
-          }
-        },
-      }),
+      updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
+      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
     });
   }
 

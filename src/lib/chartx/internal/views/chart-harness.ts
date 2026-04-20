@@ -125,6 +125,11 @@ import { attachStudySource, createStudySourceState } from "./chart-study-source"
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import { createValidatedChartStateApplicationDeps } from "./chart-state-apply-runtime";
 import {
+  createPaneApiHandle,
+  subscribePaneResizeRuntime,
+  unsubscribePaneResizeRuntime,
+} from "./chart-pane-api-runtime";
+import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
@@ -254,7 +259,6 @@ import {
 } from "./chart-add-commands";
 import {
   addPaneCommand as addPaneCommandUseCase,
-  createPaneHandle as createPaneHandleUseCase,
   removePaneByHandleCommand as removePaneByHandleCommandUseCase,
   removeSeriesCommand as removeSeriesCommandUseCase,
 } from "./chart-structure-commands";
@@ -2850,7 +2854,7 @@ export class PhaseOneChartHarness {
   }
 
   private createPaneHandle(paneId: string): PhaseOnePaneApi {
-    return createPaneHandleUseCase(paneId, {
+    return createPaneApiHandle(paneId, {
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
       getPaneOptions: (nextPaneId) => this.getPaneOptions(nextPaneId),
@@ -2869,13 +2873,18 @@ export class PhaseOneChartHarness {
   }
 
   private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    this.handlerRegistry.subscribePaneResize(paneId, handler, {
+    subscribePaneResizeRuntime(paneId, handler, {
+      subscribePaneResize: (nextPaneId, nextHandler, options) =>
+        this.handlerRegistry.subscribePaneResize(nextPaneId, nextHandler, options),
       hasPane: (nextPaneId) => this.getPaneById(nextPaneId) !== undefined,
     });
   }
 
   private unsubscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    this.handlerRegistry.unsubscribePaneResize(paneId, handler);
+    unsubscribePaneResizeRuntime(paneId, handler, {
+      unsubscribePaneResize: (nextPaneId, nextHandler) =>
+        this.handlerRegistry.unsubscribePaneResize(nextPaneId, nextHandler),
+    });
   }
 
   private getPaneById(paneId: string): PaneModelState | undefined {

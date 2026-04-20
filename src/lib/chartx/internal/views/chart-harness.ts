@@ -344,6 +344,9 @@ import {
   getSourceByApiRuntime,
   getStudySourcesForPaneRuntime,
 } from "./chart-source-runtime";
+import { createChartSourceOwner } from "./chart-source-owner";
+import { createChartPaneOwner } from "./chart-pane-owner";
+import { createChartDrawingOwner } from "./chart-drawing-owner";
 import {
   applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
   setSeriesMarkers as setSeriesMarkersUseCase,
@@ -1509,6 +1512,312 @@ export class PhaseOneChartHarness {
     },
   });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
+  private readonly sourceOwner = createChartSourceOwner({
+    accessors: {
+      mainSourceId: () => this.chartModel.mainSourceId(),
+      getSourceByIdAndRole: (id, role) => this.chartModel.getSourceByIdAndRole(id, role),
+      getSourceByApiOrThrow: (api, message) => this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, message),
+      listSourcesByPaneAndRole: (paneId, role) => this.chartModel.listSourcesByPaneAndRole(paneId, role),
+      listSourcesByRole: (role) => this.chartModel.listSourcesByRole(role),
+    },
+    mainSeriesSwitch: {
+      removeCurrent: (api) => this.chartModel.removeSourceByApi(api as ChartSeriesApi) !== undefined,
+      clearPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      buildPreservedState: (source) => {
+        const mainSource = source as MainSeriesSourceState;
+        return {
+          id: mainSource.id,
+          label: mainSource.label,
+          data: mainSource.inputData,
+          visuals: new Map(mainSource.visuals),
+          markers: [...mainSource.markers],
+          priceLines: clonePriceLines(mainSource.priceLines),
+          options: { ...mainSource.options },
+          previousStyleSchemaId: mainSource.styleSchemaId,
+        };
+      },
+      attachSeries: (type, preserved) => this.attachPrimarySeries(type as PhaseOneMainChartType, preserved as never),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      emitChartTypeChange: (type) => this.emitChartTypeChange(type as PhaseOneMainChartType),
+    },
+    primaryMutations: {
+      rebuild: (source) => {
+        (source as MainSeriesSourceState).data = applyMainSeriesBuilderData(
+          (source as MainSeriesSourceState).inputData,
+          source as MainSeriesSourceState,
+        );
+      },
+      syncContext: (source) => this.syncChartContextFromMainSource(source as MainSeriesSourceState),
+      resetViewport: () => {
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
+      clearPriceRangeOverride: () => {
+        this.primaryPriceRangeOverride = null;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      updateCanonical: (existing, bar) =>
+        updateCanonicalData(
+          existing as readonly PhaseOneCandlestickData[],
+          bar as PhaseOneCandlestickData,
+        ),
+      buildHistogramVisuals: (data) => buildHistogramVisuals(data as readonly PhaseOneHistogramData[]),
+      normalizeHistogramData: (data) => normalizeHistogramData(data as readonly PhaseOneHistogramData[]),
+      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
+    },
+    studySources: {
+      primaryPriceScale: this.primaryPriceScale,
+      getOrCreateSecondaryPriceScale: (paneId) => this.chartModel.getOrCreateSecondaryScale(paneId),
+      createSourceState: ({ paneId, kind, api, meta, priceScale, priceScaleId, studyKind, indicator }) =>
+        createStudySourceState<
+          PhaseOneCandlestickData,
+          ChartSeriesApi,
+          ChartSeriesKind,
+          StudySourceState["options"],
+          HistogramVisual,
+          PriceLineState,
+          SeriesMarkerState,
+          Required<PhaseOneCompareSeriesOptions>
+        >({
+          paneId,
+          kind: kind as ChartSeriesKind,
+          api: api as ChartSeriesApi,
+          meta,
+          priceScale: priceScale as PriceScale,
+          priceScaleId,
+          studyKind: studyKind as StudySourceKind | undefined,
+          indicator: indicator as MovingAverageIndicatorState | undefined,
+          defaultCompareOptions: this.defaultCompareOptions,
+          createOptions: (createKind) => this.createSeriesOptions(createKind),
+        }),
+      registerSource: (source) => this.chartModel.registerSource(source as StudySourceState),
+      createMeta: (kind) => this.createSeriesMeta(kind),
+    },
+    secondaryMutations: {
+      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+      resetViewport: () => {
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      updateCanonical: (existing, bar) =>
+        updateCanonicalData(
+          existing as readonly PhaseOneCandlestickData[],
+          bar as PhaseOneCandlestickData,
+        ),
+      buildHistogramVisuals: (data) => buildHistogramVisuals(data as readonly PhaseOneHistogramData[]),
+      normalizeHistogramData: (data) => normalizeHistogramData(data as readonly PhaseOneHistogramData[]),
+      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
+    },
+    secondarySeriesApi: {
+      assertSeriesActive: (api) => this.assertSeriesActive(api as ChartSeriesApi),
+      applySeriesFormatterOptions: (seriesOptions, options) =>
+        this.applySeriesFormatterOptions(
+          seriesOptions as PhaseOneSeriesFormatterOptions,
+          options as PhaseOneSeriesFormatterOptions,
+        ),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+      setSecondaryData: (api, data, kind) =>
+        setSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, data as readonly PhaseOneCandlestickData[], {
+          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resetViewport: () => {
+            this.barSpacing = null;
+            this.rightOffset = DEFAULT_RIGHT_OFFSET;
+          },
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      updateSecondary: (api, bar, kind) =>
+        updateSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, bar as PhaseOneCandlestickData, {
+          updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
+          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      setSecondaryHistogramLikeData: (api, data, kind) =>
+        setSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, data as readonly (PhaseOneHistogramData | PhaseOneVolumeData)[], {
+          buildVisuals: (rows) => buildHistogramVisuals(rows as readonly PhaseOneHistogramData[]),
+          normalizeData: (rows) => normalizeHistogramData(rows as readonly PhaseOneHistogramData[]),
+          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resetViewport: () => {
+            this.barSpacing = null;
+            this.rightOffset = DEFAULT_RIGHT_OFFSET;
+          },
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      updateSecondaryHistogramLike: (api, bar, kind) =>
+        updateSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, bar as PhaseOneHistogramData | PhaseOneVolumeData, {
+          normalizeBar: (nextBar) => normalizeHistogramBar(nextBar as PhaseOneHistogramData),
+          updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
+          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      normalizeLineData,
+      normalizeLineBar,
+      setMarkers: (api, markers, _kind) => {
+        const state = this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as SeriesSourceState;
+        setSeriesMarkersUseCase(state, markers as readonly PhaseOneSeriesMarker[], {
+          normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        });
+      },
+      createPriceLine: (source, options) => {
+        const priceLine = this.priceLineManager.createState(options as PhaseOnePriceLineOptions | undefined);
+        return this.priceLineManager.createApi((source as SeriesSourceState).priceLines, priceLine);
+      },
+      removePriceLine: (source, line) => {
+        this.priceLineManager.remove((source as SeriesSourceState).priceLines, line as PhaseOnePriceLineApi);
+      },
+      applyCompareOptions: (state, options) =>
+        applyCompareStudyOptions(state as StudySourceState, options as Partial<PhaseOneCompareSeriesOptions>, {
+          defaultCompareOptions: this.defaultCompareOptions,
+          resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      getCompareOptions: (state) =>
+        getCompareStudyOptions(state as StudySourceState, this.defaultCompareOptions),
+      applyMovingAverageStudyOptions: (state, options) =>
+        applyMovingAverageStudyOptions(state as StudySourceState, options as Partial<PhaseOneMovingAverageStudyOptions>, {
+          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
+          resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
+          render: () => {
+            if (this.canvas !== null) {
+              this.render(this.canvas);
+            }
+          },
+        }),
+      getMovingAverageStudyOptions: (state) =>
+        getMovingAverageStudyOptions(state as StudySourceState, this.defaultMovingAverageOptions),
+    },
+    tradeLocation: {
+      active: () => this.activeTradeLocation,
+      setActive: (next) => {
+        this.activeTradeLocation = next as typeof this.activeTradeLocation;
+      },
+      setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
+      setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    },
+  });
+  private readonly paneOwner = createChartPaneOwner({
+    handlerRegistry: this.handlerRegistry,
+    getPaneById: (paneId) => this.panes.getById(paneId),
+    getPaneByIndex: (index) => this.panes.getByIndex(index),
+    getPaneIndex: (paneId) => {
+      const index = this.panes.getIndex(paneId);
+      if (index === -1) {
+        throw new Error("chartx phase-one pane has been removed");
+      }
+      return index;
+    },
+    listPanes: () => this.panes.list(),
+    addPane: () => {
+      const pane = this.panes.addSecondaryPane({});
+      this.paneOwner.emitPaneEvent("added", pane.id);
+      if (this.canvas !== null) {
+        this.render(this.canvas);
+      }
+      return this.paneOwner.createPaneHandle(pane.id);
+    },
+    hasCanvas: () => this.canvas !== null,
+    getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())),
+    gap: PANE_GAP,
+    getCrosshair: () => this.viewState.crosshair(),
+    setCrosshair: (point) => {
+      this.viewState.setCrosshair(point);
+    },
+    getSeriesCount: (paneId) => this.chartModel.listSourcesByPane(paneId).length,
+    getDrawingCount: (paneId) => this.getDrawingCountForPane(paneId),
+    listSourcesByPane: (paneId) => this.chartModel.listSourcesByPane(paneId),
+    removePaneEntry: (paneId) => {
+      this.panes.removeById(paneId);
+    },
+    removeSecondaryScale: (paneId) => this.chartModel.removeSecondaryScale(paneId),
+    render: () => {
+      if (this.canvas !== null) {
+        this.render(this.canvas);
+      }
+    },
+  });
+  private readonly drawingOwner = createChartDrawingOwner({
+    allocateDrawingOrdinal: () => {
+      const ordinal = this.nextDrawingId;
+      this.nextDrawingId += 1;
+      return ordinal;
+    },
+    formatSeriesKindLabel,
+    resolveTarget: (target, options) => this.resolveSeriesTarget(target, options) as never,
+    getPaneById: (paneId) => this.panes.getById(paneId),
+    getPaneByIndex: (index) => this.panes.getByIndex(index),
+    createPaneTarget: (pane) => ({ pane }),
+    getRestorePaneId: (target) => target.pane.id,
+    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    registry: this.drawingRegistry,
+    createPriceLineState: (options) => this.priceLineManager.createState(options),
+    lineColor: LINE_COLOR,
+    resolveTrendLineDefaults: () => this.resolveTrendLineDefaults(),
+    resolveMagnetOptions: (drawing) =>
+      resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
+    resolvePropertySchema: (type) => DRAWING_PROPERTY_SCHEMAS[type],
+    view: {
+      selectedDrawingId: () => this.viewState.selectedDrawingId(),
+      setSelectedDrawingId: (id) => {
+        this.viewState.setSelectedDrawingId(id);
+      },
+      notifySelectionChange: (selection) => {
+        this.handlerRegistry.notifyDrawingSelectionChange(selection);
+      },
+      render: () => {
+        if (this.canvas !== null) {
+          this.render(this.canvas);
+        }
+      },
+    },
+  });
   private get panes(): PaneCollection {
     return this.chartModel.panes();
   }
@@ -1876,26 +2185,26 @@ export class PhaseOneChartHarness {
   }
 
   public panesApi(): readonly PhaseOnePaneApi[] {
-    return this.panes.list().map((pane) => this.createPaneHandle(pane.id));
+    return this.panes.list().map((pane) => this.paneOwner.createPaneHandle(pane.id));
   }
 
   public addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
     return addPaneCommandUseCase(options, {
       addSecondaryPane: (nextOptions) => this.panes.addSecondaryPane(nextOptions),
-      emitAdded: (paneId) => this.emitPaneEvent("added", paneId),
+      emitAdded: (paneId) => this.paneOwner.emitPaneEvent("added", paneId),
       render: () => {
         if (this.canvas !== null) {
           this.render(this.canvas);
         }
       },
-      createPaneHandle: (paneId) => this.createPaneHandle(paneId),
+      createPaneHandle: (paneId) => this.paneOwner.createPaneHandle(paneId),
     });
   }
 
   public removePaneByHandle(paneHandle: PhaseOnePaneApi): void {
     removePaneByHandleCommandUseCase(paneHandle, {
-      getPaneId: (handle) => this.paneHandleIds.get(handle),
-      removePaneById: (paneId) => this.removePaneById(paneId),
+      getPaneId: (handle) => this.paneOwner.getPaneByHandle(handle).id,
+      removePaneById: (paneId) => this.paneOwner.removePaneById(paneId),
     });
   }
 
@@ -2024,43 +2333,25 @@ export class PhaseOneChartHarness {
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
-    return getSelectedDrawingPublicUseCase(this.viewState.selectedDrawingId(), {
-      getById: (id) => this.getDrawingById(id),
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-    });
+    return this.drawingOwner.getSelectedDrawing();
   }
 
   public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
-    return getSelectedDrawingStatePublicUseCase({
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      getDrawingById: (id) => this.getDrawingById(id),
-      snapshotDeps: {
-        getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-        resolveMagnetOptions: (entry) =>
-          resolveDrawingMagnetOptionsUseCase(entry as ChartDrawingDescriptor, this.drawingOptions),
-      },
-    });
+    return this.drawingOwner.getSelectedDrawingState();
   }
 
   public getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null {
-    return getSelectedDrawingPropertySchemaPublicUseCase(
-      this.getSelectedDrawingState(),
-      (type) => DRAWING_PROPERTY_SCHEMAS[type],
-    );
+    return this.drawingOwner.getSelectedDrawingPropertySchema();
   }
 
   public applySelectedDrawingOptions(
     options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
   ): void {
-    applySelectedDrawingOptionsPublicUseCase({
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      getDrawingById: (id) => this.getDrawingById(id),
-      options,
-    });
+    this.drawingOwner.applySelectedDrawingOptions(options);
   }
 
   public clearSelectedDrawing(): void {
-    clearSelectedDrawingPublicUseCase(() => this.selectDrawing(null));
+    this.drawingOwner.clearSelectedDrawing();
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
@@ -2172,7 +2463,7 @@ export class PhaseOneChartHarness {
               overlay: this.activeTradeLocation.options,
             },
       getDrawingsState: () =>
-        buildDrawingStateSnapshots(this.getAllDrawings(), {
+        buildDrawingStateSnapshots(this.drawingOwner.listDrawings(), {
           getPaneIndex: (paneId) => this.getPaneIndex(paneId),
           resolveMagnetOptions: (drawing) =>
             resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
@@ -2324,10 +2615,9 @@ export class PhaseOneChartHarness {
   }
 
   private clearRestorableChartDrawings(): void {
-    clearRestorableDrawingsUseCase({
-      listDrawings: () => this.drawingRegistry.list(),
-      removeByApi: (api) => this.drawingRegistry.removeByApi(api),
-    });
+    for (const drawing of this.drawingOwner.listDrawings()) {
+      this.removeDrawing(drawing.api);
+    }
   }
 
   private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
@@ -2355,47 +2645,11 @@ export class PhaseOneChartHarness {
   }
 
   private restoreChartDrawings(drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][]): void {
-    restoreStateDrawingsContentUseCase(drawings as readonly PhaseOneRestorableDrawingSnapshot[], {
-      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
-      createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget),
-      addHorizontalLine: (target, options) => {
-        this.addHorizontalLineDrawing(target, options);
-      },
-      addTrendLine: (target, options) => {
-        this.addTrendLineDrawing(target, options);
-      },
-    });
+    this.drawingOwner.restoreDrawings(drawings as readonly PhaseOneRestorableDrawingSnapshot[]);
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
-    return setChartTypeUseCase(this.getMainSourceOrThrow(), type, {
-      currentType: (source) => source.chartType,
-      currentApi: (source) => source.api as PhaseOneMainSeriesApi,
-      removeCurrent: (api) => this.chartModel.removeSourceByApi(api) !== undefined,
-      clearPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      buildPreservedState: (source) => ({
-        id: source.id,
-        label: source.label,
-        data: [...source.inputData],
-        visuals: new Map(source.visuals),
-        markers: [...source.markers],
-        priceLines: clonePriceLines(source.priceLines),
-        options: { ...(source.options as Record<string, unknown>) },
-        previousStyleSchemaId: source.styleSchemaId,
-      }),
-      attachSeries: (chartType, preservedState) =>
-        this.attachPrimarySeries(chartType, preservedState) as PhaseOneMainSeriesApi,
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      emitChartTypeChange: (chartType) => {
-        this.emitChartTypeChange(chartType);
-      },
-    });
+    return this.sourceOwner.setChartType(type) as PhaseOneMainSeriesApi;
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {
@@ -2407,82 +2661,21 @@ export class PhaseOneChartHarness {
   }
 
   private setPrimaryData(data: readonly PhaseOneCandlestickData[]): void {
-    setPrimaryDataUseCase(this.getMainSourceOrThrow(), data, {
-      rebuild: (source) => {
-        source.data = applyMainSeriesBuilderData(source.inputData, source);
-      },
-      syncContext: (source) => this.syncChartContextFromMainSource(source),
-      resetViewport: () => {
-        this.primaryPriceRangeOverride = null;
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.setPrimaryData(data);
   }
 
   private updatePrimary(bar: PhaseOneCandlestickData): void {
-    updatePrimaryDataUseCase(this.getMainSourceOrThrow(), bar, {
-      updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
-      rebuild: (source) => {
-        source.data = applyMainSeriesBuilderData(source.inputData, source);
-      },
-      syncContext: (source) => this.syncChartContextFromMainSource(source),
-      clearPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.updatePrimaryData(bar);
   }
 
   private setPrimaryHistogramLikeData(
     data: readonly PhaseOneHistogramData[],
   ): void {
-    setPrimaryHistogramLikeDataUseCase(this.getMainSourceOrThrow(), data, {
-      buildVisuals: (rows) => buildHistogramVisuals(rows),
-      normalizeData: (rows) => normalizeHistogramData(rows),
-      rebuild: (source) => {
-        source.data = applyMainSeriesBuilderData(source.inputData, source);
-      },
-      syncContext: (source) => this.syncChartContextFromMainSource(source),
-      resetViewport: () => {
-        this.primaryPriceRangeOverride = null;
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.setPrimaryHistogramLikeData(data);
   }
 
   private updatePrimaryHistogramLike(bar: PhaseOneHistogramData): void {
-    updatePrimaryHistogramLikeDataUseCase(this.getMainSourceOrThrow(), bar, {
-      normalizeBar: (nextBar) => normalizeHistogramBar(nextBar),
-      updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-      rebuild: (source) => {
-        source.data = applyMainSeriesBuilderData(source.inputData, source);
-      },
-      syncContext: (source) => this.syncChartContextFromMainSource(source),
-      clearPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.updatePrimaryHistogramLikeData(bar);
   }
 
   private getPointCount(): number {
@@ -2646,131 +2839,17 @@ export class PhaseOneChartHarness {
     studyKind: StudySourceKind = "series",
     indicator?: MovingAverageIndicatorState,
   ): void {
-    attachStudySeriesUseCase(
-      { paneId, kind, api, meta, studyKind, indicator },
-      {
-        primaryPriceScale: this.primaryPriceScale,
-        getOrCreateSecondaryPriceScale: (nextPaneId) => this.getOrCreateSecondaryPanePriceScale(nextPaneId),
-        createSourceState: ({ paneId: nextPaneId, kind: nextKind, api: nextApi, meta: nextMeta, priceScale, priceScaleId, studyKind: nextStudyKind, indicator: nextIndicator }) =>
-          createStudySourceState<
-            PhaseOneCandlestickData,
-            ChartSeriesApi,
-            ChartSeriesKind,
-            StudySourceState["options"],
-            HistogramVisual,
-            PriceLineState,
-            SeriesMarkerState,
-            Required<PhaseOneCompareSeriesOptions>
-          >({
-            paneId: nextPaneId,
-            kind: nextKind as ChartSeriesKind,
-            api: nextApi as ChartSeriesApi,
-            meta: nextMeta,
-            priceScale,
-            priceScaleId,
-            studyKind: nextStudyKind,
-            indicator: nextIndicator,
-            defaultCompareOptions: this.defaultCompareOptions,
-            createOptions: (createKind) => this.createSeriesOptions(createKind),
-          }),
-        registerSource: (source) => this.chartModel.registerSource(source),
-      },
-    );
+    this.sourceOwner.attachStudySeries({ paneId, kind, api, meta, studyKind, indicator });
   }
 
   private createSecondarySeriesApiDeps<T>(
     build: (deps: SecondarySeriesApiDepsBuilder) => T,
   ): T {
-    return createSecondarySeriesApiDepsUseCase(build, {
-      assertSeriesActive: (api) => this.assertSeriesActive(api as SeriesSourceState["api"]),
-      getSource: (api, kind) => this.getSourceByApi(api as ChartSeriesApi, kind),
-      applySeriesFormatterOptions: (seriesOptions, options) =>
-        this.applySeriesFormatterOptions(
-          seriesOptions as PhaseOneSeriesFormatterOptions,
-          options as PhaseOneSeriesFormatterOptions,
-        ),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setSecondaryData: (api, data, kind) => this.setSecondaryData(api as SeriesSourceState["api"], data, kind),
-      updateSecondary: (api, bar, kind) => this.updateSecondary(api as SeriesSourceState["api"], bar, kind),
-      setSecondaryHistogramLikeData: (api, data, kind) =>
-        this.setSecondaryHistogramLikeData(api as SeriesSourceState["api"], data, kind),
-      updateSecondaryHistogramLike: (api, bar, kind) =>
-        this.updateSecondaryHistogramLike(api as SeriesSourceState["api"], bar, kind),
-      normalizeLineData,
-      normalizeLineBar,
-      setMarkers: (api, markers, kind) =>
-        this.setSecondaryMarkers(api as SeriesSourceState["api"], markers, kind),
-      createPriceLine: (api, kind, options) => {
-        const state = this.getSourceByApi(api as ChartSeriesApi, kind);
-        const priceLine = this.priceLineManager.createState(options);
-        return this.priceLineManager.createApi(state.priceLines, priceLine);
-      },
-      removePriceLine: (api, kind, line) => {
-        const state = this.getSourceByApi(api as ChartSeriesApi, kind);
-        this.priceLineManager.remove(state.priceLines, line);
-      },
-      applyCompareOptions: (api, options) => {
-        applyCompareStudyOptions(this.getCompareStudyState(api as PhaseOneCompareSeriesApi), options, {
-          defaultCompareOptions: this.defaultCompareOptions,
-          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
-          render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
-          },
-        });
-      },
-      getCompareOptions: (api) =>
-        getCompareStudyOptions(
-          this.getCompareStudyState(api as PhaseOneCompareSeriesApi),
-          this.defaultCompareOptions,
-        ),
-      applyMovingAverageStudyOptions: (api, options) => {
-        applyMovingAverageStudyOptions(this.getMovingAverageStudyState(api as PhaseOneMovingAverageStudyApi), options, {
-          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
-          resolveDisplayData: (state) => this.resolveStudyDisplayData(state as StudySourceState),
-          render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
-          },
-        });
-      },
-      getMovingAverageStudyOptions: (api) =>
-        getMovingAverageStudyOptions(
-          this.getMovingAverageStudyState(api as PhaseOneMovingAverageStudyApi),
-          this.defaultMovingAverageOptions,
-        ),
-    });
+    return this.sourceOwner.createSecondarySeriesApiDeps(build);
   }
 
   private createSecondarySeriesFactoryDeps() {
-    return {
-      createMeta: (kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume") =>
-        this.createSeriesMeta(kind),
-      createApiDeps: <T>(build: (deps: SecondarySeriesApiDepsBuilder) => T) =>
-        this.createSecondarySeriesApiDeps(build),
-      attachStudySeries: (params: {
-        paneId: string;
-        kind: "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
-        api: unknown;
-        meta: { id: string; label: string };
-        studyKind?: StudySourceKind;
-        indicator?: MovingAverageIndicatorState;
-      }) =>
-        this.attachStudySeries(
-          params.paneId,
-          params.kind,
-          params.api as SeriesSourceState["api"],
-          params.meta,
-          params.studyKind,
-          params.indicator,
-        ),
-    };
+    return this.sourceOwner.createSecondarySeriesFactoryDeps();
   }
 
   private setSecondaryData(
@@ -2778,18 +2857,7 @@ export class PhaseOneChartHarness {
     data: readonly PhaseOneCandlestickData[],
     kind: ChartSeriesKind,
   ): void {
-    setSecondaryDataUseCase(this.getSourceByApi(api, kind), data, {
-      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
-      resetViewport: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.setSecondaryData(api, data, kind);
   }
 
   private updateSecondary(
@@ -2797,15 +2865,7 @@ export class PhaseOneChartHarness {
     bar: PhaseOneCandlestickData,
     kind: ChartSeriesKind,
   ): void {
-    updateSecondaryDataUseCase(this.getSourceByApi(api, kind), bar, {
-      updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
-      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.updateSecondaryData(api, bar, kind);
   }
 
   private setSecondaryHistogramLikeData(
@@ -2813,20 +2873,7 @@ export class PhaseOneChartHarness {
     data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
     kind: ChartSeriesKind,
   ): void {
-    setSecondaryHistogramLikeDataUseCase(this.getSourceByApi(api, kind), data, {
-      buildVisuals: (rows) => buildHistogramVisuals(rows),
-      normalizeData: (rows) => normalizeHistogramData(rows),
-      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
-      resetViewport: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.setSecondaryHistogramLikeData(api, data, kind as "histogram" | "volume");
   }
 
   private updateSecondaryHistogramLike(
@@ -2834,16 +2881,7 @@ export class PhaseOneChartHarness {
     bar: PhaseOneHistogramData | PhaseOneVolumeData,
     kind: ChartSeriesKind,
   ): void {
-    updateSecondaryHistogramLikeDataUseCase(this.getSourceByApi(api, kind), bar, {
-      normalizeBar: (nextBar) => normalizeHistogramBar(nextBar),
-      updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.updateSecondaryHistogramLikeData(api, bar, kind as "histogram" | "volume");
   }
 
   private setSecondaryMarkers(
@@ -2863,37 +2901,15 @@ export class PhaseOneChartHarness {
   }
 
   private createPaneHandle(paneId: string): PhaseOnePaneApi {
-    return createPaneApiHandle(paneId, {
-      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
-      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
-      getPaneOptions: (nextPaneId) => this.getPaneOptions(nextPaneId),
-      applyPaneOptions: (nextPaneId, options) => this.applyPaneOptions(nextPaneId, options),
-      setPaneHeight: (nextPaneId, height) => this.setPaneHeight(nextPaneId, height),
-      isPrimary: (nextPaneId) => this.getPaneById(nextPaneId)?.kind === "primary",
-      isResizable: (nextPaneId) => this.getPaneById(nextPaneId)?.resizable ?? false,
-      subscribeResize: (nextPaneId, handler) => this.subscribePaneResize(nextPaneId, handler),
-      unsubscribeResize: (nextPaneId, handler) => this.unsubscribePaneResize(nextPaneId, handler),
-      hasSeries: (nextPaneId) => this.paneHasSeries(nextPaneId),
-      removePaneById: (nextPaneId) => this.removePaneById(nextPaneId),
-      registerPaneHandle: (pane, nextPaneId) => {
-        this.paneHandleIds.set(pane, nextPaneId);
-      },
-    });
+    return this.paneOwner.createPaneHandle(paneId);
   }
 
   private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    subscribePaneResizeRuntime(paneId, handler, {
-      subscribePaneResize: (nextPaneId, nextHandler, options) =>
-        this.handlerRegistry.subscribePaneResize(nextPaneId, nextHandler, options),
-      hasPane: (nextPaneId) => this.getPaneById(nextPaneId) !== undefined,
-    });
+    this.paneOwner.subscribePaneResize(paneId, handler);
   }
 
   private unsubscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    unsubscribePaneResizeRuntime(paneId, handler, {
-      unsubscribePaneResize: (nextPaneId, nextHandler) =>
-        this.handlerRegistry.unsubscribePaneResize(nextPaneId, nextHandler),
-    });
+    this.paneOwner.unsubscribePaneResize(paneId, handler);
   }
 
   private getPaneById(paneId: string): PaneModelState | undefined {
@@ -2909,124 +2925,47 @@ export class PhaseOneChartHarness {
   }
 
   private getPaneHeight(paneId: string): number {
-    return getPaneHeightUseCase(paneId, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      hasCanvas: () => this.canvas !== null,
-      getLayout: () => (
-        this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())
-      ),
-      listPanes: () => this.panes.list(),
-      gap: PANE_GAP,
-    });
+    return this.paneOwner.getPaneHeight(paneId);
   }
 
   private getPaneOptions(paneId: string): Required<PhaseOnePaneOptions> {
-    return getPaneOptionsUseCase(paneId, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-    });
+    return this.paneOwner.getPaneOptions(paneId);
   }
 
   private applyPaneOptions(paneId: string, options: PhaseOnePaneOptions): void {
-    applyPaneOptionsUseCase(paneId, options, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      setPaneHeight: (nextPaneId, height) => this.setPaneHeight(nextPaneId, height),
-      emitPaneEvent: (type, nextPaneId) => this.emitPaneEvent(type, nextPaneId),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.paneOwner.applyPaneOptions(paneId, options);
   }
 
   private setPaneHeight(paneId: string, height: number): void {
-    setPaneHeightUseCase(paneId, height, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      emitPaneResize: (nextPaneId) => this.emitPaneResize(nextPaneId),
-      emitPaneEvent: (type, nextPaneId) => this.emitPaneEvent(type, nextPaneId),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.paneOwner.setPaneHeight(paneId, height);
   }
 
   private applyPaneResize(clientY: number, layout: Layout, paneFrames: readonly PaneFrame[]): void {
     void paneFrames;
-    applyPaneResizeUseCase(clientY, layout, this.viewState.paneResizeState(), {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      emitPaneResize: (nextPaneId) => this.emitPaneResize(nextPaneId),
-      emitPaneEvent: (type, nextPaneId) => this.emitPaneEvent(type, nextPaneId),
-      hasCanvas: () => this.canvas !== null,
-      listPanes: () => this.panes.list(),
-      gap: PANE_GAP,
-      getCrosshair: () => this.viewState.crosshair(),
-      setCrosshair: (point) => {
-        this.viewState.setCrosshair(point);
-      },
-    });
+    this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
   }
 
   private paneHasSeries(paneId: string): boolean {
-    return paneHasSeriesUseCase(paneId, {
-      getSeriesCount: (nextPaneId) => this.chartModel.listSourcesByPane(nextPaneId).length,
-      getDrawingCount: (nextPaneId) => this.getDrawingCountForPane(nextPaneId),
-    });
+    return this.paneOwner.paneHasSeries(paneId);
   }
 
   private resolveSeriesTarget(
     target: PhaseOneSeriesTarget | PhaseOneVolumeSeriesTarget | undefined,
     options: { defaultToSecondary: boolean; allowPrimary: boolean },
   ): ResolvedSeriesTarget {
-    return resolveSeriesTargetUseCase(target, options, {
-      listPanes: () => this.panes.list(),
-      getPaneByIndex: (index) => this.panes.getByIndex(index),
-      getPaneByHandle: (handle) => this.getPaneByHandle(handle),
-      addPane: () => this.addPane(),
-      getPaneId: (handle) => this.paneHandleIds.get(handle),
-    });
+    return this.paneOwner.resolveSeriesTarget(target, options) as ResolvedSeriesTarget;
   }
 
   private getPaneByHandle(handle: PhaseOnePaneApi): PaneModelState | undefined {
-    return getPaneByHandleUseCase(handle, {
-      getPaneId: (nextHandle) => this.paneHandleIds.get(nextHandle),
-      getPaneById: (paneId) => this.getPaneById(paneId),
-    });
+    return this.paneOwner.getPaneByHandle(handle) as PaneModelState | undefined;
   }
 
   private removePaneById(paneId: string): void {
-    removePaneUseCase(paneId, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      getSeriesCount: (nextPaneId) => this.getSecondarySeriesForPane(nextPaneId).length,
-      getDrawingCount: (nextPaneId) => this.getDrawingCountForPane(nextPaneId),
-      buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
-      buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
-      removePaneById: (nextPaneId) => {
-        this.panes.removeById(nextPaneId);
-      },
-      clearPaneResizeHandlers: (nextPaneId) => {
-        this.handlerRegistry.clearPaneResizeHandlers(nextPaneId);
-      },
-      removeSecondaryScale: (nextPaneId) => {
-        this.chartModel.removeSecondaryScale(nextPaneId);
-      },
-      emitPaneEvent: (type, nextPaneId, explicitPaneState, explicitSnapshot) =>
-        this.emitPaneEvent(type, nextPaneId, explicitPaneState, explicitSnapshot),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.paneOwner.removePaneById(paneId);
   }
 
   private emitPaneResize(paneId: string): void {
-    emitPaneResizeCompositionRuntime(this.handlerRegistry, paneId, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
-      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
-    });
+    this.paneOwner.emitPaneResize(paneId);
   }
 
   private emitPaneEvent(
@@ -3035,34 +2974,19 @@ export class PhaseOneChartHarness {
     explicitPaneState?: PhaseOnePaneState | null,
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
-    emitPaneEventCompositionRuntime(this.handlerRegistry, type, paneId, {
-      buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
-      buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
-    }, explicitPaneState, explicitSnapshot);
+    this.paneOwner.emitPaneEvent(type, paneId, explicitPaneState, explicitSnapshot);
   }
 
   private buildPaneState(paneId: string): PhaseOnePaneState | null {
-    return buildPaneStateRuntime(paneId, {
-      getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
-      getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
-      getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
-      getPaneSeriesStates: (nextPaneId) => this.getPaneSeriesStates(nextPaneId),
-    });
+    return this.paneOwner.buildPaneState(paneId);
   }
 
   private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
-    return buildPaneStateSnapshotRuntime(
-      this.panes.list().map((pane) => pane.id),
-      {
-        buildPaneState: (paneId) => this.buildPaneState(paneId),
-      },
-    );
+    return this.paneOwner.buildPaneStateSnapshot();
   }
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return getPaneSeriesStatesRuntime(paneId, {
-      listSourcesByPane: (nextPaneId) => this.chartModel.listSourcesByPane(nextPaneId),
-    });
+    return this.paneOwner.getPaneSeriesStates(paneId);
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {
@@ -3080,83 +3004,21 @@ export class PhaseOneChartHarness {
   }
 
   private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
-    const ordinal = this.nextDrawingId;
-    this.nextDrawingId += 1;
-    return createDrawingMetaUseCase(kind, ordinal, {
-      formatSeriesKindLabel,
-    });
+    return this.drawingOwner.allocateDrawingMeta(kind);
   }
 
   private createHorizontalLineDrawing(
     paneId: string,
     options: PhaseOneHorizontalLineDrawingOptions = {},
   ): PhaseOneHorizontalLineDrawingApi {
-    const meta = this.createDrawingMeta("horizontal-line");
-    return createHorizontalLineDrawingForPaneUseCase({
-      paneId,
-      paneExists: this.getPaneById(paneId) !== undefined,
-      options,
-      visible: options.visible ?? true,
-      drawingId: meta.id,
-      drawingTitle: meta.title,
-      registry: {
-        register: (drawing) => this.drawingRegistry.register(drawing),
-        setVisible: (id, visible) => this.drawingRegistry.setVisible(id, visible),
-        getByApi: (api) => {
-          const drawing = this.drawingRegistry.getByApi(api);
-          return drawing?.kind === "horizontal-line" ? drawing : undefined;
-        },
-        hasApi: (api) => {
-          const drawing = this.drawingRegistry.getByApi(api);
-          return drawing?.kind === "horizontal-line";
-        },
-      },
-      createPriceLineState: (nextOptions) => this.priceLineManager.createState(nextOptions),
-      selectDrawing: (id) => this.selectDrawing(id),
-      removeDrawing: (entry) => this.removeDrawing(entry),
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    return this.drawingOwner.addHorizontalLine({ pane: this.createPaneHandle(paneId) }, options);
   }
 
   private createTrendLineDrawing(
     paneId: string,
     options: PhaseOneTrendLineDrawingOptions = {},
   ): PhaseOneTrendLineDrawingApi {
-    const meta = this.createDrawingMeta("trend-line");
-    return createTrendLineDrawingForPaneUseCase({
-      paneId,
-      paneExists: this.getPaneById(paneId) !== undefined,
-      options,
-      visible: options.visible ?? true,
-      drawingId: meta.id,
-      registry: {
-        register: (drawing) => this.drawingRegistry.register(drawing),
-        setVisible: (id, visible) => this.drawingRegistry.setVisible(id, visible),
-        getByApi: (api) => {
-          const drawing = this.drawingRegistry.getByApi(api);
-          return drawing?.kind === "trend-line" ? drawing : undefined;
-        },
-        hasApi: (api) => {
-          const drawing = this.drawingRegistry.getByApi(api);
-          return drawing?.kind === "trend-line";
-        },
-      },
-      lineColor: LINE_COLOR,
-      resolveDefaults: () => this.resolveTrendLineDefaults(),
-      selectDrawing: (id) => this.selectDrawing(id),
-      removeDrawing: (entry) => this.removeDrawing(entry),
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    return this.drawingOwner.addTrendLine({ pane: this.createPaneHandle(paneId) }, options);
   }
 
   private resolveTrendLineDefaults(): Required<Pick<
@@ -3167,76 +3029,31 @@ export class PhaseOneChartHarness {
   }
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
-    return getDrawingByIdRuntime(id, {
-      listDrawings: () => this.drawingRegistry.list(),
-    });
+    return this.drawingOwner.getDrawingById(id);
   }
 
   private getAllDrawings(): readonly ChartDrawingDescriptor[] {
-    return listAllDrawingsRuntime({
-      listDrawings: () => this.drawingRegistry.list(),
-    });
+    return this.drawingOwner.listDrawings();
   }
 
   private getDrawingsByPane(paneId: string): readonly ChartDrawingDescriptor[] {
-    return listDrawingsByPaneRuntime(paneId, {
-      listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
-    });
+    return this.drawingOwner.listDrawingsByPane(paneId);
   }
 
   private getDrawingCountForPane(paneId: string): number {
-    return getDrawingCountForPaneRuntime(paneId, {
-      listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
-    });
+    return this.drawingOwner.countDrawingsByPane(paneId);
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
-    selectDrawingRuntime({
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      nextId: id,
-      shouldRender,
-      getById: (drawingId) => this.getDrawingById(drawingId),
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-      notifySelectionChange: (selection) => {
-        this.handlerRegistry.notifyDrawingSelectionChange(selection);
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-      setSelectedDrawingId: (drawingId) => {
-        this.viewState.setSelectedDrawingId(drawingId);
-      },
-    });
+    this.drawingOwner.selectDrawing(id, shouldRender);
   }
 
   private removeDrawing(api: ChartDrawingApi): void {
-    removeDrawingRuntime({
-      api,
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      removeByApi: (nextApi) => this.drawingRegistry.removeByApi(nextApi),
-      clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.drawingOwner.removeDrawing(api);
   }
 
   private removeSelectedDrawing(): void {
-    removeSelectedDrawingRuntime({
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      getById: (id) => this.getDrawingById(id),
-      clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),
-      removeByApi: (api) => this.removeDrawing(api),
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.drawingOwner.removeSelectedDrawing();
   }
 
   private createSeriesOptions(
@@ -3323,57 +3140,30 @@ export class PhaseOneChartHarness {
   }
 
   private getMainSource(): MainSeriesSourceState | null {
-    return getMainSourceUseCase({
-      mainSourceId: () => this.chartModel.mainSourceId(),
-      getSourceByIdAndRole: (id, role) => this.chartModel.getSourceByIdAndRole(id, role),
-    });
+    return this.sourceOwner.getMainSource() as MainSeriesSourceState | null;
   }
 
   private refreshTradeLocation(): void {
-    refreshTradeLocationRuntime(this.activeTradeLocation, {
-      getMainSource: () => this.getMainSource(),
-      setActiveTradeLocation: (next) => {
-        this.activeTradeLocation = next;
-      },
-      setVisibleLogicalRange: (range) => {
-        this.timeScaleApi().setVisibleLogicalRange(range);
-      },
-      setVisiblePriceRange: (range) => {
-        this.priceScaleApi().setVisibleRange(range);
-      },
-      render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
-      },
-    });
+    this.sourceOwner.refreshTradeLocation();
   }
 
   private getMainSourceOrThrow(): MainSeriesSourceState {
-    return getMainSourceOrThrowUseCase({
-      getMainSource: () => this.getMainSource(),
-    });
+    return this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState;
   }
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {
-    return getStudySourcesForPaneRuntime(paneId, {
-      listSourcesByPaneAndRole: (nextPaneId, role) => this.chartModel.listSourcesByPaneAndRole(nextPaneId, role),
-    });
+    return this.sourceOwner.getStudySourcesForPane(paneId) as StudySourceState[];
   }
 
   private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
-    return getSecondarySeriesForPaneRuntime(paneId, {
-      getStudySourcesForPane: (nextPaneId) => this.getStudySourcesForPane(nextPaneId),
-    });
+    return this.sourceOwner.getSecondarySeriesForPane(paneId) as StudySourceState[];
   }
 
   private getSourceByApi(
     api: ChartSeriesApi,
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
-    return getSourceByApiRuntime(api, {
-      getSourceByApiOrThrow: (nextApi, message) => this.chartModel.getSourceByApiOrThrow(nextApi as ChartSeriesApi, message),
-    }, kind);
+    return this.sourceOwner.getSourceByApi(api, kind) as SeriesSourceState;
   }
 
   private getCompareStudyState(api: PhaseOneCompareSeriesApi): StudySourceState {
@@ -3397,9 +3187,7 @@ export class PhaseOneChartHarness {
   private buildPrimaryPaneSeries(
     mainSource: MainSeriesSourceState | null,
   ): readonly SeriesSourceState[] {
-    return buildPrimaryPaneSeriesRuntime(mainSource, {
-      getStudySourcesForPane: (paneId) => this.getStudySourcesForPane(paneId),
-    });
+    return this.sourceOwner.buildPrimaryPaneSeries(mainSource) as readonly SeriesSourceState[];
   }
 
   private resolveHitDrawing(

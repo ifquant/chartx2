@@ -210,5 +210,9 @@ Current direction on that path:
 - source accessor/runtime composition should follow the same direction, so study lookup, source api guards, compare/moving-average specialization, secondary-scale access, and primary-pane series assembly stop living as another harness-local lookup cluster
 - pane event and resize composition should follow the same direction, so handler-registry deps assembly for pane events stops living as another harness-local runtime branch
 - drawing registry and selection composition should follow the same direction, so drawing lookup, pane-local listing, selected-drawing updates, and selected removal stop living as another harness-local glue cluster
+- source/series ownership should now continue through a single source owner composition surface, so chart-type switching, primary/secondary mutation, typed source lookup, study attach wiring, and trade-location refresh triggers stop being spread across unrelated harness-local helpers
+- pane ownership should now continue through a single pane owner composition surface, so pane handles, pane target resolution, pane option/height mutation, pane removal, and pane state/event publication stop being reassembled in multiple harness-local branches
+- drawing lifecycle and public ownership should now continue through a single drawing owner composition surface, so drawing creation, registry lookup/listing, selected-drawing public state, and drawing restore stop being split across separate harness-local wrappers
+- once source, pane, and drawing owners are stable, the next major extraction should be one render coordinator module, so frame render orchestration, readout assembly, axis dispatch, and render-tail publication stop being the last large fanout cluster inside `chart-harness`
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

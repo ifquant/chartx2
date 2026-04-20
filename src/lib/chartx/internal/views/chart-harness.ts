@@ -122,8 +122,6 @@ import {
 } from "./chart-study-context";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
-import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
-import { createValidatedChartStateApplicationDeps } from "./chart-state-apply-runtime";
 import {
   createPaneApiHandle,
   subscribePaneResizeRuntime,
@@ -153,31 +151,7 @@ import {
   locateTradeRuntime,
   refreshTradeLocationRuntime,
 } from "./chart-trade-location-runtime";
-import {
-  applyRestorableMainSeriesState,
-  applyRestorablePriceScaleState,
-  applyRestorableTimeScaleState,
-  applySecondaryPaneState as applySecondaryPaneStateUseCase,
-  finalizeRestoredChart,
-  listSecondaryPaneIds as listSecondaryPaneIdsUseCase,
-  locateRestorableTrade,
-} from "./chart-state-runtime";
-import {
-  clearRestorableDrawings as clearRestorableDrawingsUseCase,
-  clearRestorableSeries as clearRestorableSeriesUseCase,
-  clearRestorableStudies as clearRestorableStudiesUseCase,
-} from "./chart-state-content-runtime";
-import {
-  restoreStateDrawingsContent as restoreStateDrawingsContentUseCase,
-  restoreStateSeriesContent as restoreStateSeriesContentUseCase,
-  restoreStateStudiesContent as restoreStateStudiesContentUseCase,
-} from "./chart-state-restore-content";
 import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
-import {
-  buildDrawingStateSnapshots,
-  buildSeriesStateSnapshots,
-  buildStudyStateSnapshots,
-} from "./chart-state-snapshot-builders";
 import { buildRawReadout as buildRawReadoutUseCase } from "./chart-readout";
 import {
   formatReadoutDetail as formatReadoutDetailUseCase,
@@ -384,6 +358,7 @@ import {
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
+import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -1876,6 +1851,97 @@ export class PhaseOneChartHarness {
     resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
       resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
   });
+  private readonly stateCoordinator = createChartStateCoordinator({
+    getOptions: () => ({
+      layout: this.chartOptions,
+      crosshair: this.crosshairOptions,
+    }),
+    getTimeScaleState: () => ({
+      barSpacing: this.barSpacing,
+      rightOffset: this.rightOffset,
+      visibleLogicalRange: this.timeScaleApi().getVisibleLogicalRange(),
+    }),
+    getPriceScaleState: () => ({
+      visibleRange: this.priceScaleApi().getVisibleRange(),
+      scaleSeriesOnly: this.primaryScaleSeriesOnly,
+    }),
+    listPanes: () => this.panes.list(),
+    getMainSeriesState: () => this.getMainSeriesState(),
+    listStudySources: () => this.chartModel.listSourcesByRole("study"),
+    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    getDefaultCompareOptions: () => this.defaultCompareOptions,
+    getTradeLocationState: () =>
+      this.activeTradeLocation === null
+        ? null
+        : {
+            request: this.activeTradeLocation.request,
+            overlay: this.activeTradeLocation.options,
+          },
+    listDrawings: () => this.drawingOwner.listDrawings(),
+    resolveDrawingMagnetOptions: (drawing) =>
+      resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
+    validateDrawings: (drawings, secondaryPaneCount) =>
+      validateDrawingCollectionSnapshots(drawings, secondaryPaneCount),
+    applyOptions: (options) => {
+      this.applyOptions(options);
+    },
+    clearSelection: () => {
+      this.selectDrawing(null, false);
+    },
+    clearTradeLocation: () => {
+      this.clearTradeLocation();
+    },
+    removeSourcesWhere: (predicate) => {
+      this.chartModel.removeSourcesWhere((source) => predicate(source as never));
+    },
+    removeDrawingByApi: (api) => {
+      this.drawingRegistry.removeByApi(api as ChartDrawingApi);
+    },
+    removeDrawing: (api) => {
+      this.removeDrawing(api as ChartDrawingApi);
+    },
+    getSecondarySeriesCountForPane: (paneId) => this.getSecondarySeriesForPane(paneId).length,
+    removeSecondaryPane: (paneId) => {
+      this.removePaneById(paneId);
+    },
+    addPane: (options) => {
+      this.addPane(options);
+    },
+    emitPaneEvent: (type, paneId) => {
+      this.emitPaneEvent(type, paneId);
+    },
+    applyMainSeriesState: (state) => {
+      this.applyMainSeriesState(state);
+    },
+    getPaneByIndex: (index) => this.panes.getByIndex(index),
+    createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) }),
+    addCandlestickSeries: (target) => this.addCandlestickSeries(target),
+    addBarSeries: (target) => this.addBarSeries(target),
+    addLineSeries: (target) => this.addLineSeries(target),
+    addAreaSeries: (target) => this.addAreaSeries(target),
+    addBaselineSeries: (target) => this.addBaselineSeries(target),
+    addHistogramSeries: (target) => this.addHistogramSeries(target),
+    addVolumeSeries: (target) => this.addVolumeSeries(target),
+    addOverlaySeries: (paneId) => this.addStudyLineSeries(paneId, "overlay"),
+    addCompareSeries: (paneId) => this.addCompareStudySeries(paneId),
+    addMovingAverageStudy: (paneId) => this.addMovingAverageStudySeries(paneId),
+    locateTrade: (request, overlay) => {
+      this.locateTrade(request, overlay);
+    },
+    restoreDrawings: (drawings) => {
+      this.drawingOwner.restoreDrawings(drawings as readonly PhaseOneRestorableDrawingSnapshot[]);
+    },
+    applyTimeScaleOptions: (options) => this.timeScaleApi().applyOptions(options),
+    setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
+    applyPriceScaleOptions: (options) => this.priceScaleApi().applyOptions(options),
+    setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
+    hasCanvas: () => this.canvas !== null,
+    render: () => {
+      if (this.canvas !== null) {
+        this.render(this.canvas);
+      }
+    },
+  });
   private get panes(): PaneCollection {
     return this.chartModel.panes();
   }
@@ -2481,69 +2547,19 @@ export class PhaseOneChartHarness {
   }
 
   public getChartState(): PhaseOneChartStateSnapshot {
-    return createChartStateSnapshot({
-      getOptions: () => ({
-        layout: { ...this.chartOptions },
-        crosshair: { ...this.crosshairOptions },
-      }),
-      getTimeScaleState: () => ({
-        barSpacing: this.barSpacing,
-        rightOffset: this.rightOffset,
-        visibleLogicalRange: this.timeScaleApi().getVisibleLogicalRange(),
-      }),
-      getPriceScaleState: () => ({
-        visibleRange: this.priceScaleApi().getVisibleRange(),
-        scaleSeriesOnly: this.primaryScaleSeriesOnly,
-      }),
-      getPanesState: () =>
-        this.panes
-          .list()
-          .filter((pane) => pane.kind === "secondary")
-          .map((pane) => ({
-            height: pane.preferredHeight,
-            resizable: pane.resizable,
-          })),
-      getMainSeriesState: () => this.getMainSeriesState(),
-      getSeriesState: () =>
-        buildSeriesStateSnapshots(this.chartModel.listSourcesByRole("study"), {
-          getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-        }),
-      getStudiesState: () =>
-        buildStudyStateSnapshots(this.chartModel.listSourcesByRole("study"), {
-          getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-          defaultCompareOptions: this.defaultCompareOptions,
-        }),
-      getTradeLocationState: () =>
-        this.activeTradeLocation === null
-          ? null
-          : {
-              request: this.activeTradeLocation.request,
-              overlay: this.activeTradeLocation.options,
-            },
-      getDrawingsState: () =>
-        buildDrawingStateSnapshots(this.drawingOwner.listDrawings(), {
-          getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-          resolveMagnetOptions: (drawing) =>
-            resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
-        }),
-    }) as PhaseOneChartStateSnapshot;
+    return this.stateCoordinator.getChartState();
   }
 
   public applyChartState(state: PhaseOneChartStateSnapshot): void {
-    this.applyChartStateSnapshot(state);
+    this.stateCoordinator.applyChartState(state);
   }
 
   public getChartTemplate(): PhaseOneChartTemplate {
-    return createChartTemplate(this.getChartState());
+    return this.stateCoordinator.getChartTemplate();
   }
 
   public applyChartTemplate(template: PhaseOneChartTemplateInput): void {
-    applyChartTemplate(template, {
-      normalize: normalizeChartTemplate,
-      applyChartState: (state) => {
-        this.applyChartStateSnapshot(state);
-      },
-    });
+    this.stateCoordinator.applyChartTemplate(template);
   }
 
   public locateTrade(
@@ -2585,125 +2601,31 @@ export class PhaseOneChartHarness {
   }
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
-    applyValidatedChartState(state, createValidatedChartStateApplicationDeps({
-      validateDrawings: validateDrawingCollectionSnapshots,
-      options: {
-        applyOptions: (options) => {
-          this.applyOptions(options);
-        },
-      },
-      clearing: {
-        clearSelection: () => {
-          this.selectDrawing(null, false);
-        },
-        clearDrawings: () => this.clearRestorableChartDrawings(),
-        clearStudies: () => this.clearRestorableChartStudies(),
-        clearSeries: () => this.clearRestorableChartSeries(),
-        clearTradeLocation: () => {
-          this.clearTradeLocation();
-        },
-      },
-      panes: {
-        listSecondaryPaneIds: () => listSecondaryPaneIdsUseCase({
-          listPanes: () => this.panes.list(),
-        }),
-        getSecondarySeriesCountForPane: (paneId) => this.getSecondarySeriesForPane(paneId).length,
-        removeSecondaryPane: (paneId) => {
-          this.removePaneById(paneId);
-        },
-        addSecondaryPane: (paneState) => {
-          this.addPane({
-            height: paneState.height ?? undefined,
-            resizable: paneState.resizable,
-          });
-        },
-        applySecondaryPaneState: (index, paneState) => applySecondaryPaneStateUseCase(index, paneState, {
-          listPanes: () => this.panes.list(),
-          emitPaneEvent: (type, paneId) => this.emitPaneEvent(type, paneId),
-        }),
-      },
-      content: {
-        applyMainSeriesState: (mainSeriesState) => applyRestorableMainSeriesState(mainSeriesState, {
-          applyMainSeriesState: (nextState) => {
-            this.applyMainSeriesState(nextState);
-          },
-        }),
-        restoreSeries: (series) => this.restoreChartSeries(series),
-        restoreStudies: (studies) => this.restoreChartStudies(studies),
-        locateTrade: (request, overlay) => locateRestorableTrade({ request, overlay }, {
-          locateTrade: (nextRequest, nextOverlay) => {
-            this.locateTrade(nextRequest, nextOverlay);
-          },
-        }),
-        restoreDrawings: (drawings) => this.restoreChartDrawings(drawings),
-      },
-      scales: {
-        applyTimeScaleState: (timeScaleState) => applyRestorableTimeScaleState(timeScaleState, {
-          applyOptions: (options) => this.timeScaleApi().applyOptions(options),
-          setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
-        }),
-        applyPriceScaleState: (priceScaleState) => applyRestorablePriceScaleState(priceScaleState, {
-          applyOptions: (options) => this.priceScaleApi().applyOptions(options),
-          setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
-        }),
-      },
-      finalize: {
-        finalize: () => finalizeRestoredChart({
-          hasCanvas: () => this.canvas !== null,
-          render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
-          },
-        }),
-      },
-    }));
+    this.stateCoordinator.applyChartState(state);
   }
 
   private clearRestorableChartStudies(): void {
-    clearRestorableStudiesUseCase({
-      removeSourcesWhere: (predicate) => this.chartModel.removeSourcesWhere(predicate),
-    });
+    this.stateCoordinator.clearRestorableChartStudies();
   }
 
   private clearRestorableChartSeries(): void {
-    clearRestorableSeriesUseCase({
-      removeSourcesWhere: (predicate) => this.chartModel.removeSourcesWhere(predicate),
-    });
+    this.stateCoordinator.clearRestorableChartSeries();
   }
 
   private clearRestorableChartDrawings(): void {
-    for (const drawing of this.drawingOwner.listDrawings()) {
-      this.removeDrawing(drawing.api);
-    }
+    this.stateCoordinator.clearRestorableChartDrawings();
   }
 
-  private restoreChartSeries(series: readonly PhaseOneChartStateSnapshot["series"][number][]): void {
-    restoreStateSeriesContentUseCase(series as readonly PhaseOneRestorableSeriesSnapshot[], {
-      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
-      createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) } satisfies PhaseOneSeriesTarget),
-      addCandlestick: (target) => this.addCandlestickSeries(target),
-      addBar: (target) => this.addBarSeries(target),
-      addLine: (target) => this.addLineSeries(target),
-      addArea: (target) => this.addAreaSeries(target),
-      addBaseline: (target) => this.addBaselineSeries(target),
-      addHistogram: (target) => this.addHistogramSeries(target),
-      addVolume: (target) => this.addVolumeSeries(target),
-    });
+  private restoreChartSeries(series: PhaseOneChartStateSnapshot["series"]): void {
+    this.stateCoordinator.restoreChartSeries(series);
   }
 
-  private restoreChartStudies(studies: readonly PhaseOneChartStateSnapshot["studies"][number][]): void {
-    restoreStateStudiesContentUseCase(studies, {
-      getPaneByIndex: (paneIndex) => this.panes.getByIndex(paneIndex),
-      getPaneId: (pane) => pane.id,
-      addOverlay: (paneId) => this.addStudyLineSeries(paneId, "overlay"),
-      addCompare: (paneId) => this.addCompareStudySeries(paneId),
-      addMovingAverage: (paneId) => this.addMovingAverageStudySeries(paneId),
-    });
+  private restoreChartStudies(studies: PhaseOneChartStateSnapshot["studies"]): void {
+    this.stateCoordinator.restoreChartStudies(studies);
   }
 
-  private restoreChartDrawings(drawings: readonly PhaseOneChartStateSnapshot["drawings"][number][]): void {
-    this.drawingOwner.restoreDrawings(drawings as readonly PhaseOneRestorableDrawingSnapshot[]);
+  private restoreChartDrawings(drawings: PhaseOneChartStateSnapshot["drawings"]): void {
+    this.stateCoordinator.restoreChartDrawings(drawings);
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {

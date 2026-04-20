@@ -215,5 +215,6 @@ Current direction on that path:
 - drawing lifecycle and public ownership should now continue through a single drawing owner composition surface, so drawing creation, registry lookup/listing, selected-drawing public state, and drawing restore stop being split across separate harness-local wrappers
 - once source, pane, and drawing owners are stable, the next major extraction should be one render coordinator module, so frame render orchestration, readout assembly, axis dispatch, and render-tail publication stop being the last large fanout cluster inside `chart-harness`
 - render/readout/axis/tail orchestration should now continue through a single render coordinator composition surface, so `chart-harness` stops owning the full frame pass and can keep collapsing toward a composition root plus adapter shell
+- chart state snapshot/template/restore should now continue through a single state coordinator composition surface, so `chart-harness` stops owning the full state read/apply/template orchestration and can keep collapsing toward a thinner adapter shell
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

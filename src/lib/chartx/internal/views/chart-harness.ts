@@ -323,14 +323,14 @@ import {
   syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
 } from "./chart-main-source-runtime";
 import {
-  buildPrimaryPaneSeries as buildPrimaryPaneSeriesUseCase,
-  getCompareStudyState as getCompareStudyStateUseCase,
-  getMovingAverageStudyState as getMovingAverageStudyStateUseCase,
-  getOrCreateSecondaryPanePriceScale as getOrCreateSecondaryPanePriceScaleUseCase,
-  getSecondarySeriesForPane as getSecondarySeriesForPaneUseCase,
-  getSourceByApi as getSourceByApiUseCase,
-  getStudySourcesForPane as getStudySourcesForPaneUseCase,
-} from "./chart-source-accessors";
+  buildPrimaryPaneSeriesRuntime,
+  getCompareStudyStateRuntime,
+  getMovingAverageStudyStateRuntime,
+  getOrCreateSecondaryPanePriceScaleRuntime,
+  getSecondarySeriesForPaneRuntime,
+  getSourceByApiRuntime,
+  getStudySourcesForPaneRuntime,
+} from "./chart-source-runtime";
 import {
   applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
   setSeriesMarkers as setSeriesMarkersUseCase,
@@ -3352,13 +3352,13 @@ export class PhaseOneChartHarness {
   }
 
   private getStudySourcesForPane(paneId: string): StudySourceState[] {
-    return getStudySourcesForPaneUseCase(paneId, {
+    return getStudySourcesForPaneRuntime(paneId, {
       listSourcesByPaneAndRole: (nextPaneId, role) => this.chartModel.listSourcesByPaneAndRole(nextPaneId, role),
     });
   }
 
   private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
-    return getSecondarySeriesForPaneUseCase(paneId, {
+    return getSecondarySeriesForPaneRuntime(paneId, {
       getStudySourcesForPane: (nextPaneId) => this.getStudySourcesForPane(nextPaneId),
     });
   }
@@ -3367,25 +3367,25 @@ export class PhaseOneChartHarness {
     api: ChartSeriesApi,
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
-    return getSourceByApiUseCase<SeriesSourceState, ChartSeriesKind>(api, {
+    return getSourceByApiRuntime(api, {
       getSourceByApiOrThrow: (nextApi, message) => this.chartModel.getSourceByApiOrThrow(nextApi as ChartSeriesApi, message),
     }, kind);
   }
 
   private getCompareStudyState(api: PhaseOneCompareSeriesApi): StudySourceState {
-    return getCompareStudyStateUseCase<StudySourceState>(api, {
+    return getCompareStudyStateRuntime(api, {
       getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
     });
   }
 
   private getMovingAverageStudyState(api: PhaseOneMovingAverageStudyApi): StudySourceState {
-    return getMovingAverageStudyStateUseCase<StudySourceState>(api, {
+    return getMovingAverageStudyStateRuntime(api, {
       getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
     });
   }
 
   private getOrCreateSecondaryPanePriceScale(paneId: string): PriceScale {
-    return getOrCreateSecondaryPanePriceScaleUseCase(paneId, {
+    return getOrCreateSecondaryPanePriceScaleRuntime(paneId, {
       getOrCreateSecondaryScale: (nextPaneId) => this.chartModel.getOrCreateSecondaryScale(nextPaneId),
     });
   }
@@ -3393,7 +3393,7 @@ export class PhaseOneChartHarness {
   private buildPrimaryPaneSeries(
     mainSource: MainSeriesSourceState | null,
   ): readonly SeriesSourceState[] {
-    return buildPrimaryPaneSeriesUseCase(mainSource, {
+    return buildPrimaryPaneSeriesRuntime(mainSource, {
       getStudySourcesForPane: (paneId) => this.getStudySourcesForPane(paneId),
     });
   }

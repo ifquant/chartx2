@@ -209,5 +209,6 @@ Current direction on that path:
 - pane read-model bookkeeping should follow the same direction, so pane series-state assembly, pane-state assembly, and pane snapshot assembly stop living as another harness-local bookkeeping cluster
 - source accessor/runtime composition should follow the same direction, so study lookup, source api guards, compare/moving-average specialization, secondary-scale access, and primary-pane series assembly stop living as another harness-local lookup cluster
 - pane event and resize composition should follow the same direction, so handler-registry deps assembly for pane events stops living as another harness-local runtime branch
+- drawing registry and selection composition should follow the same direction, so drawing lookup, pane-local listing, selected-drawing updates, and selected removal stop living as another harness-local glue cluster
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

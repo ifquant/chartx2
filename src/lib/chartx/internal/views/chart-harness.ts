@@ -139,6 +139,15 @@ import {
   emitPaneResizeRuntime as emitPaneResizeCompositionRuntime,
 } from "./chart-pane-event-runtime";
 import {
+  getDrawingByIdRuntime,
+  getDrawingCountForPaneRuntime,
+  listAllDrawingsRuntime,
+  listDrawingsByPaneRuntime,
+  removeDrawingRuntime,
+  removeSelectedDrawingRuntime,
+  selectDrawingRuntime,
+} from "./chart-drawing-registry-runtime";
+import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
@@ -362,21 +371,12 @@ import {
 } from "./chart-view-state";
 import {
   applyActiveTrendLineDrag as applyActiveTrendLineDragUseCase,
-  removeActiveDrawing as removeActiveDrawingUseCase,
-  removeSelectedActiveDrawing as removeSelectedActiveDrawingUseCase,
   resolveSelectedTrendLineDrag as resolveSelectedTrendLineDragUseCase,
-  selectActiveDrawing as selectActiveDrawingUseCase,
 } from "./chart-drawing-runtime";
 import {
   createHorizontalLineDrawingForPane as createHorizontalLineDrawingForPaneUseCase,
   createTrendLineDrawingForPane as createTrendLineDrawingForPaneUseCase,
 } from "./chart-drawing-creation";
-import {
-  getDrawingById as getDrawingByIdUseCase,
-  getDrawingCountForPane as getDrawingCountForPaneUseCase,
-  listAllDrawings as listAllDrawingsUseCase,
-  listDrawingsByPane as listDrawingsByPaneUseCase,
-} from "./chart-drawing-accessors";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
 import {
@@ -3167,31 +3167,31 @@ export class PhaseOneChartHarness {
   }
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
-    return getDrawingByIdUseCase(id, {
+    return getDrawingByIdRuntime(id, {
       listDrawings: () => this.drawingRegistry.list(),
     });
   }
 
   private getAllDrawings(): readonly ChartDrawingDescriptor[] {
-    return listAllDrawingsUseCase({
+    return listAllDrawingsRuntime({
       listDrawings: () => this.drawingRegistry.list(),
     });
   }
 
   private getDrawingsByPane(paneId: string): readonly ChartDrawingDescriptor[] {
-    return listDrawingsByPaneUseCase(paneId, {
+    return listDrawingsByPaneRuntime(paneId, {
       listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
     });
   }
 
   private getDrawingCountForPane(paneId: string): number {
-    return getDrawingCountForPaneUseCase(paneId, {
+    return getDrawingCountForPaneRuntime(paneId, {
       listByPane: (nextPaneId) => this.drawingRegistry.listByPane(nextPaneId),
     });
   }
 
   private selectDrawing(id: string | null, shouldRender = true): void {
-    selectActiveDrawingUseCase({
+    selectDrawingRuntime({
       selectedDrawingId: this.viewState.selectedDrawingId(),
       nextId: id,
       shouldRender,
@@ -3212,7 +3212,7 @@ export class PhaseOneChartHarness {
   }
 
   private removeDrawing(api: ChartDrawingApi): void {
-    removeActiveDrawingUseCase({
+    removeDrawingRuntime({
       api,
       selectedDrawingId: this.viewState.selectedDrawingId(),
       removeByApi: (nextApi) => this.drawingRegistry.removeByApi(nextApi),
@@ -3226,7 +3226,7 @@ export class PhaseOneChartHarness {
   }
 
   private removeSelectedDrawing(): void {
-    removeSelectedActiveDrawingUseCase({
+    removeSelectedDrawingRuntime({
       selectedDrawingId: this.viewState.selectedDrawingId(),
       getById: (id) => this.getDrawingById(id),
       clearSelection: (shouldRender) => this.selectDrawing(null, shouldRender),

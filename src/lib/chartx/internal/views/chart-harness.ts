@@ -130,6 +130,11 @@ import {
   unsubscribePaneResizeRuntime,
 } from "./chart-pane-api-runtime";
 import {
+  buildPaneStateRuntime,
+  buildPaneStateSnapshotRuntime,
+  getPaneSeriesStatesRuntime,
+} from "./chart-pane-bookkeeping-runtime";
+import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
@@ -3033,7 +3038,7 @@ export class PhaseOneChartHarness {
   }
 
   private buildPaneState(paneId: string): PhaseOnePaneState | null {
-    return buildPaneStateByIdUseCase(paneId, {
+    return buildPaneStateRuntime(paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
@@ -3042,7 +3047,7 @@ export class PhaseOneChartHarness {
   }
 
   private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
-    return buildPaneStateSnapshotByIdsUseCase(
+    return buildPaneStateSnapshotRuntime(
       this.panes.list().map((pane) => pane.id),
       {
         buildPaneState: (paneId) => this.buildPaneState(paneId),
@@ -3051,7 +3056,7 @@ export class PhaseOneChartHarness {
   }
 
   private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return getPaneSeriesStatesUseCase(paneId, {
+    return getPaneSeriesStatesRuntime(paneId, {
       listSourcesByPane: (nextPaneId) => this.chartModel.listSourcesByPane(nextPaneId),
     });
   }

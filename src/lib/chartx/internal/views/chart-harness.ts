@@ -204,10 +204,7 @@ import {
   renderPriceAxes as renderPriceAxesUseCase,
   renderTimeAxis as renderTimeAxisUseCase,
 } from "./chart-axis-render";
-import {
-  buildCrosshairMoveEvent as buildCrosshairMoveEventUseCase,
-  finishChartRender as finishChartRenderUseCase,
-} from "./chart-render-tail";
+import { finishChartRender as finishChartRenderUseCase } from "./chart-render-tail";
 import {
   prepareCanvasRenderSurface as prepareCanvasRenderSurfaceUseCase,
   renderEmptyPlotFrame as renderEmptyPlotFrameUseCase,
@@ -386,6 +383,7 @@ import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
+import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -1817,6 +1815,66 @@ export class PhaseOneChartHarness {
         }
       },
     },
+  });
+  private readonly renderCoordinator = createChartRenderCoordinator({
+    dpr: () => window.devicePixelRatio || 1,
+    getLayout: (canvas) => measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout()),
+    getChartOptions: () => this.chartOptions,
+    getCrosshairOptions: () => this.crosshairOptions,
+    getDrawingOptions: () => this.drawingOptions,
+    getCrosshair: () => this.viewState.crosshair(),
+    getSelectedDrawingId: () => this.viewState.selectedDrawingId(),
+    getHoveredDrawingId: () => this.viewState.hoveredDrawingId(),
+    getHoveredDrawingHandle: () => this.viewState.hoveredDrawingHandle(),
+    getDrawingSnapGuide: () => this.viewState.drawingSnapGuide(),
+    getManualBarSpacing: () => this.barSpacing,
+    getRightOffset: () => this.rightOffset,
+    getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
+    getPaneSpecs: () => this.panes.list(),
+    getMainSource: () => this.getMainSource(),
+    createMainBarSequenceFromSource: (source) => this.createMainBarSequenceFromSource(source as MainSeriesSourceState),
+    getContextSnapshot: () => this.chartModel.context().snapshot(),
+    getPrimaryStudies: () => this.getStudySourcesForPane("primary"),
+    buildPrimaryPaneSeries: (mainSource) => this.buildPrimaryPaneSeries(mainSource as MainSeriesSourceState | null),
+    getStudySources: () => this.chartModel.listSourcesByRole("study"),
+    getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
+    getDrawingsByPane: (paneId) => this.getDrawingsByPane(paneId),
+    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+    getPrimaryPriceScale: () => this.primaryPriceScale,
+    getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
+    getActiveTradeLocationState: () => this.activeTradeLocation?.state ?? null,
+    getTimeScale: () => this.timeScale,
+    getTimeAxisFormatter: () => this.timeAxisFormatter,
+    getPriceAxisFormatter: () => this.priceAxisFormatter,
+    getRendererRuntime: () => ({
+      lineRenderer: this.lineRenderer,
+      areaRenderer: this.areaRenderer,
+      baselineRenderer: this.baselineRenderer,
+      barRenderer: this.barRenderer,
+      candlesRenderer: this.candlesRenderer,
+      pointFigureRenderer: this.pointFigureRenderer,
+      histogramRenderer: this.histogramRenderer,
+      kagiRenderer: this.kagiRenderer,
+    }),
+    drawGrid: (context, params) => {
+      this.gridRenderer.draw(context, params);
+    },
+    drawPaneLegend: (context, entries) => {
+      drawPaneLegend(context, entries);
+    },
+    drawCrosshair: (context, paneWidth, paneHeight, crosshair, options) => {
+      drawCrosshair(context, paneWidth, paneHeight, crosshair, options);
+    },
+    emitReadout: (canvas, detail) => {
+      emitReadout(canvas, detail);
+    },
+    emitCrosshairMove: (readout) => {
+      this.emitCrosshairMove(readout);
+    },
+    backgroundColor: () => CHART_BACKGROUND,
+    resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
+      resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
   });
   private get panes(): PaneCollection {
     return this.chartModel.panes();
@@ -3297,35 +3355,7 @@ export class PhaseOneChartHarness {
     priceScale: PriceScale,
     rangeMin: number | null,
   ): void {
-    if (rows.length === 0) {
-      return;
-    }
-
-    const renderer = state.role === "main-series" ? state.renderer : rendererForSeriesKind(state.kind);
-    drawMainSeriesRenderer({
-      context,
-      renderer,
-      rows,
-      paneHeight,
-      barWidth,
-      priceScale,
-      rangeMin,
-      timeToX: (index) => this.timeScale.indexToCoordinate(index),
-      priceToY: (value) => toCoordinate(priceScale.priceToCoordinate(value)),
-      options: state.options as Record<string, unknown>,
-      inputData: state.inputData,
-      visuals: state.visuals,
-      runtime: {
-        lineRenderer: this.lineRenderer,
-        areaRenderer: this.areaRenderer,
-        baselineRenderer: this.baselineRenderer,
-        barRenderer: this.barRenderer,
-        candlesRenderer: this.candlesRenderer,
-        pointFigureRenderer: this.pointFigureRenderer,
-        histogramRenderer: this.histogramRenderer,
-        kagiRenderer: this.kagiRenderer,
-      },
-    });
+    this.renderCoordinator.renderSeriesSource(context, state, rows, paneHeight, barWidth, priceScale, rangeMin);
   }
 
   private buildReadoutSeriesForPrimary(
@@ -3333,33 +3363,18 @@ export class PhaseOneChartHarness {
     rowSets: ReadonlyMap<string, RowSet>,
     crosshair: PanePoint | null,
   ): readonly PhaseOneReadoutSeriesDetail[] {
-    return buildReadoutSeriesForPrimaryUseCase(primarySources, rowSets, crosshair, {
-      timeScale: this.timeScale,
-      formatValue: (state, value) => this.formatSeriesReadoutValueForState(state, value),
-    });
+    return this.renderCoordinator.buildReadoutSeriesForPrimary(primarySources, rowSets, crosshair);
   }
 
   private buildReadoutSeriesForPane(
     paneSeries: readonly SeriesSourceState[],
     crosshair: PanePoint | null,
   ): readonly PhaseOneReadoutSeriesDetail[] {
-    return buildReadoutSeriesForPaneUseCase(paneSeries, crosshair, {
-      timeScale: this.timeScale,
-      formatValue: (state, value) => this.formatSeriesReadoutValueForState(state, value),
-    });
+    return this.renderCoordinator.buildReadoutSeriesForPane(paneSeries, crosshair);
   }
 
   private buildMainBarSequence(source: MainSeriesSourceState | null): ChartBarSequence<number> {
-    if (source === null) {
-      return createTimeBasedChartBarSequence([]);
-    }
-
-    const context = this.chartModel.context().snapshot();
-    if (context.mainSourceId === source.id) {
-      return context.barSequence;
-    }
-
-    return this.createMainBarSequenceFromSource(source);
+    return this.renderCoordinator.buildMainBarSequence(source);
   }
 
   private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
@@ -3390,456 +3405,19 @@ export class PhaseOneChartHarness {
   }
 
   private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
-    return formatReadoutDetailUseCase(this.buildRawReadout(point, layout), {
-      formatTime: (value) => formatTimeAxisLabel(value, this.timeAxisFormatter),
-      formatPrice: (value) => formatPriceAxisLabel(value, this.priceAxisFormatter),
-    });
+    return this.renderCoordinator.buildReadout(point, layout);
   }
 
   private buildRawReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutBody {
-    const mainSource = this.getMainSource();
-    const mainSequence = this.buildMainBarSequence(mainSource);
-    return buildRawReadoutUseCase({
-      point,
-      paneFrames: buildPaneFrames(
-        this.panes.list(),
-        layout.height - layout.top - layout.bottom,
-        PANE_GAP,
-      ),
-      mainSourceId: mainSource?.id ?? null,
-      primaryRows: mainSequence.bars,
-      primaryStudies: this.getStudySourcesForPane("primary"),
-      primarySources: this.buildPrimaryPaneSeries(mainSource),
-      timeScale: this.timeScale,
-      primaryPriceScale: this.primaryPriceScale,
-      getPaneIndex: (paneId) => this.getPaneIndex(paneId),
-      getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
-      buildReadoutSeriesForPrimary: (primarySources, rowSets, crosshair) =>
-        this.buildReadoutSeriesForPrimary(primarySources, rowSets, crosshair),
-      buildReadoutSeriesForPane: (paneSeries, crosshair) =>
-        this.buildReadoutSeriesForPane(paneSeries, crosshair),
-    });
+    return this.renderCoordinator.buildRawReadout(point, layout);
   }
 
   private formatSeriesReadoutValueForState(state: SeriesSourceState, value: number | null): string {
-    return formatSeriesReadoutValueForStateUseCase(state, value, {
-      formatPrice: (nextValue) => formatPriceAxisLabel(nextValue, this.priceAxisFormatter),
-      formatVolume: (nextValue) => formatVolumeAxisLabel(nextValue),
-    });
+    return this.renderCoordinator.formatSeriesReadoutValueForState(state, value);
   }
 
   public render(canvas: HTMLCanvasElement): void {
-    const dpr = window.devicePixelRatio || 1;
-    const layout = measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
-    const context = canvas.getContext("2d");
-    if (context === null) {
-      throw new Error("Canvas 2D context is unavailable");
-    }
-
-    prepareCanvasRenderSurfaceUseCase({
-      canvas,
-      context,
-      layout,
-      dpr,
-      backgroundColor: this.chartOptions.backgroundColor,
-    });
-
-    const paneWidth = layout.width - layout.left - layout.right;
-    const plotHeight = layout.height - layout.top - layout.bottom;
-    const mainSource = this.getMainSource();
-    const mainSequence = this.buildMainBarSequence(mainSource);
-    const primaryStudies = this.getStudySourcesForPane("primary");
-    const primarySources = this.buildPrimaryPaneSeries(mainSource);
-    const renderState = buildChartRenderStateUseCase({
-      paneSpecs: this.panes.list(),
-      plotHeight,
-      paneGap: PANE_GAP,
-      paneWidth,
-      crosshair: this.viewState.crosshair(),
-      mainSourceId: mainSource?.id ?? null,
-      mainSequence,
-      primaryStudies,
-      primarySources,
-      studySources: this.chartModel.listSourcesByRole("study"),
-    });
-    const {
-      primaryRows,
-      primaryTimeAxisRows,
-      primaryRowSets,
-      secondaryRows,
-      pointCount,
-      paneFrames,
-      activePane,
-      barWidth,
-    } = renderState;
-
-    if (pointCount === 0) {
-      renderEmptyPlotFrameUseCase({
-        context,
-        layout,
-        paneWidth,
-        plotHeight,
-        paneBackgroundColor: this.chartOptions.paneBackgroundColor,
-        frameColor: this.chartOptions.frameColor,
-      });
-      return;
-    }
-
-    this.timeScale.applyOptions({
-      width: paneWidth,
-      pointCount,
-      barSpacing: resolveBarSpacing(this.barSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
-      rightOffset: this.rightOffset,
-    });
-
-    for (const pane of paneFrames) {
-      context.save();
-      context.translate(layout.left, layout.top + pane.top);
-      context.fillStyle = this.chartOptions.paneBackgroundColor;
-      context.fillRect(0, 0, paneWidth, pane.height);
-      this.gridRenderer.draw(context, {
-        width: paneWidth,
-        height: pane.height,
-        columns: 8,
-        rows: 5,
-        lineColor: this.chartOptions.gridColor,
-      });
-
-      context.save();
-      context.beginPath();
-      context.rect(0, 0, paneWidth, pane.height);
-      context.clip();
-
-      if (pane.kind === "primary") {
-        const primaryPaneDecorations = buildPrimaryPaneDecorationsUseCase({
-          sources: primarySources,
-          drawings: this.getDrawingsByPane("primary"),
-          drawingSnapGuide: this.viewState.drawingSnapGuide(),
-          tradeLocationState: this.activeTradeLocation?.state ?? null,
-        });
-        const { rangeMin: primaryRangeMin } = applyPrimaryPaneScaleUseCase({
-          mainSource,
-          primaryStudies,
-          primaryRowSets,
-          primaryScaleSeriesOnly: this.primaryScaleSeriesOnly,
-          priceRangeOverride: this.primaryPriceRangeOverride,
-          paneHeight: pane.height,
-          priceScale: this.primaryPriceScale,
-        });
-
-        renderPrimaryPaneContentUseCase({
-          hasPrimaryData: primaryRows.length > 0,
-          mainSourceExists: mainSource !== null,
-          primarySources,
-          primaryRowsFor: (source) => primaryRowSets.get(source.id) ?? [],
-          renderSeries: (source, rows) => {
-            this.renderSeriesSource(
-              context,
-              source,
-              rows,
-              pane.height,
-              barWidth,
-              this.primaryPriceScale,
-              primaryRangeMin,
-            );
-          },
-          drawPriceLines: () => {
-            drawPriceLines(
-              context,
-              paneWidth,
-              pane.height,
-              this.primaryPriceScale,
-              primaryPaneDecorations.priceLines,
-              this.chartOptions,
-              this.priceAxisFormatter,
-            );
-          },
-          drawDrawings: (drawings) => {
-            drawPaneDrawings(
-              context,
-              drawings,
-              {
-                resolveDrawingTimeCoordinate: (time) =>
-                  resolveDrawingTimeCoordinate(
-                    time,
-                    this.chartModel.context().snapshot().barSequence.axisBars,
-                    this.timeScale,
-                  ),
-                priceScale: this.primaryPriceScale,
-                selectedDrawingId: this.viewState.selectedDrawingId(),
-                hoveredDrawingId: this.viewState.hoveredDrawingId(),
-                hoveredDrawingHandle: this.viewState.hoveredDrawingHandle(),
-              },
-            );
-          },
-          primaryDrawings: primaryPaneDecorations.drawings,
-          drawTradeLocationOverlay: () => {
-            drawTradeLocationOverlay(
-              context,
-              primaryPaneDecorations.tradeLocationState,
-              pane.height,
-              this.timeScale,
-              this.primaryPriceScale,
-              {
-                backgroundColor: CHART_BACKGROUND,
-              },
-            );
-          },
-          drawDrawingSnapGuide: () => {
-            drawDrawingSnapGuide(
-              context,
-              paneWidth,
-              pane.height,
-              primaryPaneDecorations.snapGuide,
-              {
-                priceScale: this.primaryPriceScale,
-                resolveDrawingTimeCoordinate: (time) =>
-                  resolveDrawingTimeCoordinate(
-                    time,
-                    this.chartModel.context().snapshot().barSequence.axisBars,
-                    this.timeScale,
-                  ),
-              },
-            );
-          },
-          drawMarkers: (source, rows) => {
-            drawSeriesMarkers(
-              context,
-              rows,
-              source.markers,
-              this.timeScale,
-              this.primaryPriceScale,
-              pane.height,
-              source.kind,
-            );
-          },
-        });
-      }
-
-      if (pane.kind === "secondary") {
-        const paneSeries = this.getSecondarySeriesForPane(pane.id);
-        const secondaryPaneDecorations = buildSecondaryPaneDecorationsUseCase({
-          paneId: pane.id,
-          sources: paneSeries,
-          drawings: this.getDrawingsByPane(pane.id),
-          drawingSnapGuide: this.viewState.drawingSnapGuide(),
-        });
-        const panePriceScale = this.chartModel.getSecondaryScale(pane.id);
-        const {
-          hasPriceScale,
-          rangeMin,
-        } = applySecondaryPaneScaleUseCase({
-          paneSeries,
-          secondaryRows,
-          paneHeight: pane.height,
-          priceScale: panePriceScale,
-        });
-        renderSecondaryPaneContentUseCase({
-          paneSeries,
-          hasPriceScale,
-          rowsFor: (source) => secondaryRows.get(source.id),
-          hasRows: (rows) => (rows?.length ?? 0) > 0,
-          applyPriceScaleRange: () => {},
-          renderSeries: (source, rows) => {
-            this.renderSeriesSource(
-              context,
-              source,
-              rows,
-              pane.height,
-              barWidth,
-              source.priceScale,
-              rangeMin,
-            );
-          },
-          drawPriceLines: () => {
-            if (panePriceScale !== undefined) {
-              drawPriceLines(
-              context,
-              paneWidth,
-              pane.height,
-              panePriceScale,
-              secondaryPaneDecorations.priceLines,
-              this.chartOptions,
-              this.priceAxisFormatter,
-            );
-            }
-          },
-          drawDrawings: (drawings) => {
-            if (panePriceScale !== undefined) {
-              drawPaneDrawings(
-                context,
-                drawings,
-                {
-                  resolveDrawingTimeCoordinate: (time) =>
-                    resolveDrawingTimeCoordinate(
-                      time,
-                      this.chartModel.context().snapshot().barSequence.axisBars,
-                      this.timeScale,
-                    ),
-                  priceScale: panePriceScale,
-                  selectedDrawingId: this.viewState.selectedDrawingId(),
-                  hoveredDrawingId: this.viewState.hoveredDrawingId(),
-                  hoveredDrawingHandle: this.viewState.hoveredDrawingHandle(),
-                },
-              );
-            }
-          },
-          paneDrawings: secondaryPaneDecorations.drawings,
-          drawDrawingSnapGuide: () => {
-            if (panePriceScale !== undefined) {
-              drawDrawingSnapGuide(
-                context,
-                paneWidth,
-                pane.height,
-                secondaryPaneDecorations.snapGuide,
-                {
-                  priceScale: panePriceScale,
-                  resolveDrawingTimeCoordinate: (time) =>
-                    resolveDrawingTimeCoordinate(
-                      time,
-                      this.chartModel.context().snapshot().barSequence.axisBars,
-                      this.timeScale,
-                    ),
-                },
-              );
-            }
-          },
-          drawMarkers: (source, rows) => {
-            drawSeriesMarkers(
-              context,
-              rows,
-              source.markers,
-              this.timeScale,
-              source.priceScale,
-              pane.height,
-              source.kind,
-            );
-          },
-        });
-      }
-
-      context.restore();
-
-      renderPaneChromeUseCase({
-        pane,
-        activePane,
-        crosshair: this.viewState.crosshair(),
-        primarySources,
-        primaryRowSets,
-        getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
-        buildReadoutSeriesForPrimary: (nextPrimarySources, rowSets, crosshair) =>
-          this.buildReadoutSeriesForPrimary(nextPrimarySources, rowSets as ReadonlyMap<string, RowSet>, crosshair),
-        buildReadoutSeriesForPane: (paneSeries, crosshair) =>
-          this.buildReadoutSeriesForPane(paneSeries, crosshair),
-        drawLegend: (entries) => {
-          drawPaneLegend(context, entries);
-        },
-        drawCrosshair: (crosshair) => {
-          drawCrosshair(context, paneWidth, pane.height, crosshair, this.crosshairOptions);
-        },
-        drawFrameBorder: () => {
-          context.strokeStyle = this.chartOptions.frameColor;
-          context.strokeRect(0.5, 0.5, paneWidth - 1, pane.height - 1);
-        },
-      });
-      context.restore();
-    }
-
-    renderPriceAxesUseCase({
-      paneFrames,
-      activePane,
-      crosshair: this.viewState.crosshair(),
-      hasPrimaryRows: primaryRows.length > 0,
-      findPrimaryPane: (panes) => panes.find((pane) => pane.kind === "primary"),
-      drawPrimaryAxis: (pane, crosshair) => {
-        drawPriceAxis(
-          context,
-          layout,
-          pane.top,
-          pane.height,
-          this.primaryPriceScale,
-          crosshair,
-          this.chartOptions,
-          "primary",
-          this.priceAxisFormatter,
-          this.drawingOptions.magnetLabelVisible
-            && this.viewState.drawingSnapGuide()?.paneId === "primary"
-            && this.viewState.drawingSnapGuide()!.price !== null
-            ? buildMagnetAxisTag(
-              layout,
-              pane.top,
-              this.primaryPriceScale,
-              this.viewState.drawingSnapGuide()!,
-              this.priceAxisFormatter,
-            )
-            : null,
-        );
-      },
-      getSecondaryAxisState: (paneId) => this.getSecondarySeriesForPane(paneId)[0],
-      secondaryPaneHasRows: (paneId) =>
-        this.getSecondarySeriesForPane(paneId).some(
-          (entry) => (secondaryRows.get(entry.id)?.length ?? 0) > 0,
-        ),
-      drawSecondaryAxis: (pane, state, crosshair) => {
-        drawPriceAxis(
-          context,
-          layout,
-          pane.top,
-          pane.height,
-          state.priceScale,
-          crosshair,
-          this.chartOptions,
-          state.kind === "volume" ? "volume" : "primary",
-          this.priceAxisFormatter,
-          this.drawingOptions.magnetLabelVisible
-            && this.viewState.drawingSnapGuide()?.paneId === pane.id
-            && this.viewState.drawingSnapGuide()!.price !== null
-            ? buildMagnetAxisTag(layout, pane.top, state.priceScale, this.viewState.drawingSnapGuide()!, this.priceAxisFormatter)
-            : null,
-        );
-      },
-    });
-
-    const firstSecondaryRows = secondaryRows.values().next().value;
-    finishChartRenderUseCase({
-      primaryRows: primaryTimeAxisRows,
-      firstSecondaryRows,
-      hasRows: (rows) => (rows?.length ?? 0) > 0,
-      renderTimeAxis: (rows) => {
-        renderTimeAxisUseCase({
-          primaryRows: rows,
-          firstSecondaryRows: undefined,
-          hasRows: (rows) => (rows?.length ?? 0) > 0,
-          draw: (rows) => {
-            drawTimeAxis(
-              context,
-              layout,
-              rows,
-              this.timeScale,
-              this.viewState.crosshair(),
-              this.chartOptions,
-              this.timeAxisFormatter,
-              this.drawingOptions.timeMagnetLabelVisible && this.viewState.drawingSnapGuide()?.time != null
-                ? buildMagnetTimeAxisTag(
-                    layout,
-                    rows,
-                    this.timeScale,
-                    this.viewState.drawingSnapGuide()!,
-                    this.timeAxisFormatter,
-                  )
-                : null,
-            );
-          },
-        });
-      },
-      buildReadout: () => this.buildReadout(this.viewState.crosshair(), layout),
-      publishReadout: (readout) => {
-        emitReadout(canvas, readout);
-      },
-      publishCrosshairMove: (readout) => {
-        this.emitCrosshairMove(readout);
-      },
-    });
+    this.renderCoordinator.render(canvas);
   }
 
   private assertSeriesActive(series: ChartSeriesApi): void {

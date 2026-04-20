@@ -214,5 +214,6 @@ Current direction on that path:
 - pane ownership should now continue through a single pane owner composition surface, so pane handles, pane target resolution, pane option/height mutation, pane removal, and pane state/event publication stop being reassembled in multiple harness-local branches
 - drawing lifecycle and public ownership should now continue through a single drawing owner composition surface, so drawing creation, registry lookup/listing, selected-drawing public state, and drawing restore stop being split across separate harness-local wrappers
 - once source, pane, and drawing owners are stable, the next major extraction should be one render coordinator module, so frame render orchestration, readout assembly, axis dispatch, and render-tail publication stop being the last large fanout cluster inside `chart-harness`
+- render/readout/axis/tail orchestration should now continue through a single render coordinator composition surface, so `chart-harness` stops owning the full frame pass and can keep collapsing toward a composition root plus adapter shell
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

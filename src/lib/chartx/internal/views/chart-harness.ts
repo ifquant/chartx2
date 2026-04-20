@@ -125,6 +125,12 @@ import { attachStudySource, createStudySourceState } from "./chart-study-source"
 import { applyValidatedChartState, createChartStateSnapshot } from "./chart-state";
 import { createValidatedChartStateApplicationDeps } from "./chart-state-apply-runtime";
 import {
+  clearTradeLocationRuntime,
+  getTradeLocationState as getTradeLocationStateUseCase,
+  locateTradeRuntime,
+  refreshTradeLocationRuntime,
+} from "./chart-trade-location-runtime";
+import {
   applyRestorableMainSeriesState,
   applyRestorablePriceScaleState,
   applyRestorableTimeScaleState,
@@ -305,7 +311,6 @@ import {
   createMainBarSequenceFromSource as createMainBarSequenceFromSourceUseCase,
   getMainSource as getMainSourceUseCase,
   getMainSourceOrThrow as getMainSourceOrThrowUseCase,
-  refreshTradeLocation as refreshTradeLocationUseCase,
   syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
 } from "./chart-main-source-runtime";
 import {
@@ -327,10 +332,6 @@ import {
   updateSecondaryData as updateSecondaryDataUseCase,
   updateSecondaryHistogramLikeData as updateSecondaryHistogramLikeDataUseCase,
 } from "./chart-secondary-series-runtime";
-import {
-  clearTradeLocationCommand as clearTradeLocationCommandUseCase,
-  locateTradeCommand as locateTradeCommandUseCase,
-} from "./chart-runtime-commands";
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
@@ -2187,7 +2188,7 @@ export class PhaseOneChartHarness {
     request: PhaseOneTradeLocationRequest,
     options: PhaseOneTradeOverlayOptions = {},
   ): PhaseOneTradeLocationState | null {
-    return locateTradeCommandUseCase(request, options, {
+    return locateTradeRuntime(request, options, {
       ensureMainSource: () => {
         this.getMainSourceOrThrow();
       },
@@ -2202,7 +2203,7 @@ export class PhaseOneChartHarness {
   }
 
   public clearTradeLocation(): void {
-    clearTradeLocationCommandUseCase({
+    clearTradeLocationRuntime({
       clearActiveTradeLocation: () => {
         this.activeTradeLocation = null;
       },
@@ -2218,7 +2219,7 @@ export class PhaseOneChartHarness {
   }
 
   public getTradeLocationState(): PhaseOneTradeLocationState | null {
-    return this.activeTradeLocation?.state ?? null;
+    return getTradeLocationStateUseCase(this.activeTradeLocation);
   }
 
   private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
@@ -3311,7 +3312,7 @@ export class PhaseOneChartHarness {
   }
 
   private refreshTradeLocation(): void {
-    refreshTradeLocationUseCase(this.activeTradeLocation, {
+    refreshTradeLocationRuntime(this.activeTradeLocation, {
       getMainSource: () => this.getMainSource(),
       setActiveTradeLocation: (next) => {
         this.activeTradeLocation = next;

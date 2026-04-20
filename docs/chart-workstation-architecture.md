@@ -204,5 +204,6 @@ Current direction on that path:
 - chart-state content rebuild should follow the same direction, so restore-time add/apply glue for series studies and drawings stops living as three harness-local restore methods
 - chart-state apply runtime should continue moving toward shared modules, so main-series restore apply, trade-location restore, and finalize-on-render stop living as another harness-local execution branch
 - chart-state apply should also own its grouped restore dependency builder, so applyChartStateSnapshot stops carrying the full restore dependency object inline inside chart-harness
+- trade-location command and refresh composition should follow the same direction, so locate/clear/get/refresh no longer live as another harness-local runtime cluster
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

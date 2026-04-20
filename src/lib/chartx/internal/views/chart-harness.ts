@@ -135,6 +135,10 @@ import {
   getPaneSeriesStatesRuntime,
 } from "./chart-pane-bookkeeping-runtime";
 import {
+  emitPaneEventRuntime as emitPaneEventCompositionRuntime,
+  emitPaneResizeRuntime as emitPaneResizeCompositionRuntime,
+} from "./chart-pane-event-runtime";
+import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
@@ -3018,7 +3022,7 @@ export class PhaseOneChartHarness {
   }
 
   private emitPaneResize(paneId: string): void {
-    this.handlerRegistry.emitPaneResize(paneId, {
+    emitPaneResizeCompositionRuntime(this.handlerRegistry, paneId, {
       getPaneById: (nextPaneId) => this.getPaneById(nextPaneId),
       getPaneIndex: (nextPaneId) => this.getPaneIndex(nextPaneId),
       getPaneHeight: (nextPaneId) => this.getPaneHeight(nextPaneId),
@@ -3031,7 +3035,7 @@ export class PhaseOneChartHarness {
     explicitPaneState?: PhaseOnePaneState | null,
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
-    this.handlerRegistry.emitPaneEvent(type, paneId, {
+    emitPaneEventCompositionRuntime(this.handlerRegistry, type, paneId, {
       buildPaneState: (nextPaneId) => this.buildPaneState(nextPaneId),
       buildPaneSnapshot: () => this.buildPaneStateSnapshot(),
     }, explicitPaneState, explicitSnapshot);

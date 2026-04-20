@@ -208,5 +208,6 @@ Current direction on that path:
 - pane API handle construction and resize subscription wiring should follow the same direction, so createPaneHandle no longer owns another harness-local pane runtime composition block
 - pane read-model bookkeeping should follow the same direction, so pane series-state assembly, pane-state assembly, and pane snapshot assembly stop living as another harness-local bookkeeping cluster
 - source accessor/runtime composition should follow the same direction, so study lookup, source api guards, compare/moving-average specialization, secondary-scale access, and primary-pane series assembly stop living as another harness-local lookup cluster
+- pane event and resize composition should follow the same direction, so handler-registry deps assembly for pane events stops living as another harness-local runtime branch
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

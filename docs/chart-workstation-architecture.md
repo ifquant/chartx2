@@ -259,6 +259,7 @@ Current direction on that path:
 - render callback ownership should sit behind a render callback owner, so renderer runtime, grid/chrome drawing callbacks, readout/crosshair publication, background color, and spacing resolution are no longer assembled inline in the `renderCoordinator` harness dependency bundle
 - demo mount ownership should live outside `chart-harness`, so fixture bar generation and demo pane/series setup do not remain in the runtime adapter shell
 - chart factory ownership should live outside `chart-harness`, so canvas validation, harness construction, attach, and public API handoff do not remain inline in the runtime adapter shell
+- interaction ownership should sit behind an interaction owner, so view-state mutation, drawing hit/drag routing, pane resize application, readout publication, and keyboard command routing are not assembled inline in the runtime adapter shell
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
 - secondary series API ownership should flow through a dedicated owner, so secondary data mutation, markers, price lines, compare options, and moving-average options no longer sit as a high-fanout closure block inside `chart-harness`

@@ -30,7 +30,6 @@ import {
   type PhaseOneTradeOverlayOptions,
   type PhaseOneResolvedTradeOverlayOptions,
   type KagiStyleOptionsState,
-  type PaneFrame,
   type PaneKind,
   type PaneModelState,
   type PointFigureStyleOptionsState,
@@ -61,7 +60,7 @@ import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
 import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
-import { createChartInteractionHandlers } from "./chart-interaction-handlers";
+import { createChartInteractionOwner } from "./chart-interaction-owner";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
 import { createChartEventSubscriptionOwner } from "./chart-event-subscription-owner";
 import {
@@ -110,10 +109,7 @@ import {
 import { createChartCanvasLifecycleOwner } from "./chart-canvas-lifecycle-owner";
 import {
   createChartViewState,
-  type DragState,
-  type DrawingDragState,
   type DrawingSnapGuideState,
-  type PaneResizeState,
 } from "./chart-view-state";
 import { createChartDrawingInteractionOwner } from "./chart-drawing-interaction-owner";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
@@ -1690,7 +1686,7 @@ export class PhaseOneChartHarness {
   private get primaryPriceScale(): PriceScale {
     return this.chartModel.primaryScale();
   }
-  private readonly interactionHandlers = createChartInteractionHandlers({
+  private readonly interactionHandlers = createChartInteractionOwner({
     defaultLayout: DEFAULT_LAYOUT,
     paneGap: PANE_GAP,
     paneDividerHitSlop: PANE_DIVIDER_HIT_SLOP,
@@ -1707,61 +1703,19 @@ export class PhaseOneChartHarness {
     setRightOffset: (value) => {
       this.rightOffset = value;
     },
-    getCrosshair: () => this.viewState.crosshair(),
-    setCrosshair: (point) => {
-      this.viewState.setCrosshair(point);
-    },
-    getDragState: () => this.viewState.dragState(),
-    setDragState: (state) => {
-      this.viewState.setDragState(state);
-    },
-    getDrawingDragState: () => this.viewState.drawingDragState(),
-    setDrawingDragState: (state) => {
-      this.viewState.setDrawingDragState(state);
-    },
-    getPaneResizeState: () => this.viewState.paneResizeState(),
-    setPaneResizeState: (state) => {
-      this.viewState.setPaneResizeState(state);
-    },
-    setHoveredDrawingId: (id) => {
-      this.viewState.setHoveredDrawingId(id);
-    },
-    setHoveredDrawingHandle: (handle) => {
-      this.viewState.setHoveredDrawingHandle(handle);
-    },
-    clearDrawingSnapGuide: () => {
-      this.viewState.clearDrawingSnapGuide();
-    },
-    resolveHitDrawing: (point, layout, paneFrames) =>
-      this.drawingInteractionOwner.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[] | undefined),
-    resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
-      this.drawingInteractionOwner.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
-    applyPaneResize: (clientY, layout, paneFrames) => {
-      void paneFrames;
-      this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
-    },
-    applyDrawingDrag: (dragState, point, layout, paneFrames) => {
-      this.drawingInteractionOwner.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
-    },
+    viewState: this.viewState,
+    drawingInteractionOwner: this.drawingInteractionOwner,
+    paneOwner: this.paneOwner,
+    drawingOwner: this.drawingOwner,
     focusCanvas: () => {
       this.canvas?.focus({ preventScroll: true });
     },
     renderCanvas: (canvas) => {
       this.render(canvas);
     },
-    selectDrawing: (id) => {
-      this.drawingOwner.selectDrawing(id);
-    },
     buildReadout: (point, layout) => this.renderCoordinator.buildReadout(point, layout),
     emitClick: (readout, point) => {
       this.handlerRegistry.emitClick(readout, point);
-    },
-    hasSelectedDrawing: () => this.viewState.selectedDrawingId() !== null,
-    clearSelectedDrawing: () => {
-      this.drawingOwner.selectDrawing(null);
-    },
-    removeSelectedDrawing: () => {
-      this.drawingOwner.removeSelectedDrawing();
     },
   });
   private readonly handleResize = this.interactionHandlers.handleResize;

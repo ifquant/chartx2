@@ -74,6 +74,7 @@ import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
+import { createChartEventSubscriptionOwner } from "./chart-event-subscription-owner";
 import {
   calculateBaseBarSpacing,
   measureLayout,
@@ -1066,6 +1067,7 @@ const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
   private readonly handlerRegistry = createChartHandlerRegistry();
+  private readonly eventSubscriptionOwner = createChartEventSubscriptionOwner(this.handlerRegistry);
   private readonly chartModel = new ChartModel<
     ChartSeriesKind,
     ChartSeriesApi,
@@ -2070,19 +2072,19 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.handlerRegistry.subscribeCrosshairMove(handler);
+    this.eventSubscriptionOwner.subscribeCrosshairMove(handler);
   }
 
   public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.handlerRegistry.unsubscribeCrosshairMove(handler);
+    this.eventSubscriptionOwner.unsubscribeCrosshairMove(handler);
   }
 
   public subscribeClick(handler: PhaseOneClickHandler): void {
-    this.handlerRegistry.subscribeClick(handler);
+    this.eventSubscriptionOwner.subscribeClick(handler);
   }
 
   public unsubscribeClick(handler: PhaseOneClickHandler): void {
-    this.handlerRegistry.unsubscribeClick(handler);
+    this.eventSubscriptionOwner.unsubscribeClick(handler);
   }
 
   public getSelectedDrawing(): PhaseOneSelectedDrawing {
@@ -2108,27 +2110,27 @@ export class PhaseOneChartHarness {
   }
 
   public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.handlerRegistry.subscribeDrawingSelectionChange(handler);
+    this.eventSubscriptionOwner.subscribeDrawingSelectionChange(handler);
   }
 
   public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.handlerRegistry.unsubscribeDrawingSelectionChange(handler);
+    this.eventSubscriptionOwner.unsubscribeDrawingSelectionChange(handler);
   }
 
   public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.handlerRegistry.subscribePaneEvents(handler);
+    this.eventSubscriptionOwner.subscribePaneEvents(handler);
   }
 
   public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.handlerRegistry.unsubscribePaneEvents(handler);
+    this.eventSubscriptionOwner.unsubscribePaneEvents(handler);
   }
 
   public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.handlerRegistry.subscribeChartTypeChange(handler);
+    this.eventSubscriptionOwner.subscribeChartTypeChange(handler);
   }
 
   public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.handlerRegistry.unsubscribeChartTypeChange(handler);
+    this.eventSubscriptionOwner.unsubscribeChartTypeChange(handler);
   }
 
   public getChartType(): PhaseOneMainChartType | null {

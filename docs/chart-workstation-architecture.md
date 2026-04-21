@@ -241,6 +241,7 @@ Current direction on that path:
 - render invalidation should now continue through a shared attached-canvas invalidation owner, so command and owner callbacks stop duplicating nullable-canvas render guards throughout `chart-harness`
 - time-scale and price-scale public API construction should continue through a scale owner, so visible-range math, formatter routing, and primary price-range override application stop living in `chart-harness`
 - chart shell commands should continue through a shell owner, so chart-wide option mutation, drawing snap-guide cleanup, manual resize layout, and render invalidation are not reassembled inside public harness methods
+- public event subscription routing should flow through an event subscription owner, so crosshair, click, drawing-selection, pane, and chart-type subscribe/unsubscribe methods stop touching the handler registry directly from `chart-harness`
 - stale harness-local passthrough wrappers should be removed once their owner/coordinator surfaces are stable, so `chart-harness` keeps moving toward direct composition instead of accumulating dead adapter methods
 - render coordinator ownership should include import ownership too, so `chart-harness` should not keep stale render/readout/axis leaf imports once all remaining calls route through the coordinator
 - drawing owner ownership should include public drawing commands and interaction lookups, so `chart-harness` should not retain private drawing registry/selection wrappers after the owner surface is stable

@@ -27,6 +27,7 @@ import type {
   SecondarySeriesKind,
 } from "./chart-secondary-series-factory";
 import {
+  addSecondarySeries as addSecondarySeriesUseCase,
   attachStudySeries as attachStudySeriesUseCase,
   createSecondarySeriesApiDeps as createSecondarySeriesApiDepsUseCase,
 } from "./chart-secondary-series-factory";
@@ -246,6 +247,18 @@ export function createChartSourceOwner(deps: ChartSourceOwnerDeps) {
     attachStudySeries,
   });
 
+  const addSecondarySeries = <Api>(params: {
+    paneId: string;
+    kind: SecondarySeriesKind;
+    studyKind?: string;
+    indicator?: unknown;
+    createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
+  }): Api =>
+    addSecondarySeriesUseCase(
+      params as never,
+      createSecondarySeriesFactoryDeps() as never,
+    ) as Api;
+
   return {
     setChartType(nextType: string) {
       return setChartTypeUseCase(getMainSourceOrThrow(), nextType, {
@@ -360,6 +373,7 @@ export function createChartSourceOwner(deps: ChartSourceOwnerDeps) {
     attachStudySeries,
     createSecondarySeriesApiDeps,
     createSecondarySeriesFactoryDeps,
+    addSecondarySeries,
     getMainSource,
     getMainSourceOrThrow,
     getSourceByApi,

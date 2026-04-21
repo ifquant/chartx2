@@ -81,9 +81,7 @@ import {
   createSecondaryVolumeSeriesApi,
 } from "./chart-secondary-series-api";
 import {
-  addSecondarySeries as addSecondarySeriesUseCase,
   type SecondarySeriesApiDepsBuilder,
-  type SecondarySeriesKind,
 } from "./chart-secondary-series-factory";
 import {
   applyCompareStudyOptions,
@@ -1898,7 +1896,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("candlestick", this.createPrimarySeriesFactoryDeps()) as PhaseOneCandlestickSeriesApi,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "candlestick",
           createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
@@ -2020,7 +2018,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("area", this.createPrimarySeriesFactoryDeps()) as PhaseOneAreaSeriesApi,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "area",
           createApi: (deps) => createSecondaryAreaSeriesApi(deps),
@@ -2035,7 +2033,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("baseline", this.createPrimarySeriesFactoryDeps()) as PhaseOneBaselineSeriesApi,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "baseline",
           createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
@@ -2050,7 +2048,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("bar", this.createPrimarySeriesFactoryDeps()) as PhaseOneBarSeriesApi,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "bar",
           createApi: (deps) => createSecondaryBarSeriesApi(deps),
@@ -2065,7 +2063,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("histogram", this.createPrimarySeriesFactoryDeps()) as PhaseOneHistogramSeriesApi,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "histogram",
           createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
@@ -2078,7 +2076,7 @@ export class PhaseOneChartHarness {
       resolveTarget: (nextTarget, options) =>
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addSecondary: (paneId) =>
-        this.addSecondarySeries({
+        this.sourceOwner.addSecondarySeries({
           paneId,
           kind: "volume",
           createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
@@ -2464,19 +2462,6 @@ export class PhaseOneChartHarness {
     this.sourceOwner.updatePrimaryData(bar);
   }
 
-  private addSecondarySeries<Api>(params: {
-    paneId: string;
-    kind: SecondarySeriesKind;
-    studyKind?: StudySourceKind;
-    indicator?: MovingAverageIndicatorState;
-    createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
-  }): Api {
-    return addSecondarySeriesUseCase(
-      params,
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as Api;
-  }
-
   private addLineStudySeries<Api>(
     paneId: string,
     studyKind: StudySourceKind,
@@ -2485,7 +2470,7 @@ export class PhaseOneChartHarness {
       createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
     },
   ): Api {
-    return this.addSecondarySeries({
+    return this.sourceOwner.addSecondarySeries({
       paneId,
       kind: "line",
       studyKind,

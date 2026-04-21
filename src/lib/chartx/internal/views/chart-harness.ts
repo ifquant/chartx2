@@ -1400,7 +1400,7 @@ export class PhaseOneChartHarness {
     secondarySeriesApi: {
       assertSeriesActive: (api) => this.assertSeriesActive(api as ChartSeriesApi),
       applySeriesFormatterOptions: (seriesOptions, options) =>
-        this.applySeriesFormatterOptions(
+        applySeriesFormatterOptionsUseCase(
           seriesOptions as PhaseOneSeriesFormatterOptions,
           options as PhaseOneSeriesFormatterOptions,
         ),
@@ -1910,7 +1910,7 @@ export class PhaseOneChartHarness {
       assertSeriesActive: (api) => this.assertSeriesActive(api),
       getSource: (api, sourceKind) => this.getSourceByApi(api, sourceKind),
       applySeriesFormatterOptions: (seriesOptions, options) =>
-        this.applySeriesFormatterOptions(
+        applySeriesFormatterOptionsUseCase(
           seriesOptions as PhaseOneSeriesFormatterOptions,
           options as PhaseOneSeriesFormatterOptions,
         ),
@@ -2361,13 +2361,6 @@ export class PhaseOneChartHarness {
     return pointCount;
   }
 
-  private applySeriesFormatterOptions(
-    seriesOptions: PhaseOneSeriesFormatterOptions,
-    options: PhaseOneSeriesFormatterOptions,
-  ): void {
-    applySeriesFormatterOptionsUseCase(seriesOptions, options);
-  }
-
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {
     return addPrimarySeriesUseCase("line", this.createPrimarySeriesFactoryDeps()) as PhaseOneLineSeriesApi;
   }
@@ -2395,7 +2388,7 @@ export class PhaseOneChartHarness {
         kind: "candlestick",
         createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneCandlestickSeriesApi;
   }
 
@@ -2414,7 +2407,7 @@ export class PhaseOneChartHarness {
         studyKind,
         createApi: (deps) => createSecondaryLineSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneLineSeriesApi;
   }
 
@@ -2426,7 +2419,7 @@ export class PhaseOneChartHarness {
         studyKind: "compare",
         createApi: (deps) => createCompareStudySeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneCompareSeriesApi;
   }
 
@@ -2442,7 +2435,7 @@ export class PhaseOneChartHarness {
         },
         createApi: (deps) => createMovingAverageStudySeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneMovingAverageStudyApi;
   }
 
@@ -2453,7 +2446,7 @@ export class PhaseOneChartHarness {
         kind: "area",
         createApi: (deps) => createSecondaryAreaSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneAreaSeriesApi;
   }
 
@@ -2464,7 +2457,7 @@ export class PhaseOneChartHarness {
         kind: "baseline",
         createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneBaselineSeriesApi;
   }
 
@@ -2475,7 +2468,7 @@ export class PhaseOneChartHarness {
         kind: "bar",
         createApi: (deps) => createSecondaryBarSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneBarSeriesApi;
   }
 
@@ -2486,7 +2479,7 @@ export class PhaseOneChartHarness {
         kind: "histogram",
         createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneHistogramSeriesApi;
   }
 
@@ -2497,12 +2490,8 @@ export class PhaseOneChartHarness {
         kind: "volume",
         createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
       },
-      this.createSecondarySeriesFactoryDeps(),
+      this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneVolumeSeriesApi;
-  }
-
-  private createSecondarySeriesFactoryDeps() {
-    return this.sourceOwner.createSecondarySeriesFactoryDeps();
   }
 
   private setSecondaryMarkers(

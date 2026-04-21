@@ -225,5 +225,6 @@ Current direction on that path:
 - pane owner ownership should include pane handles, pane index lookup, resize apply, removal, and event dispatch call sites, so `chart-harness` should not retain private pane runtime wrappers after the owner surface is stable
 - source owner ownership should also include primary/secondary data mutation forwarding, so `chart-harness` should not keep local set/update wrappers once public commands and series APIs can call the owner directly
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
+- secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

@@ -115,10 +115,7 @@ import {
   removeSeriesCommand as removeSeriesCommandUseCase,
 } from "./chart-structure-commands";
 import { createChartScaleOwner } from "./chart-scale-owner";
-import {
-  applyChartOptions as applyChartOptionsUseCase,
-  resizeChart as resizeChartUseCase,
-} from "./chart-shell-commands";
+import { createChartShellOwner } from "./chart-shell-owner";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
   clonePriceLines,
@@ -1688,6 +1685,23 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly shellOwner = createChartShellOwner({
+    layoutOptions: this.chartOptions,
+    crosshairOptions: this.crosshairOptions,
+    drawingOptions: this.drawingOptions,
+    setManualLayout: (layout) => {
+      this.viewState.setManualLayout(layout);
+    },
+    clearDrawingSnapGuide: () => {
+      this.viewState.clearDrawingSnapGuide();
+    },
+    clearDrawingSnapGuideTimeOnly: () => {
+      this.viewState.clearDrawingSnapGuideTimeOnly();
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly primarySeriesOwner = createChartPrimarySeriesOwner<PhaseOneMainSeriesApi, MainSeriesSourceState>({
     getCurrentMainSourceId: () => this.chartModel.mainSourceId(),
     getPrimaryPriceScale: () => this.primaryPriceScale,
@@ -2165,40 +2179,11 @@ export class PhaseOneChartHarness {
   }
 
   public applyOptions(options: PhaseOneChartOptions): void {
-    applyChartOptionsUseCase(options, {
-      setLayoutOption: (key, value) => {
-        this.chartOptions[key] = value;
-      },
-      setCrosshairOption: (key, value) => {
-        this.crosshairOptions[key] = value;
-      },
-      setDrawingOption: (key, value) => {
-        this.drawingOptions[key] = value as never;
-      },
-      setDrawingMagnetSource: (key, value) => {
-        this.drawingOptions.magnetSources[key] = value;
-      },
-      clearDrawingSnapGuide: () => {
-        this.viewState.clearDrawingSnapGuide();
-      },
-      clearDrawingSnapGuideTimeOnly: () => {
-        this.viewState.clearDrawingSnapGuideTimeOnly();
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    this.shellOwner.applyOptions(options);
   }
 
   public resize(width: number, height: number): void {
-    resizeChartUseCase(width, height, {
-      setManualLayout: (layout) => {
-        this.viewState.setManualLayout(layout);
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    this.shellOwner.resize(width, height);
   }
 
   public timeScaleApi(): PhaseOneTimeScaleApi {

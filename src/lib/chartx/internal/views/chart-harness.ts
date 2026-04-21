@@ -86,7 +86,7 @@ import {
 } from "./chart-drawing-state";
 import { createChartScaleOwner } from "./chart-scale-owner";
 import { createChartShellOwner } from "./chart-shell-owner";
-import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
+import { createAttachedChart } from "./chart-factory";
 import type { PriceLineState } from "./chart-price-line-runtime";
 import { createPriceLineManager } from "./chart-price-line-management";
 import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
@@ -2031,12 +2031,7 @@ export class PhaseOneChartHarness {
 }
 
 export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {
-  assertCanvasElement(canvas);
-
-  const harness = new PhaseOneChartHarness();
-  harness.attach(canvas);
-
-  return createChartPublicApiUseCase(harness);
+  return createAttachedChart(canvas, () => new PhaseOneChartHarness());
 }
 
 export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {

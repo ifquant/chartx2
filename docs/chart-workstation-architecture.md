@@ -164,6 +164,7 @@ Current direction on that path:
 - chart-wide applyOptions and resize command routing should follow the same direction, so layout/crosshair/drawing option patching and manual layout updates stop living as harness-local public branches
 - bottom-level chart public API wrapper construction should follow the same direction, so createPhaseOneChart degrades toward attach-plus-factory instead of owning the full harness-to-public glue surface
 - built-in demo data generation should live outside `chart-harness`, so the harness only mounts the sample chart instead of owning fixture construction
+- DOM boundary guards should live outside `chart-harness`, so canvas validation is tested as shell input validation rather than harness policy
 - runtime subscription and trade-location command routing should follow the same direction, so handler-set mutation and trade location public commands stop living as harness-local public branches
 - pane/chart/crosshair/click event publish paths should follow the same direction, so event assembly and fanout stop living as harness-local emitter branches
 - pointer-leave, pointer-up, wheel, and keyboard viewport commands should follow the same direction, so settled input-state transitions stop living as harness-local interaction branches

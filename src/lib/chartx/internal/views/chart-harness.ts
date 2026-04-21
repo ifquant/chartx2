@@ -228,6 +228,7 @@ import {
   buildDemoBars,
   buildDemoVolumeBars,
 } from "./chart-demo-data";
+import { assertCanvasElement } from "./chart-dom-guards";
 
 const CHART_BACKGROUND = "#fffdf7";
 const PANE_BACKGROUND = "#fffaf0";
@@ -2781,10 +2782,4 @@ export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void
   return () => {
     chart.destroy();
   };
-}
-
-function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {
-  if (!(value instanceof HTMLCanvasElement)) {
-    throw new Error("chartx phase-one chart requires an HTMLCanvasElement");
-  }
 }

@@ -100,14 +100,12 @@ import {
   syncStudyContextData as syncStudyContextDataUseCase,
 } from "./chart-study-context";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
-import { attachStudySource, createStudySourceState } from "./chart-study-source";
+import { createStudySourceState } from "./chart-study-source";
 import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
-  refreshTradeLocationRuntime,
 } from "./chart-trade-location-runtime";
-import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
 import {
   distanceToLineSegment,
 } from "./chart-drawing-geometry";
@@ -174,16 +172,8 @@ import {
 } from "./chart-series-builders";
 import {
   createMainBarSequenceFromSource as createMainBarSequenceFromSourceUseCase,
-  getMainSource as getMainSourceUseCase,
-  getMainSourceOrThrow as getMainSourceOrThrowUseCase,
   syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
 } from "./chart-main-source-runtime";
-import {
-  buildPrimaryPaneSeriesRuntime,
-  getSecondarySeriesForPaneRuntime,
-  getSourceByApiRuntime,
-  getStudySourcesForPaneRuntime,
-} from "./chart-source-runtime";
 import { createChartSourceOwner } from "./chart-source-owner";
 import { createChartPaneOwner } from "./chart-pane-owner";
 import { createChartDrawingOwner } from "./chart-drawing-owner";

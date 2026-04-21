@@ -16,7 +16,6 @@ import {
   PriceScale,
   resolvePaneDivider,
   resolvePaneDividerByIds,
-  SeriesDataStore,
   TimeScale,
   type OhlcDataPoint,
   type ChartTemplateV1,
@@ -29,17 +28,9 @@ import {
   type PhaseOneTradeLocationState,
   type PhaseOneTradeOverlayOptions,
   type PhaseOneResolvedTradeOverlayOptions,
-  type KagiStyleOptionsState,
   type PaneKind,
   type PaneModelState,
-  type PointFigureStyleOptionsState,
   type MainSeriesStateSnapshot,
-  type MovingAverageIndicatorState,
-  type RenkoStyleOptionsState,
-  type SeriesRuntimeFields,
-  type SourceDescriptor,
-  type StudyInputContextState,
-  type StudySourceKind,
   type ChartBarSequence,
   type VersionedChartTemplateInput,
 } from "../model";
@@ -86,7 +77,6 @@ import {
 import { createChartScaleOwner } from "./chart-scale-owner";
 import { createChartShellOwner } from "./chart-shell-owner";
 import { createAttachedChart } from "./chart-factory";
-import type { PriceLineState } from "./chart-price-line-runtime";
 import { createPriceLineManager } from "./chart-price-line-management";
 import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
 import {
@@ -96,9 +86,6 @@ import { createChartSourceOwner } from "./chart-source-owner";
 import { createChartStudyContextOwner } from "./chart-study-context-owner";
 import { createChartPaneOwner } from "./chart-pane-owner";
 import { createChartDrawingOwner } from "./chart-drawing-owner";
-import {
-  type SeriesMarkerState,
-} from "./chart-series-presentation";
 import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api-owner";
 import { createChartSourceMutationOwner } from "./chart-source-mutation-owner";
 import { createChartStudySourceOwner } from "./chart-study-source-owner";
@@ -121,10 +108,7 @@ import { createChartStateSnapshotInputOwner } from "./chart-state-snapshot-input
 import { createChartStateRestoreCommandOwner } from "./chart-state-restore-command-owner";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
-import {
-  applyMainSeriesBuilderData,
-  type HistogramVisual,
-} from "./chart-series-data-transforms";
+import { applyMainSeriesBuilderData } from "./chart-series-data-transforms";
 import { formatSeriesKindLabel } from "./chart-series-labels";
 import { mountPhaseOneChartDemo } from "./chart-demo-mount";
 import { assertCanvasElement } from "./chart-dom-guards";
@@ -153,6 +137,20 @@ import {
   createDefaultPriceLineOptions,
   createDefaultVolumeOptions,
 } from "./chart-default-options";
+import type {
+  ChartDrawingApi,
+  ChartDrawingDescriptor,
+  ChartDrawingKind,
+  ChartDrawingState,
+  ChartSeriesApi,
+  ChartSeriesKind,
+  MainSeriesSourceState,
+  RequiredDrawingMagnetSources,
+  RequiredDrawingOptions,
+  ResolvedSeriesTarget,
+  SeriesSourceState,
+  StudySourceState,
+} from "./chart-runtime-types";
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
@@ -319,30 +317,6 @@ export type PhaseOneChartOptions = {
       close?: boolean;
     };
   };
-};
-
-type RequiredDrawingMagnetSources = Required<NonNullable<NonNullable<PhaseOneChartOptions["drawings"]>["magnetSources"]>>;
-
-type RequiredDrawingOptions = {
-  magnetEnabled: boolean;
-  magnetGuideVisible: boolean;
-  magnetLabelVisible: boolean;
-  magnetTolerancePx: number;
-  timeMagnetEnabled: boolean;
-  timeMagnetPolicy: "nearest" | "previous" | "next";
-  timeMagnetGuideVisible: boolean;
-  timeMagnetLabelVisible: boolean;
-  timeMagnetTolerancePx: number;
-  magnetSources: RequiredDrawingMagnetSources;
-};
-
-type DrawingMagnetOverrideState = {
-  magnetEnabled?: boolean;
-  magnetTolerancePx?: number;
-  timeMagnetEnabled?: boolean;
-  timeMagnetPolicy?: "nearest" | "previous" | "next";
-  timeMagnetTolerancePx?: number;
-  magnetSources?: Partial<RequiredDrawingMagnetSources>;
 };
 
 export type PhaseOneSeriesValueFormatter = (value: number) => string;
@@ -905,117 +879,10 @@ export type PhaseOneChartApi = {
   destroy(): void;
 };
 
-type Layout = {
-  width: number;
-  height: number;
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-};
-
 type PanePoint = {
   x: number;
   y: number;
 };
-
-type ChartDrawingKind = "horizontal-line" | "trend-line";
-
-type HorizontalLineDrawingState = {
-  kind: "horizontal-line";
-  line: PriceLineState;
-} & DrawingMagnetOverrideState;
-
-type TrendLineDrawingState = {
-  kind: "trend-line";
-  startTime: number;
-  startPrice: number;
-  endTime: number;
-  endPrice: number;
-  color: string;
-  lineWidth: number;
-} & DrawingMagnetOverrideState;
-
-type ChartDrawingApi = PhaseOneHorizontalLineDrawingApi | PhaseOneTrendLineDrawingApi;
-
-type ChartDrawingState = {
-  api: ChartDrawingApi;
-} & (HorizontalLineDrawingState | TrendLineDrawingState);
-
-type HorizontalLineDrawingDescriptor = {
-  id: string;
-  kind: "horizontal-line";
-  paneId: string;
-  visible: boolean;
-  api: PhaseOneHorizontalLineDrawingApi;
-} & HorizontalLineDrawingState;
-
-type TrendLineDrawingDescriptor = {
-  id: string;
-  kind: "trend-line";
-  paneId: string;
-  visible: boolean;
-  api: PhaseOneTrendLineDrawingApi;
-} & TrendLineDrawingState;
-
-type ChartDrawingDescriptor = HorizontalLineDrawingDescriptor | TrendLineDrawingDescriptor;
-
-type ChartSeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
-
-type ChartSeriesApi =
-  | PhaseOneCandlestickSeriesApi
-  | PhaseOneBarSeriesApi
-  | PhaseOneLineSeriesApi
-  | PhaseOneAreaSeriesApi
-  | PhaseOneBaselineSeriesApi
-  | PhaseOneHistogramSeriesApi
-  | PhaseOneVolumeSeriesApi;
-
-type BaseSeriesSourceState = SeriesRuntimeFields<
-  PhaseOneCandlestickData,
-  ChartSeriesApi,
-  | Required<PhaseOneCandlestickSeriesOptions>
-  | Required<PhaseOneBarSeriesOptions>
-  | Required<PhaseOneLineSeriesOptions>
-  | Required<PhaseOneAreaSeriesOptions>
-  | Required<PhaseOneBaselineSeriesOptions>
-  | Required<PhaseOneHistogramSeriesOptions>
-  | Required<PhaseOneVolumeSeriesOptions>,
-  HistogramVisual,
-  PriceLineState,
-  SeriesMarkerState
->;
-
-type MainSeriesSourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
-  role: "main-series";
-  chartType: PhaseOneMainChartType;
-  inputData: readonly PhaseOneCandlestickData[];
-  lineBreakOptions: { lineCount: number };
-  renkoOptions: Required<RenkoStyleOptionsState>;
-  pointFigureOptions: Required<PointFigureStyleOptionsState>;
-  kagiOptions: Required<KagiStyleOptionsState>;
-  inputCapability: PhaseOneMainSeriesInputCapability;
-  builder: PhaseOneMainSeriesBuilder;
-  renderer: PhaseOneMainSeriesRenderer;
-  styleSchemaId: PhaseOneMainStyleSchemaId;
-};
-
-type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & BaseSeriesSourceState & {
-  role: "study";
-  studyKind: StudySourceKind;
-  inputData: readonly PhaseOneCandlestickData[];
-  inputContext: StudyInputContextState;
-  indicator?: MovingAverageIndicatorState;
-  compareOptions?: Required<PhaseOneCompareSeriesOptions>;
-};
-
-type SeriesSourceState = MainSeriesSourceState | StudySourceState;
-type SecondaryApiSourceState = Pick<SeriesSourceState, "options" | "priceLines">;
-type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
-
-type ResolvedSeriesTarget =
-  | { kind: "primary" }
-  | { kind: "secondary"; paneId: string };
 
 const PANE_GAP = 10;
 const PANE_DIVIDER_HIT_SLOP = 6;

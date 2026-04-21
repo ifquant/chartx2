@@ -252,6 +252,7 @@ Current direction on that path:
 - source owner ownership should also include primary/secondary data mutation forwarding, so `chart-harness` should not keep local set/update wrappers once public commands and series APIs can call the owner directly
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
+- secondary series API ownership should flow through a dedicated owner, so secondary data mutation, markers, price lines, compare options, and moving-average options no longer sit as a high-fanout closure block inside `chart-harness`
 - primary series factory ownership should flow through `primarySeriesOwner` directly, so `chart-harness` no longer owns the high-fanout add/attach/API callback dependency bundle for the main series
 - public series command ownership should flow through `seriesCommandOwner`, so targeted series/study/volume add routing and remove-series cleanup stop living as another switch-heavy harness block
 - chart-state study restore should reuse `seriesCommandOwner` direct-pane study add methods, so restore callbacks do not keep secondary API factory imports alive in `chart-harness`

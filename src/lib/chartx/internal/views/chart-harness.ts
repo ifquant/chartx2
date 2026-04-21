@@ -62,12 +62,6 @@ import {
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
-import {
-  applyCompareStudyOptions,
-  applyMovingAverageStudyOptions,
-  getCompareStudyOptions,
-  getMovingAverageStudyOptions,
-} from "./chart-study-options";
 import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
 import { createStudySourceState } from "./chart-study-source";
 import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
@@ -112,17 +106,9 @@ import { createChartStudyContextOwner } from "./chart-study-context-owner";
 import { createChartPaneOwner } from "./chart-pane-owner";
 import { createChartDrawingOwner } from "./chart-drawing-owner";
 import {
-  applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
-  normalizeSeriesMarkers,
-  setSeriesMarkers as setSeriesMarkersUseCase,
   type SeriesMarkerState,
 } from "./chart-series-presentation";
-import {
-  setSecondaryData as setSecondaryDataUseCase,
-  setSecondaryHistogramLikeData as setSecondaryHistogramLikeDataUseCase,
-  updateSecondaryData as updateSecondaryDataUseCase,
-  updateSecondaryHistogramLikeData as updateSecondaryHistogramLikeDataUseCase,
-} from "./chart-secondary-series-runtime";
+import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api-owner";
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
@@ -151,8 +137,6 @@ import {
   type HistogramVisual,
   normalizeHistogramBar,
   normalizeHistogramData,
-  normalizeLineBar,
-  normalizeLineData,
   updateCanonicalData,
 } from "./chart-series-data-transforms";
 import { formatSeriesKindLabel } from "./chart-series-labels";
@@ -1370,96 +1354,28 @@ export class PhaseOneChartHarness {
       normalizeHistogramData: (data) => normalizeHistogramData(data as readonly PhaseOneHistogramData[]),
       normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
     },
-    secondarySeriesApi: {
+    secondarySeriesApi: createChartSecondarySeriesApiOwner({
       assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
-      applySeriesFormatterOptions: (seriesOptions, options) =>
-        applySeriesFormatterOptionsUseCase(
-          seriesOptions as PhaseOneSeriesFormatterOptions,
-          options as PhaseOneSeriesFormatterOptions,
-        ),
+      getSourceByApiOrThrow: (api, message) =>
+        this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, message) as SeriesSourceState,
+      resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
+      resetViewport: () => {
+        this.barSpacing = null;
+        this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      },
       render: () => {
         this.renderInvalidation.renderIfAttached();
       },
-      setSecondaryData: (api, data, kind) =>
-        setSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, data as readonly PhaseOneCandlestickData[], {
-          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-          resetViewport: () => {
-            this.barSpacing = null;
-            this.rightOffset = DEFAULT_RIGHT_OFFSET;
-          },
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      updateSecondary: (api, bar, kind) =>
-        updateSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, bar as PhaseOneCandlestickData, {
-          updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
-          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      setSecondaryHistogramLikeData: (api, data, kind) =>
-        setSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, data as readonly (PhaseOneHistogramData | PhaseOneVolumeData)[], {
-          buildVisuals: (rows) => buildHistogramVisuals(rows as readonly PhaseOneHistogramData[]),
-          normalizeData: (rows) => normalizeHistogramData(rows as readonly PhaseOneHistogramData[]),
-          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-          resetViewport: () => {
-            this.barSpacing = null;
-            this.rightOffset = DEFAULT_RIGHT_OFFSET;
-          },
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      updateSecondaryHistogramLike: (api, bar, kind) =>
-        updateSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, bar as PhaseOneHistogramData | PhaseOneVolumeData, {
-          normalizeBar: (nextBar) => normalizeHistogramBar(nextBar as PhaseOneHistogramData),
-          updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      normalizeLineData,
-      normalizeLineBar,
-      setMarkers: (api, markers, _kind) => {
-        const state = this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as SeriesSourceState;
-        setSeriesMarkersUseCase(state, markers as readonly PhaseOneSeriesMarker[], {
-          normalizeMarkers: (nextMarkers) => normalizeSeriesMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        });
-      },
-      createPriceLine: (source, options) => {
-        const priceLine = this.priceLineManager.createState(options as PhaseOnePriceLineOptions | undefined);
-        return this.priceLineManager.createApi((source as SeriesSourceState).priceLines, priceLine);
-      },
-      removePriceLine: (source, line) => {
-        this.priceLineManager.remove((source as SeriesSourceState).priceLines, line as PhaseOnePriceLineApi);
-      },
-      applyCompareOptions: (state, options) =>
-        applyCompareStudyOptions(state as StudySourceState, options as Partial<PhaseOneCompareSeriesOptions>, {
-          defaultCompareOptions: this.defaultCompareOptions,
-          resolveDisplayData: (study) => this.studyContextOwner.resolveDisplayData(study as StudySourceState),
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      getCompareOptions: (state) =>
-        getCompareStudyOptions(state as StudySourceState, this.defaultCompareOptions),
-      applyMovingAverageStudyOptions: (state, options) =>
-        applyMovingAverageStudyOptions(state as StudySourceState, options as Partial<PhaseOneMovingAverageStudyOptions>, {
-          defaultMovingAverageOptions: this.defaultMovingAverageOptions,
-          resolveDisplayData: (study) => this.studyContextOwner.resolveDisplayData(study as StudySourceState),
-          render: () => {
-            this.renderInvalidation.renderIfAttached();
-          },
-        }),
-      getMovingAverageStudyOptions: (state) =>
-        getMovingAverageStudyOptions(state as StudySourceState, this.defaultMovingAverageOptions),
-    },
+      updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
+      buildHistogramVisuals: (data) => buildHistogramVisuals(data),
+      normalizeHistogramData: (data) => normalizeHistogramData(data),
+      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar),
+      createPriceLineState: (options) => this.priceLineManager.createState(options),
+      createPriceLine: (lines, state) => this.priceLineManager.createApi(lines, state),
+      removePriceLine: (lines, line) => this.priceLineManager.remove(lines, line),
+      defaultCompareOptions: this.defaultCompareOptions,
+      defaultMovingAverageOptions: this.defaultMovingAverageOptions,
+    }),
     tradeLocation: {
       active: () => this.tradeLocationOwner.getActiveSession(),
       setActive: (next) => {

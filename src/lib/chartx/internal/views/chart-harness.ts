@@ -81,11 +81,7 @@ import {
 } from "./chart-study-options";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { createStudySourceState } from "./chart-study-source";
-import {
-  clearTradeLocationRuntime,
-  getTradeLocationState as getTradeLocationStateUseCase,
-  locateTradeRuntime,
-} from "./chart-trade-location-runtime";
+import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
@@ -1156,13 +1152,6 @@ export class PhaseOneChartHarness {
   private priceAxisFormatter: ((value: number) => string) | null = null;
   private primaryScaleSeriesOnly = false;
   private primaryPriceRangeOverride: PriceRangeImpl | null = null;
-  private activeTradeLocation:
-    | {
-        request: PhaseOneTradeLocationRequest;
-        options: PhaseOneResolvedTradeOverlayOptions;
-        state: PhaseOneTradeLocationState | null;
-      }
-    | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
     valueFormatter: null,
     upColor: UP_COLOR,
@@ -1281,6 +1270,25 @@ export class PhaseOneChartHarness {
     refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
   });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
+  private readonly tradeLocationOwner = createChartTradeLocationOwner<
+    PhaseOneTradeLocationRequest,
+    PhaseOneTradeOverlayOptions,
+    PhaseOneTradeLocationState,
+    MainSeriesSourceState
+  >({
+    ensureMainSource: () => {
+      this.sourceOwner.getMainSourceOrThrow();
+    },
+    getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
+    setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
+    setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
+    resetPrimaryPriceRangeOverride: () => {
+      this.primaryPriceRangeOverride = null;
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
       mainSourceId: () => this.chartModel.mainSourceId(),
@@ -1479,9 +1487,9 @@ export class PhaseOneChartHarness {
         getMovingAverageStudyOptions(state as StudySourceState, this.defaultMovingAverageOptions),
     },
     tradeLocation: {
-      active: () => this.activeTradeLocation,
+      active: () => this.tradeLocationOwner.getActiveSession(),
       setActive: (next) => {
-        this.activeTradeLocation = next as typeof this.activeTradeLocation;
+        this.tradeLocationOwner.setActiveSession(next as never);
       },
       setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
       setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
@@ -1605,7 +1613,7 @@ export class PhaseOneChartHarness {
     getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
     getPrimaryPriceScale: () => this.primaryPriceScale,
     getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
-    getActiveTradeLocationState: () => this.activeTradeLocation?.state ?? null,
+    getActiveTradeLocationState: () => this.tradeLocationOwner.getState(),
     getTimeScale: () => this.timeScale,
     getTimeAxisFormatter: () => this.timeAxisFormatter,
     getPriceAxisFormatter: () => this.priceAxisFormatter,
@@ -1697,13 +1705,15 @@ export class PhaseOneChartHarness {
     listStudySources: () => this.chartModel.listSourcesByRole("study"),
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getDefaultCompareOptions: () => this.defaultCompareOptions,
-    getTradeLocationState: () =>
-      this.activeTradeLocation === null
+    getTradeLocationState: () => {
+      const activeTradeLocation = this.tradeLocationOwner.getActiveSession();
+      return activeTradeLocation === null
         ? null
         : {
-            request: this.activeTradeLocation.request,
-            overlay: this.activeTradeLocation.options,
-          },
+            request: activeTradeLocation.request,
+            overlay: activeTradeLocation.options,
+          };
+    },
     listDrawings: () => this.drawingOwner.listDrawings(),
     resolveDrawingMagnetOptions: (drawing) =>
       resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
@@ -2345,36 +2355,15 @@ export class PhaseOneChartHarness {
     request: PhaseOneTradeLocationRequest,
     options: PhaseOneTradeOverlayOptions = {},
   ): PhaseOneTradeLocationState | null {
-    return locateTradeRuntime(request, options, {
-      ensureMainSource: () => {
-        this.sourceOwner.getMainSourceOrThrow();
-      },
-      setActiveTradeLocation: (next) => {
-        this.activeTradeLocation = next;
-      },
-      refreshTradeLocation: () => {
-        this.sourceOwner.refreshTradeLocation();
-      },
-      getTradeLocationState: () => this.activeTradeLocation?.state ?? null,
-    });
+    return this.tradeLocationOwner.locate(request, options);
   }
 
   public clearTradeLocation(): void {
-    clearTradeLocationRuntime({
-      clearActiveTradeLocation: () => {
-        this.activeTradeLocation = null;
-      },
-      resetPrimaryPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    this.tradeLocationOwner.clear();
   }
 
   public getTradeLocationState(): PhaseOneTradeLocationState | null {
-    return getTradeLocationStateUseCase(this.activeTradeLocation);
+    return this.tradeLocationOwner.getState();
   }
 
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {

@@ -225,6 +225,7 @@ Current direction on that path:
 - chart-state apply runtime should continue moving toward shared modules, so main-series restore apply, trade-location restore, and finalize-on-render stop living as another harness-local execution branch
 - chart-state apply should also own its grouped restore dependency builder, so applyChartStateSnapshot stops carrying the full restore dependency object inline inside chart-harness
 - trade-location command and refresh composition should follow the same direction, so locate/clear/get/refresh no longer live as another harness-local runtime cluster
+- trade-location session ownership should live in `tradeLocationOwner`, so `chart-harness` does not retain active trade-location state while source refresh, public commands, and render readout share one runtime surface
 - pane API handle construction and resize subscription wiring should follow the same direction, so createPaneHandle no longer owns another harness-local pane runtime composition block
 - pane read-model bookkeeping should follow the same direction, so pane series-state assembly, pane-state assembly, and pane snapshot assembly stop living as another harness-local bookkeeping cluster
 - source accessor/runtime composition should follow the same direction, so study lookup, source api guards, compare/moving-average specialization, secondary-scale access, and primary-pane series assembly stop living as another harness-local lookup cluster

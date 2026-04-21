@@ -207,6 +207,7 @@ import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
+import { calculateChartPointCount } from "./chart-point-count";
 
 const CHART_BACKGROUND = "#fffdf7";
 const PANE_BACKGROUND = "#fffaf0";
@@ -2373,18 +2374,17 @@ export class PhaseOneChartHarness {
   }
 
   private getPointCount(): number {
-    let pointCount = this.renderCoordinator.buildMainBarSequence(
+    const mainSequence = this.renderCoordinator.buildMainBarSequence(
       this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
-    ).logicalLength;
-    for (const state of this.chartModel.listSources()) {
-      const rows = state.role === "main-series" && this.chartModel.context().snapshot().mainSourceId === state.id
-        ? this.chartModel.context().snapshot().barSequence.bars
-        : state.store.setData(state.data);
-      const logicalLength =
-        rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
-      pointCount = Math.max(pointCount, logicalLength);
-    }
-    return pointCount;
+    );
+    const context = this.chartModel.context().snapshot();
+
+    return calculateChartPointCount({
+      mainSequenceLogicalLength: mainSequence.logicalLength,
+      mainSourceId: context.mainSourceId,
+      contextRows: context.barSequence.bars,
+      sources: this.chartModel.listSources(),
+    });
   }
 
   private addPrimaryLineSeries(): PhaseOneLineSeriesApi {

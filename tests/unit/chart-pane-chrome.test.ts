@@ -1,7 +1,38 @@
 import { describe, expect, it } from "vitest";
 
 import type { PaneFrame } from "../../src/lib/chartx/internal/model";
-import { renderPaneChrome } from "../../src/lib/chartx/internal/views/chart-pane-chrome";
+import {
+  drawPaneCrosshair,
+  drawPaneLegend,
+  renderPaneChrome,
+} from "../../src/lib/chartx/internal/views/chart-pane-chrome";
+
+function createContextRecorder() {
+  const calls: string[] = [];
+  const context = {
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 0,
+    font: "",
+    textBaseline: "",
+    save: () => calls.push("save"),
+    restore: () => calls.push("restore"),
+    setLineDash: (value: readonly number[]) => calls.push(`dash:${value.join(",")}`),
+    beginPath: () => calls.push("beginPath"),
+    moveTo: (x: number, y: number) => calls.push(`moveTo:${x}:${y}`),
+    lineTo: (x: number, y: number) => calls.push(`lineTo:${x}:${y}`),
+    stroke: () => calls.push("stroke"),
+    arc: (x: number, y: number, radius: number) => calls.push(`arc:${x}:${y}:${radius}`),
+    fill: () => calls.push("fill"),
+    measureText: (text: string) => ({ width: text.length * 5 }),
+    fillRect: (x: number, y: number, width: number, height: number) =>
+      calls.push(`fillRect:${x}:${y}:${width}:${height}`),
+    strokeRect: (x: number, y: number, width: number, height: number) =>
+      calls.push(`strokeRect:${x}:${y}:${width}:${height}`),
+    fillText: (text: string, x: number, y: number) => calls.push(`fillText:${text}:${x}:${y}`),
+  } as unknown as CanvasRenderingContext2D;
+  return { context, calls };
+}
 
 describe("chart pane chrome use-case", () => {
   it("renders primary-pane chrome with primary legend entries and pane-local crosshair", () => {
@@ -70,5 +101,54 @@ describe("chart pane chrome use-case", () => {
       "crosshair:null",
       "frame",
     ]);
+  });
+
+  it("draws pane crosshair lines and anchor point", () => {
+    const { context, calls } = createContextRecorder();
+
+    drawPaneCrosshair(context, 120, 80, { x: 10.2, y: 20.7 }, {
+      lineColor: "#111",
+      pointColor: "#222",
+    });
+
+    expect(context.strokeStyle).toBe("#111");
+    expect(context.fillStyle).toBe("#222");
+    expect(calls).toEqual([
+      "save",
+      "dash:4,4",
+      "beginPath",
+      "moveTo:10.5:0",
+      "lineTo:10.5:80",
+      "stroke",
+      "beginPath",
+      "moveTo:0:21.5",
+      "lineTo:120:21.5",
+      "stroke",
+      "dash:",
+      "beginPath",
+      "arc:10.2:20.7:2.5",
+      "fill",
+      "restore",
+    ]);
+  });
+
+  it("draws pane legend chips for readout entries", () => {
+    const { context, calls } = createContextRecorder();
+
+    drawPaneLegend(context, [{
+      id: "main",
+      label: "Main",
+      kind: "line",
+      value: 10,
+      formattedValue: "10.00",
+      color: "#0f0",
+    }]);
+
+    expect(context.font).toBe('11px "SF Mono", "Menlo", monospace');
+    expect(context.textBaseline).toBe("top");
+    expect(calls).toContain("fillRect:10:8:72:18");
+    expect(calls).toContain("strokeRect:10.5:8.5:71:17");
+    expect(calls).toContain("arc:17:17:3");
+    expect(calls).toContain("fillText:Main 10.00:23:12");
   });
 });

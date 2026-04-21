@@ -144,6 +144,7 @@ Current direction on that path:
 - pane content render orchestration should follow the same direction, so primary-vs-secondary pane content ordering stops living as one large harness-local render branch
 - axis render orchestration should follow the same direction, so primary/secondary price-axis routing and time-axis row-source selection stop living as harness-local render branches
 - pane chrome orchestration should follow the same direction, so legend dispatch, pane-local crosshair routing, and frame-border drawing stop living as harness-local render branches
+- pane chrome drawing primitives should live with pane chrome rendering, so crosshair and legend paint details are tested outside `chart-harness`
 - render-state preparation should follow the same direction, so row-set materialization, point-count calculation, pane-frame resolution, and active-pane selection stop living as one large harness-local pre-render block
 - point-count read-model calculation should follow the same direction, so interaction scaling consumers can depend on a small source/context use-case instead of harness-owned traversal policy
 - pane scale setup should follow the same direction, so primary/secondary range merge rules and price-scale application stop living as harness-local pane render setup branches

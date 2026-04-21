@@ -1,7 +1,6 @@
 import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
-  createTimeBasedChartBarSequence,
   applyMainSeriesStyleOptions,
   applyMainSeriesBuilder,
   buildHeikinAshiData,
@@ -59,7 +58,6 @@ import {
   BaselineRenderer,
   BarRenderer,
   CandlesticksRenderer,
-  drawMainSeriesRenderer,
   GridRenderer,
   HistogramRenderer,
   KagiRenderer,
@@ -152,59 +150,8 @@ import {
   refreshTradeLocationRuntime,
 } from "./chart-trade-location-runtime";
 import { setChartType as setChartTypeUseCase } from "./chart-main-series-switch";
-import { buildRawReadout as buildRawReadoutUseCase } from "./chart-readout";
-import {
-  formatReadoutDetail as formatReadoutDetailUseCase,
-  formatSeriesReadoutValue as formatSeriesReadoutValueForStateUseCase,
-} from "./chart-readout-format";
-import {
-  formatPriceAxisLabel,
-  formatTimeAxisLabel,
-  formatVolumeAxisLabel,
-} from "./chart-axis-format";
-import {
-  type AxisTag,
-  buildMagnetAxisTag,
-  buildMagnetTimeAxisTag,
-  drawAxisTag,
-  drawPriceAxis,
-  drawTimeAxis,
-} from "./chart-axis-tags";
-import {
-  renderPrimaryPaneContent as renderPrimaryPaneContentUseCase,
-  renderSecondaryPaneContent as renderSecondaryPaneContentUseCase,
-} from "./chart-pane-render";
-import {
-  renderPriceAxes as renderPriceAxesUseCase,
-  renderTimeAxis as renderTimeAxisUseCase,
-} from "./chart-axis-render";
-import { finishChartRender as finishChartRenderUseCase } from "./chart-render-tail";
-import {
-  prepareCanvasRenderSurface as prepareCanvasRenderSurfaceUseCase,
-  renderEmptyPlotFrame as renderEmptyPlotFrameUseCase,
-} from "./chart-render-surface";
-import {
-  applyPrimaryPaneScale as applyPrimaryPaneScaleUseCase,
-  applySecondaryPaneScale as applySecondaryPaneScaleUseCase,
-} from "./chart-pane-scale";
-import {
-  buildPrimaryPaneDecorations as buildPrimaryPaneDecorationsUseCase,
-  buildSecondaryPaneDecorations as buildSecondaryPaneDecorationsUseCase,
-  collectPanePriceLines as collectPanePriceLinesUseCase,
-  selectPaneDrawingSnapGuide as selectPaneDrawingSnapGuideUseCase,
-} from "./chart-pane-decorations";
-import {
-  drawPriceLines,
-  drawSeriesMarkers,
-  drawTradeLocationOverlay,
-} from "./chart-pane-decoration-render";
-import {
-  drawDrawingSnapGuide,
-  drawPaneDrawings,
-} from "./chart-pane-drawing-render";
 import {
   distanceToLineSegment,
-  resolveDrawingTimeCoordinate,
 } from "./chart-drawing-geometry";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
@@ -317,12 +264,6 @@ import {
   createHorizontalLineDrawingForPane as createHorizontalLineDrawingForPaneUseCase,
   createTrendLineDrawingForPane as createTrendLineDrawingForPaneUseCase,
 } from "./chart-drawing-creation";
-import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
-import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
-import {
-  buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
-  buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
-} from "./chart-readout-series";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
@@ -1906,7 +1847,7 @@ export class PhaseOneChartHarness {
     selectDrawing: (id) => {
       this.selectDrawing(id);
     },
-    buildReadout: (point, layout) => this.buildReadout(point, layout),
+    buildReadout: (point, layout) => this.renderCoordinator.buildReadout(point, layout),
     emitClick: (readout, point) => {
       this.handlerRegistry.emitClick(readout, point);
     },
@@ -2492,7 +2433,7 @@ export class PhaseOneChartHarness {
   }
 
   private getPointCount(): number {
-    let pointCount = this.buildMainBarSequence(this.getMainSource()).logicalLength;
+    let pointCount = this.renderCoordinator.buildMainBarSequence(this.getMainSource()).logicalLength;
     for (const state of this.chartModel.listSources()) {
       const rows = state.role === "main-series" && this.chartModel.context().snapshot().mainSourceId === state.id
         ? this.chartModel.context().snapshot().barSequence.bars
@@ -3039,37 +2980,6 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private renderSeriesSource(
-    context: CanvasRenderingContext2D,
-    state: SeriesSourceState,
-    rows: RowSet,
-    paneHeight: number,
-    barWidth: number,
-    priceScale: PriceScale,
-    rangeMin: number | null,
-  ): void {
-    this.renderCoordinator.renderSeriesSource(context, state, rows, paneHeight, barWidth, priceScale, rangeMin);
-  }
-
-  private buildReadoutSeriesForPrimary(
-    primarySources: readonly SeriesSourceState[],
-    rowSets: ReadonlyMap<string, RowSet>,
-    crosshair: PanePoint | null,
-  ): readonly PhaseOneReadoutSeriesDetail[] {
-    return this.renderCoordinator.buildReadoutSeriesForPrimary(primarySources, rowSets, crosshair);
-  }
-
-  private buildReadoutSeriesForPane(
-    paneSeries: readonly SeriesSourceState[],
-    crosshair: PanePoint | null,
-  ): readonly PhaseOneReadoutSeriesDetail[] {
-    return this.renderCoordinator.buildReadoutSeriesForPane(paneSeries, crosshair);
-  }
-
-  private buildMainBarSequence(source: MainSeriesSourceState | null): ChartBarSequence<number> {
-    return this.renderCoordinator.buildMainBarSequence(source);
-  }
-
   private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
     return resolveStudyDisplayDataUseCase(state, {
       contextBarSequence: {
@@ -3095,18 +3005,6 @@ export class PhaseOneChartHarness {
     syncStudyContextDataUseCase(this.chartModel.listSourcesByRole("study"), {
       resolveDisplayData: (state) => this.resolveStudyDisplayData(state),
     });
-  }
-
-  private buildReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutDetail {
-    return this.renderCoordinator.buildReadout(point, layout);
-  }
-
-  private buildRawReadout(point: PanePoint | null, layout: Layout): PhaseOneReadoutBody {
-    return this.renderCoordinator.buildRawReadout(point, layout);
-  }
-
-  private formatSeriesReadoutValueForState(state: SeriesSourceState, value: number | null): string {
-    return this.renderCoordinator.formatSeriesReadoutValueForState(state, value);
   }
 
   public render(canvas: HTMLCanvasElement): void {

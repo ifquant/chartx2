@@ -219,5 +219,6 @@ Current direction on that path:
 - canvas attach/detach lifecycle should now continue through a small lifecycle owner, so `chart-harness` no longer reassembles listener bags, resize-observer state, canvas refs, and teardown cleanup inline
 - render invalidation should now continue through a shared attached-canvas invalidation owner, so command and owner callbacks stop duplicating nullable-canvas render guards throughout `chart-harness`
 - stale harness-local passthrough wrappers should be removed once their owner/coordinator surfaces are stable, so `chart-harness` keeps moving toward direct composition instead of accumulating dead adapter methods
+- render coordinator ownership should include import ownership too, so `chart-harness` should not keep stale render/readout/axis leaf imports once all remaining calls route through the coordinator
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

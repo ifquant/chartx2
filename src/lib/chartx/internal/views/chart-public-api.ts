@@ -15,7 +15,7 @@ import type {
   PhaseOneCrosshairMoveHandler,
 } from "./chart-harness";
 
-type ChartHarnessPublicLike = {
+export type ChartHarnessPublicLike = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): ReturnType<PhaseOneChartApi["addCandlestickSeries"]>;
   addBarSeries(target?: PhaseOneSeriesTarget): ReturnType<PhaseOneChartApi["addBarSeries"]>;
   addLineSeries(target?: PhaseOneSeriesTarget): ReturnType<PhaseOneChartApi["addLineSeries"]>;

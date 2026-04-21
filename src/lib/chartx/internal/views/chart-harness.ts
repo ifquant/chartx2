@@ -128,6 +128,8 @@ import {
 import { formatSeriesKindLabel } from "./chart-series-labels";
 import { mountPhaseOneChartDemo } from "./chart-demo-mount";
 import { assertCanvasElement } from "./chart-dom-guards";
+import { createChartPublicSurfaceOwner } from "./chart-public-surface-owner";
+import type { ChartHarnessPublicLike } from "./chart-public-api";
 
 const CHART_BACKGROUND = "#fffdf7";
 const PANE_BACKGROUND = "#fffaf0";
@@ -1756,230 +1758,34 @@ export class PhaseOneChartHarness {
       this.handlerRegistry.clearAll();
     },
   });
+  private readonly publicSurfaceOwner = createChartPublicSurfaceOwner({
+    detach: () => {
+      this.canvasLifecycleOwner.detach();
+    },
+    seriesCommandOwner: this.seriesCommandOwner,
+    drawingOwner: this.drawingOwner,
+    paneOwner: this.paneOwner,
+    shellOwner: this.shellOwner,
+    scaleOwner: this.scaleOwner,
+    eventSubscriptionOwner: this.eventSubscriptionOwner,
+    runtimeQueryOwner: this.runtimeQueryOwner,
+    mainSeriesStateOwner: this.mainSeriesStateOwner,
+    stateCoordinator: this.stateCoordinator,
+    tradeLocationOwner: this.tradeLocationOwner,
+    sourceOwner: this.sourceOwner,
+  });
+
+  private render(canvas: HTMLCanvasElement): void {
+    this.renderCoordinator.render(canvas);
+  }
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
     this.canvasLifecycleOwner.attach(canvas);
   }
 
-  public detach(): void {
-    this.canvasLifecycleOwner.detach();
-  }
-
-  public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
-    return this.seriesCommandOwner.addCandlestickSeries(target);
-  }
-
-  public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
-    return this.seriesCommandOwner.addLineSeries(target);
-  }
-
-  public addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi {
-    return this.seriesCommandOwner.addAreaSeries(target);
-  }
-
-  public addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi {
-    return this.seriesCommandOwner.addBaselineSeries(target);
-  }
-
-  public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
-    return this.seriesCommandOwner.addBarSeries(target);
-  }
-
-  public addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi {
-    return this.seriesCommandOwner.addHistogramSeries(target);
-  }
-
-  public addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi {
-    return this.seriesCommandOwner.addVolumeSeries(target);
-  }
-
-  public addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
-    return this.seriesCommandOwner.addOverlaySeries(target);
-  }
-
-  public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
-    return this.seriesCommandOwner.addCompareSeries(target);
-  }
-
-  public addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
-    return this.seriesCommandOwner.addMovingAverageStudy(target);
-  }
-
-  public addHorizontalLineDrawing(
-    target?: PhaseOneSeriesTarget,
-    options: PhaseOneHorizontalLineDrawingOptions = {},
-  ): PhaseOneHorizontalLineDrawingApi {
-    return this.drawingOwner.addHorizontalLine(target, options);
-  }
-
-  public addTrendLineDrawing(
-    target?: PhaseOneSeriesTarget,
-    options: PhaseOneTrendLineDrawingOptions = {},
-  ): PhaseOneTrendLineDrawingApi {
-    return this.drawingOwner.addTrendLine(target, options);
-  }
-
-  public removeSeries(
-    series:
-      | PhaseOneCandlestickSeriesApi
-      | PhaseOneBarSeriesApi
-      | PhaseOneLineSeriesApi
-      | PhaseOneAreaSeriesApi
-      | PhaseOneBaselineSeriesApi
-      | PhaseOneHistogramSeriesApi
-      | PhaseOneVolumeSeriesApi,
-  ): void {
-    this.seriesCommandOwner.removeSeries(series);
-  }
-
-  public panesApi(): readonly PhaseOnePaneApi[] {
-    return this.paneOwner.listPaneHandles();
-  }
-
-  public addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
-    return this.paneOwner.addPane(options);
-  }
-
-  public removePaneByHandle(paneHandle: PhaseOnePaneApi): void {
-    this.paneOwner.removePaneByHandle(paneHandle);
-  }
-
-  public applyOptions(options: PhaseOneChartOptions): void {
-    this.shellOwner.applyOptions(options);
-  }
-
-  public resize(width: number, height: number): void {
-    this.shellOwner.resize(width, height);
-  }
-
-  public timeScaleApi(): PhaseOneTimeScaleApi {
-    return this.scaleOwner.timeScaleApi();
-  }
-
-  public priceScaleApi(): PhaseOnePriceScaleApi {
-    return this.scaleOwner.priceScaleApi();
-  }
-
-  public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.eventSubscriptionOwner.subscribeCrosshairMove(handler);
-  }
-
-  public unsubscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {
-    this.eventSubscriptionOwner.unsubscribeCrosshairMove(handler);
-  }
-
-  public subscribeClick(handler: PhaseOneClickHandler): void {
-    this.eventSubscriptionOwner.subscribeClick(handler);
-  }
-
-  public unsubscribeClick(handler: PhaseOneClickHandler): void {
-    this.eventSubscriptionOwner.unsubscribeClick(handler);
-  }
-
-  public getSelectedDrawing(): PhaseOneSelectedDrawing {
-    return this.drawingOwner.getSelectedDrawing();
-  }
-
-  public getSelectedDrawingState(): PhaseOneDrawingStateSnapshot | null {
-    return this.drawingOwner.getSelectedDrawingState();
-  }
-
-  public getSelectedDrawingPropertySchema(): PhaseOneDrawingPropertySchema | null {
-    return this.drawingOwner.getSelectedDrawingPropertySchema();
-  }
-
-  public applySelectedDrawingOptions(
-    options: PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
-  ): void {
-    this.drawingOwner.applySelectedDrawingOptions(options);
-  }
-
-  public clearSelectedDrawing(): void {
-    this.drawingOwner.clearSelectedDrawing();
-  }
-
-  public subscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.eventSubscriptionOwner.subscribeDrawingSelectionChange(handler);
-  }
-
-  public unsubscribeDrawingSelectionChange(handler: PhaseOneDrawingSelectionChangeHandler): void {
-    this.eventSubscriptionOwner.unsubscribeDrawingSelectionChange(handler);
-  }
-
-  public subscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.eventSubscriptionOwner.subscribePaneEvents(handler);
-  }
-
-  public unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void {
-    this.eventSubscriptionOwner.unsubscribePaneEvents(handler);
-  }
-
-  public subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.eventSubscriptionOwner.subscribeChartTypeChange(handler);
-  }
-
-  public unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
-    this.eventSubscriptionOwner.unsubscribeChartTypeChange(handler);
-  }
-
-  public getChartType(): PhaseOneMainChartType | null {
-    return this.runtimeQueryOwner.getChartType() as PhaseOneMainChartType | null;
-  }
-
-  public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
-    return this.mainSeriesStateOwner.getState();
-  }
-
-  public applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi {
-    return this.mainSeriesStateOwner.applyState(state);
-  }
-
-  public getChartState(): PhaseOneChartStateSnapshot {
-    return this.stateCoordinator.getChartState();
-  }
-
-  public applyChartState(state: PhaseOneChartStateSnapshot): void {
-    this.stateCoordinator.applyChartState(state);
-  }
-
-  public getChartTemplate(): PhaseOneChartTemplate {
-    return this.stateCoordinator.getChartTemplate();
-  }
-
-  public applyChartTemplate(template: PhaseOneChartTemplateInput): void {
-    this.stateCoordinator.applyChartTemplate(template);
-  }
-
-  public locateTrade(
-    request: PhaseOneTradeLocationRequest,
-    options: PhaseOneTradeOverlayOptions = {},
-  ): PhaseOneTradeLocationState | null {
-    return this.tradeLocationOwner.locate(request, options);
-  }
-
-  public clearTradeLocation(): void {
-    this.tradeLocationOwner.clear();
-  }
-
-  public getTradeLocationState(): PhaseOneTradeLocationState | null {
-    return this.tradeLocationOwner.getState();
-  }
-
-  public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
-    return this.sourceOwner.setChartType(type) as PhaseOneMainSeriesApi;
-  }
-
-  public setData(data: readonly PhaseOneCandlestickData[]): void {
-    this.sourceOwner.setPrimaryData(data);
-  }
-
-  public update(bar: PhaseOneCandlestickData): void {
-    this.sourceOwner.updatePrimaryData(bar);
-  }
-
-  public render(canvas: HTMLCanvasElement): void {
-    this.renderCoordinator.render(canvas);
+  public publicApiSurface(): ChartHarnessPublicLike {
+    return this.publicSurfaceOwner.publicApiSurface();
   }
 
 }

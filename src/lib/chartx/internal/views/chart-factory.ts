@@ -1,9 +1,13 @@
 import type { PhaseOneChartApi } from "./chart-harness";
-import { createChartPublicApi } from "./chart-public-api";
+import {
+  createChartPublicApi,
+  type ChartHarnessPublicLike,
+} from "./chart-public-api";
 import { assertCanvasElement } from "./chart-dom-guards";
 
 export function createAttachedChart<Harness extends {
   attach(canvas: HTMLCanvasElement): void;
+  publicApiSurface(): ChartHarnessPublicLike;
 }>(
   canvas: HTMLCanvasElement,
   createHarness: () => Harness,
@@ -13,5 +17,5 @@ export function createAttachedChart<Harness extends {
   const harness = createHarness();
   harness.attach(canvas);
 
-  return createChartPublicApi(harness as never);
+  return createChartPublicApi(harness.publicApiSurface());
 }

@@ -15,8 +15,7 @@ describe("chart factory", () => {
     });
 
     try {
-      const api = createAttachedChart(canvas, () => ({
-        attach,
+      const publicApiSurface = {
         detach,
         addCandlestickSeries: vi.fn(),
         addBarSeries: vi.fn(),
@@ -64,6 +63,10 @@ describe("chart factory", () => {
         unsubscribeClick: vi.fn(),
         subscribePaneEvents: vi.fn(),
         unsubscribePaneEvents: vi.fn(),
+      };
+      const api = createAttachedChart(canvas, () => ({
+        attach,
+        publicApiSurface: () => publicApiSurface,
       }));
 
       expect(attach).toHaveBeenCalledWith(canvas);

@@ -130,10 +130,7 @@ import {
   type HistogramVisual,
 } from "./chart-series-data-transforms";
 import { formatSeriesKindLabel } from "./chart-series-labels";
-import {
-  buildDemoBars,
-  buildDemoVolumeBars,
-} from "./chart-demo-data";
+import { mountPhaseOneChartDemo } from "./chart-demo-mount";
 import { assertCanvasElement } from "./chart-dom-guards";
 
 const CHART_BACKGROUND = "#fffdf7";
@@ -2043,15 +2040,5 @@ export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi
 }
 
 export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {
-  const chart = createPhaseOneChart(canvas);
-  const bars = buildDemoBars();
-  const volumePane = chart.addPane({ height: 136 });
-  const series = chart.addCandlestickSeries();
-  const volume = chart.addVolumeSeries({ pane: volumePane });
-  series.setData(bars);
-  volume.setData(buildDemoVolumeBars(bars));
-
-  return () => {
-    chart.destroy();
-  };
+  return mountPhaseOneChartDemo(canvas, createPhaseOneChart);
 }

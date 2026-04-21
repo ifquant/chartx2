@@ -98,9 +98,6 @@ import {
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
 } from "./chart-trade-location-runtime";
-import {
-  distanceToLineSegment,
-} from "./chart-drawing-geometry";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
@@ -108,18 +105,11 @@ import {
   calculateBaseBarSpacing,
   clamp,
   measureLayout,
-  resolveActivePane,
   resolveBarSpacing,
-  resolveLocalPanePoint,
   resolvePanePoint,
 } from "./chart-layout-geometry";
 import {
-  resolveHitDrawing as resolveHitDrawingUseCase,
-} from "./chart-drawing-hit-test";
-import {
   resolveDrawingMagnetOptions as resolveDrawingMagnetOptionsUseCase,
-  resolveSnappedDrawingPrice as resolveSnappedDrawingPriceUseCase,
-  resolveSnappedDrawingTime as resolveSnappedDrawingTimeUseCase,
 } from "./chart-drawing-snap";
 import {
   applyDrawingMagnetOverrides as applyDrawingMagnetOverridesUseCase,
@@ -187,15 +177,11 @@ import {
 import {
   createChartViewState,
   type DragState,
-  type DrawingDragHandle,
   type DrawingDragState,
   type DrawingSnapGuideState,
   type PaneResizeState,
 } from "./chart-view-state";
-import {
-  applyActiveTrendLineDrag as applyActiveTrendLineDragUseCase,
-  resolveSelectedTrendLineDrag as resolveSelectedTrendLineDragUseCase,
-} from "./chart-drawing-runtime";
+import { createChartDrawingInteractionOwner } from "./chart-drawing-interaction-owner";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
@@ -1586,6 +1572,22 @@ export class PhaseOneChartHarness {
       },
     },
   });
+  private readonly drawingInteractionOwner = createChartDrawingInteractionOwner<ChartDrawingDescriptor>({
+    listPanes: () => this.panes.list(),
+    paneGap: PANE_GAP,
+    getPrimaryPriceScale: () => this.primaryPriceScale,
+    getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+    getAxisBars: () => this.chartModel.context().snapshot().barSequence.axisBars,
+    getBarSequence: () => this.chartModel.context().snapshot().barSequence,
+    getTimeScale: () => this.timeScale,
+    getDrawingOptions: () => this.drawingOptions,
+    getDrawingById: (id) => this.drawingOwner.getDrawingById(id),
+    listDrawingsByPane: (paneId) => this.drawingOwner.listDrawingsByPane(paneId),
+    getSelectedDrawingId: () => this.viewState.selectedDrawingId(),
+    clearDrawingSnapGuide: () => this.viewState.clearDrawingSnapGuide(),
+    setDrawingSnapGuide: (guide) => this.viewState.setDrawingSnapGuide(guide),
+    hitTolerance: DRAWING_HIT_TOLERANCE,
+  });
   private readonly renderCoordinator = createChartRenderCoordinator({
     dpr: () => window.devicePixelRatio || 1,
     getLayout: (canvas) => measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout()),
@@ -1801,15 +1803,15 @@ export class PhaseOneChartHarness {
       this.viewState.clearDrawingSnapGuide();
     },
     resolveHitDrawing: (point, layout, paneFrames) =>
-      this.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[] | undefined),
+      this.drawingInteractionOwner.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[] | undefined),
     resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
-      this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
+      this.drawingInteractionOwner.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
     applyPaneResize: (clientY, layout, paneFrames) => {
       void paneFrames;
       this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
     },
     applyDrawingDrag: (dragState, point, layout, paneFrames) => {
-      this.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
+      this.drawingInteractionOwner.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
     },
     focusCanvas: () => {
       this.canvas?.focus({ preventScroll: true });
@@ -2494,104 +2496,6 @@ export class PhaseOneChartHarness {
       studyKind,
       indicator: params.indicator,
       createApi: params.createApi,
-    });
-  }
-
-  private resolveHitDrawing(
-    point: PanePoint,
-    layout: Layout,
-    paneFrames: readonly PaneFrame[] = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    ),
-  ): ChartDrawingDescriptor | null {
-    return resolveHitDrawingUseCase({
-      point,
-      paneFrames,
-      primaryPriceScale: this.primaryPriceScale,
-      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
-      axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-      timeScale: this.timeScale,
-      drawingsForPane: (paneId) => this.drawingOwner.listDrawingsByPane(paneId),
-      hitTolerance: DRAWING_HIT_TOLERANCE,
-    });
-  }
-
-  private resolveSelectedTrendLineDragHandle(
-    point: PanePoint,
-    layout: Layout,
-    paneFrames: readonly PaneFrame[] = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    ),
-  ): DrawingDragState | null {
-    return resolveSelectedTrendLineDragUseCase({
-      point,
-      paneFrames,
-      selectedDrawingId: this.viewState.selectedDrawingId(),
-      getById: (id) => {
-        const drawing = this.drawingOwner.getDrawingById(id);
-        return drawing?.kind === "trend-line" ? drawing : undefined;
-      },
-      primaryPriceScale: this.primaryPriceScale,
-      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
-      axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-      timeScale: this.timeScale,
-      hitTolerance: DRAWING_HIT_TOLERANCE,
-    });
-  }
-
-  private applyDrawingDrag(
-    drag: DrawingDragState,
-    point: PanePoint,
-    layout: Layout,
-    paneFrames: readonly PaneFrame[] = buildPaneFrames(
-      this.panes.list(),
-      layout.height - layout.top - layout.bottom,
-      PANE_GAP,
-    ),
-  ): void {
-    const drawing = this.drawingOwner.getDrawingById(drag.drawingId);
-    const drawingOptions =
-      drawing === undefined ? this.drawingOptions : resolveDrawingMagnetOptionsUseCase(drawing, this.drawingOptions);
-    applyActiveTrendLineDragUseCase({
-      drag,
-      point,
-      paneFrames,
-      getById: (id) => {
-        const nextDrawing = this.drawingOwner.getDrawingById(id);
-        return nextDrawing?.kind === "trend-line" ? nextDrawing : undefined;
-      },
-      primaryPriceScale: this.primaryPriceScale,
-      getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
-      drawingOptions: {
-        magnetGuideVisible: this.drawingOptions.magnetGuideVisible,
-        timeMagnetGuideVisible: this.drawingOptions.timeMagnetGuideVisible,
-      },
-      resolveSnappedTime: (localX, drawing) =>
-        resolveSnappedDrawingTimeUseCase(
-          localX,
-          this.chartModel.context().snapshot().barSequence.axisBars,
-          this.timeScale,
-          drawingOptions.timeMagnetEnabled,
-          drawingOptions.timeMagnetPolicy,
-          drawingOptions.timeMagnetTolerancePx,
-        ),
-      resolveSnappedPrice: (localX, localY, _drawing, priceScale) =>
-        resolveSnappedDrawingPriceUseCase(
-          localX,
-          localY,
-          this.chartModel.context().snapshot().barSequence,
-          priceScale,
-          this.timeScale,
-          drawingOptions.magnetEnabled,
-          drawingOptions.magnetTolerancePx,
-          drawingOptions.magnetSources,
-        ),
-      clearDrawingSnapGuide: () => this.viewState.clearDrawingSnapGuide(),
-      setDrawingSnapGuide: (guide) => this.viewState.setDrawingSnapGuide(guide),
     });
   }
 

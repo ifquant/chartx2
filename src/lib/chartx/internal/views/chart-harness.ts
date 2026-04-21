@@ -14,9 +14,7 @@ import {
   resolveTradeLocationState,
   resolveTradeOverlayOptions,
   DrawingRegistry,
-  DEFAULT_STUDY_MERGE_ENGINE,
   PaneCollection,
-  PlotRowValueIndex,
   PriceRangeImpl,
   PriceScale,
   buildPaneFrames,
@@ -93,10 +91,6 @@ import {
   getCompareStudyOptions,
   getMovingAverageStudyOptions,
 } from "./chart-study-options";
-import {
-  resolveStudyDisplayData as resolveStudyDisplayDataUseCase,
-  syncStudyContextData as syncStudyContextDataUseCase,
-} from "./chart-study-context";
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { createStudySourceState } from "./chart-study-source";
 import {
@@ -165,9 +159,9 @@ import { createPriceLineManager } from "./chart-price-line-management";
 import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
 import {
   createMainBarSequenceFromSource as createMainBarSequenceFromSourceUseCase,
-  syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
 } from "./chart-main-source-runtime";
 import { createChartSourceOwner } from "./chart-source-owner";
+import { createChartStudyContextOwner } from "./chart-study-context-owner";
 import { createChartPaneOwner } from "./chart-pane-owner";
 import { createChartDrawingOwner } from "./chart-drawing-owner";
 import {
@@ -1137,7 +1131,6 @@ export class PhaseOneChartHarness {
     PhaseOneMainChartType
   >();
   private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, ChartDrawingDescriptor>();
-  private readonly studyMergeEngine = DEFAULT_STUDY_MERGE_ENGINE;
   private readonly timeScale = new TimeScale();
   private readonly barRenderer = new BarRenderer();
   private readonly candlesRenderer = new CandlesticksRenderer();
@@ -1305,6 +1298,14 @@ export class PhaseOneChartHarness {
       volumeOptions: this.volumeOptions,
     },
   });
+  private readonly studyContextOwner = createChartStudyContextOwner<StudySourceState>({
+    getContextSnapshot: () => this.chartModel.context().snapshot(),
+    clearMainSource: () => this.chartModel.clearMainSource(),
+    bindMainSource: (mainSourceId, chartType, barSequence) =>
+      this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
+    listStudySources: () => this.chartModel.listSourcesByRole("study") as StudySourceState[],
+    refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
+  });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
@@ -1347,7 +1348,7 @@ export class PhaseOneChartHarness {
           source as MainSeriesSourceState,
         );
       },
-      syncContext: (source) => this.syncChartContextFromMainSource(source as MainSeriesSourceState),
+      syncContext: (source) => this.studyContextOwner.syncMainSource(source as MainSeriesSourceState),
       resetViewport: () => {
         this.barSpacing = null;
         this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -1396,7 +1397,7 @@ export class PhaseOneChartHarness {
       createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
     },
     secondaryMutations: {
-      resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+      resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
       resetViewport: () => {
         this.barSpacing = null;
         this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -1425,7 +1426,7 @@ export class PhaseOneChartHarness {
       },
       setSecondaryData: (api, data, kind) =>
         setSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, data as readonly PhaseOneCandlestickData[], {
-          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
           resetViewport: () => {
             this.barSpacing = null;
             this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -1437,7 +1438,7 @@ export class PhaseOneChartHarness {
       updateSecondary: (api, bar, kind) =>
         updateSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, bar as PhaseOneCandlestickData, {
           updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
-          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -1446,7 +1447,7 @@ export class PhaseOneChartHarness {
         setSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, data as readonly (PhaseOneHistogramData | PhaseOneVolumeData)[], {
           buildVisuals: (rows) => buildHistogramVisuals(rows as readonly PhaseOneHistogramData[]),
           normalizeData: (rows) => normalizeHistogramData(rows as readonly PhaseOneHistogramData[]),
-          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
           resetViewport: () => {
             this.barSpacing = null;
             this.rightOffset = DEFAULT_RIGHT_OFFSET;
@@ -1459,7 +1460,7 @@ export class PhaseOneChartHarness {
         updateSecondaryHistogramLikeDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as never, bar as PhaseOneHistogramData | PhaseOneVolumeData, {
           normalizeBar: (nextBar) => normalizeHistogramBar(nextBar as PhaseOneHistogramData),
           updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
-          resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
+          resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -1485,7 +1486,7 @@ export class PhaseOneChartHarness {
       applyCompareOptions: (state, options) =>
         applyCompareStudyOptions(state as StudySourceState, options as Partial<PhaseOneCompareSeriesOptions>, {
           defaultCompareOptions: this.defaultCompareOptions,
-          resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
+          resolveDisplayData: (study) => this.studyContextOwner.resolveDisplayData(study as StudySourceState),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -1495,7 +1496,7 @@ export class PhaseOneChartHarness {
       applyMovingAverageStudyOptions: (state, options) =>
         applyMovingAverageStudyOptions(state as StudySourceState, options as Partial<PhaseOneMovingAverageStudyOptions>, {
           defaultMovingAverageOptions: this.defaultMovingAverageOptions,
-          resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
+          resolveDisplayData: (study) => this.studyContextOwner.resolveDisplayData(study as StudySourceState),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -1932,7 +1933,7 @@ export class PhaseOneChartHarness {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
       },
       registerSource: (source) => this.chartModel.registerSource(source),
-      syncContext: (source) => this.syncChartContextFromMainSource(source),
+      syncContext: (source) => this.studyContextOwner.syncMainSource(source),
       assertSeriesActive: (api) => this.assertSeriesActive(api),
       getSource: (api, sourceKind) =>
         this.sourceOwner.getSourceByApi(api, sourceKind) as SeriesSourceState,
@@ -1949,7 +1950,7 @@ export class PhaseOneChartHarness {
         ),
       rebuildMainSource: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData as readonly PhaseOneCandlestickData[], source as MainSeriesSourceState);
-        this.syncChartContextFromMainSource(source as MainSeriesSourceState);
+        this.studyContextOwner.syncMainSource(source as MainSeriesSourceState);
       },
       render: () => {
         this.renderInvalidation.renderIfAttached();
@@ -2348,7 +2349,7 @@ export class PhaseOneChartHarness {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
       },
       syncContext: (source) => {
-        this.syncChartContextFromMainSource(source);
+        this.studyContextOwner.syncMainSource(source);
       },
       resetPrimaryPriceRangeOverride: () => {
         this.primaryPriceRangeOverride = null;
@@ -2484,22 +2485,6 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private syncChartContextFromMainSource(source: MainSeriesSourceState | null): void {
-    syncChartContextFromMainSourceUseCase(source, {
-      clearMainSource: () => this.chartModel.clearMainSource(),
-      bindMainSource: (mainSourceId, chartType, barSequence) =>
-        this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
-      createMainBarSequenceFromSource: (nextSource: MainSeriesSourceState) =>
-        createMainBarSequenceFromSourceUseCase(nextSource),
-      syncStudyContextData: () => {
-        syncStudyContextDataUseCase(this.chartModel.listSourcesByRole("study"), {
-          resolveDisplayData: (state) => this.resolveStudyDisplayData(state),
-        });
-      },
-      refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
-    });
-  }
-
   private resolveHitDrawing(
     point: PanePoint,
     layout: Layout,
@@ -2595,27 +2580,6 @@ export class PhaseOneChartHarness {
         ),
       clearDrawingSnapGuide: () => this.viewState.clearDrawingSnapGuide(),
       setDrawingSnapGuide: (guide) => this.viewState.setDrawingSnapGuide(guide),
-    });
-  }
-
-  private resolveStudyDisplayData(state: StudySourceState): readonly PhaseOneCandlestickData[] {
-    return resolveStudyDisplayDataUseCase(state, {
-      contextBarSequence: {
-        kind: this.chartModel.context().snapshot().barSequence.kind,
-        bars: this.chartModel.context().snapshot().barSequence.bars.map((row) => ({
-          time: row.time,
-          open: row.value[PlotRowValueIndex.Open],
-          high: row.value[PlotRowValueIndex.High],
-          low: row.value[PlotRowValueIndex.Low],
-          close: row.value[PlotRowValueIndex.Close],
-        })),
-      },
-      mergeToChartContext: (inputData, mergePolicy) =>
-        this.studyMergeEngine.mergeToChartContext({
-          inputData,
-          axisBars: this.chartModel.context().snapshot().barSequence.axisBars,
-          mergePolicy,
-        }),
     });
   }
 

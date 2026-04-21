@@ -40,7 +40,6 @@ import {
   type PaneFrame,
   type PaneKind,
   type PaneModelState,
-  type MainSeriesStyleOptionsPatch,
   type PointFigureStyleOptionsState,
   type MainSeriesStateSnapshot,
   type MovingAverageIndicatorState,
@@ -1893,7 +1892,7 @@ export class PhaseOneChartHarness {
         this.createMainSourceState(
           "primary",
           chartType,
-          seriesKindForMainChartType(chartType),
+          mainSeriesKindForChartType(chartType),
           api,
           meta,
           this.primaryPriceScale,
@@ -1920,7 +1919,12 @@ export class PhaseOneChartHarness {
           seriesOptions as PhaseOneSeriesFormatterOptions,
           options as PhaseOneSeriesFormatterOptions,
         ),
-      applyMainSeriesTypeSpecificOptions,
+      applyMainSeriesTypeSpecificOptions: (source, options) =>
+        applyMainSeriesStyleOptions(
+          (source as MainSeriesSourceState).styleSchemaId,
+          source as MainSeriesSourceState,
+          options,
+        ),
       rebuildMainSource: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData as readonly PhaseOneCandlestickData[], source as MainSeriesSourceState);
         this.syncChartContextFromMainSource(source as MainSeriesSourceState);
@@ -2842,35 +2846,6 @@ function formatSeriesKindLabel(kind: string): string {
     default:
       return "Series";
   }
-}
-
-function rendererForSeriesKind(kind: ChartSeriesKind): PhaseOneMainSeriesRenderer {
-  switch (kind) {
-    case "line":
-      return "line";
-    case "area":
-      return "area";
-    case "baseline":
-      return "baseline";
-    case "bar":
-      return "bars";
-    case "candlestick":
-      return "candles";
-    case "histogram":
-    case "volume":
-      return "columns";
-  }
-}
-
-function seriesKindForMainChartType(type: PhaseOneMainChartType): ChartSeriesKind {
-  return mainSeriesKindForChartType(type);
-}
-
-function applyMainSeriesTypeSpecificOptions(
-  source: MainSeriesSourceState,
-  options: MainSeriesStyleOptionsPatch,
-): boolean {
-  return applyMainSeriesStyleOptions(source.styleSchemaId, source, options);
 }
 
 function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {

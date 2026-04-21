@@ -14,7 +14,6 @@ import {
   PaneCollection,
   PriceRangeImpl,
   PriceScale,
-  buildPaneFrames,
   resolvePaneDivider,
   resolvePaneDividerByIds,
   SeriesDataStore,
@@ -87,7 +86,6 @@ import { createChartInteractionHandlers } from "./chart-interaction-handlers";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
 import {
   calculateBaseBarSpacing,
-  clamp,
   measureLayout,
   resolveBarSpacing,
   resolvePanePoint,
@@ -116,10 +114,7 @@ import {
   removePaneByHandleCommand as removePaneByHandleCommandUseCase,
   removeSeriesCommand as removeSeriesCommandUseCase,
 } from "./chart-structure-commands";
-import {
-  createPriceScaleApi as createPriceScaleApiUseCase,
-  createTimeScaleApi as createTimeScaleApiUseCase,
-} from "./chart-scale-commands";
+import { createChartScaleOwner } from "./chart-scale-owner";
 import {
   applyChartOptions as applyChartOptionsUseCase,
   resizeChart as resizeChartUseCase,
@@ -1655,6 +1650,44 @@ export class PhaseOneChartHarness {
     listSources: () => this.chartModel.listSources(),
     hasSourceApi: (api) => this.chartModel.hasSourceApi(api),
   });
+  private readonly scaleOwner = createChartScaleOwner({
+    defaultLayout: DEFAULT_LAYOUT,
+    paneGap: PANE_GAP,
+    minBarSpacing: MIN_BAR_SPACING,
+    maxBarSpacing: MAX_BAR_SPACING,
+    getCanvas: () => this.canvas,
+    getManualLayout: () => this.viewState.manualLayout(),
+    getPointCount: () => this.runtimeQueryOwner.getPointCount(),
+    getBarSpacing: () => this.barSpacing,
+    setBarSpacing: (value) => {
+      this.barSpacing = value;
+    },
+    getRightOffset: () => this.rightOffset,
+    setRightOffset: (value) => {
+      this.rightOffset = value;
+    },
+    getTimeScale: () => this.timeScale,
+    setTimeAxisFormatter: (formatter) => {
+      this.timeAxisFormatter = formatter;
+    },
+    getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
+    setPrimaryPriceRangeOverride: (range) => {
+      this.primaryPriceRangeOverride = range;
+    },
+    getPrimaryPriceScale: () => this.primaryPriceScale,
+    getSecondaryVisibleRange: () =>
+      this.chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
+    getPanes: () => this.panes.list(),
+    setPriceAxisFormatter: (formatter) => {
+      this.priceAxisFormatter = formatter;
+    },
+    setPrimaryScaleSeriesOnly: (value) => {
+      this.primaryScaleSeriesOnly = value;
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly primarySeriesOwner = createChartPrimarySeriesOwner<PhaseOneMainSeriesApi, MainSeriesSourceState>({
     getCurrentMainSourceId: () => this.chartModel.mainSourceId(),
     getPrimaryPriceScale: () => this.primaryPriceScale,
@@ -2169,66 +2202,11 @@ export class PhaseOneChartHarness {
   }
 
   public timeScaleApi(): PhaseOneTimeScaleApi {
-    return createTimeScaleApiUseCase({
-      getPointCount: () => this.runtimeQueryOwner.getPointCount(),
-      getLayout: () => (
-        this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())
-      ),
-      getBarSpacing: () => this.barSpacing,
-      setBarSpacing: (value) => {
-        this.barSpacing = value;
-      },
-      getRightOffset: () => this.rightOffset,
-      setRightOffset: (value) => {
-        this.rightOffset = value;
-      },
-      resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
-        resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
-      clampBarSpacing: (value) => clamp(value, MIN_BAR_SPACING, MAX_BAR_SPACING),
-      applyTimeScaleOptions: (options) => this.timeScale.applyOptions(options),
-      setTimeAxisFormatter: (formatter) => {
-        this.timeAxisFormatter = formatter;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    return this.scaleOwner.timeScaleApi();
   }
 
   public priceScaleApi(): PhaseOnePriceScaleApi {
-    return createPriceScaleApiUseCase({
-      getVisibleRange: () =>
-        this.primaryPriceRangeOverride?.toRaw() ??
-        this.primaryPriceScale.getPriceRange()?.toRaw() ??
-        this.chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ??
-        null,
-      setVisibleRange: (range) => {
-        this.primaryPriceRangeOverride = PriceRangeImpl.fromRaw(range);
-      },
-      applyVisibleRangeIfPresent: () => {
-        if (this.primaryPriceRangeOverride === null || this.canvas === null) {
-          return;
-        }
-        const layout = measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
-        const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
-        const paneHeight =
-          buildPaneFrames(this.panes.list(), plotHeight, PANE_GAP).find((pane) => pane.kind === "primary")
-            ?.height ?? plotHeight;
-        this.primaryPriceScale.applyOptions({
-          height: paneHeight,
-          priceRange: this.primaryPriceRangeOverride,
-        });
-      },
-      setPriceFormatter: (formatter) => {
-        this.priceAxisFormatter = formatter;
-      },
-      setScaleSeriesOnly: (value) => {
-        this.primaryScaleSeriesOnly = value;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    return this.scaleOwner.priceScaleApi();
   }
 
   public subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCrosshairMoveEvent,
+  emitReadoutEvent,
   finishChartRender,
 } from "../../src/lib/chartx/internal/views/chart-render-tail";
 
@@ -87,5 +88,34 @@ describe("chart render tail use-case", () => {
       active: false,
       point: null,
     });
+  });
+
+  it("dispatches readout custom events through the render tail helper", () => {
+    const previousCustomEvent = globalThis.CustomEvent;
+    class TestCustomEvent<T> extends Event {
+      public readonly detail: T;
+
+      public constructor(type: string, init: CustomEventInit<T>) {
+        super(type);
+        this.detail = init.detail as T;
+      }
+    }
+    globalThis.CustomEvent = TestCustomEvent as unknown as typeof CustomEvent;
+
+    try {
+      const events: Event[] = [];
+      emitReadoutEvent({
+        dispatchEvent: (event) => {
+          events.push(event);
+          return true;
+        },
+      }, { active: true, paneIndex: 1 });
+
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe("chartx:readout");
+      expect((events[0] as CustomEvent).detail).toEqual({ active: true, paneIndex: 1 });
+    } finally {
+      globalThis.CustomEvent = previousCustomEvent;
+    }
   });
 });

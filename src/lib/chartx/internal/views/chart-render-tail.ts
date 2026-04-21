@@ -44,3 +44,14 @@ export function buildCrosshairMoveEvent<Readout extends object>(
           },
   };
 }
+
+export function emitReadoutEvent<Readout>(
+  canvas: { dispatchEvent(event: Event): boolean },
+  detail: Readout,
+): void {
+  canvas.dispatchEvent(
+    new CustomEvent<Readout>("chartx:readout", {
+      detail,
+    }),
+  );
+}

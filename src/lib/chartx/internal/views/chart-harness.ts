@@ -209,6 +209,7 @@ import {
 } from "./chart-drawing-runtime";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
+import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 import { calculateChartPointCount } from "./chart-point-count";
@@ -1631,7 +1632,7 @@ export class PhaseOneChartHarness {
       drawPaneCrosshair(context, paneWidth, paneHeight, crosshair, options);
     },
     emitReadout: (canvas, detail) => {
-      emitReadout(canvas, detail);
+      emitReadoutEventUseCase(canvas, detail);
     },
     emitCrosshairMove: (readout) => {
       this.handlerRegistry.emitCrosshairMove(readout, this.viewState.crosshair());
@@ -2780,14 +2781,6 @@ export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void
   return () => {
     chart.destroy();
   };
-}
-
-function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {
-  canvas.dispatchEvent(
-    new CustomEvent<PhaseOneReadoutDetail>("chartx:readout", {
-      detail,
-    }),
-  );
 }
 
 function assertCanvasElement(value: unknown): asserts value is HTMLCanvasElement {

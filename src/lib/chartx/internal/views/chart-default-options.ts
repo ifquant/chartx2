@@ -34,6 +34,8 @@ export const BAR_SPACING_BOUNDS = { minBarSpacing: MIN_BAR_SPACING, maxBarSpacin
 export const DRAWING_HIT_TOLERANCE = 16;
 export const DRAWING_PRICE_SNAP_TOLERANCE = 8;
 export const DRAWING_TIME_SNAP_TOLERANCE = 10;
+export const PANE_GAP = 10;
+export const PANE_DIVIDER_HIT_SLOP = 6;
 
 export const DEFAULT_LAYOUT = {
   width: 960,

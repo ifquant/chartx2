@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LAYOUT,
   DEFAULT_RIGHT_OFFSET,
+  PANE_DIVIDER_HIT_SLOP,
+  PANE_GAP,
   createDefaultChartOptionBundle,
   createDefaultDrawingOptions,
   createDefaultLayoutOptions,
@@ -19,6 +21,8 @@ describe("chart default options", () => {
       left: 18,
     });
     expect(DEFAULT_RIGHT_OFFSET).toBe(0.8);
+    expect(PANE_GAP).toBe(10);
+    expect(PANE_DIVIDER_HIT_SLOP).toBe(6);
   });
 
   it("creates fresh mutable layout and drawing options", () => {

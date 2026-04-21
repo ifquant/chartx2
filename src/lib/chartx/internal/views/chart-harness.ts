@@ -123,6 +123,8 @@ import {
   LINE_COLOR,
   MAX_BAR_SPACING,
   MIN_BAR_SPACING,
+  PANE_DIVIDER_HIT_SLOP,
+  PANE_GAP,
   createDefaultAreaOptions,
   createDefaultBarOptions,
   createDefaultBaselineOptions,
@@ -883,9 +885,6 @@ type PanePoint = {
   x: number;
   y: number;
 };
-
-const PANE_GAP = 10;
-const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
   private readonly handlerRegistry = createChartHandlerRegistry();

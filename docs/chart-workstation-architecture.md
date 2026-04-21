@@ -161,6 +161,7 @@ Current direction on that path:
 - public add-series, add-study, add-volume, and add-drawing command routing should follow the same direction, so target normalization and family dispatch stop living as repeated harness-local public branches
 - primary add-series routing should not keep one-shot harness wrappers when the public add command can call the shared primary factory directly
 - secondary add-series wiring should share one harness integration point for factory deps instead of repeating the owner dependency handoff in every series kind wrapper
+- secondary plain-series routing should not keep one-shot harness wrappers when public add commands can call the shared secondary integration point directly
 - public remove-series, add-pane/remove-pane, and pane-handle wrapper construction should follow the same direction, so chart structure commands and pane API glue stop living as repeated harness-local public branches
 - time-scale and price-scale API wrapper construction should follow the same direction, so visible-range logic, formatter wiring, and scale option apply paths stop living as harness-local public branches
 - chart-wide applyOptions and resize command routing should follow the same direction, so layout/crosshair/drawing option patching and manual layout updates stop living as harness-local public branches

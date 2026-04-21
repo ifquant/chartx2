@@ -1869,7 +1869,12 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("candlestick", this.createPrimarySeriesFactoryDeps()) as PhaseOneCandlestickSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryCandlestickSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "candlestick",
+          createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
+        }),
     });
   }
 
@@ -1973,7 +1978,7 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("line", this.createPrimarySeriesFactoryDeps()) as PhaseOneLineSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryLineSeries(paneId),
+      addSecondary: (paneId) => this.addStudyLineSeries(paneId, "series"),
     });
   }
 
@@ -1983,7 +1988,12 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("area", this.createPrimarySeriesFactoryDeps()) as PhaseOneAreaSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryAreaSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "area",
+          createApi: (deps) => createSecondaryAreaSeriesApi(deps),
+        }),
     });
   }
 
@@ -1993,7 +2003,12 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("baseline", this.createPrimarySeriesFactoryDeps()) as PhaseOneBaselineSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryBaselineSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "baseline",
+          createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
+        }),
     });
   }
 
@@ -2003,7 +2018,12 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("bar", this.createPrimarySeriesFactoryDeps()) as PhaseOneBarSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryBarSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "bar",
+          createApi: (deps) => createSecondaryBarSeriesApi(deps),
+        }),
     });
   }
 
@@ -2013,7 +2033,12 @@ export class PhaseOneChartHarness {
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () =>
         addPrimarySeriesUseCase("histogram", this.createPrimarySeriesFactoryDeps()) as PhaseOneHistogramSeriesApi,
-      addSecondary: (paneId) => this.addSecondaryHistogramSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "histogram",
+          createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
+        }),
     });
   }
 
@@ -2021,7 +2046,12 @@ export class PhaseOneChartHarness {
     return addVolumeSeriesCommandUseCase(target, {
       resolveTarget: (nextTarget, options) =>
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addSecondary: (paneId) => this.addSecondaryVolumeSeries(paneId),
+      addSecondary: (paneId) =>
+        this.addSecondarySeries({
+          paneId,
+          kind: "volume",
+          createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
+        }),
     });
   }
 
@@ -2417,18 +2447,6 @@ export class PhaseOneChartHarness {
     ) as Api;
   }
 
-  private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
-    return this.addSecondarySeries({
-      paneId: target,
-      kind: "candlestick",
-      createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
-    });
-  }
-
-  private addSecondaryLineSeries(paneId: string): PhaseOneLineSeriesApi {
-    return this.addStudyLineSeries(paneId, "series");
-  }
-
   private addStudyLineSeries(
     paneId: string,
     studyKind: StudySourceKind,
@@ -2460,46 +2478,6 @@ export class PhaseOneChartHarness {
         length: this.defaultMovingAverageOptions.length,
       },
       createApi: (deps) => createMovingAverageStudySeriesApi(deps),
-    });
-  }
-
-  private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
-    return this.addSecondarySeries({
-      paneId,
-      kind: "area",
-      createApi: (deps) => createSecondaryAreaSeriesApi(deps),
-    });
-  }
-
-  private addSecondaryBaselineSeries(paneId: string): PhaseOneBaselineSeriesApi {
-    return this.addSecondarySeries({
-      paneId,
-      kind: "baseline",
-      createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
-    });
-  }
-
-  private addSecondaryBarSeries(paneId: string): PhaseOneBarSeriesApi {
-    return this.addSecondarySeries({
-      paneId,
-      kind: "bar",
-      createApi: (deps) => createSecondaryBarSeriesApi(deps),
-    });
-  }
-
-  private addSecondaryHistogramSeries(paneId: string): PhaseOneHistogramSeriesApi {
-    return this.addSecondarySeries({
-      paneId,
-      kind: "histogram",
-      createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
-    });
-  }
-
-  private addSecondaryVolumeSeries(paneId: string): PhaseOneVolumeSeriesApi {
-    return this.addSecondarySeries({
-      paneId,
-      kind: "volume",
-      createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
     });
   }
 

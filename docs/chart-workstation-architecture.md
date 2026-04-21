@@ -246,6 +246,7 @@ Current direction on that path:
 - drawing owner ownership should include public drawing commands and interaction lookups, so `chart-harness` should not retain private drawing registry/selection wrappers after the owner surface is stable
 - source owner ownership should include specialized study accessors and secondary-scale helpers, so `chart-harness` should drop dead source runtime wrappers once those flows are handled inside the source owner
 - pane owner ownership should include pane handles, pane index lookup, resize apply, removal, and event dispatch call sites, so `chart-harness` should not retain private pane runtime wrappers after the owner surface is stable
+- pane owner ownership should include public pane list/add/remove command composition, so `chart-harness` only forwards pane API entrypoints instead of reassembling add/remove command dependencies
 - source owner ownership should also include primary/secondary data mutation forwarding, so `chart-harness` should not keep local set/update wrappers once public commands and series APIs can call the owner directly
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces

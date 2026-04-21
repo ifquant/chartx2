@@ -1,5 +1,9 @@
 import { resolveSeriesTarget as resolveSeriesTargetUseCase } from "./chart-add-commands";
 import {
+  addPaneCommand,
+  removePaneByHandleCommand,
+} from "./chart-structure-commands";
+import {
   createPaneApiHandle,
   subscribePaneResizeRuntime,
   unsubscribePaneResizeRuntime,
@@ -104,7 +108,7 @@ export function createChartPaneOwner(deps: {
   getPaneByIndex(index: number): PaneLike | undefined;
   getPaneIndex(paneId: string): number;
   listPanes(): readonly PaneLike[];
-  addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
+  addSecondaryPane(options?: PhaseOnePaneOptions): { id: string };
   hasCanvas(): boolean;
   getLayout(): LayoutLike;
   gap: number;
@@ -137,6 +141,26 @@ export function createChartPaneOwner(deps: {
         registerPaneHandle: (handle, nextPaneId) => {
           paneHandleIds.set(handle, nextPaneId);
         },
+      });
+    },
+
+    listPaneHandles(): readonly PhaseOnePaneApi[] {
+      return deps.listPanes().map((pane) => owner.createPaneHandle(pane.id));
+    },
+
+    addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
+      return addPaneCommand(options, {
+        addSecondaryPane: (nextOptions) => deps.addSecondaryPane(nextOptions),
+        emitAdded: (paneId) => owner.emitPaneEvent("added", paneId),
+        render: () => deps.render(),
+        createPaneHandle: (paneId) => owner.createPaneHandle(paneId),
+      });
+    },
+
+    removePaneByHandle(paneHandle: PhaseOnePaneApi): void {
+      removePaneByHandleCommand(paneHandle, {
+        getPaneId: (handle) => paneHandleIds.get(handle),
+        removePaneById: (paneId) => owner.removePaneById(paneId),
       });
     },
 
@@ -231,7 +255,7 @@ export function createChartPaneOwner(deps: {
         listPanes: () => deps.listPanes(),
         getPaneByIndex: (index) => deps.getPaneByIndex(index),
         getPaneByHandle: (handle) => owner.getPaneByHandle(handle),
-        addPane: () => deps.addPane(),
+        addPane: () => owner.addPane(),
         getPaneId: (handle) => paneHandleIds.get(handle),
       });
     },

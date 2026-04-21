@@ -128,7 +128,7 @@ function createOwnerFixture() {
       return index;
     },
     listPanes: () => paneOrder.map((paneId) => panes.get(paneId)!).filter(Boolean),
-    addPane: () => {
+    addSecondaryPane: () => {
       const pane: PaneLike = {
         id: "pane-3",
         kind: "secondary",
@@ -137,7 +137,7 @@ function createOwnerFixture() {
       };
       panes.set(pane.id, pane);
       paneOrder.push(pane.id);
-      return owner.createPaneHandle(pane.id);
+      return pane;
     },
     hasCanvas: () => true,
     getLayout: () => ({ width: 600, height: 420, top: 10, right: 10, bottom: 10, left: 10 }),
@@ -291,6 +291,29 @@ describe("chart pane owner", () => {
     expect(fixture.owner.getPaneByHandle(handle as PhaseOnePaneApi)).toMatchObject({
       id: "pane-2",
       kind: "secondary",
+    });
+  });
+
+  it("owns pane list, add, and handle removal command composition", () => {
+    const fixture = createOwnerFixture();
+    fixture.sourcesByPane.set("pane-2", []);
+
+    expect(fixture.owner.listPaneHandles()).toHaveLength(2);
+
+    const handle = fixture.owner.addPane({ height: 144 });
+    expect(handle.paneIndex()).toBe(2);
+    expect(fixture.panes.has("pane-3")).toBe(true);
+    expect(fixture.render).toHaveBeenCalledTimes(1);
+    expect(fixture.emittedPaneEvents.at(-1)).toMatchObject({
+      type: "added",
+      pane: { paneIndex: 2, isPrimary: false },
+    });
+
+    fixture.owner.removePaneByHandle(handle);
+    expect(fixture.panes.has("pane-3")).toBe(false);
+    expect(fixture.emittedPaneEvents.at(-1)).toMatchObject({
+      type: "removed",
+      pane: { paneIndex: 2, isPrimary: false },
     });
   });
 

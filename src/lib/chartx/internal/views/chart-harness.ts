@@ -110,8 +110,6 @@ import {
   addVolumeSeriesCommand as addVolumeSeriesCommandUseCase,
 } from "./chart-add-commands";
 import {
-  addPaneCommand as addPaneCommandUseCase,
-  removePaneByHandleCommand as removePaneByHandleCommandUseCase,
   removeSeriesCommand as removeSeriesCommandUseCase,
 } from "./chart-structure-commands";
 import { createChartScaleOwner } from "./chart-scale-owner";
@@ -1502,12 +1500,7 @@ export class PhaseOneChartHarness {
       return index;
     },
     listPanes: () => this.panes.list(),
-    addPane: () => {
-      const pane = this.panes.addSecondaryPane({});
-      this.paneOwner.emitPaneEvent("added", pane.id);
-      this.renderInvalidation.renderIfAttached();
-      return this.paneOwner.createPaneHandle(pane.id);
-    },
+    addSecondaryPane: (options) => this.panes.addSecondaryPane(options),
     hasCanvas: () => this.canvas !== null,
     getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())),
     gap: PANE_GAP,
@@ -1790,7 +1783,7 @@ export class PhaseOneChartHarness {
       this.paneOwner.removePaneById(paneId);
     },
     addPane: (options) => {
-      this.addPane(options);
+      this.paneOwner.addPane(options);
     },
     emitPaneEvent: (type, paneId) => {
       this.paneOwner.emitPaneEvent(type, paneId);
@@ -2157,25 +2150,15 @@ export class PhaseOneChartHarness {
   }
 
   public panesApi(): readonly PhaseOnePaneApi[] {
-    return this.panes.list().map((pane) => this.paneOwner.createPaneHandle(pane.id));
+    return this.paneOwner.listPaneHandles();
   }
 
   public addPane(options: PhaseOnePaneOptions = {}): PhaseOnePaneApi {
-    return addPaneCommandUseCase(options, {
-      addSecondaryPane: (nextOptions) => this.panes.addSecondaryPane(nextOptions),
-      emitAdded: (paneId) => this.paneOwner.emitPaneEvent("added", paneId),
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-      createPaneHandle: (paneId) => this.paneOwner.createPaneHandle(paneId),
-    });
+    return this.paneOwner.addPane(options);
   }
 
   public removePaneByHandle(paneHandle: PhaseOnePaneApi): void {
-    removePaneByHandleCommandUseCase(paneHandle, {
-      getPaneId: (handle) => this.paneOwner.getPaneByHandle(handle).id,
-      removePaneById: (paneId) => this.paneOwner.removePaneById(paneId),
-    });
+    this.paneOwner.removePaneByHandle(paneHandle);
   }
 
   public applyOptions(options: PhaseOneChartOptions): void {

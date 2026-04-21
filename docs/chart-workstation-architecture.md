@@ -265,6 +265,7 @@ Current direction on that path:
 - default option ownership should live outside `chart-harness`, with per-instance factory functions for mutable chart, drawing, series, study, and price-line defaults so adapter-shell cleanup does not accidentally introduce shared mutable state
 - runtime type ownership should live outside `chart-harness`, so drawing descriptor, source state, series API, and restore helper aliases do not keep the adapter shell as the de facto type dumping ground
 - drawing property schema ownership should live outside `chart-harness`, so public drawing editor schema data can be tested and evolved without expanding the adapter shell
+- public API type ownership should live outside `chart-harness`, with `chart-harness` re-exporting compatibility while the actual `PhaseOne*` public types and template helpers live in a focused API-types module
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
 - secondary series API ownership should flow through a dedicated owner, so secondary data mutation, markers, price lines, compare options, and moving-average options no longer sit as a high-fanout closure block inside `chart-harness`

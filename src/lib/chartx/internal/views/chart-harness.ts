@@ -91,10 +91,7 @@ import {
 import { createChartScaleOwner } from "./chart-scale-owner";
 import { createChartShellOwner } from "./chart-shell-owner";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
-import {
-  clonePriceLines,
-  type PriceLineState,
-} from "./chart-price-line-runtime";
+import type { PriceLineState } from "./chart-price-line-runtime";
 import { createPriceLineManager } from "./chart-price-line-management";
 import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
 import {
@@ -110,6 +107,7 @@ import {
 import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api-owner";
 import { createChartSourceMutationOwner } from "./chart-source-mutation-owner";
 import { createChartStudySourceOwner } from "./chart-study-source-owner";
+import { createChartMainSeriesSwitchOwner } from "./chart-main-series-switch-owner";
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
@@ -1268,6 +1266,19 @@ export class PhaseOneChartHarness {
     },
     defaultCompareOptions: this.defaultCompareOptions,
   });
+  private readonly mainSeriesSwitchOwner = createChartMainSeriesSwitchOwner<ChartSeriesApi>({
+    removeCurrent: (api) => this.chartModel.removeSourceByApi(api) !== undefined,
+    clearPriceRangeOverride: () => {
+      this.primaryPriceRangeOverride = null;
+    },
+    attachSeries: (type, preserved) => this.primarySeriesOwner.attach(type, preserved as never),
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+    emitChartTypeChange: (type) => {
+      this.handlerRegistry.emitChartTypeChange(type);
+    },
+  });
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
       mainSourceId: () => this.chartModel.mainSourceId(),
@@ -1276,32 +1287,7 @@ export class PhaseOneChartHarness {
       listSourcesByPaneAndRole: (paneId, role) => this.chartModel.listSourcesByPaneAndRole(paneId, role),
       listSourcesByRole: (role) => this.chartModel.listSourcesByRole(role),
     },
-    mainSeriesSwitch: {
-      removeCurrent: (api) => this.chartModel.removeSourceByApi(api as ChartSeriesApi) !== undefined,
-      clearPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      buildPreservedState: (source) => {
-        const mainSource = source as MainSeriesSourceState;
-        return {
-          id: mainSource.id,
-          label: mainSource.label,
-          data: mainSource.inputData,
-          visuals: new Map(mainSource.visuals),
-          markers: [...mainSource.markers],
-          priceLines: clonePriceLines(mainSource.priceLines),
-          options: { ...mainSource.options },
-          previousStyleSchemaId: mainSource.styleSchemaId,
-        };
-      },
-      attachSeries: (type, preserved) => this.primarySeriesOwner.attach(type as PhaseOneMainChartType, preserved as never),
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-      emitChartTypeChange: (type) => {
-        this.handlerRegistry.emitChartTypeChange(type as PhaseOneMainChartType);
-      },
-    },
+    mainSeriesSwitch: this.mainSeriesSwitchOwner.mainSeriesSwitch,
     primaryMutations: this.sourceMutationOwner.primaryMutations,
     studySources: this.studySourceOwner.studySources,
     secondaryMutations: this.sourceMutationOwner.secondaryMutations,

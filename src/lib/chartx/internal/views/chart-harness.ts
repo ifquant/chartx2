@@ -10,7 +10,6 @@ import {
   ChartModel,
   createMainSeriesStateSnapshot,
   mainSeriesKindForChartType,
-  mainSeriesStyleSchemaSpec,
   projectMainSeriesStyleOptions,
   resolveTradeLocationState,
   resolveTradeOverlayOptions,
@@ -163,13 +162,7 @@ import {
   type PriceLineState,
 } from "./chart-price-line-runtime";
 import { createPriceLineManager } from "./chart-price-line-management";
-import {
-  createMainSeriesOptions as createMainSeriesOptionsUseCase,
-  createMainSourceState as createMainSourceStateUseCase,
-  createSeriesLabel as createSeriesLabelUseCase,
-  createSeriesMeta as createSeriesMetaUseCase,
-  createSeriesOptions as createSeriesOptionsUseCase,
-} from "./chart-series-builders";
+import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
 import {
   createMainBarSequenceFromSource as createMainBarSequenceFromSourceUseCase,
   syncChartContextFromMainSource as syncChartContextFromMainSourceUseCase,
@@ -1155,7 +1148,6 @@ export class PhaseOneChartHarness {
   private readonly kagiRenderer = new KagiRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
-  private nextSeriesId = 1;
   private nextDrawingId = 1;
   private canvas: HTMLCanvasElement | null = null;
   private crosshair: PanePoint | null = null;
@@ -1302,6 +1294,17 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly seriesBuildOwner = createChartSeriesBuildOwner({
+    defaults: {
+      candlestickOptions: this.candlestickOptions,
+      barOptions: this.barOptions,
+      lineOptions: this.lineOptions,
+      areaOptions: this.areaOptions,
+      baselineOptions: this.baselineOptions,
+      histogramOptions: this.histogramOptions,
+      volumeOptions: this.volumeOptions,
+    },
+  });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
@@ -1387,10 +1390,10 @@ export class PhaseOneChartHarness {
           studyKind: studyKind as StudySourceKind | undefined,
           indicator: indicator as MovingAverageIndicatorState | undefined,
           defaultCompareOptions: this.defaultCompareOptions,
-          createOptions: (createKind) => this.createSeriesOptions(createKind),
+          createOptions: (createKind) => this.seriesBuildOwner.createOptions(createKind),
         }),
       registerSource: (source) => this.chartModel.registerSource(source as StudySourceState),
-      createMeta: (kind) => this.createSeriesMeta(kind),
+      createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
     },
     secondaryMutations: {
       resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
@@ -1905,18 +1908,18 @@ export class PhaseOneChartHarness {
   > {
     return {
       currentMainSourceId: this.chartModel.mainSourceId(),
-      createMeta: (chartType) => this.createSeriesMeta(chartType),
-      createLabel: (chartType, id) => this.createSeriesLabel(chartType, id),
+      createMeta: (chartType) => this.seriesBuildOwner.createMeta(chartType),
+      createLabel: (chartType, id) => this.seriesBuildOwner.createLabel(chartType, id),
       createSourceState: (chartType, api, meta) =>
-        this.createMainSourceState(
-          "primary",
+        this.seriesBuildOwner.createMainSource({
+          paneId: "primary",
           chartType,
-          mainSeriesKindForChartType(chartType),
+          kind: mainSeriesKindForChartType(chartType),
           api,
           meta,
-          this.primaryPriceScale,
-          "primary-right",
-        ),
+          priceScale: this.primaryPriceScale,
+          priceScaleId: "primary-right",
+        }),
       clonePriceLines,
       projectOptions: (previousStyleSchemaId, nextStyleSchemaId, preservedOptions, currentOptions) =>
         projectMainSeriesStyleOptions(
@@ -2340,7 +2343,7 @@ export class PhaseOneChartHarness {
       ensureAttached: (chartType) => this.attachPrimarySeries(chartType),
       switchChartType: (chartType) => this.setChartType(chartType),
       getCurrentSource: () => this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState,
-      createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
+      createOptions: (styleSchemaId) => this.seriesBuildOwner.createMainOptions(styleSchemaId),
       rebuildData: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
       },
@@ -2478,87 +2481,6 @@ export class PhaseOneChartHarness {
         length: this.defaultMovingAverageOptions.length,
       },
       createApi: (deps) => createMovingAverageStudySeriesApi(deps),
-    });
-  }
-
-  private createSeriesMeta(kind: string): { id: string; label: string } {
-    const ordinal = this.nextSeriesId;
-    this.nextSeriesId += 1;
-    return createSeriesMetaUseCase(kind, ordinal, {
-      formatSeriesKindLabel,
-    });
-  }
-
-  private createSeriesLabel(kind: string, id: string): string {
-    return createSeriesLabelUseCase(kind, id, {
-      formatSeriesKindLabel,
-    });
-  }
-
-  private createSeriesOptions(
-    kind: ChartSeriesKind,
-  ):
-    | Required<PhaseOneCandlestickSeriesOptions>
-    | Required<PhaseOneBarSeriesOptions>
-    | Required<PhaseOneLineSeriesOptions>
-    | Required<PhaseOneAreaSeriesOptions>
-    | Required<PhaseOneBaselineSeriesOptions>
-    | Required<PhaseOneHistogramSeriesOptions>
-    | Required<PhaseOneVolumeSeriesOptions> {
-    return createSeriesOptionsUseCase(kind, {
-      candlestickOptions: this.candlestickOptions,
-      barOptions: this.barOptions,
-      lineOptions: this.lineOptions,
-      areaOptions: this.areaOptions,
-      baselineOptions: this.baselineOptions,
-      histogramOptions: this.histogramOptions,
-      volumeOptions: this.volumeOptions,
-    });
-  }
-
-  private createMainSeriesOptions(
-    styleSchemaId: PhaseOneMainStyleSchemaId,
-  ):
-    | Required<PhaseOneCandlestickSeriesOptions>
-    | Required<PhaseOneBarSeriesOptions>
-    | Required<PhaseOneLineSeriesOptions>
-    | Required<PhaseOneAreaSeriesOptions>
-    | Required<PhaseOneBaselineSeriesOptions>
-    | Required<PhaseOneHistogramSeriesOptions> {
-    return createMainSeriesOptionsUseCase(styleSchemaId, {
-      candlestickOptions: this.candlestickOptions,
-      barOptions: this.barOptions,
-      lineOptions: this.lineOptions,
-      areaOptions: this.areaOptions,
-      baselineOptions: this.baselineOptions,
-      histogramOptions: this.histogramOptions,
-    }, {
-      optionSurface: (nextStyleSchemaId) => mainSeriesStyleSchemaSpec(nextStyleSchemaId).optionSurface,
-    });
-  }
-
-  private createMainSourceState(
-    paneId: string,
-    chartType: PhaseOneMainChartType,
-    kind: ChartSeriesKind,
-    api: ChartSeriesApi,
-    meta: { id: string; label: string },
-    priceScale: PriceScale,
-    priceScaleId: string,
-  ): MainSeriesSourceState {
-    return createMainSourceStateUseCase({
-      paneId,
-      chartType,
-      kind,
-      api,
-      meta,
-      priceScale,
-      priceScaleId,
-    }, {
-      candlestickOptions: this.candlestickOptions,
-      lineOptions: this.lineOptions,
-    }, {
-      createMainSeriesOptions: (nextStyleSchemaId) => this.createMainSeriesOptions(nextStyleSchemaId),
     });
   }
 

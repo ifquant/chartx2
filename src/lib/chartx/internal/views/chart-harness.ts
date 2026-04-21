@@ -1584,13 +1584,14 @@ export class PhaseOneChartHarness {
     getRightOffset: () => this.rightOffset,
     getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
     getPaneSpecs: () => this.panes.list(),
-    getMainSource: () => this.getMainSource(),
+    getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
     createMainBarSequenceFromSource: (source) => this.createMainBarSequenceFromSource(source as MainSeriesSourceState),
     getContextSnapshot: () => this.chartModel.context().snapshot(),
-    getPrimaryStudies: () => this.getStudySourcesForPane("primary"),
-    buildPrimaryPaneSeries: (mainSource) => this.buildPrimaryPaneSeries(mainSource as MainSeriesSourceState | null),
+    getPrimaryStudies: () => this.sourceOwner.getStudySourcesForPane("primary") as StudySourceState[],
+    buildPrimaryPaneSeries: (mainSource) =>
+      this.sourceOwner.buildPrimaryPaneSeries(mainSource as MainSeriesSourceState | null) as readonly SeriesSourceState[],
     getStudySources: () => this.chartModel.listSourcesByRole("study"),
-    getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
+    getSecondarySeriesForPane: (paneId) => this.sourceOwner.getSecondarySeriesForPane(paneId) as StudySourceState[],
     getDrawingsByPane: (paneId) => this.drawingOwner.listDrawingsByPane(paneId),
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
@@ -1678,7 +1679,8 @@ export class PhaseOneChartHarness {
     removeDrawing: (api) => {
       this.drawingOwner.removeDrawing(api as ChartDrawingApi);
     },
-    getSecondarySeriesCountForPane: (paneId) => this.getSecondarySeriesForPane(paneId).length,
+    getSecondarySeriesCountForPane: (paneId) =>
+      this.sourceOwner.getSecondarySeriesForPane(paneId).length,
     removeSecondaryPane: (paneId) => {
       this.paneOwner.removePaneById(paneId);
     },
@@ -1908,7 +1910,8 @@ export class PhaseOneChartHarness {
       registerSource: (source) => this.chartModel.registerSource(source),
       syncContext: (source) => this.syncChartContextFromMainSource(source),
       assertSeriesActive: (api) => this.assertSeriesActive(api),
-      getSource: (api, sourceKind) => this.getSourceByApi(api, sourceKind),
+      getSource: (api, sourceKind) =>
+        this.sourceOwner.getSourceByApi(api, sourceKind) as SeriesSourceState,
       applySeriesFormatterOptions: (seriesOptions, options) =>
         applySeriesFormatterOptionsUseCase(
           seriesOptions as PhaseOneSeriesFormatterOptions,
@@ -2247,7 +2250,7 @@ export class PhaseOneChartHarness {
   }
 
   public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
-    const source = this.getMainSource();
+    const source = this.sourceOwner.getMainSource() as MainSeriesSourceState | null;
     return buildMainSeriesStateSnapshot(
       source === null
         ? null
@@ -2264,10 +2267,10 @@ export class PhaseOneChartHarness {
 
   public applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi {
     return applyMainSeriesStateSnapshot(state, {
-      current: this.getMainSource(),
+      current: this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
       ensureAttached: (chartType) => this.attachPrimarySeries(chartType),
       switchChartType: (chartType) => this.setChartType(chartType),
-      getCurrentSource: () => this.getMainSourceOrThrow(),
+      getCurrentSource: () => this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState,
       createOptions: (styleSchemaId) => this.createMainSeriesOptions(styleSchemaId),
       rebuildData: (source) => {
         source.data = applyMainSeriesBuilderData(source.inputData, source);
@@ -2306,13 +2309,13 @@ export class PhaseOneChartHarness {
   ): PhaseOneTradeLocationState | null {
     return locateTradeRuntime(request, options, {
       ensureMainSource: () => {
-        this.getMainSourceOrThrow();
+        this.sourceOwner.getMainSourceOrThrow();
       },
       setActiveTradeLocation: (next) => {
         this.activeTradeLocation = next;
       },
       refreshTradeLocation: () => {
-        this.refreshTradeLocation();
+        this.sourceOwner.refreshTradeLocation();
       },
       getTradeLocationState: () => this.activeTradeLocation?.state ?? null,
     });
@@ -2349,7 +2352,9 @@ export class PhaseOneChartHarness {
   }
 
   private getPointCount(): number {
-    let pointCount = this.renderCoordinator.buildMainBarSequence(this.getMainSource()).logicalLength;
+    let pointCount = this.renderCoordinator.buildMainBarSequence(
+      this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
+    ).logicalLength;
     for (const state of this.chartModel.listSources()) {
       const rows = state.role === "main-series" && this.chartModel.context().snapshot().mainSourceId === state.id
         ? this.chartModel.context().snapshot().barSequence.bars
@@ -2499,7 +2504,7 @@ export class PhaseOneChartHarness {
     markers: readonly PhaseOneSeriesMarker[],
     kind: ChartSeriesKind,
   ): void {
-    const state = this.getSourceByApi(api, kind);
+    const state = this.sourceOwner.getSourceByApi(api, kind) as SeriesSourceState;
     setSeriesMarkersUseCase(state, markers, {
       normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
       render: () => {
@@ -2604,45 +2609,12 @@ export class PhaseOneChartHarness {
       createMainBarSequenceFromSource: (nextSource: MainSeriesSourceState) =>
         this.createMainBarSequenceFromSource(nextSource),
       syncStudyContextData: () => this.syncStudyContextData(),
-      refreshTradeLocation: () => this.refreshTradeLocation(),
+      refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
     });
   }
 
   private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
     return createMainBarSequenceFromSourceUseCase(source);
-  }
-
-  private getMainSource(): MainSeriesSourceState | null {
-    return this.sourceOwner.getMainSource() as MainSeriesSourceState | null;
-  }
-
-  private refreshTradeLocation(): void {
-    this.sourceOwner.refreshTradeLocation();
-  }
-
-  private getMainSourceOrThrow(): MainSeriesSourceState {
-    return this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState;
-  }
-
-  private getStudySourcesForPane(paneId: string): StudySourceState[] {
-    return this.sourceOwner.getStudySourcesForPane(paneId) as StudySourceState[];
-  }
-
-  private getSecondarySeriesForPane(paneId: string): StudySourceState[] {
-    return this.sourceOwner.getSecondarySeriesForPane(paneId) as StudySourceState[];
-  }
-
-  private getSourceByApi(
-    api: ChartSeriesApi,
-    kind?: ChartSeriesKind,
-  ): SeriesSourceState {
-    return this.sourceOwner.getSourceByApi(api, kind) as SeriesSourceState;
-  }
-
-  private buildPrimaryPaneSeries(
-    mainSource: MainSeriesSourceState | null,
-  ): readonly SeriesSourceState[] {
-    return this.sourceOwner.buildPrimaryPaneSeries(mainSource) as readonly SeriesSourceState[];
   }
 
   private resolveHitDrawing(

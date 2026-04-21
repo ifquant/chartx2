@@ -1322,7 +1322,9 @@ export class PhaseOneChartHarness {
       render: () => {
         this.renderInvalidation.renderIfAttached();
       },
-      emitChartTypeChange: (type) => this.emitChartTypeChange(type as PhaseOneMainChartType),
+      emitChartTypeChange: (type) => {
+        this.handlerRegistry.emitChartTypeChange(type as PhaseOneMainChartType);
+      },
     },
     primaryMutations: {
       rebuild: (source) => {
@@ -1585,7 +1587,8 @@ export class PhaseOneChartHarness {
     getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
     getPaneSpecs: () => this.panes.list(),
     getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
-    createMainBarSequenceFromSource: (source) => this.createMainBarSequenceFromSource(source as MainSeriesSourceState),
+    createMainBarSequenceFromSource: (source) =>
+      createMainBarSequenceFromSourceUseCase(source as MainSeriesSourceState),
     getContextSnapshot: () => this.chartModel.context().snapshot(),
     getPrimaryStudies: () => this.sourceOwner.getStudySourcesForPane("primary") as StudySourceState[],
     buildPrimaryPaneSeries: (mainSource) =>
@@ -1624,7 +1627,7 @@ export class PhaseOneChartHarness {
       emitReadout(canvas, detail);
     },
     emitCrosshairMove: (readout) => {
-      this.emitCrosshairMove(readout);
+      this.handlerRegistry.emitCrosshairMove(readout, this.viewState.crosshair());
     },
     backgroundColor: () => CHART_BACKGROUND,
     resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
@@ -2607,14 +2610,14 @@ export class PhaseOneChartHarness {
       bindMainSource: (mainSourceId, chartType, barSequence) =>
         this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
       createMainBarSequenceFromSource: (nextSource: MainSeriesSourceState) =>
-        this.createMainBarSequenceFromSource(nextSource),
-      syncStudyContextData: () => this.syncStudyContextData(),
+        createMainBarSequenceFromSourceUseCase(nextSource),
+      syncStudyContextData: () => {
+        syncStudyContextDataUseCase(this.chartModel.listSourcesByRole("study"), {
+          resolveDisplayData: (state) => this.resolveStudyDisplayData(state),
+        });
+      },
       refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
     });
-  }
-
-  private createMainBarSequenceFromSource(source: MainSeriesSourceState): ChartBarSequence<number> {
-    return createMainBarSequenceFromSourceUseCase(source);
   }
 
   private resolveHitDrawing(
@@ -2736,12 +2739,6 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private syncStudyContextData(): void {
-    syncStudyContextDataUseCase(this.chartModel.listSourcesByRole("study"), {
-      resolveDisplayData: (state) => this.resolveStudyDisplayData(state),
-    });
-  }
-
   public render(canvas: HTMLCanvasElement): void {
     this.renderCoordinator.render(canvas);
   }
@@ -2752,13 +2749,6 @@ export class PhaseOneChartHarness {
     }
   }
 
-  private emitCrosshairMove(readout: PhaseOneReadoutDetail): void {
-    this.handlerRegistry.emitCrosshairMove(readout, this.viewState.crosshair());
-  }
-
-  private emitChartTypeChange(type: PhaseOneMainChartType): void {
-    this.handlerRegistry.emitChartTypeChange(type);
-  }
 }
 
 export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {

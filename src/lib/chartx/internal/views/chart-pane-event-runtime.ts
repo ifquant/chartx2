@@ -1,7 +1,7 @@
 import type {
   PhaseOnePaneEventType,
   PhaseOnePaneState,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PaneLike = {
   kind: "primary" | "secondary";

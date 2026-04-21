@@ -2,7 +2,7 @@ import { formatSeriesReadoutValue as formatSeriesReadoutValueUseCase } from "./c
 import type {
   PhaseOneReadoutBody,
   PhaseOneReadoutDetail,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type ReadoutState = {
   kind: string;

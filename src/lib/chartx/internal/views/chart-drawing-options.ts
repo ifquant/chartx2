@@ -4,7 +4,7 @@ import { applyDrawingMagnetOverrides } from "./chart-drawing-magnet";
 import type {
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PriceLineState = {
   price: number;

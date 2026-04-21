@@ -3,7 +3,7 @@ import { resolveDrawingMagnetOptions } from "./chart-drawing-snap";
 import type {
   PhaseOneChartOptions,
   PhaseOneChartStateSnapshot,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type DrawingMagnetSources = {
   open: boolean;

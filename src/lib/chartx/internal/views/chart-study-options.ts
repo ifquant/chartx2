@@ -2,7 +2,7 @@ import type { MovingAverageIndicatorState, StudyInputContextState } from "../mod
 import type {
   PhaseOneCompareSeriesOptions,
   PhaseOneMovingAverageStudyOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type CompareStudyState = {
   compareOptions?: Required<PhaseOneCompareSeriesOptions>;

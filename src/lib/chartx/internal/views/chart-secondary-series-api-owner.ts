@@ -30,7 +30,7 @@ import type {
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
   PhaseOneVolumeData,
-} from "./chart-harness";
+} from "./chart-api-types";
 import type { PriceLineState } from "./chart-price-line-runtime";
 import type { SecondarySeriesKind } from "./chart-secondary-series-factory";
 

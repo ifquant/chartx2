@@ -1,6 +1,6 @@
 import { drawPaneCrosshair, drawPaneLegend } from "./chart-pane-chrome";
 import { emitReadoutEvent } from "./chart-render-tail";
-import type { PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-harness";
+import type { PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-api-types";
 
 type RendererRuntime = {
   lineRenderer: unknown;

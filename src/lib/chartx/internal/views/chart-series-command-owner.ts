@@ -31,7 +31,7 @@ import type {
   PhaseOneSeriesTarget,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesTarget,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type ResolvedSeriesTarget = { kind: "primary" } | { kind: "secondary"; paneId: string };
 type SecondarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";

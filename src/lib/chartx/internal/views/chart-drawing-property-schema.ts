@@ -2,7 +2,7 @@ import type {
   PhaseOneDrawingPropertyFieldSchema,
   PhaseOneDrawingPropertySchema,
   PhaseOneDrawingStateSnapshot,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 const COMMON_DRAWING_MAGNET_PROPERTY_FIELDS = [
   { key: "magnetEnabled", label: "Price Magnet", control: "toggle" },

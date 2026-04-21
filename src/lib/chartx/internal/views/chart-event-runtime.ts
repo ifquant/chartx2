@@ -12,7 +12,7 @@ import type {
   PhaseOnePaneResizeHandler,
   PhaseOnePaneState,
   PhaseOneReadoutDetail,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PaneLike = { kind: "primary" | "secondary" };
 type PanePointLike = { x: number; y: number } | null;

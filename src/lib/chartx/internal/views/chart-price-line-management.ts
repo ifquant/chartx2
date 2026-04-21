@@ -8,7 +8,7 @@ import {
 import type {
   PhaseOnePriceLineApi,
   PhaseOnePriceLineOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export type PriceLineManager = ReturnType<typeof createPriceLineManager>;
 

@@ -10,7 +10,7 @@ import type {
   PhaseOneSeriesMarkerPosition,
   PhaseOneSeriesMarkerShape,
   PhaseOneVolumeSeriesOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 import type {
   PhaseOneMainChartType,
   PhaseOneMainStyleSchemaId,

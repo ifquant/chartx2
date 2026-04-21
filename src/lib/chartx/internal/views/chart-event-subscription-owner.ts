@@ -4,7 +4,7 @@ import type {
   PhaseOneCrosshairMoveHandler,
   PhaseOneDrawingSelectionChangeHandler,
   PhaseOnePaneEventHandler,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export function createChartEventSubscriptionOwner(deps: {
   subscribeCrosshairMove(handler: PhaseOneCrosshairMoveHandler): void;

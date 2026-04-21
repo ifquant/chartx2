@@ -10,7 +10,7 @@ import {
 import type {
   PhaseOneCompareSeriesApi,
   PhaseOneMovingAverageStudyApi,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type SeriesKind = string;
 

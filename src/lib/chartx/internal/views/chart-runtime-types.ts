@@ -34,7 +34,7 @@ import type {
   PhaseOneTrendLineDrawingApi,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 import type { PriceLineState } from "./chart-price-line-runtime";
 import type { HistogramVisual } from "./chart-series-data-transforms";
 import type { SeriesMarkerState } from "./chart-series-presentation";

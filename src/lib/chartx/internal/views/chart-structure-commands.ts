@@ -2,7 +2,7 @@ import type {
   PhaseOnePaneApi,
   PhaseOnePaneOptions,
   PhaseOnePaneResizeHandler,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export function removeSeriesCommand<TSeries, TSource extends { role: string }>(
   series: TSeries,

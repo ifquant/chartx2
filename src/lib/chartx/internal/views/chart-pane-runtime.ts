@@ -1,6 +1,6 @@
 import { buildPaneFrames, normalizePaneHeight, resolvePaneDividerByIds } from "../model";
 
-import type { PhaseOnePaneOptions, PhaseOnePaneResizeHandler } from "./chart-harness";
+import type { PhaseOnePaneOptions, PhaseOnePaneResizeHandler } from "./chart-api-types";
 
 type LayoutLike = {
   width: number;

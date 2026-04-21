@@ -1,6 +1,6 @@
 import type { DrawingRegistry } from "../model";
 
-import type { PhaseOneSelectedDrawing } from "./chart-harness";
+import type { PhaseOneSelectedDrawing } from "./chart-api-types";
 
 type DrawingLike<Api> = {
   id: string;

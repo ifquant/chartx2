@@ -1,4 +1,4 @@
-import type { PhaseOneChartOptions } from "./chart-harness";
+import type { PhaseOneChartOptions } from "./chart-api-types";
 import {
   applyChartOptions,
   resizeChart,

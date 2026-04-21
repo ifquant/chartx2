@@ -10,7 +10,7 @@ import type {
   PhaseOneMovingAverageStudyOptions,
   PhaseOnePriceLineOptions,
   PhaseOneVolumeSeriesOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export const CHART_BACKGROUND = "#fffdf7";
 export const PANE_BACKGROUND = "#fffaf0";

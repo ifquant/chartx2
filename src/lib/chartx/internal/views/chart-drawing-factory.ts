@@ -14,7 +14,7 @@ import type {
   PhaseOnePriceLineOptions,
   PhaseOneTrendLineDrawingApi,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PriceLineState = {
   id: string;

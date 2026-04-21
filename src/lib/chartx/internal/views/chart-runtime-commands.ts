@@ -1,5 +1,5 @@
 import { resolveTradeOverlayOptions } from "../model";
-import type { PhaseOneChartApi } from "./chart-harness";
+import type { PhaseOneChartApi } from "./chart-api-types";
 
 type TradeLocationSession = {
   request: Parameters<PhaseOneChartApi["locateTrade"]>[0];

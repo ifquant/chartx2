@@ -12,7 +12,7 @@ import type {
   PhaseOnePriceLineApi,
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PrimarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram";
 

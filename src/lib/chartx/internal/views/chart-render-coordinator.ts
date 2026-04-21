@@ -44,7 +44,7 @@ import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
-import type { PhaseOneReadoutBody, PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-harness";
+import type { PhaseOneReadoutBody, PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-api-types";
 
 type Layout = {
   width: number;

@@ -1,6 +1,6 @@
 import { normalizePaneHeight } from "../model";
 
-import type { PhaseOnePaneEventType } from "./chart-harness";
+import type { PhaseOnePaneEventType } from "./chart-api-types";
 import type {
   RestorableTradeLocationState,
   RestorablePriceScaleState,

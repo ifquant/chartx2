@@ -2,7 +2,7 @@ import type {
   PhaseOneChartStateSnapshot,
   PhaseOnePaneEventType,
   PhaseOneSeriesTarget,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type RestorableDataSeriesApi = {
   applyOptions(options: unknown): void;

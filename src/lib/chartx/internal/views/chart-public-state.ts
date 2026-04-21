@@ -8,7 +8,7 @@ import type {
   PhaseOneChartTypeChangeHandler,
   PhaseOneCrosshairMoveHandler,
   PhaseOneClickHandler,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export function subscribePublicHandler<Handler>(
   handlers: Set<Handler>,

@@ -1,7 +1,7 @@
 import type {
   PhaseOnePriceScaleApi,
   PhaseOneTimeScaleApi,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type LogicalRange = { from: number; to: number };
 type PriceRange = { minValue: number; maxValue: number } | null;

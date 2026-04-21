@@ -1,5 +1,5 @@
 import type { PaneFrame } from "../model";
-import type { PhaseOneReadoutSeriesDetail } from "./chart-harness";
+import type { PhaseOneReadoutSeriesDetail } from "./chart-api-types";
 import { resolveLocalPanePoint } from "./chart-layout-geometry";
 
 type PanePoint = {

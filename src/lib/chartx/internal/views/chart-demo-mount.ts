@@ -1,4 +1,4 @@
-import type { PhaseOneChartApi } from "./chart-harness";
+import type { PhaseOneChartApi } from "./chart-api-types";
 import {
   buildDemoBars,
   buildDemoVolumeBars,

@@ -9,7 +9,7 @@ import type {
   PhaseOneLineSeriesOptions,
   PhaseOneReadoutSeriesDetail,
   PhaseOneVolumeSeriesOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PanePoint = {
   x: number;

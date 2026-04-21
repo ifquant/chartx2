@@ -35,7 +35,7 @@ import type {
   PhaseOneMainSeriesStateSnapshot,
   PhaseOnePaneEventType,
   PhaseOneSeriesTarget,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PaneLike = {
   id: string;

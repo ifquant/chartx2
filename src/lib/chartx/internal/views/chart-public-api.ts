@@ -13,7 +13,7 @@ import type {
   PhaseOneTrendLineDrawingOptions,
   PhaseOneVolumeSeriesTarget,
   PhaseOneCrosshairMoveHandler,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export type ChartHarnessPublicLike = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): ReturnType<PhaseOneChartApi["addCandlestickSeries"]>;

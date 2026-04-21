@@ -6,7 +6,7 @@ import {
 import type {
   PhaseOnePaneSeriesState,
   PhaseOnePaneState,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PaneLike = {
   id: string;

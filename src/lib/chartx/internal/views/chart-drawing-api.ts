@@ -7,7 +7,7 @@ import type {
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneTrendLineDrawingApi,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type HorizontalLineDrawingState = {
   id: string;

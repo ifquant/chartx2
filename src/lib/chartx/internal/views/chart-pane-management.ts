@@ -10,7 +10,7 @@ import type {
   PhaseOnePaneResizeHandler,
   PhaseOnePaneSeriesState,
   PhaseOnePaneState,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PaneLike = {
   id: string;

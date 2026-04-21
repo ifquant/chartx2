@@ -7,7 +7,7 @@ import type {
   PhaseOneDrawingStateSnapshot,
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type DrawingLike = SnapshotDrawingLike<string> & {
   id: string;

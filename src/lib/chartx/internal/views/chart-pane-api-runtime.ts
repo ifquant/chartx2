@@ -3,7 +3,7 @@ import type {
   PhaseOnePaneApi,
   PhaseOnePaneOptions,
   PhaseOnePaneResizeHandler,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 export function createPaneApiHandle(
   paneId: string,

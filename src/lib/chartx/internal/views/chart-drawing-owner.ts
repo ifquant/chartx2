@@ -38,7 +38,7 @@ import type {
   PhaseOneSeriesTarget,
   PhaseOneTrendLineDrawingApi,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type DrawingKind = "horizontal-line" | "trend-line";
 

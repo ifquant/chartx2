@@ -24,7 +24,7 @@ import type {
   PhaseOneVolumeData,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type SecondarySeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
 

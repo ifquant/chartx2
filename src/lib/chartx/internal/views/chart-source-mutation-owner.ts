@@ -9,7 +9,7 @@ import {
 import type {
   PhaseOneCandlestickData,
   PhaseOneHistogramData,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type MainSourceState = {
   inputData: readonly PhaseOneCandlestickData[];

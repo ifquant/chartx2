@@ -5,7 +5,7 @@ import { resolveActivePane, resolveLocalPanePoint } from "./chart-layout-geometr
 import type {
   PhaseOneCandlestickData,
   PhaseOneReadoutSeriesDetail,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PanePoint = {
   x: number;

@@ -10,7 +10,7 @@ import type {
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneSelectedDrawing,
   PhaseOneTrendLineDrawingOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type SelectableDrawingLike = {
   id: string;

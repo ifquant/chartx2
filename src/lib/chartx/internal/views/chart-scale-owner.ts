@@ -16,7 +16,7 @@ import {
 import type {
   PhaseOnePriceScaleApi,
   PhaseOneTimeScaleApi,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PriceRangeRaw = { minValue: number; maxValue: number } | null;
 type ManualLayout = Pick<LayoutGeometry, "width" | "height"> | null;

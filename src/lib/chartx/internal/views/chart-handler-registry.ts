@@ -15,7 +15,7 @@ import type {
   PhaseOnePaneState,
   PhaseOneReadoutDetail,
   PhaseOneSelectedDrawing,
-} from "./chart-harness";
+} from "./chart-api-types";
 import type { PanePoint } from "./chart-layout-geometry";
 
 export function createChartHandlerRegistry() {

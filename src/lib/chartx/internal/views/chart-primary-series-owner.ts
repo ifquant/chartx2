@@ -39,7 +39,7 @@ import type {
   PhaseOnePriceLineApi,
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type PhaseOneSeriesFormatterOptions = {
   valueFormatter?: ((value: number) => string) | null;

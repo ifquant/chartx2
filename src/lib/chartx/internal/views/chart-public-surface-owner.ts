@@ -27,7 +27,7 @@ import type {
   PhaseOneTrendLineDrawingApi,
   PhaseOneTrendLineDrawingOptions,
   PhaseOneVolumeSeriesTarget,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type SeriesCommandOwner = {
   addCandlestickSeries(target?: PhaseOneSeriesTarget): ReturnType<PhaseOneChartApi["addCandlestickSeries"]>;

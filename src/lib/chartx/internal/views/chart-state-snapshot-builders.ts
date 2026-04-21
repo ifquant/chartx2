@@ -2,7 +2,7 @@ import type {
   PhaseOneChartStateSnapshot,
   PhaseOneCompareSeriesOptions,
   PhaseOneMovingAverageStudyOptions,
-} from "./chart-harness";
+} from "./chart-api-types";
 
 type SnapshotInputBar = {
   time: number;

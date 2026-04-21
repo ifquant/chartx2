@@ -178,7 +178,9 @@ import { createChartPaneOwner } from "./chart-pane-owner";
 import { createChartDrawingOwner } from "./chart-drawing-owner";
 import {
   applySeriesFormatterOptions as applySeriesFormatterOptionsUseCase,
+  normalizeSeriesMarkers,
   setSeriesMarkers as setSeriesMarkersUseCase,
+  type SeriesMarkerState,
 } from "./chart-series-presentation";
 import {
   setSecondaryData as setSecondaryDataUseCase,
@@ -1047,14 +1049,6 @@ type TrendLineDrawingDescriptor = {
 
 type ChartDrawingDescriptor = HorizontalLineDrawingDescriptor | TrendLineDrawingDescriptor;
 
-type SeriesMarkerState = {
-  time: number;
-  position: PhaseOneSeriesMarkerPosition;
-  shape: PhaseOneSeriesMarkerShape;
-  color: string;
-  text: string;
-};
-
 type ChartSeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";
 
 type ChartSeriesApi =
@@ -1460,7 +1454,7 @@ export class PhaseOneChartHarness {
       setMarkers: (api, markers, _kind) => {
         const state = this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as SeriesSourceState;
         setSeriesMarkersUseCase(state, markers as readonly PhaseOneSeriesMarker[], {
-          normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+          normalizeMarkers: (nextMarkers) => normalizeSeriesMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -1943,7 +1937,7 @@ export class PhaseOneChartHarness {
       setMarkers: (api, markers, sourceKind) => {
         const state = this.sourceOwner.getSourceByApi(api, sourceKind) as SeriesSourceState;
         setSeriesMarkersUseCase(state, markers, {
-          normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+          normalizeMarkers: (nextMarkers) => normalizeSeriesMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
           render: () => {
             this.renderInvalidation.renderIfAttached();
           },
@@ -2962,16 +2956,6 @@ function drawPaneLegend(
   }
 
   context.restore();
-}
-
-function normalizeMarkers(markers: readonly PhaseOneSeriesMarker[]): readonly SeriesMarkerState[] {
-  return markers.map((marker, index) => ({
-    time: marker.time,
-    position: marker.position ?? "aboveBar",
-    shape: marker.shape ?? "circle",
-    color: marker.color ?? "#2563eb",
-    text: marker.text ?? "",
-  })).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
 }
 
 function emitReadout(canvas: HTMLCanvasElement, detail: PhaseOneReadoutDetail): void {

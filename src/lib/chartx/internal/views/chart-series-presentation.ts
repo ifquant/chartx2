@@ -2,10 +2,21 @@ type FormatterOptions = {
   valueFormatter?: ((value: number) => string) | null;
 };
 
-type MarkerLike = {
+type MarkerPosition = "aboveBar" | "belowBar" | "inBar";
+type MarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
+
+type MarkerInput = {
   time: number;
-  position: string;
-  shape: string;
+  position?: MarkerPosition;
+  shape?: MarkerShape;
+  color?: string;
+  text?: string;
+};
+
+export type SeriesMarkerState = {
+  time: number;
+  position: MarkerPosition;
+  shape: MarkerShape;
   color: string;
   text: string;
 };
@@ -26,16 +37,26 @@ export function applySeriesFormatterOptions(
 
 export function setSeriesMarkers<State>(
   state: State & {
-    markers: readonly MarkerLike[];
+    markers: readonly SeriesMarkerState[];
   },
-  markers: readonly unknown[],
+  markers: readonly MarkerInput[],
   deps: {
-    normalizeMarkers(markers: readonly unknown[]): readonly MarkerLike[];
+    normalizeMarkers(markers: readonly MarkerInput[]): readonly SeriesMarkerState[];
     render(): void;
   },
 ): void {
   state.markers = deps.normalizeMarkers(markers);
   deps.render();
+}
+
+export function normalizeSeriesMarkers(markers: readonly MarkerInput[]): readonly SeriesMarkerState[] {
+  return markers.map((marker) => ({
+    time: marker.time,
+    position: marker.position ?? "aboveBar",
+    shape: marker.shape ?? "circle",
+    color: marker.color ?? "#2563eb",
+    text: marker.text ?? "",
+  })).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
 }
 
 export function formatSeriesReadoutValue(

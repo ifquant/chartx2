@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applySeriesFormatterOptions,
   formatSeriesReadoutValue,
+  normalizeSeriesMarkers,
   setSeriesMarkers,
 } from "../../src/lib/chartx/internal/views/chart-series-presentation";
 
@@ -47,6 +48,36 @@ describe("chart series presentation use-cases", () => {
       text: "A",
     }]);
     expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it("normalizes marker defaults and stable display order", () => {
+    expect(normalizeSeriesMarkers([
+      { time: 3, text: "B", color: "#f00", position: "belowBar", shape: "arrowDown" },
+      { time: 1 },
+      { time: 3, text: "A" },
+    ])).toEqual([
+      {
+        time: 1,
+        position: "aboveBar",
+        shape: "circle",
+        color: "#2563eb",
+        text: "",
+      },
+      {
+        time: 3,
+        position: "aboveBar",
+        shape: "circle",
+        color: "#2563eb",
+        text: "A",
+      },
+      {
+        time: 3,
+        position: "belowBar",
+        shape: "arrowDown",
+        color: "#f00",
+        text: "B",
+      },
+    ]);
   });
 
   it("formats series readout values with formatter or fallback", () => {

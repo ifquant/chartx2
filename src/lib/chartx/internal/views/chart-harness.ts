@@ -158,6 +158,7 @@ import {
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
 import {
+  clonePriceLines,
   type PriceLineState,
 } from "./chart-price-line-runtime";
 import { createPriceLineManager } from "./chart-price-line-management";
@@ -2804,17 +2805,6 @@ function buildDemoVolumeBars(
     value: 680_000 + (index % 7) * 120_000 + Math.abs(bar.close - bar.open) * 8_500,
     up: bar.close >= bar.open,
   }));
-}
-
-function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {
-  return new Map(
-    Array.from(lines.entries(), ([id, line]) => [
-      id,
-      {
-        ...line,
-      },
-    ]),
-  );
 }
 
 function toCoordinate(value: Coordinate | null): Coordinate {

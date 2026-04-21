@@ -101,3 +101,14 @@ export function assertPriceLineActive(
     throw new Error("chartx phase-one price line has been removed");
   }
 }
+
+export function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {
+  return new Map(
+    Array.from(lines.entries(), ([id, line]) => [
+      id,
+      {
+        ...line,
+      },
+    ]),
+  );
+}

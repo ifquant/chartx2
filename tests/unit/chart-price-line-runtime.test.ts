@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   assertPriceLineActive,
+  clonePriceLines,
   createPriceLineApi,
   createPriceLineState,
   removePriceLineFromMap,
@@ -94,5 +95,26 @@ describe("chart price-line runtime use-cases", () => {
         getLineId: (line) => ids.get(line),
       })
     ).toThrow("chartx phase-one price line has been removed");
+  });
+
+  it("clones price-line maps without sharing line objects", () => {
+    const original = new Map([[
+      "price-line-1",
+      {
+        id: "price-line-1",
+        price: 12,
+        color: "#111",
+        lineWidth: 2,
+        title: "Entry",
+      },
+    ]]);
+
+    const cloned = clonePriceLines(original);
+    expect(cloned).toEqual(original);
+    expect(cloned).not.toBe(original);
+    expect(cloned.get("price-line-1")).not.toBe(original.get("price-line-1"));
+
+    cloned.get("price-line-1")!.price = 99;
+    expect(original.get("price-line-1")!.price).toBe(12);
   });
 });

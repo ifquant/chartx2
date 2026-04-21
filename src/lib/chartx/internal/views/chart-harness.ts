@@ -88,26 +88,7 @@ import {
 } from "./chart-secondary-series-api";
 import {
   addSecondarySeries as addSecondarySeriesUseCase,
-  attachStudySeries as attachStudySeriesUseCase,
-  createSecondarySeriesApiDeps as createSecondarySeriesApiDepsUseCase,
-  type SecondarySeriesApiDepsBuilder,
 } from "./chart-secondary-series-factory";
-import {
-  replaceMainHistogramLikeData,
-  replaceMainSeriesData,
-  replaceStudyHistogramLikeData,
-  replaceStudySeriesData,
-  updateMainHistogramLikeData,
-  updateMainSeriesData,
-  updateStudyHistogramLikeData,
-  updateStudySeriesData,
-} from "./chart-series-mutation";
-import {
-  setPrimaryData as setPrimaryDataUseCase,
-  setPrimaryHistogramLikeData as setPrimaryHistogramLikeDataUseCase,
-  updatePrimaryData as updatePrimaryDataUseCase,
-  updatePrimaryHistogramLikeData as updatePrimaryHistogramLikeDataUseCase,
-} from "./chart-main-series-runtime";
 import {
   applyCompareStudyOptions,
   applyMovingAverageStudyOptions,
@@ -1951,10 +1932,10 @@ export class PhaseOneChartHarness {
       render: () => {
         this.renderInvalidation.renderIfAttached();
       },
-      setPrimaryData: (data) => this.setPrimaryData(data),
-      updatePrimary: (bar) => this.updatePrimary(bar),
-      setPrimaryHistogramLikeData: (data) => this.setPrimaryHistogramLikeData(data),
-      updatePrimaryHistogramLike: (bar) => this.updatePrimaryHistogramLike(bar),
+      setPrimaryData: (data) => this.sourceOwner.setPrimaryData(data),
+      updatePrimary: (bar) => this.sourceOwner.updatePrimaryData(bar),
+      setPrimaryHistogramLikeData: (data) => this.sourceOwner.setPrimaryHistogramLikeData(data),
+      updatePrimaryHistogramLike: (bar) => this.sourceOwner.updatePrimaryHistogramLikeData(bar),
       normalizeLineData,
       normalizeLineBar,
       setMarkers: (api, markers, sourceKind) => this.setSecondaryMarkers(api, markers, sourceKind),
@@ -2370,29 +2351,11 @@ export class PhaseOneChartHarness {
   }
 
   public setData(data: readonly PhaseOneCandlestickData[]): void {
-    this.setPrimaryData(data);
-  }
-
-  public update(bar: PhaseOneCandlestickData): void {
-    this.updatePrimary(bar);
-  }
-
-  private setPrimaryData(data: readonly PhaseOneCandlestickData[]): void {
     this.sourceOwner.setPrimaryData(data);
   }
 
-  private updatePrimary(bar: PhaseOneCandlestickData): void {
+  public update(bar: PhaseOneCandlestickData): void {
     this.sourceOwner.updatePrimaryData(bar);
-  }
-
-  private setPrimaryHistogramLikeData(
-    data: readonly PhaseOneHistogramData[],
-  ): void {
-    this.sourceOwner.setPrimaryHistogramLikeData(data);
-  }
-
-  private updatePrimaryHistogramLike(bar: PhaseOneHistogramData): void {
-    this.sourceOwner.updatePrimaryHistogramLikeData(bar);
   }
 
   private getPointCount(): number {
@@ -2548,57 +2511,8 @@ export class PhaseOneChartHarness {
     ) as PhaseOneVolumeSeriesApi;
   }
 
-  private attachStudySeries(
-    paneId: string,
-    kind: ChartSeriesKind,
-    api: SeriesSourceState["api"],
-    meta: { id: string; label: string },
-    studyKind: StudySourceKind = "series",
-    indicator?: MovingAverageIndicatorState,
-  ): void {
-    this.sourceOwner.attachStudySeries({ paneId, kind, api, meta, studyKind, indicator });
-  }
-
-  private createSecondarySeriesApiDeps<T>(
-    build: (deps: SecondarySeriesApiDepsBuilder) => T,
-  ): T {
-    return this.sourceOwner.createSecondarySeriesApiDeps(build);
-  }
-
   private createSecondarySeriesFactoryDeps() {
     return this.sourceOwner.createSecondarySeriesFactoryDeps();
-  }
-
-  private setSecondaryData(
-    api: SeriesSourceState["api"],
-    data: readonly PhaseOneCandlestickData[],
-    kind: ChartSeriesKind,
-  ): void {
-    this.sourceOwner.setSecondaryData(api, data, kind);
-  }
-
-  private updateSecondary(
-    api: SeriesSourceState["api"],
-    bar: PhaseOneCandlestickData,
-    kind: ChartSeriesKind,
-  ): void {
-    this.sourceOwner.updateSecondaryData(api, bar, kind);
-  }
-
-  private setSecondaryHistogramLikeData(
-    api: SeriesSourceState["api"],
-    data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
-    kind: ChartSeriesKind,
-  ): void {
-    this.sourceOwner.setSecondaryHistogramLikeData(api, data, kind as "histogram" | "volume");
-  }
-
-  private updateSecondaryHistogramLike(
-    api: SeriesSourceState["api"],
-    bar: PhaseOneHistogramData | PhaseOneVolumeData,
-    kind: ChartSeriesKind,
-  ): void {
-    this.sourceOwner.updateSecondaryHistogramLikeData(api, bar, kind as "histogram" | "volume");
   }
 
   private setSecondaryMarkers(

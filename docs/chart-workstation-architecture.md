@@ -223,5 +223,6 @@ Current direction on that path:
 - drawing owner ownership should include public drawing commands and interaction lookups, so `chart-harness` should not retain private drawing registry/selection wrappers after the owner surface is stable
 - source owner ownership should include specialized study accessors and secondary-scale helpers, so `chart-harness` should drop dead source runtime wrappers once those flows are handled inside the source owner
 - pane owner ownership should include pane handles, pane index lookup, resize apply, removal, and event dispatch call sites, so `chart-harness` should not retain private pane runtime wrappers after the owner surface is stable
+- source owner ownership should also include primary/secondary data mutation forwarding, so `chart-harness` should not keep local set/update wrappers once public commands and series APIs can call the owner directly
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

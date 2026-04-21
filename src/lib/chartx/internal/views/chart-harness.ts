@@ -235,7 +235,6 @@ import {
   applyTrendLineDrawingOptions as applyTrendLineDrawingOptionsUseCase,
 } from "./chart-drawing-options";
 import {
-  createDrawingMeta as createDrawingMetaUseCase,
   resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
 } from "./chart-drawing-state";
 import {
@@ -244,7 +243,6 @@ import {
   addTargetedStudy as addTargetedStudyUseCase,
   addTrendLineDrawingCommand as addTrendLineDrawingCommandUseCase,
   addVolumeSeriesCommand as addVolumeSeriesCommandUseCase,
-  resolveSeriesTarget as resolveSeriesTargetUseCase,
 } from "./chart-add-commands";
 import {
   addPaneCommand as addPaneCommandUseCase,
@@ -260,35 +258,6 @@ import {
   resizeChart as resizeChartUseCase,
 } from "./chart-shell-commands";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
-import {
-} from "./chart-public-state";
-import {
-  applySelectedDrawingOptions as applySelectedDrawingOptionsPublicUseCase,
-  clearSelectedDrawing as clearSelectedDrawingPublicUseCase,
-  getSelectedDrawing as getSelectedDrawingPublicUseCase,
-  getSelectedDrawingPropertySchema as getSelectedDrawingPropertySchemaPublicUseCase,
-  getSelectedDrawingState as getSelectedDrawingStatePublicUseCase,
-} from "./chart-drawing-public";
-import {
-  buildPaneSeriesStates as buildPaneSeriesStatesUseCase,
-  buildPaneState as buildPaneStateUseCase,
-  buildPaneStateSnapshot as buildPaneStateSnapshotUseCase,
-} from "./chart-pane-state";
-import {
-  buildPaneStateById as buildPaneStateByIdUseCase,
-  buildPaneStateSnapshotByIds as buildPaneStateSnapshotByIdsUseCase,
-  getPaneSeriesStates as getPaneSeriesStatesUseCase,
-  removePane as removePaneUseCase,
-} from "./chart-pane-management";
-import {
-  applyPaneOptions as applyPaneOptionsUseCase,
-  applyPaneResize as applyPaneResizeUseCase,
-  getPaneByHandle as getPaneByHandleUseCase,
-  getPaneHeight as getPaneHeightUseCase,
-  getPaneOptions as getPaneOptionsUseCase,
-  paneHasSeries as paneHasSeriesUseCase,
-  setPaneHeight as setPaneHeightUseCase,
-} from "./chart-pane-runtime";
 import {
   type PriceLineState,
 } from "./chart-price-line-runtime";
@@ -1252,49 +1221,6 @@ type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & Base
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
 type SecondaryApiSourceState = Pick<SeriesSourceState, "options" | "priceLines">;
-type PhaseOneRestorableSeriesSnapshot =
-  | {
-      kind: "candlestick";
-      paneIndex: number;
-      options: PhaseOneCandlestickSeriesOptions;
-      data: readonly PhaseOneCandlestickData[];
-    }
-  | {
-      kind: "bar";
-      paneIndex: number;
-      options: PhaseOneBarSeriesOptions;
-      data: readonly PhaseOneCandlestickData[];
-    }
-  | {
-      kind: "line";
-      paneIndex: number;
-      options: PhaseOneLineSeriesOptions;
-      data: readonly PhaseOneLineData[];
-    }
-  | {
-      kind: "area";
-      paneIndex: number;
-      options: PhaseOneAreaSeriesOptions;
-      data: readonly PhaseOneLineData[];
-    }
-  | {
-      kind: "baseline";
-      paneIndex: number;
-      options: PhaseOneBaselineSeriesOptions;
-      data: readonly PhaseOneLineData[];
-    }
-  | {
-      kind: "histogram";
-      paneIndex: number;
-      options: PhaseOneHistogramSeriesOptions;
-      data: readonly PhaseOneHistogramData[];
-    }
-  | {
-      kind: "volume";
-      paneIndex: number;
-      options: PhaseOneVolumeSeriesOptions;
-      data: readonly PhaseOneVolumeData[];
-    };
 type PhaseOneRestorableDrawingSnapshot =
   | (Extract<PhaseOneChartStateSnapshot["drawings"][number], { type: "horizontal-line" }> &
       RestorableDrawingSnapshot)
@@ -2535,34 +2461,6 @@ export class PhaseOneChartHarness {
     return getTradeLocationStateUseCase(this.activeTradeLocation);
   }
 
-  private applyChartStateSnapshot(state: PhaseOneChartStateSnapshot): void {
-    this.stateCoordinator.applyChartState(state);
-  }
-
-  private clearRestorableChartStudies(): void {
-    this.stateCoordinator.clearRestorableChartStudies();
-  }
-
-  private clearRestorableChartSeries(): void {
-    this.stateCoordinator.clearRestorableChartSeries();
-  }
-
-  private clearRestorableChartDrawings(): void {
-    this.stateCoordinator.clearRestorableChartDrawings();
-  }
-
-  private restoreChartSeries(series: PhaseOneChartStateSnapshot["series"]): void {
-    this.stateCoordinator.restoreChartSeries(series);
-  }
-
-  private restoreChartStudies(studies: PhaseOneChartStateSnapshot["studies"]): void {
-    this.stateCoordinator.restoreChartStudies(studies);
-  }
-
-  private restoreChartDrawings(drawings: PhaseOneChartStateSnapshot["drawings"]): void {
-    this.stateCoordinator.restoreChartDrawings(drawings);
-  }
-
   public setChartType(type: PhaseOneMainChartType): PhaseOneMainSeriesApi {
     return this.sourceOwner.setChartType(type) as PhaseOneMainSeriesApi;
   }
@@ -2817,18 +2715,6 @@ export class PhaseOneChartHarness {
     return this.paneOwner.createPaneHandle(paneId);
   }
 
-  private subscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    this.paneOwner.subscribePaneResize(paneId, handler);
-  }
-
-  private unsubscribePaneResize(paneId: string, handler: PhaseOnePaneResizeHandler): void {
-    this.paneOwner.unsubscribePaneResize(paneId, handler);
-  }
-
-  private getPaneById(paneId: string): PaneModelState | undefined {
-    return this.panes.getById(paneId);
-  }
-
   private getPaneIndex(paneId: string): number {
     const index = this.panes.getIndex(paneId);
     if (index === -1) {
@@ -2837,29 +2723,9 @@ export class PhaseOneChartHarness {
     return index;
   }
 
-  private getPaneHeight(paneId: string): number {
-    return this.paneOwner.getPaneHeight(paneId);
-  }
-
-  private getPaneOptions(paneId: string): Required<PhaseOnePaneOptions> {
-    return this.paneOwner.getPaneOptions(paneId);
-  }
-
-  private applyPaneOptions(paneId: string, options: PhaseOnePaneOptions): void {
-    this.paneOwner.applyPaneOptions(paneId, options);
-  }
-
-  private setPaneHeight(paneId: string, height: number): void {
-    this.paneOwner.setPaneHeight(paneId, height);
-  }
-
   private applyPaneResize(clientY: number, layout: Layout, paneFrames: readonly PaneFrame[]): void {
     void paneFrames;
     this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
-  }
-
-  private paneHasSeries(paneId: string): boolean {
-    return this.paneOwner.paneHasSeries(paneId);
   }
 
   private resolveSeriesTarget(
@@ -2869,16 +2735,8 @@ export class PhaseOneChartHarness {
     return this.paneOwner.resolveSeriesTarget(target, options) as ResolvedSeriesTarget;
   }
 
-  private getPaneByHandle(handle: PhaseOnePaneApi): PaneModelState | undefined {
-    return this.paneOwner.getPaneByHandle(handle) as PaneModelState | undefined;
-  }
-
   private removePaneById(paneId: string): void {
     this.paneOwner.removePaneById(paneId);
-  }
-
-  private emitPaneResize(paneId: string): void {
-    this.paneOwner.emitPaneResize(paneId);
   }
 
   private emitPaneEvent(
@@ -2888,18 +2746,6 @@ export class PhaseOneChartHarness {
     explicitSnapshot?: readonly PhaseOnePaneState[],
   ): void {
     this.paneOwner.emitPaneEvent(type, paneId, explicitPaneState, explicitSnapshot);
-  }
-
-  private buildPaneState(paneId: string): PhaseOnePaneState | null {
-    return this.paneOwner.buildPaneState(paneId);
-  }
-
-  private buildPaneStateSnapshot(): readonly PhaseOnePaneState[] {
-    return this.paneOwner.buildPaneStateSnapshot();
-  }
-
-  private getPaneSeriesStates(paneId: string): readonly PhaseOnePaneSeriesState[] {
-    return this.paneOwner.getPaneSeriesStates(paneId);
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {
@@ -2914,10 +2760,6 @@ export class PhaseOneChartHarness {
     return createSeriesLabelUseCase(kind, id, {
       formatSeriesKindLabel,
     });
-  }
-
-  private createDrawingMeta(kind: ChartDrawingKind): { id: string; title: string } {
-    return this.drawingOwner.allocateDrawingMeta(kind);
   }
 
   private createHorizontalLineDrawing(
@@ -2943,10 +2785,6 @@ export class PhaseOneChartHarness {
 
   private getDrawingById(id: string): ChartDrawingDescriptor | undefined {
     return this.drawingOwner.getDrawingById(id);
-  }
-
-  private getAllDrawings(): readonly ChartDrawingDescriptor[] {
-    return this.drawingOwner.listDrawings();
   }
 
   private getDrawingsByPane(paneId: string): readonly ChartDrawingDescriptor[] {

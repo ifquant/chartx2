@@ -355,6 +355,7 @@ import {
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
+import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 
@@ -1473,12 +1474,16 @@ export class PhaseOneChartHarness {
     lineWidth: 1,
     title: "Price line",
   };
+  private readonly renderInvalidation = createChartRenderInvalidation({
+    getCanvas: () => this.canvas,
+    renderCanvas: (canvas) => {
+      this.render(canvas);
+    },
+  });
   private readonly priceLineManager = createPriceLineManager({
     defaultOptions: this.defaultPriceLineOptions,
     render: () => {
-      if (this.canvas !== null) {
-        this.render(this.canvas);
-      }
+      this.renderInvalidation.renderIfAttached();
     },
   });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
@@ -1510,9 +1515,7 @@ export class PhaseOneChartHarness {
       },
       attachSeries: (type, preserved) => this.attachPrimarySeries(type as PhaseOneMainChartType, preserved as never),
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       emitChartTypeChange: (type) => this.emitChartTypeChange(type as PhaseOneMainChartType),
     },
@@ -1532,9 +1535,7 @@ export class PhaseOneChartHarness {
         this.primaryPriceRangeOverride = null;
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       updateCanonical: (existing, bar) =>
         updateCanonicalData(
@@ -1580,9 +1581,7 @@ export class PhaseOneChartHarness {
         this.rightOffset = DEFAULT_RIGHT_OFFSET;
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       updateCanonical: (existing, bar) =>
         updateCanonicalData(
@@ -1601,9 +1600,7 @@ export class PhaseOneChartHarness {
           options as PhaseOneSeriesFormatterOptions,
         ),
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       setSecondaryData: (api, data, kind) =>
         setSecondaryDataUseCase(this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, "chartx phase-one series has been removed") as StudySourceState, data as readonly PhaseOneCandlestickData[], {
@@ -1613,9 +1610,7 @@ export class PhaseOneChartHarness {
             this.rightOffset = DEFAULT_RIGHT_OFFSET;
           },
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       updateSecondary: (api, bar, kind) =>
@@ -1623,9 +1618,7 @@ export class PhaseOneChartHarness {
           updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
           resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       setSecondaryHistogramLikeData: (api, data, kind) =>
@@ -1638,9 +1631,7 @@ export class PhaseOneChartHarness {
             this.rightOffset = DEFAULT_RIGHT_OFFSET;
           },
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       updateSecondaryHistogramLike: (api, bar, kind) =>
@@ -1649,9 +1640,7 @@ export class PhaseOneChartHarness {
           updateCanonical: (existing, nextValue) => updateCanonicalData(existing, nextValue),
           resolveDisplayData: (source) => this.resolveStudyDisplayData(source as StudySourceState),
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       normalizeLineData,
@@ -1661,9 +1650,7 @@ export class PhaseOneChartHarness {
         setSeriesMarkersUseCase(state, markers as readonly PhaseOneSeriesMarker[], {
           normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         });
       },
@@ -1679,9 +1666,7 @@ export class PhaseOneChartHarness {
           defaultCompareOptions: this.defaultCompareOptions,
           resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       getCompareOptions: (state) =>
@@ -1691,9 +1676,7 @@ export class PhaseOneChartHarness {
           defaultMovingAverageOptions: this.defaultMovingAverageOptions,
           resolveDisplayData: (study) => this.resolveStudyDisplayData(study as StudySourceState),
           render: () => {
-            if (this.canvas !== null) {
-              this.render(this.canvas);
-            }
+            this.renderInvalidation.renderIfAttached();
           },
         }),
       getMovingAverageStudyOptions: (state) =>
@@ -1707,9 +1690,7 @@ export class PhaseOneChartHarness {
       setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
       setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     },
   });
@@ -1728,9 +1709,7 @@ export class PhaseOneChartHarness {
     addPane: () => {
       const pane = this.panes.addSecondaryPane({});
       this.paneOwner.emitPaneEvent("added", pane.id);
-      if (this.canvas !== null) {
-        this.render(this.canvas);
-      }
+      this.renderInvalidation.renderIfAttached();
       return this.paneOwner.createPaneHandle(pane.id);
     },
     hasCanvas: () => this.canvas !== null,
@@ -1748,9 +1727,7 @@ export class PhaseOneChartHarness {
     },
     removeSecondaryScale: (paneId) => this.chartModel.removeSecondaryScale(paneId),
     render: () => {
-      if (this.canvas !== null) {
-        this.render(this.canvas);
-      }
+      this.renderInvalidation.renderIfAttached();
     },
   });
   private readonly drawingOwner = createChartDrawingOwner({
@@ -1782,9 +1759,7 @@ export class PhaseOneChartHarness {
         this.handlerRegistry.notifyDrawingSelectionChange(selection);
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     },
   });
@@ -1934,9 +1909,7 @@ export class PhaseOneChartHarness {
     setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
     hasCanvas: () => this.canvas !== null,
     render: () => {
-      if (this.canvas !== null) {
-        this.render(this.canvas);
-      }
+      this.renderInvalidation.renderIfAttached();
     },
   });
   private get panes(): PaneCollection {
@@ -2140,9 +2113,7 @@ export class PhaseOneChartHarness {
         this.syncChartContextFromMainSource(source as MainSeriesSourceState);
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       setPrimaryData: (data) => this.setPrimaryData(data),
       updatePrimary: (bar) => this.updatePrimary(bar),
@@ -2281,9 +2252,7 @@ export class PhaseOneChartHarness {
         this.viewState.setCrosshair(null);
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2297,9 +2266,7 @@ export class PhaseOneChartHarness {
       addSecondaryPane: (nextOptions) => this.panes.addSecondaryPane(nextOptions),
       emitAdded: (paneId) => this.paneOwner.emitPaneEvent("added", paneId),
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
       createPaneHandle: (paneId) => this.paneOwner.createPaneHandle(paneId),
     });
@@ -2333,9 +2300,7 @@ export class PhaseOneChartHarness {
         this.viewState.clearDrawingSnapGuideTimeOnly();
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2346,9 +2311,7 @@ export class PhaseOneChartHarness {
         this.viewState.setManualLayout(layout);
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2375,9 +2338,7 @@ export class PhaseOneChartHarness {
         this.timeAxisFormatter = formatter;
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2413,9 +2374,7 @@ export class PhaseOneChartHarness {
         this.primaryScaleSeriesOnly = value;
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2519,9 +2478,7 @@ export class PhaseOneChartHarness {
         this.primaryPriceRangeOverride = null;
       },
       finalize: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2569,9 +2526,7 @@ export class PhaseOneChartHarness {
         this.primaryPriceRangeOverride = null;
       },
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }
@@ -2853,9 +2808,7 @@ export class PhaseOneChartHarness {
     setSeriesMarkersUseCase(state, markers, {
       normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
       render: () => {
-        if (this.canvas !== null) {
-          this.render(this.canvas);
-        }
+        this.renderInvalidation.renderIfAttached();
       },
     });
   }

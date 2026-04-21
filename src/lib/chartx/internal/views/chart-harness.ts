@@ -1216,8 +1216,8 @@ export class PhaseOneChartHarness {
       this.sourceOwner.getMainSourceOrThrow();
     },
     getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
-    setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
-    setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
+    setVisibleLogicalRange: (range) => this.scaleOwner.timeScaleApi().setVisibleLogicalRange(range),
+    setVisiblePriceRange: (range) => this.scaleOwner.priceScaleApi().setVisibleRange(range),
     resetPrimaryPriceRangeOverride: () => {
       this.primaryPriceRangeOverride = null;
     },
@@ -1296,8 +1296,8 @@ export class PhaseOneChartHarness {
       setActive: (next) => {
         this.tradeLocationOwner.setActiveSession(next as never);
       },
-      setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
-      setVisiblePriceRange: (range) => this.priceScaleApi().setVisibleRange(range),
+      setVisibleLogicalRange: (range) => this.scaleOwner.timeScaleApi().setVisibleLogicalRange(range),
+      setVisiblePriceRange: (range) => this.scaleOwner.priceScaleApi().setVisibleRange(range),
       render: () => {
         this.renderInvalidation.renderIfAttached();
       },
@@ -1574,7 +1574,7 @@ export class PhaseOneChartHarness {
     getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
     getMainSourceOrThrow: () => this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState,
     attachMainSeries: (chartType) => this.primarySeriesOwner.attach(chartType),
-    switchChartType: (chartType) => this.setChartType(chartType),
+    switchChartType: (chartType) => this.sourceOwner.setChartType(chartType) as PhaseOneMainSeriesApi,
     createOptions: (styleSchemaId) => this.seriesBuildOwner.createMainOptions(styleSchemaId),
     rebuildData: (source) => {
       source.data = applyMainSeriesBuilderData(source.inputData, source);
@@ -1594,8 +1594,8 @@ export class PhaseOneChartHarness {
     getCrosshairOptions: () => this.crosshairOptions,
     getBarSpacing: () => this.barSpacing,
     getRightOffset: () => this.rightOffset,
-    getVisibleLogicalRange: () => this.timeScaleApi().getVisibleLogicalRange(),
-    getVisiblePriceRange: () => this.priceScaleApi().getVisibleRange(),
+    getVisibleLogicalRange: () => this.scaleOwner.timeScaleApi().getVisibleLogicalRange(),
+    getVisiblePriceRange: () => this.scaleOwner.priceScaleApi().getVisibleRange(),
     getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
     getActiveTradeLocation: () => this.tradeLocationOwner.getActiveSession(),
     listDrawings: () => this.drawingOwner.listDrawings(),
@@ -1606,13 +1606,13 @@ export class PhaseOneChartHarness {
     StudySourceState
   >({
     applyOptions: (options) => {
-      this.applyOptions(options);
+      this.shellOwner.applyOptions(options);
     },
     clearSelection: () => {
       this.drawingOwner.selectDrawing(null, false);
     },
     clearTradeLocation: () => {
-      this.clearTradeLocation();
+      this.tradeLocationOwner.clear();
     },
     removeSourcesWhere: (predicate) => {
       this.chartModel.removeSourcesWhere((source) => predicate(source as StudySourceState));
@@ -1635,30 +1635,30 @@ export class PhaseOneChartHarness {
       this.paneOwner.emitPaneEvent(type, paneId);
     },
     applyMainSeriesState: (state) => {
-      this.applyMainSeriesState(state);
+      this.mainSeriesStateOwner.applyState(state);
     },
     getPaneByIndex: (index) => this.panes.getByIndex(index),
     createPaneHandle: (paneId) => this.paneOwner.createPaneHandle(paneId),
-    addCandlestickSeries: (target) => this.addCandlestickSeries(target),
-    addBarSeries: (target) => this.addBarSeries(target),
-    addLineSeries: (target) => this.addLineSeries(target),
-    addAreaSeries: (target) => this.addAreaSeries(target),
-    addBaselineSeries: (target) => this.addBaselineSeries(target),
-    addHistogramSeries: (target) => this.addHistogramSeries(target),
-    addVolumeSeries: (target) => this.addVolumeSeries(target),
+    addCandlestickSeries: (target) => this.seriesCommandOwner.addCandlestickSeries(target),
+    addBarSeries: (target) => this.seriesCommandOwner.addBarSeries(target),
+    addLineSeries: (target) => this.seriesCommandOwner.addLineSeries(target),
+    addAreaSeries: (target) => this.seriesCommandOwner.addAreaSeries(target),
+    addBaselineSeries: (target) => this.seriesCommandOwner.addBaselineSeries(target),
+    addHistogramSeries: (target) => this.seriesCommandOwner.addHistogramSeries(target),
+    addVolumeSeries: (target) => this.seriesCommandOwner.addVolumeSeries(target),
     addOverlaySeries: (paneId) => this.seriesCommandOwner.addOverlaySeriesToPane(paneId),
     addCompareSeries: (paneId) => this.seriesCommandOwner.addCompareSeriesToPane(paneId),
     addMovingAverageStudy: (paneId) => this.seriesCommandOwner.addMovingAverageStudyToPane(paneId),
     locateTrade: (request, overlay) => {
-      this.locateTrade(request, overlay);
+      this.tradeLocationOwner.locate(request, overlay);
     },
     restoreDrawings: (drawings) => {
       this.drawingOwner.restoreDrawings(drawings);
     },
-    applyTimeScaleOptions: (options) => this.timeScaleApi().applyOptions(options),
-    setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
-    applyPriceScaleOptions: (options) => this.priceScaleApi().applyOptions(options),
-    setVisibleRange: (range) => this.priceScaleApi().setVisibleRange(range),
+    applyTimeScaleOptions: (options) => this.scaleOwner.timeScaleApi().applyOptions(options),
+    setVisibleLogicalRange: (range) => this.scaleOwner.timeScaleApi().setVisibleLogicalRange(range),
+    applyPriceScaleOptions: (options) => this.scaleOwner.priceScaleApi().applyOptions(options),
+    setVisibleRange: (range) => this.scaleOwner.priceScaleApi().setVisibleRange(range),
     hasCanvas: () => this.canvas !== null,
     render: () => {
       this.renderInvalidation.renderIfAttached();
@@ -1669,7 +1669,7 @@ export class PhaseOneChartHarness {
     getTimeScaleState: this.stateSnapshotInputOwner.getTimeScaleState,
     getPriceScaleState: this.stateSnapshotInputOwner.getPriceScaleState,
     listPanes: () => this.panes.list(),
-    getMainSeriesState: () => this.getMainSeriesState(),
+    getMainSeriesState: () => this.mainSeriesStateOwner.getState(),
     listStudySources: () => this.chartModel.listSourcesByRole("study"),
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getDefaultCompareOptions: () => this.defaultCompareOptions,

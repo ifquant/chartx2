@@ -61,16 +61,11 @@ import {
 } from "./chart-drawing-restore";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
+import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import {
   createCompareStudySeriesApi,
   createMovingAverageStudySeriesApi,
-  createSecondaryAreaSeriesApi,
-  createSecondaryBarSeriesApi,
-  createSecondaryBaselineSeriesApi,
-  createSecondaryCandlestickSeriesApi,
-  createSecondaryHistogramSeriesApi,
   createSecondaryLineSeriesApi,
-  createSecondaryVolumeSeriesApi,
 } from "./chart-secondary-series-api";
 import {
   applyCompareStudyOptions,
@@ -104,14 +99,6 @@ import {
 import {
   resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
 } from "./chart-drawing-state";
-import {
-  addTargetedSeries as addTargetedSeriesUseCase,
-  addTargetedStudy as addTargetedStudyUseCase,
-  addVolumeSeriesCommand as addVolumeSeriesCommandUseCase,
-} from "./chart-add-commands";
-import {
-  removeSeriesCommand as removeSeriesCommandUseCase,
-} from "./chart-structure-commands";
 import { createChartScaleOwner } from "./chart-scale-owner";
 import { createChartShellOwner } from "./chart-shell-owner";
 import { createChartPublicApi as createChartPublicApiUseCase } from "./chart-public-api";
@@ -1726,6 +1713,29 @@ export class PhaseOneChartHarness {
     createPriceLine: (lines, state) => this.priceLineManager.createApi(lines, state),
     removePriceLine: (lines, line) => this.priceLineManager.remove(lines, line),
   });
+  private readonly seriesCommandOwner = createChartSeriesCommandOwner({
+    resolveTarget: (target, options) =>
+      this.paneOwner.resolveSeriesTarget(target, options) as ResolvedSeriesTarget,
+    addPrimary: (kind) => this.primarySeriesOwner.add(kind),
+    addSecondarySeries: (params) => this.sourceOwner.addSecondarySeries(params),
+    addLineStudySeries: (paneId, studyKind, params) =>
+      this.sourceOwner.addLineStudySeries(paneId, studyKind, params),
+    getMovingAverageLength: () => this.defaultMovingAverageOptions.length,
+    removeSourceByApi: (series) => this.chartModel.removeSourceByApi(series as ChartSeriesApi),
+    resetPrimaryRangeOverride: () => {
+      this.primaryPriceRangeOverride = null;
+    },
+    resetViewportState: () => {
+      this.barSpacing = null;
+      this.rightOffset = DEFAULT_RIGHT_OFFSET;
+    },
+    clearCrosshair: () => {
+      this.viewState.setCrosshair(null);
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly stateCoordinator = createChartStateCoordinator({
     getOptions: () => ({
       layout: this.chartOptions,
@@ -1961,150 +1971,43 @@ export class PhaseOneChartHarness {
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("candlestick") as PhaseOneCandlestickSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "candlestick",
-          createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addCandlestickSeries(target);
   }
 
   public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("line") as PhaseOneLineSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addLineStudySeries(paneId, "series", {
-          createApi: (deps) => createSecondaryLineSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addLineSeries(target);
   }
 
   public addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("area") as PhaseOneAreaSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "area",
-          createApi: (deps) => createSecondaryAreaSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addAreaSeries(target);
   }
 
   public addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("baseline") as PhaseOneBaselineSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "baseline",
-          createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addBaselineSeries(target);
   }
 
   public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("bar") as PhaseOneBarSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "bar",
-          createApi: (deps) => createSecondaryBarSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addBarSeries(target);
   }
 
   public addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi {
-    return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addPrimary: () =>
-        this.primarySeriesOwner.add("histogram") as PhaseOneHistogramSeriesApi,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "histogram",
-          createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addHistogramSeries(target);
   }
 
   public addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi {
-    return addVolumeSeriesCommandUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addSecondary: (paneId) =>
-        this.sourceOwner.addSecondarySeries({
-          paneId,
-          kind: "volume",
-          createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
-        }),
-    });
+    return this.seriesCommandOwner.addVolumeSeries(target);
   }
 
   public addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
-    return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addToPane: (paneId) =>
-        this.sourceOwner.addLineStudySeries(paneId, "overlay", {
-          createApi: (deps) => createSecondaryLineSeriesApi(deps),
-        }),
-    }, {
-      defaultToSecondary: false,
-      allowPrimary: true,
-    });
+    return this.seriesCommandOwner.addOverlaySeries(target);
   }
 
   public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
-    return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addToPane: (paneId) =>
-        this.sourceOwner.addLineStudySeries(paneId, "compare", {
-          createApi: (deps) => createCompareStudySeriesApi(deps),
-        }),
-    }, {
-      defaultToSecondary: false,
-      allowPrimary: true,
-    });
+    return this.seriesCommandOwner.addCompareSeries(target);
   }
 
   public addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
-    return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) =>
-        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
-      addToPane: (paneId) =>
-        this.sourceOwner.addLineStudySeries(paneId, "indicator", {
-          indicator: {
-            kind: "moving-average",
-            length: this.defaultMovingAverageOptions.length,
-          },
-          createApi: (deps) => createMovingAverageStudySeriesApi(deps),
-        }),
-    }, {
-      defaultToSecondary: true,
-      allowPrimary: true,
-    });
+    return this.seriesCommandOwner.addMovingAverageStudy(target);
   }
 
   public addHorizontalLineDrawing(
@@ -2131,22 +2034,7 @@ export class PhaseOneChartHarness {
       | PhaseOneHistogramSeriesApi
       | PhaseOneVolumeSeriesApi,
   ): void {
-    removeSeriesCommandUseCase(series, {
-      removeSourceByApi: (currentSeries) => this.chartModel.removeSourceByApi(currentSeries),
-      resetPrimaryRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      resetViewportState: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      clearCrosshair: () => {
-        this.viewState.setCrosshair(null);
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    this.seriesCommandOwner.removeSeries(series);
   }
 
   public panesApi(): readonly PhaseOnePaneApi[] {

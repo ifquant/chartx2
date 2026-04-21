@@ -109,10 +109,6 @@ import {
 } from "./chart-event-runtime";
 import { createChartCanvasLifecycleOwner } from "./chart-canvas-lifecycle-owner";
 import {
-  drawPaneCrosshair,
-  drawPaneLegend,
-} from "./chart-pane-chrome";
-import {
   createChartViewState,
   type DragState,
   type DrawingDragState,
@@ -122,8 +118,8 @@ import {
 import { createChartDrawingInteractionOwner } from "./chart-drawing-interaction-owner";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInputOwner } from "./chart-render-input-owner";
+import { createChartRenderCallbackOwner } from "./chart-render-callback-owner";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
-import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { createChartStateSnapshotInputOwner } from "./chart-state-snapshot-input-owner";
 import { createChartStateRestoreCommandOwner } from "./chart-state-restore-command-owner";
@@ -1434,8 +1430,7 @@ export class PhaseOneChartHarness {
     getTimeAxisFormatter: () => this.timeAxisFormatter,
     getPriceAxisFormatter: () => this.priceAxisFormatter,
   });
-  private readonly renderCoordinator = createChartRenderCoordinator({
-    ...this.renderInputOwner,
+  private readonly renderCallbackOwner = createChartRenderCallbackOwner({
     getRendererRuntime: () => ({
       lineRenderer: this.lineRenderer,
       areaRenderer: this.areaRenderer,
@@ -1449,21 +1444,17 @@ export class PhaseOneChartHarness {
     drawGrid: (context, params) => {
       this.gridRenderer.draw(context, params);
     },
-    drawPaneLegend: (context, entries) => {
-      drawPaneLegend(context, entries);
+    emitCrosshairMove: (readout, crosshair) => {
+      this.handlerRegistry.emitCrosshairMove(readout, crosshair);
     },
-    drawCrosshair: (context, paneWidth, paneHeight, crosshair, options) => {
-      drawPaneCrosshair(context, paneWidth, paneHeight, crosshair, options);
-    },
-    emitReadout: (canvas, detail) => {
-      emitReadoutEventUseCase(canvas, detail);
-    },
-    emitCrosshairMove: (readout) => {
-      this.handlerRegistry.emitCrosshairMove(readout, this.viewState.crosshair());
-    },
+    getCrosshair: () => this.viewState.crosshair(),
     backgroundColor: () => CHART_BACKGROUND,
     resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
       resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
+  });
+  private readonly renderCoordinator = createChartRenderCoordinator({
+    ...this.renderInputOwner,
+    ...this.renderCallbackOwner,
   });
   private readonly runtimeQueryOwner = createChartRuntimeQueryOwner<ChartSeriesApi>({
     buildMainBarSequence: () =>

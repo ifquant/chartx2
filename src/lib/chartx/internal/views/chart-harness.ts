@@ -81,9 +81,6 @@ import {
   createSecondaryVolumeSeriesApi,
 } from "./chart-secondary-series-api";
 import {
-  type SecondarySeriesApiDepsBuilder,
-} from "./chart-secondary-series-factory";
-import {
   applyCompareStudyOptions,
   applyMovingAverageStudyOptions,
   getCompareStudyOptions,
@@ -1730,15 +1727,15 @@ export class PhaseOneChartHarness {
     addHistogramSeries: (target) => this.addHistogramSeries(target),
     addVolumeSeries: (target) => this.addVolumeSeries(target),
     addOverlaySeries: (paneId) =>
-      this.addLineStudySeries(paneId, "overlay", {
+      this.sourceOwner.addLineStudySeries(paneId, "overlay", {
         createApi: (deps) => createSecondaryLineSeriesApi(deps),
       }),
     addCompareSeries: (paneId) =>
-      this.addLineStudySeries(paneId, "compare", {
+      this.sourceOwner.addLineStudySeries(paneId, "compare", {
         createApi: (deps) => createCompareStudySeriesApi(deps),
       }),
     addMovingAverageStudy: (paneId) =>
-      this.addLineStudySeries(paneId, "indicator", {
+      this.sourceOwner.addLineStudySeries(paneId, "indicator", {
         indicator: {
           kind: "moving-average",
           length: this.defaultMovingAverageOptions.length,
@@ -2005,7 +2002,7 @@ export class PhaseOneChartHarness {
       addPrimary: () =>
         addPrimarySeriesUseCase("line", this.createPrimarySeriesFactoryDeps()) as PhaseOneLineSeriesApi,
       addSecondary: (paneId) =>
-        this.addLineStudySeries(paneId, "series", {
+        this.sourceOwner.addLineStudySeries(paneId, "series", {
           createApi: (deps) => createSecondaryLineSeriesApi(deps),
         }),
     });
@@ -2089,7 +2086,7 @@ export class PhaseOneChartHarness {
       resolveTarget: (nextTarget, options) =>
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) =>
-        this.addLineStudySeries(paneId, "overlay", {
+        this.sourceOwner.addLineStudySeries(paneId, "overlay", {
           createApi: (deps) => createSecondaryLineSeriesApi(deps),
         }),
     }, {
@@ -2103,7 +2100,7 @@ export class PhaseOneChartHarness {
       resolveTarget: (nextTarget, options) =>
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) =>
-        this.addLineStudySeries(paneId, "compare", {
+        this.sourceOwner.addLineStudySeries(paneId, "compare", {
           createApi: (deps) => createCompareStudySeriesApi(deps),
         }),
     }, {
@@ -2117,7 +2114,7 @@ export class PhaseOneChartHarness {
       resolveTarget: (nextTarget, options) =>
         this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) =>
-        this.addLineStudySeries(paneId, "indicator", {
+        this.sourceOwner.addLineStudySeries(paneId, "indicator", {
           indicator: {
             kind: "moving-average",
             length: this.defaultMovingAverageOptions.length,
@@ -2460,23 +2457,6 @@ export class PhaseOneChartHarness {
 
   public update(bar: PhaseOneCandlestickData): void {
     this.sourceOwner.updatePrimaryData(bar);
-  }
-
-  private addLineStudySeries<Api>(
-    paneId: string,
-    studyKind: StudySourceKind,
-    params: {
-      indicator?: MovingAverageIndicatorState;
-      createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
-    },
-  ): Api {
-    return this.sourceOwner.addSecondarySeries({
-      paneId,
-      kind: "line",
-      studyKind,
-      indicator: params.indicator,
-      createApi: params.createApi,
-    });
   }
 
   public render(canvas: HTMLCanvasElement): void {

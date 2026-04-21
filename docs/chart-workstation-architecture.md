@@ -163,6 +163,7 @@ Current direction on that path:
 - primary add-series routing should not keep one-shot harness wrappers when the public add command can call the shared primary factory directly
 - secondary add-series wiring should share one harness integration point for factory deps instead of repeating the owner dependency handoff in every series kind wrapper
 - secondary add-series ownership should live on source owner, so secondary/study attach orchestration no longer needs a harness-local add helper
+- line-study add presets should live on source owner, so overlay/compare/moving-average attach routing no longer needs a harness-local line-study helper
 - secondary plain-series routing should not keep one-shot harness wrappers when public add commands can call the shared secondary integration point directly
 - secondary study routing should not keep one-shot harness wrappers when public and restore add commands can call the shared secondary integration point directly
 - series build ownership should live behind a shared owner, so series ordinal allocation, labels, default options, main options, and main-source state creation stop living as harness-local private builders

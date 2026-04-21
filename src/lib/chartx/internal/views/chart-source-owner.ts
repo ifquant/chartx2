@@ -259,6 +259,22 @@ export function createChartSourceOwner(deps: ChartSourceOwnerDeps) {
       createSecondarySeriesFactoryDeps() as never,
     ) as Api;
 
+  const addLineStudySeries = <Api>(
+    paneId: string,
+    studyKind: string,
+    params: {
+      indicator?: unknown;
+      createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
+    },
+  ): Api =>
+    addSecondarySeries({
+      paneId,
+      kind: "line",
+      studyKind,
+      indicator: params.indicator,
+      createApi: params.createApi,
+    });
+
   return {
     setChartType(nextType: string) {
       return setChartTypeUseCase(getMainSourceOrThrow(), nextType, {
@@ -374,6 +390,7 @@ export function createChartSourceOwner(deps: ChartSourceOwnerDeps) {
     createSecondarySeriesApiDeps,
     createSecondarySeriesFactoryDeps,
     addSecondarySeries,
+    addLineStudySeries,
     getMainSource,
     getMainSourceOrThrow,
     getSourceByApi,

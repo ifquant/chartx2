@@ -364,6 +364,23 @@ describe("chart source owner", () => {
       studyKind: "compare",
       indicator: undefined,
     });
+
+    const lineApi = fixture.owner.addLineStudySeries("pane-11", "indicator", {
+      indicator: { kind: "moving-average", length: 3 },
+      createApi: () => ({ id: "line-study-api" }),
+    });
+
+    expect(lineApi).toEqual({ id: "line-study-api" });
+    expect(fixture.calls.registerSource).toHaveBeenLastCalledWith({
+      paneId: "pane-11",
+      kind: "line",
+      api: { id: "line-study-api" },
+      meta: { id: "line-meta", label: "line label" },
+      priceScale: { id: "pane-11-scale" },
+      priceScaleId: "pane-11-right",
+      studyKind: "indicator",
+      indicator: { kind: "moving-average", length: 3 },
+    });
   });
 
   it("orchestrates secondary mutations and refreshes trade location from owner state", () => {

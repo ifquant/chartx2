@@ -55,9 +55,6 @@ import {
   LineRenderer,
   PointFigureRenderer,
 } from "../renderers";
-import {
-  type RestorableDrawingSnapshot,
-} from "./chart-drawing-restore";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
@@ -128,6 +125,7 @@ import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { createChartStateSnapshotInputOwner } from "./chart-state-snapshot-input-owner";
+import { createChartStateRestoreCommandOwner } from "./chart-state-restore-command-owner";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
 import {
@@ -1021,11 +1019,6 @@ type StudySourceState = SourceDescriptor<ChartSeriesKind, ChartSeriesApi> & Base
 
 type SeriesSourceState = MainSeriesSourceState | StudySourceState;
 type SecondaryApiSourceState = Pick<SeriesSourceState, "options" | "priceLines">;
-type PhaseOneRestorableDrawingSnapshot =
-  | (Extract<PhaseOneChartStateSnapshot["drawings"][number], { type: "horizontal-line" }> &
-      RestorableDrawingSnapshot)
-  | (Extract<PhaseOneChartStateSnapshot["drawings"][number], { type: "trend-line" }> & RestorableDrawingSnapshot);
-
 type RowSet = ReturnType<SeriesDataStore<number>["setData"]>;
 
 type ResolvedSeriesTarget =
@@ -1615,19 +1608,10 @@ export class PhaseOneChartHarness {
     listDrawings: () => this.drawingOwner.listDrawings(),
     getDrawingOptions: () => this.drawingOptions,
   });
-  private readonly stateCoordinator = createChartStateCoordinator({
-    getOptions: this.stateSnapshotInputOwner.getOptions,
-    getTimeScaleState: this.stateSnapshotInputOwner.getTimeScaleState,
-    getPriceScaleState: this.stateSnapshotInputOwner.getPriceScaleState,
-    listPanes: () => this.panes.list(),
-    getMainSeriesState: () => this.getMainSeriesState(),
-    listStudySources: () => this.chartModel.listSourcesByRole("study"),
-    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
-    getDefaultCompareOptions: () => this.defaultCompareOptions,
-    getTradeLocationState: this.stateSnapshotInputOwner.getTradeLocationState,
-    listDrawings: this.stateSnapshotInputOwner.listDrawings,
-    resolveDrawingMagnetOptions: this.stateSnapshotInputOwner.resolveDrawingMagnetOptions,
-    validateDrawings: this.stateSnapshotInputOwner.validateDrawings,
+  private readonly stateRestoreCommandOwner = createChartStateRestoreCommandOwner<
+    PaneModelState,
+    StudySourceState
+  >({
     applyOptions: (options) => {
       this.applyOptions(options);
     },
@@ -1638,7 +1622,7 @@ export class PhaseOneChartHarness {
       this.clearTradeLocation();
     },
     removeSourcesWhere: (predicate) => {
-      this.chartModel.removeSourcesWhere((source) => predicate(source as never));
+      this.chartModel.removeSourcesWhere((source) => predicate(source as StudySourceState));
     },
     removeDrawingByApi: (api) => {
       this.drawingRegistry.removeByApi(api as ChartDrawingApi);
@@ -1661,7 +1645,7 @@ export class PhaseOneChartHarness {
       this.applyMainSeriesState(state);
     },
     getPaneByIndex: (index) => this.panes.getByIndex(index),
-    createPaneTarget: (pane) => ({ pane: this.paneOwner.createPaneHandle(pane.id) }),
+    createPaneHandle: (paneId) => this.paneOwner.createPaneHandle(paneId),
     addCandlestickSeries: (target) => this.addCandlestickSeries(target),
     addBarSeries: (target) => this.addBarSeries(target),
     addLineSeries: (target) => this.addLineSeries(target),
@@ -1676,7 +1660,7 @@ export class PhaseOneChartHarness {
       this.locateTrade(request, overlay);
     },
     restoreDrawings: (drawings) => {
-      this.drawingOwner.restoreDrawings(drawings as readonly PhaseOneRestorableDrawingSnapshot[]);
+      this.drawingOwner.restoreDrawings(drawings);
     },
     applyTimeScaleOptions: (options) => this.timeScaleApi().applyOptions(options),
     setVisibleLogicalRange: (range) => this.timeScaleApi().setVisibleLogicalRange(range),
@@ -1686,6 +1670,21 @@ export class PhaseOneChartHarness {
     render: () => {
       this.renderInvalidation.renderIfAttached();
     },
+  });
+  private readonly stateCoordinator = createChartStateCoordinator({
+    getOptions: this.stateSnapshotInputOwner.getOptions,
+    getTimeScaleState: this.stateSnapshotInputOwner.getTimeScaleState,
+    getPriceScaleState: this.stateSnapshotInputOwner.getPriceScaleState,
+    listPanes: () => this.panes.list(),
+    getMainSeriesState: () => this.getMainSeriesState(),
+    listStudySources: () => this.chartModel.listSourcesByRole("study"),
+    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
+    getDefaultCompareOptions: () => this.defaultCompareOptions,
+    getTradeLocationState: this.stateSnapshotInputOwner.getTradeLocationState,
+    listDrawings: this.stateSnapshotInputOwner.listDrawings,
+    resolveDrawingMagnetOptions: this.stateSnapshotInputOwner.resolveDrawingMagnetOptions,
+    validateDrawings: this.stateSnapshotInputOwner.validateDrawings,
+    ...this.stateRestoreCommandOwner,
   });
   private get panes(): PaneCollection {
     return this.chartModel.panes();

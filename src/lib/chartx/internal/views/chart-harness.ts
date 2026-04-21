@@ -1544,7 +1544,7 @@ export class PhaseOneChartHarness {
       return ordinal;
     },
     formatSeriesKindLabel,
-    resolveTarget: (target, options) => this.resolveSeriesTarget(target, options) as never,
+    resolveTarget: (target, options) => this.paneOwner.resolveSeriesTarget(target, options) as never,
     getPaneById: (paneId) => this.panes.getById(paneId),
     getPaneByIndex: (index) => this.panes.getByIndex(index),
     createPaneTarget: (pane) => ({ pane }),
@@ -1854,7 +1854,8 @@ export class PhaseOneChartHarness {
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryCandlestickSeries(),
       addSecondary: (paneId) => this.addSecondaryCandlestickSeries(paneId),
     });
@@ -1934,7 +1935,15 @@ export class PhaseOneChartHarness {
       updatePrimaryHistogramLike: (bar) => this.sourceOwner.updatePrimaryHistogramLikeData(bar),
       normalizeLineData,
       normalizeLineBar,
-      setMarkers: (api, markers, sourceKind) => this.setSecondaryMarkers(api, markers, sourceKind),
+      setMarkers: (api, markers, sourceKind) => {
+        const state = this.sourceOwner.getSourceByApi(api, sourceKind) as SeriesSourceState;
+        setSeriesMarkersUseCase(state, markers, {
+          normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+          render: () => {
+            this.renderInvalidation.renderIfAttached();
+          },
+        });
+      },
       createPriceLineState: (options) => this.priceLineManager.createState(options),
       createPriceLine: (lines, state) => this.priceLineManager.createApi(lines, state),
       removePriceLine: (lines, line) => this.priceLineManager.remove(lines, line),
@@ -1947,7 +1956,8 @@ export class PhaseOneChartHarness {
 
   public addLineSeries(target?: PhaseOneSeriesTarget): PhaseOneLineSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryLineSeries(),
       addSecondary: (paneId) => this.addSecondaryLineSeries(paneId),
     });
@@ -1955,7 +1965,8 @@ export class PhaseOneChartHarness {
 
   public addAreaSeries(target?: PhaseOneSeriesTarget): PhaseOneAreaSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryAreaSeries(),
       addSecondary: (paneId) => this.addSecondaryAreaSeries(paneId),
     });
@@ -1963,7 +1974,8 @@ export class PhaseOneChartHarness {
 
   public addBaselineSeries(target?: PhaseOneSeriesTarget): PhaseOneBaselineSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryBaselineSeries(),
       addSecondary: (paneId) => this.addSecondaryBaselineSeries(paneId),
     });
@@ -1971,7 +1983,8 @@ export class PhaseOneChartHarness {
 
   public addBarSeries(target?: PhaseOneSeriesTarget): PhaseOneBarSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryBarSeries(),
       addSecondary: (paneId) => this.addSecondaryBarSeries(paneId),
     });
@@ -1979,7 +1992,8 @@ export class PhaseOneChartHarness {
 
   public addHistogramSeries(target?: PhaseOneSeriesTarget): PhaseOneHistogramSeriesApi {
     return addTargetedSeriesUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addPrimary: () => this.addPrimaryHistogramSeries(),
       addSecondary: (paneId) => this.addSecondaryHistogramSeries(paneId),
     });
@@ -1987,14 +2001,16 @@ export class PhaseOneChartHarness {
 
   public addVolumeSeries(target?: PhaseOneVolumeSeriesTarget): PhaseOneVolumeSeriesApi {
     return addVolumeSeriesCommandUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addSecondary: (paneId) => this.addSecondaryVolumeSeries(paneId),
     });
   }
 
   public addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
     return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) => this.addStudyLineSeries(paneId, "overlay"),
     }, {
       defaultToSecondary: false,
@@ -2004,7 +2020,8 @@ export class PhaseOneChartHarness {
 
   public addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
     return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) => this.addCompareStudySeries(paneId),
     }, {
       defaultToSecondary: false,
@@ -2014,7 +2031,8 @@ export class PhaseOneChartHarness {
 
   public addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
     return addTargetedStudyUseCase(target, {
-      resolveTarget: (nextTarget, options) => this.resolveSeriesTarget(nextTarget, options),
+      resolveTarget: (nextTarget, options) =>
+        this.paneOwner.resolveSeriesTarget(nextTarget, options) as ResolvedSeriesTarget,
       addToPane: (paneId) => this.addMovingAverageStudySeries(paneId),
     }, {
       defaultToSecondary: true,
@@ -2500,27 +2518,6 @@ export class PhaseOneChartHarness {
       },
       this.sourceOwner.createSecondarySeriesFactoryDeps(),
     ) as PhaseOneVolumeSeriesApi;
-  }
-
-  private setSecondaryMarkers(
-    api: SeriesSourceState["api"],
-    markers: readonly PhaseOneSeriesMarker[],
-    kind: ChartSeriesKind,
-  ): void {
-    const state = this.sourceOwner.getSourceByApi(api, kind) as SeriesSourceState;
-    setSeriesMarkersUseCase(state, markers, {
-      normalizeMarkers: (nextMarkers) => normalizeMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
-  }
-
-  private resolveSeriesTarget(
-    target: PhaseOneSeriesTarget | PhaseOneVolumeSeriesTarget | undefined,
-    options: { defaultToSecondary: boolean; allowPrimary: boolean },
-  ): ResolvedSeriesTarget {
-    return this.paneOwner.resolveSeriesTarget(target, options) as ResolvedSeriesTarget;
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {

@@ -228,5 +228,6 @@ Current direction on that path:
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
 - source accessor ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local get-main/get-source/get-study forwarding methods around stable owner accessors
 - terminal event and context-sync closures should call their registry/use-case targets directly, so `chart-harness` does not keep one-line methods solely for crosshair, chart-type, study-sync, or bar-sequence forwarding
+- pane target resolution and marker mutation should use their owner/use-case surfaces directly, so `chart-harness` does not keep local wrappers around `paneOwner.resolveSeriesTarget` or marker presentation updates
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

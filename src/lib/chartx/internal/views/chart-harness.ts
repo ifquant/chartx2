@@ -2,7 +2,6 @@ import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
   applyMainSeriesStyleOptions,
-  applyMainSeriesBuilder,
   buildHeikinAshiData,
   buildKagiData,
   buildLineBreakData,
@@ -208,6 +207,16 @@ import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 import { calculateChartPointCount } from "./chart-point-count";
+import {
+  applyMainSeriesBuilderData,
+  buildHistogramVisuals,
+  type HistogramVisual,
+  normalizeHistogramBar,
+  normalizeHistogramData,
+  normalizeLineBar,
+  normalizeLineData,
+  updateCanonicalData,
+} from "./chart-series-data-transforms";
 
 const CHART_BACKGROUND = "#fffdf7";
 const PANE_BACKGROUND = "#fffaf0";
@@ -995,11 +1004,6 @@ type Layout = {
 type PanePoint = {
   x: number;
   y: number;
-};
-
-type HistogramVisual = {
-  color?: string;
-  isUp: boolean;
 };
 
 type ChartDrawingKind = "horizontal-line" | "trend-line";
@@ -2803,68 +2807,6 @@ function buildDemoVolumeBars(
   }));
 }
 
-function normalizeLineData(data: readonly PhaseOneLineData[]): readonly PhaseOneCandlestickData[] {
-  return data.map(normalizeLineBar);
-}
-
-function normalizeLineBar(bar: PhaseOneLineData): PhaseOneCandlestickData {
-  return {
-    time: bar.time,
-    open: bar.value,
-    high: bar.value,
-    low: bar.value,
-    close: bar.value,
-  };
-}
-
-function normalizeHistogramData(
-  data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
-): readonly PhaseOneCandlestickData[] {
-  return data.map(normalizeHistogramBar);
-}
-
-function normalizeHistogramBar(
-  bar: PhaseOneHistogramData | PhaseOneVolumeData,
-): PhaseOneCandlestickData {
-  return {
-    time: bar.time,
-    open: 0,
-    high: Math.max(0, bar.value),
-    low: Math.min(0, bar.value),
-    close: bar.value,
-  };
-}
-
-function updateCanonicalData(
-  data: readonly PhaseOneCandlestickData[],
-  bar: PhaseOneCandlestickData,
-): readonly PhaseOneCandlestickData[] {
-  const store = new SeriesDataStore<number>();
-  store.setData(data);
-  return store.update(bar).map((row) => ({
-    time: row.time,
-    open: row.value[PlotRowValueIndex.Open],
-    high: row.value[PlotRowValueIndex.High],
-    low: row.value[PlotRowValueIndex.Low],
-    close: row.value[PlotRowValueIndex.Close],
-  }));
-}
-
-function applyMainSeriesBuilderData(
-  data: readonly PhaseOneCandlestickData[],
-  source: Pick<
-    MainSeriesSourceState,
-    "builder" | "lineBreakOptions" | "renkoOptions" | "pointFigureOptions" | "kagiOptions"
-  >,
-): readonly PhaseOneCandlestickData[] {
-  return applyMainSeriesBuilder(source.builder, data, {
-    lineBreakOptions: source.lineBreakOptions,
-    renkoOptions: source.renkoOptions,
-    pointFigureOptions: source.pointFigureOptions,
-    kagiOptions: source.kagiOptions,
-  });
-}
-
 function formatSeriesKindLabel(kind: string): string {
   switch (kind) {
     case "candlestick":
@@ -2935,23 +2877,6 @@ function applyMainSeriesTypeSpecificOptions(
   options: MainSeriesStyleOptionsPatch,
 ): boolean {
   return applyMainSeriesStyleOptions(source.styleSchemaId, source, options);
-}
-
-function buildHistogramVisuals(
-  data: readonly PhaseOneHistogramData[] | readonly PhaseOneVolumeData[],
-): Map<number, HistogramVisual> {
-  const visuals = new Map<number, HistogramVisual>();
-
-  for (let index = 0; index < data.length; index += 1) {
-    const item = data[index];
-    const previous = index === 0 ? null : data[index - 1];
-    visuals.set(item.time, {
-      color: item.color,
-      isUp: item.up ?? (previous === null ? true : item.value >= previous.value),
-    });
-  }
-
-  return visuals;
 }
 
 function clonePriceLines(lines: ReadonlyMap<string, PriceLineState>): Map<string, PriceLineState> {

@@ -63,7 +63,6 @@ import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
-import { createStudySourceState } from "./chart-study-source";
 import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { createChartInteractionHandlers } from "./chart-interaction-handlers";
@@ -110,6 +109,7 @@ import {
 } from "./chart-series-presentation";
 import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api-owner";
 import { createChartSourceMutationOwner } from "./chart-source-mutation-owner";
+import { createChartStudySourceOwner } from "./chart-study-source-owner";
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
@@ -1258,6 +1258,16 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly studySourceOwner = createChartStudySourceOwner<StudySourceState>({
+    getPrimaryPriceScale: () => this.primaryPriceScale,
+    getOrCreateSecondaryPriceScale: (paneId) => this.chartModel.getOrCreateSecondaryScale(paneId),
+    createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
+    createOptions: (kind) => this.seriesBuildOwner.createOptions(kind),
+    registerSource: (source) => {
+      this.chartModel.registerSource(source);
+    },
+    defaultCompareOptions: this.defaultCompareOptions,
+  });
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
       mainSourceId: () => this.chartModel.mainSourceId(),
@@ -1293,34 +1303,7 @@ export class PhaseOneChartHarness {
       },
     },
     primaryMutations: this.sourceMutationOwner.primaryMutations,
-    studySources: {
-      primaryPriceScale: this.primaryPriceScale,
-      getOrCreateSecondaryPriceScale: (paneId) => this.chartModel.getOrCreateSecondaryScale(paneId),
-      createSourceState: ({ paneId, kind, api, meta, priceScale, priceScaleId, studyKind, indicator }) =>
-        createStudySourceState<
-          PhaseOneCandlestickData,
-          ChartSeriesApi,
-          ChartSeriesKind,
-          StudySourceState["options"],
-          HistogramVisual,
-          PriceLineState,
-          SeriesMarkerState,
-          Required<PhaseOneCompareSeriesOptions>
-        >({
-          paneId,
-          kind: kind as ChartSeriesKind,
-          api: api as ChartSeriesApi,
-          meta,
-          priceScale: priceScale as PriceScale,
-          priceScaleId,
-          studyKind: studyKind as StudySourceKind | undefined,
-          indicator: indicator as MovingAverageIndicatorState | undefined,
-          defaultCompareOptions: this.defaultCompareOptions,
-          createOptions: (createKind) => this.seriesBuildOwner.createOptions(createKind),
-        }),
-      registerSource: (source) => this.chartModel.registerSource(source as StudySourceState),
-      createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
-    },
+    studySources: this.studySourceOwner.studySources,
     secondaryMutations: this.sourceMutationOwner.secondaryMutations,
     secondarySeriesApi: createChartSecondarySeriesApiOwner({
       assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),

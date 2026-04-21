@@ -121,6 +121,7 @@ import {
 } from "./chart-view-state";
 import { createChartDrawingInteractionOwner } from "./chart-drawing-interaction-owner";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
+import { createChartRenderInputOwner } from "./chart-render-input-owner";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
@@ -1394,7 +1395,12 @@ export class PhaseOneChartHarness {
     setDrawingSnapGuide: (guide) => this.viewState.setDrawingSnapGuide(guide),
     hitTolerance: DRAWING_HIT_TOLERANCE,
   });
-  private readonly renderCoordinator = createChartRenderCoordinator({
+  private readonly renderInputOwner = createChartRenderInputOwner<
+    MainSeriesSourceState,
+    SeriesSourceState,
+    ChartDrawingDescriptor,
+    PhaseOneTradeLocationState
+  >({
     dpr: () => window.devicePixelRatio || 1,
     getLayout: (canvas) => measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout()),
     getChartOptions: () => this.chartOptions,
@@ -1427,6 +1433,9 @@ export class PhaseOneChartHarness {
     getTimeScale: () => this.timeScale,
     getTimeAxisFormatter: () => this.timeAxisFormatter,
     getPriceAxisFormatter: () => this.priceAxisFormatter,
+  });
+  private readonly renderCoordinator = createChartRenderCoordinator({
+    ...this.renderInputOwner,
     getRendererRuntime: () => ({
       lineRenderer: this.lineRenderer,
       areaRenderer: this.areaRenderer,

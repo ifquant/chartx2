@@ -173,6 +173,7 @@ Current direction on that path:
 - built-in demo data generation should live outside `chart-harness`, so the harness only mounts the sample chart instead of owning fixture construction
 - DOM boundary guards should live outside `chart-harness`, so canvas validation is tested as shell input validation rather than harness policy
 - runtime subscription and trade-location command routing should follow the same direction, so handler-set mutation and trade location public commands stop living as harness-local public branches
+- runtime query ownership should live behind a shared owner, so point-count calculation and active-series guards stop living as harness-local private methods
 - pane/chart/crosshair/click event publish paths should follow the same direction, so event assembly and fanout stop living as harness-local emitter branches
 - pointer-leave, pointer-up, wheel, and keyboard viewport commands should follow the same direction, so settled input-state transitions stop living as harness-local interaction branches
 - pointer-down and pointer-move orchestration should now follow the same direction, so divider detection, drawing-drag start, drag-pan routing, hover resolution, and cursor selection stop living as one large harness-local interaction branch

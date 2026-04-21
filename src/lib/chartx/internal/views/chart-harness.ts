@@ -187,7 +187,7 @@ import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
-import { calculateChartPointCount } from "./chart-point-count";
+import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
 import {
   applyMainSeriesBuilderData,
   buildHistogramVisuals,
@@ -1401,7 +1401,7 @@ export class PhaseOneChartHarness {
       normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
     },
     secondarySeriesApi: {
-      assertSeriesActive: (api) => this.assertSeriesActive(api as ChartSeriesApi),
+      assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
       applySeriesFormatterOptions: (seriesOptions, options) =>
         applySeriesFormatterOptionsUseCase(
           seriesOptions as PhaseOneSeriesFormatterOptions,
@@ -1650,6 +1650,15 @@ export class PhaseOneChartHarness {
     resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
       resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
   });
+  private readonly runtimeQueryOwner = createChartRuntimeQueryOwner<ChartSeriesApi>({
+    buildMainBarSequence: () =>
+      this.renderCoordinator.buildMainBarSequence(
+        this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
+      ),
+    getContextSnapshot: () => this.chartModel.context().snapshot(),
+    listSources: () => this.chartModel.listSources(),
+    hasSourceApi: (api) => this.chartModel.hasSourceApi(api),
+  });
   private readonly stateCoordinator = createChartStateCoordinator({
     getOptions: () => ({
       layout: this.chartOptions,
@@ -1768,7 +1777,7 @@ export class PhaseOneChartHarness {
     getCanvas: () => this.canvas,
     getManualLayout: () => this.viewState.manualLayout(),
     listPanes: () => this.panes.list(),
-    getPointCount: () => this.getPointCount(),
+    getPointCount: () => this.runtimeQueryOwner.getPointCount(),
     getBarSpacing: () => this.barSpacing,
     setBarSpacing: (value) => {
       this.barSpacing = value;
@@ -1949,7 +1958,7 @@ export class PhaseOneChartHarness {
       },
       registerSource: (source) => this.chartModel.registerSource(source),
       syncContext: (source) => this.studyContextOwner.syncMainSource(source),
-      assertSeriesActive: (api) => this.assertSeriesActive(api),
+      assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api),
       getSource: (api, sourceKind) =>
         this.sourceOwner.getSourceByApi(api, sourceKind) as SeriesSourceState,
       applySeriesFormatterOptions: (seriesOptions, options) =>
@@ -2226,7 +2235,7 @@ export class PhaseOneChartHarness {
 
   public timeScaleApi(): PhaseOneTimeScaleApi {
     return createTimeScaleApiUseCase({
-      getPointCount: () => this.getPointCount(),
+      getPointCount: () => this.runtimeQueryOwner.getPointCount(),
       getLayout: () => (
         this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())
       ),
@@ -2455,20 +2464,6 @@ export class PhaseOneChartHarness {
     this.sourceOwner.updatePrimaryData(bar);
   }
 
-  private getPointCount(): number {
-    const mainSequence = this.renderCoordinator.buildMainBarSequence(
-      this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
-    );
-    const context = this.chartModel.context().snapshot();
-
-    return calculateChartPointCount({
-      mainSequenceLogicalLength: mainSequence.logicalLength,
-      mainSourceId: context.mainSourceId,
-      contextRows: context.barSequence.bars,
-      sources: this.chartModel.listSources(),
-    });
-  }
-
   private addSecondarySeries<Api>(params: {
     paneId: string;
     kind: SecondarySeriesKind;
@@ -2501,12 +2496,6 @@ export class PhaseOneChartHarness {
 
   public render(canvas: HTMLCanvasElement): void {
     this.renderCoordinator.render(canvas);
-  }
-
-  private assertSeriesActive(series: ChartSeriesApi): void {
-    if (!this.chartModel.hasSourceApi(series)) {
-      throw new Error("chartx phase-one series has been removed");
-    }
   }
 
 }

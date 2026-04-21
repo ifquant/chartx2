@@ -162,6 +162,7 @@ Current direction on that path:
 - primary add-series routing should not keep one-shot harness wrappers when the public add command can call the shared primary factory directly
 - secondary add-series wiring should share one harness integration point for factory deps instead of repeating the owner dependency handoff in every series kind wrapper
 - secondary plain-series routing should not keep one-shot harness wrappers when public add commands can call the shared secondary integration point directly
+- secondary study routing should not keep one-shot harness wrappers when public and restore add commands can call the shared secondary integration point directly
 - series build ownership should live behind a shared owner, so series ordinal allocation, labels, default options, main options, and main-source state creation stop living as harness-local private builders
 - study context ownership should live behind a shared owner, so main-source context sync, study display-data resolution, study reflow, and trade-location refresh triggers stop living as harness-local private methods
 - public remove-series, add-pane/remove-pane, and pane-handle wrapper construction should follow the same direction, so chart structure commands and pane API glue stop living as repeated harness-local public branches

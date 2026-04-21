@@ -331,10 +331,7 @@ import {
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
-import {
-  attachChartCanvas as attachChartCanvasUseCase,
-  detachChartCanvas as detachChartCanvasUseCase,
-} from "./chart-canvas-lifecycle";
+import { createChartCanvasLifecycleOwner } from "./chart-canvas-lifecycle-owner";
 import {
   createChartViewState,
   type DragState,
@@ -2030,61 +2027,44 @@ export class PhaseOneChartHarness {
   private readonly handleWheel = this.interactionHandlers.handleWheel;
   private readonly handleClick = this.interactionHandlers.handleClick;
   private readonly handleKeyDown = this.interactionHandlers.handleKeyDown;
+  private readonly canvasLifecycleOwner = createChartCanvasLifecycleOwner({
+    getManualLayout: () => this.viewState.manualLayout(),
+    getCanvas: () => this.canvas,
+    setCanvas: (nextCanvas) => {
+      this.canvas = nextCanvas;
+    },
+    renderCanvas: (nextCanvas) => {
+      this.render(nextCanvas);
+    },
+    getResizeObserver: () => this.viewState.resizeObserver(),
+    setResizeObserver: (observer) => {
+      this.viewState.setResizeObserver(observer);
+    },
+    handlers: {
+      handleResize: this.handleResize as EventListener,
+      handlePointerDown: this.handlePointerDown as EventListener,
+      handlePointerMove: this.handlePointerMove as EventListener,
+      handlePointerUp: this.handlePointerUp as EventListener,
+      handlePointerLeave: this.handlePointerLeave as EventListener,
+      handleWheel: this.handleWheel as EventListener,
+      handleClick: this.handleClick as EventListener,
+      handleKeyDown: this.handleKeyDown as EventListener,
+    },
+    clearInteractionState: () => {
+      this.viewState.clearInteractionState();
+    },
+    clearSubscriptions: () => {
+      this.handlerRegistry.clearAll();
+    },
+  });
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
-    attachChartCanvasUseCase(canvas, {
-      getManualLayout: () => this.viewState.manualLayout(),
-      setCanvas: (nextCanvas) => {
-        this.canvas = nextCanvas;
-      },
-      renderCanvas: (nextCanvas) => {
-        this.render(nextCanvas);
-      },
-      getResizeObserver: () => this.viewState.resizeObserver(),
-      setResizeObserver: (observer) => {
-        this.viewState.setResizeObserver(observer);
-      },
-      handlers: {
-        handleResize: this.handleResize as EventListener,
-        handlePointerDown: this.handlePointerDown as EventListener,
-        handlePointerMove: this.handlePointerMove as EventListener,
-        handlePointerUp: this.handlePointerUp as EventListener,
-        handlePointerLeave: this.handlePointerLeave as EventListener,
-        handleWheel: this.handleWheel as EventListener,
-        handleClick: this.handleClick as EventListener,
-        handleKeyDown: this.handleKeyDown as EventListener,
-      },
-    });
+    this.canvasLifecycleOwner.attach(canvas);
   }
 
   public detach(): void {
-    detachChartCanvasUseCase({
-      canvas: this.canvas,
-      getResizeObserver: () => this.viewState.resizeObserver(),
-      setResizeObserver: (observer) => {
-        this.viewState.setResizeObserver(observer);
-      },
-      handlers: {
-        handleResize: this.handleResize as EventListener,
-        handlePointerDown: this.handlePointerDown as EventListener,
-        handlePointerMove: this.handlePointerMove as EventListener,
-        handlePointerUp: this.handlePointerUp as EventListener,
-        handlePointerLeave: this.handlePointerLeave as EventListener,
-        handleWheel: this.handleWheel as EventListener,
-        handleClick: this.handleClick as EventListener,
-        handleKeyDown: this.handleKeyDown as EventListener,
-      },
-      resetCanvasRef: () => {
-        this.canvas = null;
-      },
-      clearInteractionState: () => {
-        this.viewState.clearInteractionState();
-      },
-      clearSubscriptions: () => {
-        this.handlerRegistry.clearAll();
-      },
-    });
+    this.canvasLifecycleOwner.detach();
   }
 
   public addCandlestickSeries(target?: PhaseOneSeriesTarget): PhaseOneCandlestickSeriesApi {

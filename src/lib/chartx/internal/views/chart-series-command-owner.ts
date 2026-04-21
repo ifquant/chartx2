@@ -160,41 +160,47 @@ export function createChartSeriesCommandOwner(deps: {
     addOverlaySeries(target?: PhaseOneSeriesTarget): PhaseOneOverlaySeriesApi {
       return addTargetedStudy(target, {
         resolveTarget: deps.resolveTarget,
-        addToPane: (paneId) =>
-          deps.addLineStudySeries(paneId, "overlay", {
-            createApi: (apiDeps) => createSecondaryLineSeriesApi(apiDeps),
-          }),
+        addToPane: (paneId) => this.addOverlaySeriesToPane(paneId),
       }, {
         defaultToSecondary: false,
         allowPrimary: true,
+      });
+    },
+    addOverlaySeriesToPane(paneId: string): PhaseOneOverlaySeriesApi {
+      return deps.addLineStudySeries(paneId, "overlay", {
+        createApi: (apiDeps) => createSecondaryLineSeriesApi(apiDeps),
       });
     },
     addCompareSeries(target?: PhaseOneSeriesTarget): PhaseOneCompareSeriesApi {
       return addTargetedStudy(target, {
         resolveTarget: deps.resolveTarget,
-        addToPane: (paneId) =>
-          deps.addLineStudySeries(paneId, "compare", {
-            createApi: (apiDeps) => createCompareStudySeriesApi(apiDeps),
-          }),
+        addToPane: (paneId) => this.addCompareSeriesToPane(paneId),
       }, {
         defaultToSecondary: false,
         allowPrimary: true,
       });
     },
+    addCompareSeriesToPane(paneId: string): PhaseOneCompareSeriesApi {
+      return deps.addLineStudySeries(paneId, "compare", {
+        createApi: (apiDeps) => createCompareStudySeriesApi(apiDeps),
+      });
+    },
     addMovingAverageStudy(target?: PhaseOneSeriesTarget): PhaseOneMovingAverageStudyApi {
       return addTargetedStudy(target, {
         resolveTarget: deps.resolveTarget,
-        addToPane: (paneId) =>
-          deps.addLineStudySeries(paneId, "indicator", {
-            indicator: {
-              kind: "moving-average",
-              length: deps.getMovingAverageLength(),
-            },
-            createApi: (apiDeps) => createMovingAverageStudySeriesApi(apiDeps),
-          }),
+        addToPane: (paneId) => this.addMovingAverageStudyToPane(paneId),
       }, {
         defaultToSecondary: true,
         allowPrimary: true,
+      });
+    },
+    addMovingAverageStudyToPane(paneId: string): PhaseOneMovingAverageStudyApi {
+      return deps.addLineStudySeries(paneId, "indicator", {
+        indicator: {
+          kind: "moving-average",
+          length: deps.getMovingAverageLength(),
+        },
+        createApi: (apiDeps) => createMovingAverageStudySeriesApi(apiDeps),
       });
     },
     removeSeries(series: SeriesApi): void {
@@ -208,4 +214,3 @@ export function createChartSeriesCommandOwner(deps: {
     },
   };
 }
-

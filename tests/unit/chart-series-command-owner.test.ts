@@ -69,6 +69,9 @@ describe("chart series command owner", () => {
     owner.addOverlaySeries();
     owner.addCompareSeries();
     owner.addMovingAverageStudy();
+    owner.addOverlaySeriesToPane("pane-restore");
+    owner.addCompareSeriesToPane("pane-restore");
+    owner.addMovingAverageStudyToPane("pane-restore");
 
     expect(calls).toEqual([
       "resolve:true:false",
@@ -79,6 +82,9 @@ describe("chart series command owner", () => {
       "study:pane-2:compare:null",
       "resolve:true:true",
       'study:pane-2:indicator:{"kind":"moving-average","length":34}',
+      "study:pane-restore:overlay:null",
+      "study:pane-restore:compare:null",
+      'study:pane-restore:indicator:{"kind":"moving-average","length":34}',
     ]);
   });
 
@@ -108,4 +114,3 @@ describe("chart series command owner", () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 });
-

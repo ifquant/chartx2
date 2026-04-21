@@ -63,11 +63,6 @@ import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import {
-  createCompareStudySeriesApi,
-  createMovingAverageStudySeriesApi,
-  createSecondaryLineSeriesApi,
-} from "./chart-secondary-series-api";
-import {
   applyCompareStudyOptions,
   applyMovingAverageStudyOptions,
   getCompareStudyOptions,
@@ -1810,22 +1805,9 @@ export class PhaseOneChartHarness {
     addBaselineSeries: (target) => this.addBaselineSeries(target),
     addHistogramSeries: (target) => this.addHistogramSeries(target),
     addVolumeSeries: (target) => this.addVolumeSeries(target),
-    addOverlaySeries: (paneId) =>
-      this.sourceOwner.addLineStudySeries(paneId, "overlay", {
-        createApi: (deps) => createSecondaryLineSeriesApi(deps),
-      }),
-    addCompareSeries: (paneId) =>
-      this.sourceOwner.addLineStudySeries(paneId, "compare", {
-        createApi: (deps) => createCompareStudySeriesApi(deps),
-      }),
-    addMovingAverageStudy: (paneId) =>
-      this.sourceOwner.addLineStudySeries(paneId, "indicator", {
-        indicator: {
-          kind: "moving-average",
-          length: this.defaultMovingAverageOptions.length,
-        },
-        createApi: (deps) => createMovingAverageStudySeriesApi(deps),
-      }),
+    addOverlaySeries: (paneId) => this.seriesCommandOwner.addOverlaySeriesToPane(paneId),
+    addCompareSeries: (paneId) => this.seriesCommandOwner.addCompareSeriesToPane(paneId),
+    addMovingAverageStudy: (paneId) => this.seriesCommandOwner.addMovingAverageStudyToPane(paneId),
     locateTrade: (request, overlay) => {
       this.locateTrade(request, overlay);
     },

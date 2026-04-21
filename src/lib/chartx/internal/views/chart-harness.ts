@@ -85,6 +85,8 @@ import {
 } from "./chart-secondary-series-api";
 import {
   addSecondarySeries as addSecondarySeriesUseCase,
+  type SecondarySeriesApiDepsBuilder,
+  type SecondarySeriesKind,
 } from "./chart-secondary-series-factory";
 import {
   applyCompareStudyOptions,
@@ -2402,15 +2404,25 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
+  private addSecondarySeries<Api>(params: {
+    paneId: string;
+    kind: SecondarySeriesKind;
+    studyKind?: StudySourceKind;
+    indicator?: MovingAverageIndicatorState;
+    createApi(apiDeps: SecondarySeriesApiDepsBuilder): Api;
+  }): Api {
     return addSecondarySeriesUseCase(
-      {
-        paneId: target,
-        kind: "candlestick",
-        createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
-      },
+      params,
       this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneCandlestickSeriesApi;
+    ) as Api;
+  }
+
+  private addSecondaryCandlestickSeries(target: string): PhaseOneCandlestickSeriesApi {
+    return this.addSecondarySeries({
+      paneId: target,
+      kind: "candlestick",
+      createApi: (deps) => createSecondaryCandlestickSeriesApi(deps),
+    });
   }
 
   private addSecondaryLineSeries(paneId: string): PhaseOneLineSeriesApi {
@@ -2421,98 +2433,74 @@ export class PhaseOneChartHarness {
     paneId: string,
     studyKind: StudySourceKind,
   ): PhaseOneLineSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "line",
-        studyKind,
-        createApi: (deps) => createSecondaryLineSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneLineSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "line",
+      studyKind,
+      createApi: (deps) => createSecondaryLineSeriesApi(deps),
+    });
   }
 
   private addCompareStudySeries(paneId: string): PhaseOneCompareSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "line",
-        studyKind: "compare",
-        createApi: (deps) => createCompareStudySeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneCompareSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "line",
+      studyKind: "compare",
+      createApi: (deps) => createCompareStudySeriesApi(deps),
+    });
   }
 
   private addMovingAverageStudySeries(paneId: string): PhaseOneMovingAverageStudyApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "line",
-        studyKind: "indicator",
-        indicator: {
-          kind: "moving-average",
-          length: this.defaultMovingAverageOptions.length,
-        },
-        createApi: (deps) => createMovingAverageStudySeriesApi(deps),
+    return this.addSecondarySeries({
+      paneId,
+      kind: "line",
+      studyKind: "indicator",
+      indicator: {
+        kind: "moving-average",
+        length: this.defaultMovingAverageOptions.length,
       },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneMovingAverageStudyApi;
+      createApi: (deps) => createMovingAverageStudySeriesApi(deps),
+    });
   }
 
   private addSecondaryAreaSeries(paneId: string): PhaseOneAreaSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "area",
-        createApi: (deps) => createSecondaryAreaSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneAreaSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "area",
+      createApi: (deps) => createSecondaryAreaSeriesApi(deps),
+    });
   }
 
   private addSecondaryBaselineSeries(paneId: string): PhaseOneBaselineSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "baseline",
-        createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneBaselineSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "baseline",
+      createApi: (deps) => createSecondaryBaselineSeriesApi(deps),
+    });
   }
 
   private addSecondaryBarSeries(paneId: string): PhaseOneBarSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "bar",
-        createApi: (deps) => createSecondaryBarSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneBarSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "bar",
+      createApi: (deps) => createSecondaryBarSeriesApi(deps),
+    });
   }
 
   private addSecondaryHistogramSeries(paneId: string): PhaseOneHistogramSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "histogram",
-        createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneHistogramSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "histogram",
+      createApi: (deps) => createSecondaryHistogramSeriesApi(deps),
+    });
   }
 
   private addSecondaryVolumeSeries(paneId: string): PhaseOneVolumeSeriesApi {
-    return addSecondarySeriesUseCase(
-      {
-        paneId,
-        kind: "volume",
-        createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
-      },
-      this.sourceOwner.createSecondarySeriesFactoryDeps(),
-    ) as PhaseOneVolumeSeriesApi;
+    return this.addSecondarySeries({
+      paneId,
+      kind: "volume",
+      createApi: (deps) => createSecondaryVolumeSeriesApi(deps),
+    });
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {

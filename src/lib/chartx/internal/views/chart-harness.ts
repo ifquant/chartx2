@@ -68,7 +68,7 @@ import {
   getCompareStudyOptions,
   getMovingAverageStudyOptions,
 } from "./chart-study-options";
-import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
+import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
 import { createStudySourceState } from "./chart-study-source";
 import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
@@ -1731,6 +1731,28 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly mainSeriesStateOwner = createChartMainSeriesStateOwner<
+    PhaseOneMainSeriesApi,
+    MainSeriesSourceState
+  >({
+    getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
+    getMainSourceOrThrow: () => this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState,
+    attachMainSeries: (chartType) => this.primarySeriesOwner.attach(chartType),
+    switchChartType: (chartType) => this.setChartType(chartType),
+    createOptions: (styleSchemaId) => this.seriesBuildOwner.createMainOptions(styleSchemaId),
+    rebuildData: (source) => {
+      source.data = applyMainSeriesBuilderData(source.inputData, source);
+    },
+    syncContext: (source) => {
+      this.studyContextOwner.syncMainSource(source);
+    },
+    resetPrimaryPriceRangeOverride: () => {
+      this.primaryPriceRangeOverride = null;
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly stateCoordinator = createChartStateCoordinator({
     getOptions: () => ({
       layout: this.chartOptions,
@@ -2114,41 +2136,11 @@ export class PhaseOneChartHarness {
   }
 
   public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {
-    const source = this.sourceOwner.getMainSource() as MainSeriesSourceState | null;
-    return buildMainSeriesStateSnapshot(
-      source === null
-        ? null
-        : {
-            chartType: source.chartType,
-            options: source.options as Record<string, unknown>,
-            lineBreakOptions: source.lineBreakOptions,
-            renkoOptions: source.renkoOptions,
-            pointFigureOptions: source.pointFigureOptions,
-            kagiOptions: source.kagiOptions,
-          },
-    );
+    return this.mainSeriesStateOwner.getState();
   }
 
   public applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi {
-    return applyMainSeriesStateSnapshot(state, {
-      current: this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
-      ensureAttached: (chartType) => this.primarySeriesOwner.attach(chartType),
-      switchChartType: (chartType) => this.setChartType(chartType),
-      getCurrentSource: () => this.sourceOwner.getMainSourceOrThrow() as MainSeriesSourceState,
-      createOptions: (styleSchemaId) => this.seriesBuildOwner.createMainOptions(styleSchemaId),
-      rebuildData: (source) => {
-        source.data = applyMainSeriesBuilderData(source.inputData, source);
-      },
-      syncContext: (source) => {
-        this.studyContextOwner.syncMainSource(source);
-      },
-      resetPrimaryPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      finalize: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-    });
+    return this.mainSeriesStateOwner.applyState(state);
   }
 
   public getChartState(): PhaseOneChartStateSnapshot {

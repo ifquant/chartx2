@@ -253,6 +253,7 @@ Current direction on that path:
 - primary series factory ownership should flow through `primarySeriesOwner` directly, so `chart-harness` no longer owns the high-fanout add/attach/API callback dependency bundle for the main series
 - public series command ownership should flow through `seriesCommandOwner`, so targeted series/study/volume add routing and remove-series cleanup stop living as another switch-heavy harness block
 - chart-state study restore should reuse `seriesCommandOwner` direct-pane study add methods, so restore callbacks do not keep secondary API factory imports alive in `chart-harness`
+- main-series state read/apply ownership should flow through a main-series state owner, so snapshot projection, style restore, data rebuild, context sync, and render finalize are no longer assembled inside public harness methods
 - source accessor ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local get-main/get-source/get-study forwarding methods around stable owner accessors
 - terminal event and context-sync closures should call their registry/use-case targets directly, so `chart-harness` does not keep one-line methods solely for crosshair, chart-type, study-sync, or bar-sequence forwarding
 - pane target resolution and marker mutation should use their owner/use-case surfaces directly, so `chart-harness` does not keep local wrappers around `paneOwner.resolveSeriesTarget` or marker presentation updates

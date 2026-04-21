@@ -109,6 +109,7 @@ import {
   type SeriesMarkerState,
 } from "./chart-series-presentation";
 import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api-owner";
+import { createChartSourceMutationOwner } from "./chart-source-mutation-owner";
 import {
   emitClickRuntime as emitClickRuntimeUseCase,
 } from "./chart-event-runtime";
@@ -133,11 +134,7 @@ import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from 
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
 import {
   applyMainSeriesBuilderData,
-  buildHistogramVisuals,
   type HistogramVisual,
-  normalizeHistogramBar,
-  normalizeHistogramData,
-  updateCanonicalData,
 } from "./chart-series-data-transforms";
 import { formatSeriesKindLabel } from "./chart-series-labels";
 import {
@@ -1247,6 +1244,20 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly sourceMutationOwner = createChartSourceMutationOwner({
+    syncMainSource: (source) => this.studyContextOwner.syncMainSource(source as MainSeriesSourceState),
+    resolveStudyDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
+    resetViewport: () => {
+      this.barSpacing = null;
+      this.rightOffset = DEFAULT_RIGHT_OFFSET;
+    },
+    clearPrimaryPriceRangeOverride: () => {
+      this.primaryPriceRangeOverride = null;
+    },
+    render: () => {
+      this.renderInvalidation.renderIfAttached();
+    },
+  });
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
       mainSourceId: () => this.chartModel.mainSourceId(),
@@ -1281,33 +1292,7 @@ export class PhaseOneChartHarness {
         this.handlerRegistry.emitChartTypeChange(type as PhaseOneMainChartType);
       },
     },
-    primaryMutations: {
-      rebuild: (source) => {
-        (source as MainSeriesSourceState).data = applyMainSeriesBuilderData(
-          (source as MainSeriesSourceState).inputData,
-          source as MainSeriesSourceState,
-        );
-      },
-      syncContext: (source) => this.studyContextOwner.syncMainSource(source as MainSeriesSourceState),
-      resetViewport: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      clearPriceRangeOverride: () => {
-        this.primaryPriceRangeOverride = null;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-      updateCanonical: (existing, bar) =>
-        updateCanonicalData(
-          existing as readonly PhaseOneCandlestickData[],
-          bar as PhaseOneCandlestickData,
-        ),
-      buildHistogramVisuals: (data) => buildHistogramVisuals(data as readonly PhaseOneHistogramData[]),
-      normalizeHistogramData: (data) => normalizeHistogramData(data as readonly PhaseOneHistogramData[]),
-      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
-    },
+    primaryMutations: this.sourceMutationOwner.primaryMutations,
     studySources: {
       primaryPriceScale: this.primaryPriceScale,
       getOrCreateSecondaryPriceScale: (paneId) => this.chartModel.getOrCreateSecondaryScale(paneId),
@@ -1336,40 +1321,18 @@ export class PhaseOneChartHarness {
       registerSource: (source) => this.chartModel.registerSource(source as StudySourceState),
       createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
     },
-    secondaryMutations: {
-      resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-      resetViewport: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-      updateCanonical: (existing, bar) =>
-        updateCanonicalData(
-          existing as readonly PhaseOneCandlestickData[],
-          bar as PhaseOneCandlestickData,
-        ),
-      buildHistogramVisuals: (data) => buildHistogramVisuals(data as readonly PhaseOneHistogramData[]),
-      normalizeHistogramData: (data) => normalizeHistogramData(data as readonly PhaseOneHistogramData[]),
-      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar as PhaseOneHistogramData),
-    },
+    secondaryMutations: this.sourceMutationOwner.secondaryMutations,
     secondarySeriesApi: createChartSecondarySeriesApiOwner({
       assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
       getSourceByApiOrThrow: (api, message) =>
         this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, message) as SeriesSourceState,
-      resolveDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
-      resetViewport: () => {
-        this.barSpacing = null;
-        this.rightOffset = DEFAULT_RIGHT_OFFSET;
-      },
-      render: () => {
-        this.renderInvalidation.renderIfAttached();
-      },
-      updateCanonical: (existing, nextBar) => updateCanonicalData(existing, nextBar),
-      buildHistogramVisuals: (data) => buildHistogramVisuals(data),
-      normalizeHistogramData: (data) => normalizeHistogramData(data),
-      normalizeHistogramBar: (bar) => normalizeHistogramBar(bar),
+      resolveDisplayData: this.sourceMutationOwner.secondarySeriesApiRuntime.resolveDisplayData,
+      resetViewport: this.sourceMutationOwner.secondarySeriesApiRuntime.resetViewport,
+      render: this.sourceMutationOwner.secondarySeriesApiRuntime.render,
+      updateCanonical: this.sourceMutationOwner.secondarySeriesApiRuntime.updateCanonical,
+      buildHistogramVisuals: this.sourceMutationOwner.secondarySeriesApiRuntime.buildHistogramVisuals,
+      normalizeHistogramData: this.sourceMutationOwner.secondarySeriesApiRuntime.normalizeHistogramData,
+      normalizeHistogramBar: this.sourceMutationOwner.secondarySeriesApiRuntime.normalizeHistogramBar,
       createPriceLineState: (options) => this.priceLineManager.createState(options),
       createPriceLine: (lines, state) => this.priceLineManager.createApi(lines, state),
       removePriceLine: (lines, line) => this.priceLineManager.remove(lines, line),

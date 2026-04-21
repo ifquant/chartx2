@@ -121,29 +121,6 @@ import {
 import { applyMainSeriesStateSnapshot, buildMainSeriesStateSnapshot } from "./chart-main-series-state";
 import { attachStudySource, createStudySourceState } from "./chart-study-source";
 import {
-  createPaneApiHandle,
-  subscribePaneResizeRuntime,
-  unsubscribePaneResizeRuntime,
-} from "./chart-pane-api-runtime";
-import {
-  buildPaneStateRuntime,
-  buildPaneStateSnapshotRuntime,
-  getPaneSeriesStatesRuntime,
-} from "./chart-pane-bookkeeping-runtime";
-import {
-  emitPaneEventRuntime as emitPaneEventCompositionRuntime,
-  emitPaneResizeRuntime as emitPaneResizeCompositionRuntime,
-} from "./chart-pane-event-runtime";
-import {
-  getDrawingByIdRuntime,
-  getDrawingCountForPaneRuntime,
-  listAllDrawingsRuntime,
-  listDrawingsByPaneRuntime,
-  removeDrawingRuntime,
-  removeSelectedDrawingRuntime,
-  selectDrawingRuntime,
-} from "./chart-drawing-registry-runtime";
-import {
   clearTradeLocationRuntime,
   getTradeLocationState as getTradeLocationStateUseCase,
   locateTradeRuntime,
@@ -1177,7 +1154,6 @@ const PANE_GAP = 10;
 const PANE_DIVIDER_HIT_SLOP = 6;
 
 export class PhaseOneChartHarness {
-  private readonly paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
   private readonly handlerRegistry = createChartHandlerRegistry();
   private readonly chartModel = new ChartModel<
     ChartSeriesKind,
@@ -1600,7 +1576,7 @@ export class PhaseOneChartHarness {
     getPaneByIndex: (index) => this.panes.getByIndex(index),
     createPaneTarget: (pane) => ({ pane }),
     getRestorePaneId: (target) => target.pane.id,
-    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     registry: this.drawingRegistry,
     createPriceLineState: (options) => this.priceLineManager.createState(options),
     lineColor: LINE_COLOR,
@@ -1645,7 +1621,7 @@ export class PhaseOneChartHarness {
     getStudySources: () => this.chartModel.listSourcesByRole("study"),
     getSecondarySeriesForPane: (paneId) => this.getSecondarySeriesForPane(paneId),
     getDrawingsByPane: (paneId) => this.drawingOwner.listDrawingsByPane(paneId),
-    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
     getPrimaryPriceScale: () => this.primaryPriceScale,
     getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
@@ -1699,7 +1675,7 @@ export class PhaseOneChartHarness {
     listPanes: () => this.panes.list(),
     getMainSeriesState: () => this.getMainSeriesState(),
     listStudySources: () => this.chartModel.listSourcesByRole("study"),
-    getPaneIndex: (paneId) => this.getPaneIndex(paneId),
+    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getDefaultCompareOptions: () => this.defaultCompareOptions,
     getTradeLocationState: () =>
       this.activeTradeLocation === null
@@ -1733,19 +1709,19 @@ export class PhaseOneChartHarness {
     },
     getSecondarySeriesCountForPane: (paneId) => this.getSecondarySeriesForPane(paneId).length,
     removeSecondaryPane: (paneId) => {
-      this.removePaneById(paneId);
+      this.paneOwner.removePaneById(paneId);
     },
     addPane: (options) => {
       this.addPane(options);
     },
     emitPaneEvent: (type, paneId) => {
-      this.emitPaneEvent(type, paneId);
+      this.paneOwner.emitPaneEvent(type, paneId);
     },
     applyMainSeriesState: (state) => {
       this.applyMainSeriesState(state);
     },
     getPaneByIndex: (index) => this.panes.getByIndex(index),
-    createPaneTarget: (pane) => ({ pane: this.createPaneHandle(pane.id) }),
+    createPaneTarget: (pane) => ({ pane: this.paneOwner.createPaneHandle(pane.id) }),
     addCandlestickSeries: (target) => this.addCandlestickSeries(target),
     addBarSeries: (target) => this.addBarSeries(target),
     addLineSeries: (target) => this.addLineSeries(target),
@@ -1825,7 +1801,8 @@ export class PhaseOneChartHarness {
     resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
       this.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),
     applyPaneResize: (clientY, layout, paneFrames) => {
-      this.applyPaneResize(clientY, layout, paneFrames as readonly PaneFrame[]);
+      void paneFrames;
+      this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
     },
     applyDrawingDrag: (dragState, point, layout, paneFrames) => {
       this.applyDrawingDrag(dragState, point, layout, paneFrames as readonly PaneFrame[]);
@@ -2638,41 +2615,11 @@ export class PhaseOneChartHarness {
     });
   }
 
-  private createPaneHandle(paneId: string): PhaseOnePaneApi {
-    return this.paneOwner.createPaneHandle(paneId);
-  }
-
-  private getPaneIndex(paneId: string): number {
-    const index = this.panes.getIndex(paneId);
-    if (index === -1) {
-      throw new Error("chartx phase-one pane has been removed");
-    }
-    return index;
-  }
-
-  private applyPaneResize(clientY: number, layout: Layout, paneFrames: readonly PaneFrame[]): void {
-    void paneFrames;
-    this.paneOwner.applyPaneResize(clientY, layout, this.viewState.paneResizeState());
-  }
-
   private resolveSeriesTarget(
     target: PhaseOneSeriesTarget | PhaseOneVolumeSeriesTarget | undefined,
     options: { defaultToSecondary: boolean; allowPrimary: boolean },
   ): ResolvedSeriesTarget {
     return this.paneOwner.resolveSeriesTarget(target, options) as ResolvedSeriesTarget;
-  }
-
-  private removePaneById(paneId: string): void {
-    this.paneOwner.removePaneById(paneId);
-  }
-
-  private emitPaneEvent(
-    type: PhaseOnePaneEventType,
-    paneId: string,
-    explicitPaneState?: PhaseOnePaneState | null,
-    explicitSnapshot?: readonly PhaseOnePaneState[],
-  ): void {
-    this.paneOwner.emitPaneEvent(type, paneId, explicitPaneState, explicitSnapshot);
   }
 
   private createSeriesMeta(kind: string): { id: string; label: string } {

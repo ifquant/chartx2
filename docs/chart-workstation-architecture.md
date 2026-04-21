@@ -221,5 +221,6 @@ Current direction on that path:
 - stale harness-local passthrough wrappers should be removed once their owner/coordinator surfaces are stable, so `chart-harness` keeps moving toward direct composition instead of accumulating dead adapter methods
 - render coordinator ownership should include import ownership too, so `chart-harness` should not keep stale render/readout/axis leaf imports once all remaining calls route through the coordinator
 - drawing owner ownership should include public drawing commands and interaction lookups, so `chart-harness` should not retain private drawing registry/selection wrappers after the owner surface is stable
+- source owner ownership should include specialized study accessors and secondary-scale helpers, so `chart-harness` should drop dead source runtime wrappers once those flows are handled inside the source owner
 
 That is the path toward a reusable chart workstation module rather than a demo page that accidentally becomes the product.

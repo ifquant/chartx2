@@ -222,9 +222,6 @@ import {
 } from "./chart-main-source-runtime";
 import {
   buildPrimaryPaneSeriesRuntime,
-  getCompareStudyStateRuntime,
-  getMovingAverageStudyStateRuntime,
-  getOrCreateSecondaryPanePriceScaleRuntime,
   getSecondarySeriesForPaneRuntime,
   getSourceByApiRuntime,
   getStudySourcesForPaneRuntime,
@@ -2800,24 +2797,6 @@ export class PhaseOneChartHarness {
     kind?: ChartSeriesKind,
   ): SeriesSourceState {
     return this.sourceOwner.getSourceByApi(api, kind) as SeriesSourceState;
-  }
-
-  private getCompareStudyState(api: PhaseOneCompareSeriesApi): StudySourceState {
-    return getCompareStudyStateRuntime(api, {
-      getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
-    });
-  }
-
-  private getMovingAverageStudyState(api: PhaseOneMovingAverageStudyApi): StudySourceState {
-    return getMovingAverageStudyStateRuntime(api, {
-      getSourceByApi: (nextApi, kind) => this.getSourceByApi(nextApi as ChartSeriesApi, kind) as StudySourceState,
-    });
-  }
-
-  private getOrCreateSecondaryPanePriceScale(paneId: string): PriceScale {
-    return getOrCreateSecondaryPanePriceScaleRuntime(paneId, {
-      getOrCreateSecondaryScale: (nextPaneId) => this.chartModel.getOrCreateSecondaryScale(nextPaneId),
-    });
   }
 
   private buildPrimaryPaneSeries(

@@ -57,7 +57,6 @@ import {
 } from "../renderers";
 import {
   type RestorableDrawingSnapshot,
-  validateDrawingCollectionSnapshots,
 } from "./chart-drawing-restore";
 import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
@@ -128,6 +127,7 @@ import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
 import { emitReadoutEvent as emitReadoutEventUseCase } from "./chart-render-tail";
 import { createChartStateCoordinator } from "./chart-state-coordinator";
+import { createChartStateSnapshotInputOwner } from "./chart-state-snapshot-input-owner";
 import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
 import {
@@ -1603,39 +1603,31 @@ export class PhaseOneChartHarness {
       this.renderInvalidation.renderIfAttached();
     },
   });
+  private readonly stateSnapshotInputOwner = createChartStateSnapshotInputOwner<ChartDrawingDescriptor>({
+    getLayoutOptions: () => this.chartOptions,
+    getCrosshairOptions: () => this.crosshairOptions,
+    getBarSpacing: () => this.barSpacing,
+    getRightOffset: () => this.rightOffset,
+    getVisibleLogicalRange: () => this.timeScaleApi().getVisibleLogicalRange(),
+    getVisiblePriceRange: () => this.priceScaleApi().getVisibleRange(),
+    getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
+    getActiveTradeLocation: () => this.tradeLocationOwner.getActiveSession(),
+    listDrawings: () => this.drawingOwner.listDrawings(),
+    getDrawingOptions: () => this.drawingOptions,
+  });
   private readonly stateCoordinator = createChartStateCoordinator({
-    getOptions: () => ({
-      layout: this.chartOptions,
-      crosshair: this.crosshairOptions,
-    }),
-    getTimeScaleState: () => ({
-      barSpacing: this.barSpacing,
-      rightOffset: this.rightOffset,
-      visibleLogicalRange: this.timeScaleApi().getVisibleLogicalRange(),
-    }),
-    getPriceScaleState: () => ({
-      visibleRange: this.priceScaleApi().getVisibleRange(),
-      scaleSeriesOnly: this.primaryScaleSeriesOnly,
-    }),
+    getOptions: this.stateSnapshotInputOwner.getOptions,
+    getTimeScaleState: this.stateSnapshotInputOwner.getTimeScaleState,
+    getPriceScaleState: this.stateSnapshotInputOwner.getPriceScaleState,
     listPanes: () => this.panes.list(),
     getMainSeriesState: () => this.getMainSeriesState(),
     listStudySources: () => this.chartModel.listSourcesByRole("study"),
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getDefaultCompareOptions: () => this.defaultCompareOptions,
-    getTradeLocationState: () => {
-      const activeTradeLocation = this.tradeLocationOwner.getActiveSession();
-      return activeTradeLocation === null
-        ? null
-        : {
-            request: activeTradeLocation.request,
-            overlay: activeTradeLocation.options,
-          };
-    },
-    listDrawings: () => this.drawingOwner.listDrawings(),
-    resolveDrawingMagnetOptions: (drawing) =>
-      resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
-    validateDrawings: (drawings, secondaryPaneCount) =>
-      validateDrawingCollectionSnapshots(drawings, secondaryPaneCount),
+    getTradeLocationState: this.stateSnapshotInputOwner.getTradeLocationState,
+    listDrawings: this.stateSnapshotInputOwner.listDrawings,
+    resolveDrawingMagnetOptions: this.stateSnapshotInputOwner.resolveDrawingMagnetOptions,
+    validateDrawings: this.stateSnapshotInputOwner.validateDrawings,
     applyOptions: (options) => {
       this.applyOptions(options);
     },

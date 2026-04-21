@@ -130,29 +130,29 @@ import { mountPhaseOneChartDemo } from "./chart-demo-mount";
 import { assertCanvasElement } from "./chart-dom-guards";
 import { createChartPublicSurfaceOwner } from "./chart-public-surface-owner";
 import type { ChartHarnessPublicLike } from "./chart-public-api";
-
-const CHART_BACKGROUND = "#fffdf7";
-const PANE_BACKGROUND = "#fffaf0";
-const GRID_COLOR = "rgba(16, 16, 16, 0.08)";
-const FRAME_COLOR = "rgba(16, 16, 16, 0.18)";
-const UP_COLOR = "#0c8f62";
-const DOWN_COLOR = "#c7543e";
-const WICK_COLOR = "rgba(16, 16, 16, 0.72)";
-const LINE_COLOR = "#3f6fd8";
-const CROSSHAIR_COLOR = "rgba(16, 16, 16, 0.5)";
-const CROSSHAIR_POINT_COLOR = "#101010";
-const AXIS_TEXT_COLOR = "rgba(16, 16, 16, 0.72)";
-const AXIS_LABEL_BACKGROUND = "rgba(255, 253, 247, 0.96)";
-const AXIS_LABEL_BORDER = "rgba(16, 16, 16, 0.14)";
-const AXIS_ACTIVE_BACKGROUND = "#101010";
-const AXIS_ACTIVE_TEXT = "#fffdf7";
-const DEFAULT_RIGHT_OFFSET = 0.8;
-const MIN_BAR_SPACING = 4;
-const MAX_BAR_SPACING = 36;
-const BAR_SPACING_BOUNDS = { minBarSpacing: MIN_BAR_SPACING, maxBarSpacing: MAX_BAR_SPACING } as const;
-const DRAWING_HIT_TOLERANCE = 16;
-const DRAWING_PRICE_SNAP_TOLERANCE = 8;
-const DRAWING_TIME_SNAP_TOLERANCE = 10;
+import {
+  BAR_SPACING_BOUNDS,
+  CHART_BACKGROUND,
+  DEFAULT_LAYOUT,
+  DEFAULT_RIGHT_OFFSET,
+  DRAWING_HIT_TOLERANCE,
+  LINE_COLOR,
+  MAX_BAR_SPACING,
+  MIN_BAR_SPACING,
+  createDefaultAreaOptions,
+  createDefaultBarOptions,
+  createDefaultBaselineOptions,
+  createDefaultCandlestickOptions,
+  createDefaultCompareOptions,
+  createDefaultCrosshairOptions,
+  createDefaultDrawingOptions,
+  createDefaultHistogramOptions,
+  createDefaultLayoutOptions,
+  createDefaultLineOptions,
+  createDefaultMovingAverageOptions,
+  createDefaultPriceLineOptions,
+  createDefaultVolumeOptions,
+} from "./chart-default-options";
 
 export type PhaseOneCandlestickData = OhlcDataPoint<number>;
 export type PhaseOneLineData = {
@@ -1017,15 +1017,6 @@ type ResolvedSeriesTarget =
   | { kind: "primary" }
   | { kind: "secondary"; paneId: string };
 
-const DEFAULT_LAYOUT: Layout = {
-  width: 960,
-  height: 520,
-  top: 28,
-  right: 18,
-  bottom: 34,
-  left: 18,
-};
-
 const PANE_GAP = 10;
 const PANE_DIVIDER_HIT_SLOP = 6;
 
@@ -1054,128 +1045,25 @@ export class PhaseOneChartHarness {
   private crosshair: PanePoint | null = null;
   private barSpacing: number | null = null;
   private rightOffset = DEFAULT_RIGHT_OFFSET;
-  private readonly chartOptions: Required<NonNullable<PhaseOneChartOptions["layout"]>> = {
-    backgroundColor: CHART_BACKGROUND,
-    paneBackgroundColor: PANE_BACKGROUND,
-    gridColor: GRID_COLOR,
-    frameColor: FRAME_COLOR,
-    axisTextColor: AXIS_TEXT_COLOR,
-    axisLabelBackground: AXIS_LABEL_BACKGROUND,
-    axisLabelBorder: AXIS_LABEL_BORDER,
-    axisActiveBackground: AXIS_ACTIVE_BACKGROUND,
-    axisActiveText: AXIS_ACTIVE_TEXT,
-  };
-  private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> = {
-    lineColor: CROSSHAIR_COLOR,
-    pointColor: CROSSHAIR_POINT_COLOR,
-  };
-  private readonly drawingOptions: RequiredDrawingOptions = {
-    magnetEnabled: true,
-    magnetGuideVisible: true,
-    magnetLabelVisible: true,
-    magnetTolerancePx: DRAWING_PRICE_SNAP_TOLERANCE,
-    timeMagnetEnabled: true,
-    timeMagnetPolicy: "nearest",
-    timeMagnetGuideVisible: true,
-    timeMagnetLabelVisible: true,
-    timeMagnetTolerancePx: DRAWING_TIME_SNAP_TOLERANCE,
-    magnetSources: {
-      open: true,
-      high: true,
-      low: true,
-      close: true,
-    },
-  };
+  private readonly chartOptions: Required<NonNullable<PhaseOneChartOptions["layout"]>> = createDefaultLayoutOptions();
+  private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> =
+    createDefaultCrosshairOptions();
+  private readonly drawingOptions: RequiredDrawingOptions = createDefaultDrawingOptions();
   private timeAxisFormatter: ((time: number) => string) | null = null;
   private priceAxisFormatter: ((value: number) => string) | null = null;
   private primaryScaleSeriesOnly = false;
   private primaryPriceRangeOverride: PriceRangeImpl | null = null;
-  private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = {
-    valueFormatter: null,
-    upColor: UP_COLOR,
-    downColor: DOWN_COLOR,
-    wickColor: WICK_COLOR,
-    lineBreakCount: 3,
-    renkoBoxSize: null,
-    renkoBoxSizeMode: "auto",
-    pointFigureBoxSize: null,
-    pointFigureBoxSizeMode: "auto",
-    pointFigureBoxSizeScale: 1,
-    pointFigureReversalBoxes: 3,
-    pointFigureAtrLength: 14,
-    pointFigurePercentageValue: 1,
-  };
-  private readonly barOptions: Required<PhaseOneBarSeriesOptions> = {
-    valueFormatter: null,
-    upColor: UP_COLOR,
-    downColor: DOWN_COLOR,
-  };
-  private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = {
-    valueFormatter: null,
-    color: LINE_COLOR,
-    lineWidth: 2,
-    kagiYangColor: "#0c8f62",
-    kagiYinColor: "#c7543e",
-    kagiYangLineWidth: 4,
-    kagiYinLineWidth: 2,
-    kagiReversalMode: "auto",
-    kagiReversalSize: null,
-    kagiReversalScale: 1,
-    kagiAtrLength: 14,
-    kagiPercentageValue: 1,
-  };
-  private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = {
-    affectMainScale: true,
-    inputContextMode: "chart-context",
-    requestedSymbol: null,
-    requestedResolution: null,
-    requestedSession: null,
-    requestedTimezone: null,
-    mergePolicy: "carry-forward",
-  };
-  private readonly defaultMovingAverageOptions: Required<PhaseOneMovingAverageStudyOptions> = {
-    length: 3,
-    inputContextMode: "chart-context",
-    requestedSymbol: null,
-    requestedResolution: null,
-    requestedSession: null,
-    requestedTimezone: null,
-    mergePolicy: "carry-forward",
-  };
-  private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = {
-    valueFormatter: null,
-    lineColor: LINE_COLOR,
-    lineWidth: 2,
-    topColor: "rgba(63, 111, 216, 0.28)",
-    bottomColor: "rgba(63, 111, 216, 0.02)",
-  };
-  private readonly baselineOptions: Required<PhaseOneBaselineSeriesOptions> = {
-    valueFormatter: null,
-    baseValue: 130,
-    lineWidth: 2,
-    topLineColor: "#0c8f62",
-    topFillTopColor: "rgba(12, 143, 98, 0.26)",
-    topFillBottomColor: "rgba(12, 143, 98, 0.03)",
-    bottomLineColor: "#c7543e",
-    bottomFillTopColor: "rgba(199, 84, 62, 0.03)",
-    bottomFillBottomColor: "rgba(199, 84, 62, 0.24)",
-  };
-  private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = {
-    valueFormatter: null,
-    upColor: UP_COLOR,
-    downColor: DOWN_COLOR,
-  };
-  private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = {
-    valueFormatter: null,
-    upColor: UP_COLOR,
-    downColor: DOWN_COLOR,
-  };
-  private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = {
-    price: 0,
-    color: "rgba(16, 16, 16, 0.48)",
-    lineWidth: 1,
-    title: "Price line",
-  };
+  private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = createDefaultCandlestickOptions();
+  private readonly barOptions: Required<PhaseOneBarSeriesOptions> = createDefaultBarOptions();
+  private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = createDefaultLineOptions();
+  private readonly defaultCompareOptions: Required<PhaseOneCompareSeriesOptions> = createDefaultCompareOptions();
+  private readonly defaultMovingAverageOptions: Required<PhaseOneMovingAverageStudyOptions> =
+    createDefaultMovingAverageOptions();
+  private readonly areaOptions: Required<PhaseOneAreaSeriesOptions> = createDefaultAreaOptions();
+  private readonly baselineOptions: Required<PhaseOneBaselineSeriesOptions> = createDefaultBaselineOptions();
+  private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = createDefaultHistogramOptions();
+  private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = createDefaultVolumeOptions();
+  private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = createDefaultPriceLineOptions();
   private readonly renderInvalidation = createChartRenderInvalidation({
     getCanvas: () => this.canvas,
     renderCanvas: (canvas) => {

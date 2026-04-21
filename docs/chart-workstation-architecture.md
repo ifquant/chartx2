@@ -262,6 +262,7 @@ Current direction on that path:
 - interaction ownership should sit behind an interaction owner, so view-state mutation, drawing hit/drag routing, pane resize application, readout publication, and keyboard command routing are not assembled inline in the runtime adapter shell
 - internal restore and state-owner wiring should call stable owners directly instead of routing through public harness methods, so the public API surface can be collapsed without changing runtime behavior
 - public surface ownership should sit behind a public surface owner, so the harness exposes one API handoff surface instead of implementing every public command as a class method
+- default option ownership should live outside `chart-harness`, with per-instance factory functions for mutable chart, drawing, series, study, and price-line defaults so adapter-shell cleanup does not accidentally introduce shared mutable state
 - owner import ownership should be cleaned up after wrapper deletion, so `chart-harness` does not keep stale leaf imports for source, study, or trade helpers that are now owned by composition modules
 - secondary series factory ownership should flow through `sourceOwner` directly, so `chart-harness` should not keep local factory-deps or formatter passthrough wrappers around stable owner/use-case surfaces
 - secondary series API ownership should flow through a dedicated owner, so secondary data mutation, markers, price lines, compare options, and moving-average options no longer sit as a high-fanout closure block inside `chart-harness`

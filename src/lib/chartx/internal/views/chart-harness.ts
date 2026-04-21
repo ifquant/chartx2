@@ -2134,7 +2134,7 @@ export class PhaseOneChartHarness {
   }
 
   public getChartType(): PhaseOneMainChartType | null {
-    return this.chartModel.context().snapshot().chartType;
+    return this.runtimeQueryOwner.getChartType() as PhaseOneMainChartType | null;
   }
 
   public getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null {

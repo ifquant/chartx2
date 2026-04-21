@@ -6,6 +6,7 @@ type MainSequenceLike = {
 
 type ContextSnapshotLike = {
   mainSourceId: string | null;
+  chartType: unknown;
   barSequence: {
     bars: readonly { index: number }[];
   };
@@ -30,6 +31,10 @@ export function createChartRuntimeQueryOwner<Api>(deps: {
         contextRows: context.barSequence.bars,
         sources: deps.listSources(),
       });
+    },
+
+    getChartType(): ContextSnapshotLike["chartType"] {
+      return deps.getContextSnapshot().chartType;
     },
 
     assertSeriesActive(series: Api): void {

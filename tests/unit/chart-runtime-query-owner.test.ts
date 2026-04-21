@@ -9,6 +9,7 @@ describe("chart runtime query owner", () => {
       buildMainBarSequence: () => ({ logicalLength: 3 }),
       getContextSnapshot: () => ({
         mainSourceId: "main",
+        chartType: "candlestick",
         barSequence: {
           bars: [{ index: 0 }, { index: 4 }],
         },
@@ -31,6 +32,7 @@ describe("chart runtime query owner", () => {
     });
 
     expect(owner.getPointCount()).toBe(8);
+    expect(owner.getChartType()).toBe("candlestick");
     expect(inactiveSetData).toHaveBeenCalledWith([{ time: 1 }]);
   });
 
@@ -39,6 +41,7 @@ describe("chart runtime query owner", () => {
       buildMainBarSequence: () => ({ logicalLength: 0 }),
       getContextSnapshot: () => ({
         mainSourceId: null,
+        chartType: null,
         barSequence: { bars: [] },
       }),
       listSources: () => [],

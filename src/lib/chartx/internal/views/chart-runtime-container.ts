@@ -1,7 +1,9 @@
 import {
   ChartModel,
   DrawingRegistry,
+  PriceScale,
   type PhaseOneMainChartType,
+  type PaneModelState,
   TimeScale,
 } from "../model";
 import {
@@ -62,8 +64,10 @@ export function createChartRuntimeContainer() {
     drawingRegistry,
     timeScale,
     renderers,
-    panes: () => chartModel.panes(),
-    primaryPriceScale: () => chartModel.primaryScale(),
+    getDrawingRegistry: () => drawingRegistry,
+    rendererRuntime: () => renderers,
+    timeScaleApi: () => timeScale,
+    primaryPriceScale: (): PriceScale => chartModel.primaryScale(),
     contextSnapshot: () => chartModel.context().snapshot(),
     clearMainSource: () => chartModel.clearMainSource(),
     bindMainSource: (mainSourceId: string, chartType: PhaseOneMainChartType, barSequence: unknown) =>
@@ -84,6 +88,13 @@ export function createChartRuntimeContainer() {
     getSecondaryScale: (paneId: string) => chartModel.getSecondaryScale(paneId),
     removeSecondaryScale: (paneId: string) => chartModel.removeSecondaryScale(paneId),
     secondaryScales: () => chartModel.secondaryScales(),
+    getPaneById: (paneId: string) => chartModel.panes().getById(paneId),
+    getPaneByIndex: (index: number) => chartModel.panes().getByIndex(index),
+    getPaneIndex: (paneId: string) => chartModel.panes().getIndex(paneId),
+    listPanes: (): readonly PaneModelState[] => chartModel.panes().list(),
+    addSecondaryPane: (options?: { height?: number; resizable?: boolean }) =>
+      chartModel.panes().addSecondaryPane(options),
+    removePaneById: (paneId: string) => chartModel.panes().removeById(paneId),
     removeDrawingByApi: (api: ChartDrawingApi) => drawingRegistry.removeByApi(api),
   };
 }

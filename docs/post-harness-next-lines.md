@@ -41,6 +41,7 @@ Current slice status:
 
 - first slice landed: core runtime graph creation now routes through a dedicated runtime container module
 - second slice landed: common runtime access and mutation paths now route through the same container surface instead of scattering raw `ChartModel` calls through the harness
+- third slice landed: pane collection access, primary/time scale access, and drawing-registry access now also flow through the runtime container instead of through harness-local getter glue
 - not done yet: the broader runtime container still needs to absorb more ownership than object construction plus access glue
 
 ### 2. Pane And Layout Model Ownership

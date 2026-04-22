@@ -6,8 +6,11 @@ describe("chart runtime container", () => {
   it("creates the shared runtime graph behind one container surface", () => {
     const runtime = createChartRuntimeContainer();
 
-    expect(runtime.panes()).toBe(runtime.chartModel.panes());
+    expect(runtime.listPanes()).toBe(runtime.chartModel.panes().list());
     expect(runtime.primaryPriceScale()).toBe(runtime.chartModel.primaryScale());
+    expect(runtime.timeScaleApi()).toBe(runtime.timeScale);
+    expect(runtime.getDrawingRegistry()).toBe(runtime.drawingRegistry);
+    expect(runtime.rendererRuntime()).toBe(runtime.renderers);
 
     expect(runtime.renderers.areaRenderer).toBeDefined();
     expect(runtime.renderers.barRenderer).toBeDefined();
@@ -29,8 +32,18 @@ describe("chart runtime container", () => {
     expect(runtime.listSourcesByPane("primary")).toEqual([]);
     expect(runtime.getSecondaryScale("missing-pane")).toBeUndefined();
     expect(runtime.secondaryScales()).toEqual([]);
+    expect(runtime.getPaneById("missing-pane")).toBeUndefined();
+    expect(runtime.getPaneByIndex(1)).toBeUndefined();
+    expect(runtime.getPaneIndex("missing-pane")).toBe(-1);
     expect(runtime.contextSnapshot().barSequence.axisBars).toEqual([]);
     expect(runtime.removeDrawingByApi({} as never)).toBeUndefined();
     expect(runtime.removeSourceByApi({} as never)).toBeUndefined();
+
+    const pane = runtime.addSecondaryPane({ height: 120, resizable: true });
+    expect(runtime.getPaneById(pane.id)).toBe(pane);
+    expect(runtime.getPaneByIndex(1)).toBe(pane);
+    expect(runtime.getPaneIndex(pane.id)).toBe(1);
+    runtime.removePaneById(pane.id);
+    expect(runtime.getPaneById(pane.id)).toBeUndefined();
   });
 });

@@ -40,7 +40,8 @@ Target outcome:
 Current slice status:
 
 - first slice landed: core runtime graph creation now routes through a dedicated runtime container module
-- not done yet: the broader runtime container still needs to absorb more ownership than just object construction
+- second slice landed: common runtime access and mutation paths now route through the same container surface instead of scattering raw `ChartModel` calls through the harness
+- not done yet: the broader runtime container still needs to absorb more ownership than object construction plus access glue
 
 ### 2. Pane And Layout Model Ownership
 

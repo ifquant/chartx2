@@ -181,11 +181,11 @@ export class PhaseOneChartHarness {
     },
   });
   private readonly studyContextOwner = createChartStudyContextOwner<StudySourceState>({
-    getContextSnapshot: () => this.chartModel.context().snapshot(),
-    clearMainSource: () => this.chartModel.clearMainSource(),
+    getContextSnapshot: () => this.runtime.contextSnapshot(),
+    clearMainSource: () => this.runtime.clearMainSource(),
     bindMainSource: (mainSourceId, chartType, barSequence) =>
-      this.chartModel.bindMainSource(mainSourceId, chartType, barSequence),
-    listStudySources: () => this.chartModel.listSourcesByRole("study") as StudySourceState[],
+      this.runtime.bindMainSource(mainSourceId, chartType, barSequence),
+    listStudySources: () => this.runtime.listSourcesByRole("study") as StudySourceState[],
     refreshTradeLocation: () => this.sourceOwner.refreshTradeLocation(),
   });
   private readonly viewState = createChartViewState<PanePoint, ResizeObserver>();
@@ -223,16 +223,16 @@ export class PhaseOneChartHarness {
   });
   private readonly studySourceOwner = createChartStudySourceOwner<StudySourceState>({
     getPrimaryPriceScale: () => this.primaryPriceScale,
-    getOrCreateSecondaryPriceScale: (paneId) => this.chartModel.getOrCreateSecondaryScale(paneId),
+    getOrCreateSecondaryPriceScale: (paneId) => this.runtime.getOrCreateSecondaryScale(paneId),
     createMeta: (kind) => this.seriesBuildOwner.createMeta(kind),
     createOptions: (kind) => this.seriesBuildOwner.createOptions(kind),
     registerSource: (source) => {
-      this.chartModel.registerSource(source);
+      this.runtime.registerSource(source);
     },
     defaultCompareOptions: this.defaultCompareOptions,
   });
   private readonly mainSeriesSwitchOwner = createChartMainSeriesSwitchOwner<ChartSeriesApi>({
-    removeCurrent: (api) => this.chartModel.removeSourceByApi(api) !== undefined,
+    removeCurrent: (api) => this.runtime.removeSourceByApi(api) !== undefined,
     clearPriceRangeOverride: () => {
       this.adapterState.setPrimaryPriceRangeOverride(null);
     },
@@ -246,11 +246,11 @@ export class PhaseOneChartHarness {
   });
   private readonly sourceOwner = createChartSourceOwner({
     accessors: {
-      mainSourceId: () => this.chartModel.mainSourceId(),
-      getSourceByIdAndRole: (id, role) => this.chartModel.getSourceByIdAndRole(id, role),
-      getSourceByApiOrThrow: (api, message) => this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, message),
-      listSourcesByPaneAndRole: (paneId, role) => this.chartModel.listSourcesByPaneAndRole(paneId, role),
-      listSourcesByRole: (role) => this.chartModel.listSourcesByRole(role),
+      mainSourceId: () => this.runtime.mainSourceId(),
+      getSourceByIdAndRole: (id, role) => this.runtime.getSourceByIdAndRole(id, role),
+      getSourceByApiOrThrow: (api, message) => this.runtime.getSourceByApiOrThrow(api as ChartSeriesApi, message),
+      listSourcesByPaneAndRole: (paneId, role) => this.runtime.listSourcesByPaneAndRole(paneId, role),
+      listSourcesByRole: (role) => this.runtime.listSourcesByRole(role),
     },
     mainSeriesSwitch: this.mainSeriesSwitchOwner.mainSeriesSwitch,
     primaryMutations: this.sourceMutationOwner.primaryMutations,
@@ -259,7 +259,7 @@ export class PhaseOneChartHarness {
     secondarySeriesApi: createChartSecondarySeriesApiOwner({
       assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
       getSourceByApiOrThrow: (api, message) =>
-        this.chartModel.getSourceByApiOrThrow(api as ChartSeriesApi, message) as SeriesSourceState,
+        this.runtime.getSourceByApiOrThrow(api as ChartSeriesApi, message) as SeriesSourceState,
       resolveDisplayData: this.sourceMutationOwner.secondarySeriesApiRuntime.resolveDisplayData,
       resetViewport: this.sourceMutationOwner.secondarySeriesApiRuntime.resetViewport,
       render: this.sourceMutationOwner.secondarySeriesApiRuntime.render,
@@ -308,13 +308,13 @@ export class PhaseOneChartHarness {
     setCrosshair: (point) => {
       this.viewState.setCrosshair(point);
     },
-    getSeriesCount: (paneId) => this.chartModel.listSourcesByPane(paneId).length,
+    getSeriesCount: (paneId) => this.runtime.listSourcesByPane(paneId).length,
     getDrawingCount: (paneId) => this.drawingOwner.countDrawingsByPane(paneId),
-    listSourcesByPane: (paneId) => this.chartModel.listSourcesByPane(paneId),
+    listSourcesByPane: (paneId) => this.runtime.listSourcesByPane(paneId),
     removePaneEntry: (paneId) => {
       this.panes.removeById(paneId);
     },
-    removeSecondaryScale: (paneId) => this.chartModel.removeSecondaryScale(paneId),
+    removeSecondaryScale: (paneId) => this.runtime.removeSecondaryScale(paneId),
     render: () => {
       this.renderInvalidation.renderIfAttached();
     },
@@ -334,7 +334,7 @@ export class PhaseOneChartHarness {
     createPriceLineState: (options) => this.priceLineManager.createState(options),
     lineColor: LINE_COLOR,
     resolveTrendLineDefaults: () =>
-      resolveTrendLineDefaultsUseCase(this.chartModel.context().snapshot().barSequence.axisBars),
+      resolveTrendLineDefaultsUseCase(this.runtime.contextSnapshot().barSequence.axisBars),
     resolveMagnetOptions: (drawing) =>
       resolveDrawingMagnetOptionsUseCase(drawing as ChartDrawingDescriptor, this.drawingOptions),
     resolvePropertySchema: (type) => DRAWING_PROPERTY_SCHEMAS[type],
@@ -355,9 +355,9 @@ export class PhaseOneChartHarness {
     listPanes: () => this.panes.list(),
     paneGap: PANE_GAP,
     getPrimaryPriceScale: () => this.primaryPriceScale,
-    getSecondaryPriceScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
-    getAxisBars: () => this.chartModel.context().snapshot().barSequence.axisBars,
-    getBarSequence: () => this.chartModel.context().snapshot().barSequence,
+    getSecondaryPriceScale: (paneId) => this.runtime.getSecondaryScale(paneId),
+    getAxisBars: () => this.runtime.contextSnapshot().barSequence.axisBars,
+    getBarSequence: () => this.runtime.contextSnapshot().barSequence,
     getTimeScale: () => this.timeScale,
     getDrawingOptions: () => this.drawingOptions,
     getDrawingById: (id) => this.drawingOwner.getDrawingById(id),
@@ -390,15 +390,15 @@ export class PhaseOneChartHarness {
     getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
     createMainBarSequenceFromSource: (source) =>
       createMainBarSequenceFromSourceUseCase(source as MainSeriesSourceState),
-    getContextSnapshot: () => this.chartModel.context().snapshot(),
+    getContextSnapshot: () => this.runtime.contextSnapshot(),
     getPrimaryStudies: () => this.sourceOwner.getStudySourcesForPane("primary") as StudySourceState[],
     buildPrimaryPaneSeries: (mainSource) =>
       this.sourceOwner.buildPrimaryPaneSeries(mainSource as MainSeriesSourceState | null) as readonly SeriesSourceState[],
-    getStudySources: () => this.chartModel.listSourcesByRole("study"),
+    getStudySources: () => this.runtime.listSourcesByRole("study"),
     getSecondarySeriesForPane: (paneId) => this.sourceOwner.getSecondarySeriesForPane(paneId) as StudySourceState[],
     getDrawingsByPane: (paneId) => this.drawingOwner.listDrawingsByPane(paneId),
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
-    getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
+    getSecondaryScale: (paneId) => this.runtime.getSecondaryScale(paneId),
     getPrimaryPriceScale: () => this.primaryPriceScale,
     getPrimaryPriceRangeOverride: () => this.adapterState.primaryPriceRangeOverride(),
     getActiveTradeLocationState: () => this.tradeLocationOwner.getState(),
@@ -437,9 +437,9 @@ export class PhaseOneChartHarness {
       this.renderCoordinator.buildMainBarSequence(
         this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
       ),
-    getContextSnapshot: () => this.chartModel.context().snapshot(),
-    listSources: () => this.chartModel.listSources(),
-    hasSourceApi: (api) => this.chartModel.hasSourceApi(api),
+    getContextSnapshot: () => this.runtime.contextSnapshot(),
+    listSources: () => this.runtime.listSources(),
+    hasSourceApi: (api) => this.runtime.hasSourceApi(api),
   });
   private readonly scaleOwner = createChartScaleOwner({
     defaultLayout: DEFAULT_LAYOUT,
@@ -467,7 +467,7 @@ export class PhaseOneChartHarness {
     },
     getPrimaryPriceScale: () => this.primaryPriceScale,
     getSecondaryVisibleRange: () =>
-      this.chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
+      this.runtime.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
     getPanes: () => this.panes.list(),
     setPriceAxisFormatter: (formatter) => {
       this.adapterState.setPriceAxisFormatter(formatter);
@@ -497,7 +497,7 @@ export class PhaseOneChartHarness {
     },
   });
   private readonly primarySeriesOwner = createChartPrimarySeriesOwner<PhaseOneMainSeriesApi, MainSeriesSourceState>({
-    getCurrentMainSourceId: () => this.chartModel.mainSourceId(),
+    getCurrentMainSourceId: () => this.runtime.mainSourceId(),
     getPrimaryPriceScale: () => this.primaryPriceScale,
     createMeta: (chartType) => this.seriesBuildOwner.createMeta(chartType),
     createLabel: (chartType, id) => this.seriesBuildOwner.createLabel(chartType, id),
@@ -511,7 +511,7 @@ export class PhaseOneChartHarness {
         priceScale: input.priceScale,
         priceScaleId: input.priceScaleId,
       }) as MainSeriesSourceState,
-    registerSource: (source) => this.chartModel.registerSource(source),
+    registerSource: (source) => this.runtime.registerSource(source),
     syncMainSource: (source) => this.studyContextOwner.syncMainSource(source),
     assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
     getSourceByApi: (api, sourceKind) =>
@@ -535,7 +535,7 @@ export class PhaseOneChartHarness {
     addLineStudySeries: (paneId, studyKind, params) =>
       this.sourceOwner.addLineStudySeries(paneId, studyKind, params),
     getMovingAverageLength: () => this.defaultMovingAverageOptions.length,
-    removeSourceByApi: (series) => this.chartModel.removeSourceByApi(series as ChartSeriesApi),
+    removeSourceByApi: (series) => this.runtime.removeSourceByApi(series as ChartSeriesApi),
     resetPrimaryRangeOverride: () => {
       this.adapterState.setPrimaryPriceRangeOverride(null);
     },
@@ -585,10 +585,10 @@ export class PhaseOneChartHarness {
       this.tradeLocationOwner.clear();
     },
     removeSourcesWhere: (predicate) => {
-      this.chartModel.removeSourcesWhere((source) => predicate(source as StudySourceState));
+      this.runtime.removeSourcesWhere((source) => predicate(source as StudySourceState));
     },
     removeDrawingByApi: (api) => {
-      this.drawingRegistry.removeByApi(api as ChartDrawingApi);
+      this.runtime.removeDrawingByApi(api as ChartDrawingApi);
     },
     removeDrawing: (api) => {
       this.drawingOwner.removeDrawing(api as ChartDrawingApi);
@@ -653,17 +653,13 @@ export class PhaseOneChartHarness {
     coordinator: {
       listPanes: () => this.panes.list(),
       getMainSeriesState: () => this.mainSeriesStateOwner.getState(),
-      listStudySources: () => this.chartModel.listSourcesByRole("study") as StudySourceState[],
+      listStudySources: () => this.runtime.listSourcesByRole("study") as StudySourceState[],
       getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
       getDefaultCompareOptions: () => this.defaultCompareOptions,
     },
     restoreCommands: this.stateRestoreShellOwner.restoreCommandsInput(),
   });
   private readonly stateCoordinator = this.stateShellOwner.coordinator();
-  private get chartModel() {
-    return this.runtime.chartModel;
-  }
-
   private get drawingRegistry() {
     return this.runtime.drawingRegistry;
   }

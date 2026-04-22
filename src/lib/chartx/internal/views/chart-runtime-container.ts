@@ -64,5 +64,26 @@ export function createChartRuntimeContainer() {
     renderers,
     panes: () => chartModel.panes(),
     primaryPriceScale: () => chartModel.primaryScale(),
+    contextSnapshot: () => chartModel.context().snapshot(),
+    clearMainSource: () => chartModel.clearMainSource(),
+    bindMainSource: (mainSourceId: string, chartType: PhaseOneMainChartType, barSequence: unknown) =>
+      chartModel.bindMainSource(mainSourceId, chartType, barSequence as never),
+    mainSourceId: () => chartModel.mainSourceId(),
+    registerSource: (source: SeriesSourceState) => chartModel.registerSource(source),
+    removeSourceByApi: (api: ChartSeriesApi) => chartModel.removeSourceByApi(api),
+    removeSourcesWhere: (predicate: (source: SeriesSourceState) => boolean) => chartModel.removeSourcesWhere(predicate),
+    getSourceByIdAndRole: (id: string, role: SeriesSourceState["role"]) => chartModel.getSourceByIdAndRole(id, role),
+    getSourceByApiOrThrow: (api: ChartSeriesApi, message: string) => chartModel.getSourceByApiOrThrow(api, message),
+    listSourcesByRole: (role: SeriesSourceState["role"]) => chartModel.listSourcesByRole(role),
+    listSourcesByPane: (paneId: string) => chartModel.listSourcesByPane(paneId),
+    listSourcesByPaneAndRole: (paneId: string, role: SeriesSourceState["role"]) =>
+      chartModel.listSourcesByPaneAndRole(paneId, role),
+    listSources: () => chartModel.listSources(),
+    hasSourceApi: (api: ChartSeriesApi) => chartModel.hasSourceApi(api),
+    getOrCreateSecondaryScale: (paneId: string) => chartModel.getOrCreateSecondaryScale(paneId),
+    getSecondaryScale: (paneId: string) => chartModel.getSecondaryScale(paneId),
+    removeSecondaryScale: (paneId: string) => chartModel.removeSecondaryScale(paneId),
+    secondaryScales: () => chartModel.secondaryScales(),
+    removeDrawingByApi: (api: ChartDrawingApi) => drawingRegistry.removeByApi(api),
   };
 }

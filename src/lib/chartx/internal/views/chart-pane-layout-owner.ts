@@ -1,6 +1,7 @@
 import {
   buildPaneFrames,
   resolvePaneDivider,
+  resolvePaneDividerByIds,
   type PaneDivider,
   type PaneFrame,
   type PaneModelState,
@@ -20,10 +21,19 @@ export function createChartPaneLayoutOwner(deps: {
     buildPaneFrames(deps.listPanes(), plotHeight, deps.paneGap);
   const resolvePaneFrames = (plotHeight: number, provided?: readonly PaneFrame[]): readonly PaneFrame[] =>
     provided ?? paneFrames(plotHeight);
+  const paneFrameById = (
+    paneId: string,
+    plotHeight: number,
+    provided?: readonly PaneFrame[],
+  ): PaneFrame | null => resolvePaneFrames(plotHeight, provided).find((pane) => pane.id === paneId) ?? null;
 
   return {
     paneFrames,
     resolvePaneFrames,
+    paneFrameById,
+    primaryPaneFrame(plotHeight: number, provided?: readonly PaneFrame[]): PaneFrame | null {
+      return resolvePaneFrames(plotHeight, provided).find((pane) => pane.kind === "primary") ?? null;
+    },
     resolveActivePane(crosshair: PanePoint, plotHeight: number, provided?: readonly PaneFrame[]): PaneFrame | null {
       if (crosshair === null) {
         return null;
@@ -42,6 +52,19 @@ export function createChartPaneLayoutOwner(deps: {
         y,
         deps.paneGap,
         hitSlop,
+      );
+    },
+    resolvePaneDividerByIds(
+      upperPaneId: string,
+      lowerPaneId: string,
+      plotHeight: number,
+      provided?: readonly PaneFrame[],
+    ): PaneDivider | null {
+      return resolvePaneDividerByIds(
+        resolvePaneFrames(plotHeight, provided),
+        upperPaneId,
+        lowerPaneId,
+        deps.paneGap,
       );
     },
   };

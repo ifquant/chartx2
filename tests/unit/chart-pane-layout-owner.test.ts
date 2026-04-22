@@ -59,4 +59,23 @@ describe("chart pane layout owner", () => {
     expect(divider?.upperPaneId).toBe("pane-1");
     expect(divider?.lowerPaneId).toBe("pane-2");
   });
+
+  it("exposes shared pane-frame queries for frame consumers", () => {
+    const panes = [
+      { id: "primary", kind: "primary", preferredHeight: null, resizable: false },
+      { id: "pane-1", kind: "secondary", preferredHeight: 100, resizable: true },
+      { id: "pane-2", kind: "secondary", preferredHeight: 120, resizable: true },
+    ] satisfies PaneModelState[];
+
+    const owner = createChartPaneLayoutOwner({
+      listPanes: () => panes,
+      paneGap: 10,
+    });
+
+    const frames = owner.paneFrames(420);
+
+    expect(owner.primaryPaneFrame(420, frames)?.id).toBe("primary");
+    expect(owner.paneFrameById("pane-2", 420, frames)?.height).toBe(120);
+    expect(owner.resolvePaneDividerByIds("pane-1", "pane-2", 420, frames)?.upperPaneId).toBe("pane-1");
+  });
 });

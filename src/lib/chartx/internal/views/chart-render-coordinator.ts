@@ -1,5 +1,4 @@
 import {
-  buildPaneFrames,
   createTimeBasedChartBarSequence,
   type ChartBarSequence,
   type Coordinate,
@@ -40,6 +39,7 @@ import { drawDrawingSnapGuide, drawPaneDrawings } from "./chart-pane-drawing-ren
 import { resolveDrawingTimeCoordinate } from "./chart-drawing-geometry";
 import { buildChartRenderState as buildChartRenderStateUseCase } from "./chart-render-state";
 import { renderPaneChrome as renderPaneChromeUseCase } from "./chart-pane-chrome";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
@@ -263,6 +263,10 @@ export function createChartRenderCoordinator(deps: {
   formatSeriesReadoutValueForState(state: SeriesSourceLike, value: number | null): string;
   render(canvas: HTMLCanvasElement): void;
 } {
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.getPaneSpecs(),
+    paneGap: 16,
+  });
   const owner = {
     renderSeriesSource(
       context: CanvasRenderingContext2D,
@@ -336,11 +340,7 @@ export function createChartRenderCoordinator(deps: {
       const mainSequence = owner.buildMainBarSequence(mainSource);
       return buildRawReadoutUseCase({
         point,
-        paneFrames: buildPaneFrames(
-          deps.getPaneSpecs(),
-          layout.height - layout.top - layout.bottom,
-          16,
-        ),
+        paneFrames: paneLayoutOwner.paneFrames(layout.height - layout.top - layout.bottom),
         mainSourceId: mainSource?.id ?? null,
         primaryRows: mainSequence.bars,
         primaryStudies: deps.getPrimaryStudies() as never,

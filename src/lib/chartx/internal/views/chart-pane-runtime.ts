@@ -1,4 +1,4 @@
-import { buildPaneFrames, resolvePaneDividerByIds } from "../model";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 import { createChartPaneLayoutPolicyOwner } from "./chart-pane-layout-policy-owner";
 
 import type { PhaseOnePaneOptions, PhaseOnePaneResizeHandler } from "./chart-api-types";
@@ -95,13 +95,15 @@ export function getPaneHeight(
     return pane.preferredHeight ?? 0;
   }
   const layout = deps.getLayout();
-  const frames = buildPaneFrames(
-    deps.listPanes(),
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.listPanes(),
+    paneGap: deps.gap,
+  });
+  const frame = paneLayoutOwner.paneFrameById(
+    paneId,
     layout.height - layout.top - layout.bottom,
-    deps.gap,
   );
-  const frame = frames.find((entry) => entry.id === paneId);
-  if (frame === undefined) {
+  if (frame === null) {
     throw new Error("chartx phase-one pane has been removed");
   }
   return frame.height;
@@ -231,16 +233,14 @@ export function applyPaneResize(
     return;
   }
 
-  const updatedFrames = buildPaneFrames(
-    deps.listPanes(),
-    layout.height - layout.top - layout.bottom,
-    deps.gap,
-  );
-  const divider = resolvePaneDividerByIds(
-    updatedFrames,
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.listPanes(),
+    paneGap: deps.gap,
+  });
+  const divider = paneLayoutOwner.resolvePaneDividerByIds(
     resizeState.dividerAfterPaneId,
     resizeState.dividerBeforePaneId,
-    deps.gap,
+    layout.height - layout.top - layout.bottom,
   );
   if (divider !== null) {
     deps.setCrosshair({

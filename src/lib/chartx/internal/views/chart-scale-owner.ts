@@ -1,5 +1,4 @@
 import {
-  buildPaneFrames,
   PriceRangeImpl,
   type PaneModelState,
   type PriceScale,
@@ -13,6 +12,7 @@ import {
   resolveBarSpacing,
   type LayoutGeometry,
 } from "./chart-layout-geometry";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 import type {
   PhaseOnePriceScaleApi,
   PhaseOneTimeScaleApi,
@@ -56,6 +56,10 @@ export function createChartScaleOwner(deps: {
       minBarSpacing: deps.minBarSpacing,
       maxBarSpacing: deps.maxBarSpacing,
     });
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.getPanes(),
+    paneGap: deps.paneGap,
+  });
 
   return {
     timeScaleApi(): PhaseOneTimeScaleApi {
@@ -90,9 +94,7 @@ export function createChartScaleOwner(deps: {
           }
           const layout = measureLayout(canvas, deps.defaultLayout, deps.getManualLayout());
           const plotHeight = Math.max(0, layout.height - layout.top - layout.bottom);
-          const paneHeight =
-            buildPaneFrames(deps.getPanes(), plotHeight, deps.paneGap).find((pane) => pane.kind === "primary")
-              ?.height ?? plotHeight;
+          const paneHeight = paneLayoutOwner.primaryPaneFrame(plotHeight)?.height ?? plotHeight;
           deps.getPrimaryPriceScale().applyOptions({
             height: paneHeight,
             priceRange: override,
@@ -105,4 +107,3 @@ export function createChartScaleOwner(deps: {
     },
   };
 }
-

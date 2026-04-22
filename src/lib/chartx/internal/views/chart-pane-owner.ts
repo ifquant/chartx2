@@ -19,14 +19,10 @@ import {
 } from "./chart-pane-event-runtime";
 import { removePane as removePaneUseCase } from "./chart-pane-management";
 import {
-  applyPaneOptions as applyPaneOptionsUseCase,
-  applyPaneResize as applyPaneResizeUseCase,
   getPaneByHandle as getPaneByHandleUseCase,
-  getPaneHeight as getPaneHeightUseCase,
-  getPaneOptions as getPaneOptionsUseCase,
   paneHasSeries as paneHasSeriesUseCase,
-  setPaneHeight as setPaneHeightUseCase,
 } from "./chart-pane-runtime";
+import { createChartPaneLayoutRuntimeOwner } from "./chart-pane-layout-runtime-owner";
 
 import type {
   PhaseOnePaneApi,
@@ -100,8 +96,6 @@ type PaneHandlerRegistry = {
   ): void;
 };
 
-export type ChartPaneOwner = ReturnType<typeof createChartPaneOwner>;
-
 export function createChartPaneOwner(deps: {
   handlerRegistry: PaneHandlerRegistry;
   getPaneById(paneId: string): PaneLike | undefined;
@@ -122,7 +116,27 @@ export function createChartPaneOwner(deps: {
   render(): void;
 }) {
   const paneHandleIds = new WeakMap<PhaseOnePaneApi, string>();
-
+  let emitPaneResizeRef = (_paneId: string): void => {};
+  let emitPaneEventRef = (
+    _type: PhaseOnePaneEventType,
+    _paneId: string,
+    _explicitPaneState?: PhaseOnePaneState | null,
+    _explicitSnapshot?: readonly PhaseOnePaneState[],
+  ): void => {};
+  const paneLayoutRuntimeOwner = createChartPaneLayoutRuntimeOwner({
+    getPaneById: (paneId) => deps.getPaneById(paneId),
+    hasCanvas: () => deps.hasCanvas(),
+    getLayout: () => deps.getLayout(),
+    listPanes: () => deps.listPanes(),
+    gap: deps.gap,
+    emitPaneResize: (paneId) => emitPaneResizeRef(paneId),
+    emitPaneEvent: (type, paneId) => emitPaneEventRef(type, paneId),
+    render: () => deps.render(),
+    getCrosshair: () => deps.getCrosshair(),
+    setCrosshair: (point) => {
+      deps.setCrosshair(point);
+    },
+  });
   const owner = {
     createPaneHandle(paneId: string): PhaseOnePaneApi {
       return createPaneApiHandle(paneId, {
@@ -188,37 +202,19 @@ export function createChartPaneOwner(deps: {
     },
 
     getPaneHeight(paneId: string): number {
-      return getPaneHeightUseCase(paneId, {
-        getPaneById: (nextPaneId) => owner.getPaneById(nextPaneId),
-        hasCanvas: () => deps.hasCanvas(),
-        getLayout: () => deps.getLayout(),
-        listPanes: () => deps.listPanes(),
-        gap: deps.gap,
-      });
+      return paneLayoutRuntimeOwner.getPaneHeight(paneId);
     },
 
     getPaneOptions(paneId: string): Required<PhaseOnePaneOptions> {
-      return getPaneOptionsUseCase(paneId, {
-        getPaneById: (nextPaneId) => owner.getPaneById(nextPaneId),
-      });
+      return paneLayoutRuntimeOwner.getPaneOptions(paneId);
     },
 
     applyPaneOptions(paneId: string, options: PhaseOnePaneOptions): void {
-      applyPaneOptionsUseCase(paneId, options, {
-        getPaneById: (nextPaneId) => owner.getPaneById(nextPaneId),
-        setPaneHeight: (nextPaneId, height) => owner.setPaneHeight(nextPaneId, height),
-        emitPaneEvent: (type, nextPaneId) => owner.emitPaneEvent(type, nextPaneId),
-        render: () => deps.render(),
-      });
+      paneLayoutRuntimeOwner.applyPaneOptions(paneId, options);
     },
 
     setPaneHeight(paneId: string, height: number): void {
-      setPaneHeightUseCase(paneId, height, {
-        getPaneById: (nextPaneId) => owner.getPaneById(nextPaneId),
-        emitPaneResize: (nextPaneId) => owner.emitPaneResize(nextPaneId),
-        emitPaneEvent: (type, nextPaneId) => owner.emitPaneEvent(type, nextPaneId),
-        render: () => deps.render(),
-      });
+      paneLayoutRuntimeOwner.setPaneHeight(paneId, height);
     },
 
     applyPaneResize(
@@ -226,18 +222,7 @@ export function createChartPaneOwner(deps: {
       layout: LayoutLike,
       resizeState: PaneResizeStateLike | null,
     ): void {
-      applyPaneResizeUseCase(clientY, layout, resizeState, {
-        getPaneById: (nextPaneId) => owner.getPaneById(nextPaneId),
-        emitPaneResize: (nextPaneId) => owner.emitPaneResize(nextPaneId),
-        emitPaneEvent: (type, nextPaneId) => owner.emitPaneEvent(type, nextPaneId),
-        hasCanvas: () => deps.hasCanvas(),
-        listPanes: () => deps.listPanes(),
-        gap: deps.gap,
-        getCrosshair: () => deps.getCrosshair(),
-        setCrosshair: (point) => {
-          deps.setCrosshair(point);
-        },
-      });
+      paneLayoutRuntimeOwner.applyPaneResize(clientY, layout, resizeState);
     },
 
     paneHasSeries(paneId: string): boolean {
@@ -340,6 +325,10 @@ export function createChartPaneOwner(deps: {
       });
     },
   };
+
+  emitPaneResizeRef = (paneId) => owner.emitPaneResize(paneId);
+  emitPaneEventRef = (type, paneId, explicitPaneState, explicitSnapshot) =>
+    owner.emitPaneEvent(type, paneId, explicitPaneState, explicitSnapshot);
 
   return owner;
 }

@@ -66,6 +66,8 @@ export function createChartRuntimeContainer() {
     renderers,
     getDrawingRegistry: () => drawingRegistry,
     rendererRuntime: () => renderers,
+    drawGrid: (context: CanvasRenderingContext2D, params: Parameters<GridRenderer["draw"]>[1]) =>
+      renderers.gridRenderer.draw(context, params),
     timeScaleApi: () => timeScale,
     primaryPriceScale: (): PriceScale => chartModel.primaryScale(),
     contextSnapshot: () => chartModel.context().snapshot(),
@@ -88,6 +90,7 @@ export function createChartRuntimeContainer() {
     getSecondaryScale: (paneId: string) => chartModel.getSecondaryScale(paneId),
     removeSecondaryScale: (paneId: string) => chartModel.removeSecondaryScale(paneId),
     secondaryScales: () => chartModel.secondaryScales(),
+    secondaryVisibleRange: () => chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
     getPaneById: (paneId: string) => chartModel.panes().getById(paneId),
     getPaneByIndex: (index: number) => chartModel.panes().getByIndex(index),
     getPaneIndex: (paneId: string) => chartModel.panes().getIndex(paneId),

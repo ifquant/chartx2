@@ -405,18 +405,9 @@ export class PhaseOneChartHarness {
     getPriceAxisFormatter: () => this.adapterState.priceAxisFormatter(),
   });
   private readonly renderCallbackOwner = createChartRenderCallbackOwner({
-    getRendererRuntime: () => ({
-      lineRenderer: this.runtime.renderers.lineRenderer,
-      areaRenderer: this.runtime.renderers.areaRenderer,
-      baselineRenderer: this.runtime.renderers.baselineRenderer,
-      barRenderer: this.runtime.renderers.barRenderer,
-      candlesRenderer: this.runtime.renderers.candlesRenderer,
-      pointFigureRenderer: this.runtime.renderers.pointFigureRenderer,
-      histogramRenderer: this.runtime.renderers.histogramRenderer,
-      kagiRenderer: this.runtime.renderers.kagiRenderer,
-    }),
+    getRendererRuntime: () => this.runtime.rendererRuntime(),
     drawGrid: (context, params) => {
-      this.runtime.renderers.gridRenderer.draw(context, params);
+      this.runtime.drawGrid(context, params);
     },
     emitCrosshairMove: (readout, crosshair) => {
       this.handlerRegistry.emitCrosshairMove(readout, crosshair);
@@ -464,8 +455,7 @@ export class PhaseOneChartHarness {
       this.adapterState.setPrimaryPriceRangeOverride(range);
     },
     getPrimaryPriceScale: () => this.runtime.primaryPriceScale(),
-    getSecondaryVisibleRange: () =>
-      this.runtime.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
+    getSecondaryVisibleRange: () => this.runtime.secondaryVisibleRange(),
     getPanes: () => this.runtime.listPanes(),
     setPriceAxisFormatter: (formatter) => {
       this.adapterState.setPriceAxisFormatter(formatter);

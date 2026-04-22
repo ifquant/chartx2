@@ -11,6 +11,7 @@ describe("chart runtime container", () => {
     expect(runtime.timeScaleApi()).toBe(runtime.timeScale);
     expect(runtime.getDrawingRegistry()).toBe(runtime.drawingRegistry);
     expect(runtime.rendererRuntime()).toBe(runtime.renderers);
+    expect(runtime.secondaryVisibleRange()).toBeNull();
 
     expect(runtime.renderers.areaRenderer).toBeDefined();
     expect(runtime.renderers.barRenderer).toBeDefined();

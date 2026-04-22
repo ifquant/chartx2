@@ -151,9 +151,8 @@ export function resolvePaneDivider(
     const upperSpec = paneSpecs.find((pane) => pane.id === upper.id);
     const lowerSpec = paneSpecs.find((pane) => pane.id === lower.id);
     const canResize =
-      upper.kind === "primary"
-        ? (lowerSpec?.resizable ?? false)
-        : (upperSpec?.resizable ?? false);
+      (upper.kind === "secondary" && (upperSpec?.resizable ?? false)) ||
+      (lower.kind === "secondary" && (lowerSpec?.resizable ?? false));
     if (!canResize) {
       continue;
     }

@@ -39,4 +39,24 @@ describe("chart pane layout owner", () => {
     expect(divider?.upperPaneId).toBe("primary");
     expect(divider?.lowerPaneId).toBe("pane-1");
   });
+
+  it("keeps secondary-secondary dividers available when the lower pane is the resizable side", () => {
+    const panes = [
+      { id: "primary", kind: "primary", preferredHeight: null, resizable: false },
+      { id: "pane-1", kind: "secondary", preferredHeight: 100, resizable: false },
+      { id: "pane-2", kind: "secondary", preferredHeight: 120, resizable: true },
+    ] satisfies PaneModelState[];
+
+    const owner = createChartPaneLayoutOwner({
+      listPanes: () => panes,
+      paneGap: 10,
+    });
+
+    const frames = owner.paneFrames(420);
+    const dividerY = frames[1]!.top + frames[1]!.height + 5;
+    const divider = owner.resolvePaneDivider(dividerY, 420, 6, frames);
+
+    expect(divider?.upperPaneId).toBe("pane-1");
+    expect(divider?.lowerPaneId).toBe("pane-2");
+  });
 });

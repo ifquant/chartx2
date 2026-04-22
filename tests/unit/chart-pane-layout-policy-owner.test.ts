@@ -68,4 +68,23 @@ describe("chart pane layout policy owner", () => {
             : undefined,
     })).toBeNull();
   });
+
+  it("lets the lower secondary pane control a secondary-secondary divider when the upper pane is fixed", () => {
+    const owner = createChartPaneLayoutPolicyOwner();
+    const upperSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+
+    expect(owner.resolveControlledResizeHeight(60, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      startClientY: 20,
+      startUpperHeight: 100,
+      startLowerHeight: 120,
+    }, {
+      getPaneById: (paneId) => paneId === "pane-1" ? upperSecondary : paneId === "pane-2" ? lowerSecondary : undefined,
+    })).toEqual({
+      paneId: "pane-2",
+      nextHeight: 80,
+    });
+  });
 });

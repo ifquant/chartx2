@@ -129,4 +129,52 @@ describe("chart pane runtime use-cases", () => {
     expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
     expect(crosshair.x).toBe(10);
   });
+
+  it("applies secondary-secondary divider drags to the lower pane when it is the only resizable side", () => {
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const upperSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+    const emitPaneResize = vi.fn();
+    const emitPaneEvent = vi.fn();
+    let crosshair: { x: number; y: number } | null = { x: 10, y: 20 };
+
+    applyPaneResize(60, {
+      width: 600,
+      height: 520,
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+    }, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      startClientY: 20,
+      startUpperHeight: 100,
+      startLowerHeight: 120,
+    }, {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? primary
+          : paneId === "pane-1"
+            ? upperSecondary
+            : paneId === "pane-2"
+              ? lowerSecondary
+              : undefined,
+      emitPaneResize,
+      emitPaneEvent,
+      hasCanvas: () => true,
+      listPanes: () => [primary, upperSecondary, lowerSecondary],
+      gap: 12,
+      getCrosshair: () => crosshair,
+      setCrosshair: (point) => {
+        crosshair = point;
+      },
+    });
+
+    expect(lowerSecondary.preferredHeight).toBe(80);
+    expect(upperSecondary.preferredHeight).toBe(100);
+    expect(emitPaneResize).toHaveBeenCalledWith("pane-2");
+    expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
+    expect(crosshair?.x).toBe(10);
+  });
 });

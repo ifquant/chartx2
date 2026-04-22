@@ -52,4 +52,22 @@ describe("pane model", () => {
     expect(divider?.lowerPaneId).toBe(secondary.id);
     expect(persisted?.position).toBe(divider?.position);
   });
+
+  it("keeps secondary-secondary dividers interactive when either adjacent pane is resizable", () => {
+    const panes = new PaneCollection();
+    panes.addSecondaryPane({ height: 120, resizable: false });
+    panes.addSecondaryPane({ height: 100, resizable: true });
+
+    const frames = buildPaneFrames(panes.list(), 420, 10);
+    const divider = resolvePaneDivider(
+      panes.list(),
+      frames,
+      frames[1]!.top + frames[1]!.height + 5,
+      10,
+      6,
+    );
+
+    expect(divider?.upperPaneId).toBe("pane-1");
+    expect(divider?.lowerPaneId).toBe("pane-2");
+  });
 });

@@ -42,11 +42,13 @@ export function createChartPaneLayoutPolicyOwner() {
         return null;
       }
 
-      const controlsUpperPane = upperPane.kind === "secondary";
-      const controlledPane = controlsUpperPane ? upperPane : lowerPane;
-      if (!controlledPane.resizable) {
+      const upperControls = upperPane.kind === "secondary" && upperPane.resizable;
+      const lowerControls = lowerPane.kind === "secondary" && lowerPane.resizable;
+      if (!upperControls && !lowerControls) {
         return null;
       }
+      const controlledPane = upperControls ? upperPane : lowerPane;
+      const controlsUpperPane = controlledPane.id === upperPane.id;
 
       const startControlled = controlsUpperPane
         ? resizeState.startUpperHeight
@@ -55,7 +57,10 @@ export function createChartPaneLayoutPolicyOwner() {
         ? startControlled + delta
         : startControlled - delta;
       const totalResizableSpan = resizeState.startUpperHeight + resizeState.startLowerHeight;
-      const maxControlled = Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - MIN_PRIMARY_HEIGHT);
+      const maxControlled =
+        upperPane.kind === "secondary" && lowerPane.kind === "secondary"
+          ? Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - MIN_CONTROLLED_HEIGHT)
+          : Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - MIN_PRIMARY_HEIGHT);
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,
         Math.min(maxControlled, Math.round(requestedHeight)),

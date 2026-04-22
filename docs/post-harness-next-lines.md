@@ -58,6 +58,11 @@ This line should focus on:
 
 This should be driven by one question: can pane behavior scale to richer workstation layouts without putting more policy back into the shell?
 
+Current slice status:
+
+- first slice landed: pane frame, active-pane, and divider geometry now route through a shared pane-layout owner instead of being rebuilt separately by render and interaction modules
+- not done yet: pane height policy, pane resize semantics, and richer multi-layout ownership still remain broader follow-up lines
+
 ### 3. Host And Workbench Contract
 
 The repo now has a phase-one public chart API and an early workstation contract, but the next growth bottleneck is the host boundary, not one more private helper extraction.

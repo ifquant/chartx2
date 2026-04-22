@@ -1,6 +1,4 @@
 import {
-  buildPaneFrames,
-  resolvePaneDivider,
   type PaneFrame,
   type PaneModelState,
 } from "../model";
@@ -13,6 +11,7 @@ import {
   type LayoutGeometry,
   type PanePoint,
 } from "./chart-layout-geometry";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 import { handleClickRuntime } from "./chart-canvas-runtime";
 import {
   handleKeyboardViewportRuntime,
@@ -100,12 +99,13 @@ export function createChartInteractionHandlers<Readout>(deps: {
       : measureLayout(canvas, deps.defaultLayout, deps.getManualLayout());
   };
 
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.listPanes(),
+    paneGap: deps.paneGap,
+  });
+
   const getPaneFrames = (layout: LayoutGeometry): readonly PaneFrame[] =>
-    buildPaneFrames(
-      deps.listPanes(),
-      layout.height - layout.top - layout.bottom,
-      deps.paneGap,
-    );
+    paneLayoutOwner.paneFrames(layout.height - layout.top - layout.bottom);
 
   const resolvePoint = (
     event: Pick<MouseEvent, "clientX" | "clientY">,
@@ -170,12 +170,11 @@ export function createChartInteractionHandlers<Readout>(deps: {
           deps.setRightOffset(value);
         },
         resolvePaneDivider: (panes, paneFrames, y) =>
-          resolvePaneDivider(
-            panes,
-            paneFrames as readonly PaneFrame[],
+          paneLayoutOwner.resolvePaneDivider(
             y,
-            deps.paneGap,
+            0,
             deps.paneDividerHitSlop,
+            paneFrames as readonly PaneFrame[],
           ),
         resolveHitDrawing: (point, layout, paneFrames) =>
           deps.resolveHitDrawing(point, layout, paneFrames as readonly PaneFrame[]),
@@ -221,12 +220,11 @@ export function createChartInteractionHandlers<Readout>(deps: {
         listPanes: () => deps.listPanes(),
         resolvePanePoint: resolvePoint,
         resolvePaneDivider: (panes, paneFrames, y) =>
-          resolvePaneDivider(
-            panes,
-            paneFrames as readonly PaneFrame[],
+          paneLayoutOwner.resolvePaneDivider(
             y,
-            deps.paneGap,
+            0,
             deps.paneDividerHitSlop,
+            paneFrames as readonly PaneFrame[],
           ),
         resolveSelectedTrendLineDragHandle: (point, layout, paneFrames) =>
           deps.resolveSelectedTrendLineDragHandle(point, layout, paneFrames as readonly PaneFrame[]),

@@ -127,6 +127,7 @@ Post-harness shrink status:
   - the runtime container now also carries a first shared access surface for context snapshots, source registry queries/mutations, secondary scales, and drawing-registry removal, so harness wiring is less coupled to raw `ChartModel` calls
   - pane lookup/list/mutation access, primary price-scale access, time-scale access, and drawing-registry lookup now also route through the runtime container surface instead of through harness-local getters
   - render callback wiring and secondary visible-range reads now also route through explicit runtime-container accessors instead of reaching into renderer bags or scale arrays directly from the harness
+  - pane frame, active-pane, and divider geometry now also route through a shared pane-layout owner instead of being reassembled separately in render, interaction, and drawing-interaction paths
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

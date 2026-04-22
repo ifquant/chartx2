@@ -1,11 +1,11 @@
 import {
-  buildPaneFrames,
   type ChartBarSequence,
   type PaneFrame,
   type PriceScale,
   type TimePointIndex,
   type TimeScale,
 } from "../model";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 
 import { resolveHitDrawing } from "./chart-drawing-hit-test";
 import {
@@ -95,12 +95,13 @@ export function createChartDrawingInteractionOwner<Drawing extends DrawingDescri
   setDrawingSnapGuide(guide: DrawingSnapGuideState | null): void;
   hitTolerance: number;
 }) {
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => deps.listPanes(),
+    paneGap: deps.paneGap,
+  });
+
   const resolvePaneFrames = (layout: LayoutLike, paneFrames?: readonly PaneFrame[]): readonly PaneFrame[] =>
-    paneFrames ?? buildPaneFrames(
-      deps.listPanes(),
-      layout.height - layout.top - layout.bottom,
-      deps.paneGap,
-    );
+    paneLayoutOwner.resolvePaneFrames(layout.height - layout.top - layout.bottom, paneFrames);
 
   const getTrendLineById = (id: string): (Drawing & TrendLineDrawing) | undefined => {
     const drawing = deps.getDrawingById(id);

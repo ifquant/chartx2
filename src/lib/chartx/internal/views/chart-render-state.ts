@@ -1,11 +1,10 @@
 import {
-  buildPaneFrames,
   type ChartBarSequence,
   type PaneFrame,
   type PaneModelState,
   type PlotRow,
 } from "../model";
-import { resolveActivePane } from "./chart-layout-geometry";
+import { createChartPaneLayoutOwner } from "./chart-pane-layout-owner";
 
 type PanePoint = {
   x: number;
@@ -71,8 +70,12 @@ export function buildChartRenderState<
     pointCount = Math.max(pointCount, rowLogicalLength);
   }
 
-  const paneFrames = buildPaneFrames(params.paneSpecs, params.plotHeight, params.paneGap);
-  const activePane = params.crosshair === null ? null : resolveActivePane(paneFrames, params.crosshair.y);
+  const paneLayoutOwner = createChartPaneLayoutOwner({
+    listPanes: () => params.paneSpecs,
+    paneGap: params.paneGap,
+  });
+  const paneFrames = paneLayoutOwner.paneFrames(params.plotHeight);
+  const activePane = paneLayoutOwner.resolveActivePane(params.crosshair, params.plotHeight, paneFrames);
   const barWidth = params.paneWidth / Math.max(pointCount * 1.8, 24);
 
   return {

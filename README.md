@@ -31,6 +31,8 @@ The goal is not only to avoid paying for `TradingView`. The real goal is to own 
   - local collaboration rules, commit discipline, and project boundaries
 - [docs/develop.md](/Users/dev/workspace2/hc_apps/chartx2/docs/develop.md)
   - session notes, roadmap fragments, and historical planning context
+- [docs/post-harness-next-lines.md](/Users/dev/workspace2/hc_apps/chartx2/docs/post-harness-next-lines.md)
+  - the current post-harness roadmap for what is actually next versus what is already done
 - [src](/Users/dev/workspace2/hc_apps/chartx2/src)
   - Svelte host app
 - [src-tauri](/Users/dev/workspace2/hc_apps/chartx2/src-tauri)

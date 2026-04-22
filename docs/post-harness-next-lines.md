@@ -62,7 +62,8 @@ Current slice status:
 
 - first slice landed: pane frame, active-pane, and divider geometry now route through a shared pane-layout owner instead of being rebuilt separately by render and interaction modules
 - second slice landed: pane height reads, pane option mutation, and divider-driven resize composition now route through a shared pane-layout runtime owner instead of staying embedded in `chart-pane-owner`
-- not done yet: pane height normalization policy, richer resize rules, and multi-layout ownership still remain broader follow-up lines
+- third slice landed: pane preferred-height normalization and divider clamp policy now route through a shared pane-layout policy owner, and pane-state restore now reuses that same policy instead of normalizing heights on its own
+- not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract
 

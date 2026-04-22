@@ -1,12 +1,13 @@
-import { normalizePaneHeight } from "../model";
-
 import type { PhaseOnePaneEventType } from "./chart-api-types";
+import { createChartPaneLayoutPolicyOwner } from "./chart-pane-layout-policy-owner";
 import type {
   RestorableTradeLocationState,
   RestorablePriceScaleState,
   RestorableSecondaryPaneState,
   RestorableTimeScaleState,
 } from "./chart-state-restore";
+
+const paneLayoutPolicyOwner = createChartPaneLayoutPolicyOwner();
 
 type SecondaryPaneLike = {
   id: string;
@@ -39,7 +40,7 @@ export function applySecondaryPaneState(
     return;
   }
 
-  pane.preferredHeight = normalizePaneHeight(paneState.height ?? undefined);
+  pane.preferredHeight = paneLayoutPolicyOwner.normalizePreferredHeight(paneState.height ?? undefined);
   pane.resizable = paneState.resizable;
   deps.emitPaneEvent("options", pane.id);
 }

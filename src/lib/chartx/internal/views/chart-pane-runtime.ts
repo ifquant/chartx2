@@ -1,4 +1,5 @@
-import { buildPaneFrames, normalizePaneHeight, resolvePaneDividerByIds } from "../model";
+import { buildPaneFrames, resolvePaneDividerByIds } from "../model";
+import { createChartPaneLayoutPolicyOwner } from "./chart-pane-layout-policy-owner";
 
 import type { PhaseOnePaneOptions, PhaseOnePaneResizeHandler } from "./chart-api-types";
 
@@ -38,8 +39,7 @@ type PanePointLike = {
   y: number;
 } | null;
 
-const MIN_PRIMARY_HEIGHT = 160;
-const MIN_CONTROLLED_HEIGHT = 72;
+const paneLayoutPolicyOwner = createChartPaneLayoutPolicyOwner();
 
 export function subscribePaneResize(
   paneId: string,
@@ -180,7 +180,7 @@ export function setPaneHeight(
     throw new Error("chartx phase-one chart does not support setting the primary pane height directly");
   }
 
-  const nextHeight = normalizePaneHeight(height);
+  const nextHeight = paneLayoutPolicyOwner.normalizePreferredHeight(height);
   const previousHeight = pane.preferredHeight;
   pane.preferredHeight = nextHeight;
   if (previousHeight !== nextHeight) {
@@ -209,34 +209,18 @@ export function applyPaneResize(
     return;
   }
 
-  const delta = Math.round(clientY - resizeState.startClientY);
-  const upperPane = deps.getPaneById(resizeState.dividerAfterPaneId);
-  const lowerPane = deps.getPaneById(resizeState.dividerBeforePaneId);
-  if (upperPane === undefined || lowerPane === undefined) {
+  const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(clientY, resizeState, {
+    getPaneById: deps.getPaneById,
+  });
+  if (controlledResize === null) {
     return;
   }
-
-  const controlsUpperPane = upperPane.kind === "secondary";
-  const controlledPane = controlsUpperPane ? upperPane : lowerPane;
-  if (!controlledPane.resizable) {
+  const controlledPane = deps.getPaneById(controlledResize.paneId);
+  if (controlledPane === undefined) {
     return;
   }
-
-  const startControlled = controlsUpperPane
-    ? resizeState.startUpperHeight
-    : resizeState.startLowerHeight;
-  const requestedHeight = controlsUpperPane
-    ? startControlled + delta
-    : startControlled - delta;
-  const totalResizableSpan = resizeState.startUpperHeight + resizeState.startLowerHeight;
-  const maxControlled = Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - MIN_PRIMARY_HEIGHT);
-  const nextControlled = Math.max(
-    MIN_CONTROLLED_HEIGHT,
-    Math.min(maxControlled, Math.round(requestedHeight)),
-  );
-
   const previousHeight = controlledPane.preferredHeight;
-  controlledPane.preferredHeight = normalizePaneHeight(nextControlled);
+  controlledPane.preferredHeight = controlledResize.nextHeight;
   if (previousHeight !== controlledPane.preferredHeight) {
     deps.emitPaneResize(controlledPane.id);
     deps.emitPaneEvent("resized", controlledPane.id);

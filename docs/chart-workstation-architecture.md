@@ -129,6 +129,7 @@ Post-harness shrink status:
   - render callback wiring and secondary visible-range reads now also route through explicit runtime-container accessors instead of reaching into renderer bags or scale arrays directly from the harness
   - pane frame, active-pane, and divider geometry now also route through a shared pane-layout owner instead of being reassembled separately in render, interaction, and drawing-interaction paths
   - pane height reads, pane option reads/mutation, and divider-driven pane resize composition now also route through a shared pane-layout runtime owner instead of remaining as inline pane-owner bookkeeping glue
+  - pane preferred-height normalization and divider clamp policy now also route through a shared pane-layout policy owner, so pane runtime and pane-state restore no longer carry separate normalization logic
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

@@ -10,6 +10,7 @@ type PaneLike = {
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
+  controlledPaneId: string;
   startClientY: number;
   startUpperHeight: number;
   startLowerHeight: number;
@@ -22,6 +23,28 @@ export function createChartPaneLayoutPolicyOwner() {
   return {
     normalizePreferredHeight(height: number | undefined): number {
       return normalizePaneHeight(height);
+    },
+
+    resolveControlledPaneId(
+      upperPaneId: string,
+      lowerPaneId: string,
+      deps: {
+        getPaneById(paneId: string): PaneLike | undefined;
+      },
+    ): string | null {
+      const upperPane = deps.getPaneById(upperPaneId);
+      const lowerPane = deps.getPaneById(lowerPaneId);
+      if (upperPane === undefined || lowerPane === undefined) {
+        return null;
+      }
+
+      const upperControls = upperPane.kind === "secondary" && upperPane.resizable;
+      const lowerControls = lowerPane.kind === "secondary" && lowerPane.resizable;
+      if (!upperControls && !lowerControls) {
+        return null;
+      }
+
+      return upperControls ? upperPane.id : lowerPane.id;
     },
 
     resolveControlledResizeHeight(
@@ -42,12 +65,29 @@ export function createChartPaneLayoutPolicyOwner() {
         return null;
       }
 
-      const upperControls = upperPane.kind === "secondary" && upperPane.resizable;
-      const lowerControls = lowerPane.kind === "secondary" && lowerPane.resizable;
-      if (!upperControls && !lowerControls) {
+      const explicitControlledPane =
+        resizeState.controlledPaneId === upperPane.id
+          ? upperPane
+          : resizeState.controlledPaneId === lowerPane.id
+            ? lowerPane
+            : null;
+      const controlledPaneId =
+        explicitControlledPane !== null
+        && explicitControlledPane.kind === "secondary"
+        && explicitControlledPane.resizable
+          ? explicitControlledPane.id
+          : this.resolveControlledPaneId(
+            resizeState.dividerAfterPaneId,
+            resizeState.dividerBeforePaneId,
+            deps,
+          );
+      if (controlledPaneId === null) {
         return null;
       }
-      const controlledPane = upperControls ? upperPane : lowerPane;
+      const controlledPane = controlledPaneId === upperPane.id ? upperPane : controlledPaneId === lowerPane.id ? lowerPane : null;
+      if (controlledPane === null) {
+        return null;
+      }
       const controlsUpperPane = controlledPane.id === upperPane.id;
 
       const startControlled = controlsUpperPane

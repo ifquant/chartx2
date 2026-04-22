@@ -34,6 +34,7 @@ describe("chart pointer runtime use-case", () => {
       resolveSelectedTrendLineDragHandle: () => null,
       focusCanvas,
       setPaneResizeState,
+      resolveControlledPaneId: () => "pane-2",
       setCrosshair,
       setDrawingDragState,
       setHoveredDrawingId,
@@ -48,6 +49,7 @@ describe("chart pointer runtime use-case", () => {
     expect(setPaneResizeState).toHaveBeenCalledWith({
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 20,
       startUpperHeight: 160,
       startLowerHeight: 120,
@@ -67,6 +69,7 @@ describe("chart pointer runtime use-case", () => {
       resolveSelectedTrendLineDragHandle: () => ({ drawingId: "drawing-1", handle: "start" }),
       focusCanvas,
       setPaneResizeState,
+      resolveControlledPaneId: () => null,
       setCrosshair,
       setDrawingDragState,
       setHoveredDrawingId,

@@ -25,6 +25,7 @@ describe("chart view state", () => {
     state.setPaneResizeState({
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 300,
       startUpperHeight: 200,
       startLowerHeight: 180,
@@ -60,6 +61,7 @@ describe("chart view state", () => {
     state.setPaneResizeState({
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 300,
       startUpperHeight: 200,
       startLowerHeight: 180,

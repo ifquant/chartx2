@@ -131,6 +131,7 @@ Post-harness shrink status:
   - pane height reads, pane option reads/mutation, and divider-driven pane resize composition now also route through a shared pane-layout runtime owner instead of remaining as inline pane-owner bookkeeping glue
   - pane preferred-height normalization and divider clamp policy now also route through a shared pane-layout policy owner, so pane runtime and pane-state restore no longer carry separate normalization logic
   - secondary-secondary pane dividers now stay interactive when either adjacent pane is resizable, and divider clamp policy now distinguishes primary-secondary from secondary-secondary resize spans
+  - pane resize state now captures `controlledPaneId` at pointer-down time, so divider drags execute against one validated control target instead of re-deriving the resizable side on every move
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

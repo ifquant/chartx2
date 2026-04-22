@@ -228,6 +228,7 @@ describe("chart pane owner", () => {
       {
         dividerAfterPaneId: "primary",
         dividerBeforePaneId: "pane-2",
+        controlledPaneId: "pane-2",
         startClientY: 20,
         startUpperHeight: 220,
         startLowerHeight: 136,

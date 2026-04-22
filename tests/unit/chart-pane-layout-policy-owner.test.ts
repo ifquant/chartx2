@@ -19,6 +19,7 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(40, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-1",
+      controlledPaneId: "pane-1",
       startClientY: 20,
       startUpperHeight: 220,
       startLowerHeight: 136,
@@ -38,6 +39,7 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(500, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "primary",
+      controlledPaneId: "pane-1",
       startClientY: 20,
       startUpperHeight: 120,
       startLowerHeight: 220,
@@ -56,6 +58,7 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(40, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 20,
       startUpperHeight: 220,
       startLowerHeight: 136,
@@ -77,6 +80,7 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(60, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 20,
       startUpperHeight: 100,
       startLowerHeight: 120,
@@ -86,5 +90,17 @@ describe("chart pane layout policy owner", () => {
       paneId: "pane-2",
       nextHeight: 80,
     });
+  });
+
+  it("resolves the controlled pane id once from adjacent pane semantics", () => {
+    const owner = createChartPaneLayoutPolicyOwner();
+    expect(owner.resolveControlledPaneId("primary", "pane-2", {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false }
+          : paneId === "pane-2"
+            ? { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true }
+            : undefined,
+    })).toBe("pane-2");
   });
 });

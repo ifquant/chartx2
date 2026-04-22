@@ -39,10 +39,12 @@ export function handlePointerDownRuntime(
     setPaneResizeState(state: {
       dividerAfterPaneId: string;
       dividerBeforePaneId: string;
+      controlledPaneId: string;
       startClientY: number;
       startUpperHeight: number;
       startLowerHeight: number;
     }): void;
+    resolveControlledPaneId(upperPaneId: string, lowerPaneId: string): string | null;
     setCrosshair(point: PanePointLike): void;
     setDrawingDragState(state: DrawingDragStateLike): void;
     setHoveredDrawingId(id: string | null): void;
@@ -64,10 +66,15 @@ export function handlePointerDownRuntime(
   const divider = deps.resolvePaneDivider(deps.listPanes(), paneFrames, point?.y ?? null);
 
   if (divider !== null) {
+    const controlledPaneId = deps.resolveControlledPaneId(divider.upperPaneId, divider.lowerPaneId);
+    if (controlledPaneId === null) {
+      return;
+    }
     deps.focusCanvas();
     deps.setPaneResizeState({
       dividerAfterPaneId: divider.upperPaneId,
       dividerBeforePaneId: divider.lowerPaneId,
+      controlledPaneId,
       startClientY: event.clientY,
       startUpperHeight: divider.upperHeight,
       startLowerHeight: divider.lowerHeight,

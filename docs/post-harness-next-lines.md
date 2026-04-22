@@ -64,6 +64,7 @@ Current slice status:
 - second slice landed: pane height reads, pane option mutation, and divider-driven resize composition now route through a shared pane-layout runtime owner instead of staying embedded in `chart-pane-owner`
 - third slice landed: pane preferred-height normalization and divider clamp policy now route through a shared pane-layout policy owner, and pane-state restore now reuses that same policy instead of normalizing heights on its own
 - fourth slice landed: secondary-secondary dividers now remain interactive when either adjacent pane is resizable, and resize clamp policy now distinguishes primary-secondary from secondary-secondary spans
+- fifth slice landed: pane resize state now records the validated `controlledPaneId` at pointer-down time, so move-time resize execution no longer has to rediscover which side owns the drag
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

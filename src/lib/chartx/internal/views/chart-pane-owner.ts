@@ -56,6 +56,7 @@ type LayoutLike = {
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
+  controlledPaneId: string;
   startClientY: number;
   startUpperHeight: number;
   startLowerHeight: number;

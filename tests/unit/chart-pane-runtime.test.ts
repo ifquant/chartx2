@@ -108,6 +108,7 @@ describe("chart pane runtime use-cases", () => {
     }, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 20,
       startUpperHeight: 220,
       startLowerHeight: 136,
@@ -148,6 +149,7 @@ describe("chart pane runtime use-cases", () => {
     }, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-2",
       startClientY: 20,
       startUpperHeight: 100,
       startLowerHeight: 120,

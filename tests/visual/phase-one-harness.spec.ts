@@ -388,7 +388,7 @@ test("workbench toolbar can create horizontal-line and trend-line drawings", asy
   await expect(workbench).toContainText("tool created horizontal-line");
 
   await page.getByRole("button", { name: "Trend line", exact: true }).click();
-  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.42);
+  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.38);
   await expect(workbench).toContainText("tool armed trend-line");
   await page.mouse.click(box.x + box.width * 0.78, box.y + box.height * 0.22);
   await expect(inspectorKind).toHaveText("trend-line");
@@ -412,8 +412,8 @@ test("workbench drawing tools show a preview and let escape cancel an unfinished
   }
 
   await trendTool.click();
-  await page.mouse.move(box.x + box.width * 0.22, box.y + box.height * 0.42);
-  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.42);
+  await page.mouse.move(box.x + box.width * 0.22, box.y + box.height * 0.38);
+  await page.mouse.click(box.x + box.width * 0.22, box.y + box.height * 0.38);
   await page.mouse.move(box.x + box.width * 0.72, box.y + box.height * 0.24);
 
   await expect(chartFrame.locator(".drawing-tool-preview")).toBeVisible();
@@ -478,7 +478,9 @@ test("tab switching keeps chart mount deterministic without stale content", asyn
   await expect(page.locator('[data-demo-tab="workbench"]')).toHaveCount(0);
 
   await featureTab(page, "Series").click();
-  await expect(page.getByText("render candlestick")).toBeVisible();
+  await expect(
+    page.getByText("Compare the current candlestick, bar, line, area, baseline, histogram, and volume paths."),
+  ).toBeVisible();
 
   await featureTab(page, "Workbench").click();
   await expect(page.getByLabel("chartx2 phase-one chart harness")).toBeVisible();

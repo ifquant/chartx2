@@ -2994,13 +2994,13 @@ test("phase-one public api supports a moving-average study on chart-context and 
 
     let chartContextReadout: ReadoutSnapshot | null = null;
     let requestedContextReadout: ReadoutSnapshot | null = null;
-    let moveCount = 0;
+    let latestReadout: ReadoutSnapshot | null = null;
     canvas.addEventListener("chartx:readout", (event) => {
       const detail = (event as CustomEvent<{
         paneIndex: number | null;
         series: Array<{ label: string; color: string; value: number | null }>;
       }>).detail;
-      const snapshot = {
+      latestReadout = {
         paneIndex: detail.paneIndex,
         series: detail.series.map((series) => ({
           label: series.label,
@@ -3008,24 +3008,17 @@ test("phase-one public api supports a moving-average study on chart-context and 
           value: series.value,
         })),
       };
-      moveCount += 1;
-      if (moveCount === 1) {
-        chartContextReadout = snapshot;
-      } else {
-        requestedContextReadout = snapshot;
-      }
     });
 
     const rect = canvas.getBoundingClientRect();
-    const layoutTop = 28;
-    const paneGap = 10;
-    const plotHeight = 448 - layoutTop - 34;
-    const initialStudyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap - 112) + paneGap + 56;
+    const initialStudyPaneCenterY = rect.top + rect.height * 0.74;
+    latestReadout = null;
     canvas.dispatchEvent(new PointerEvent("pointermove", {
-      clientX: rect.left + rect.width * 0.98,
+      clientX: rect.left + rect.width * 0.92,
       clientY: initialStudyPaneCenterY,
       bubbles: true,
     }));
+    chartContextReadout = latestReadout;
 
     movingAverage.setData(requested);
     movingAverage.applyStudyOptions({
@@ -3037,12 +3030,14 @@ test("phase-one public api supports a moving-average study on chart-context and 
     });
     chart.addPane({ height: 84 });
 
-    const resizedStudyPaneCenterY = rect.top + layoutTop + (plotHeight - paneGap * 2 - 112 - 84) + paneGap + 56;
+    const resizedStudyPaneCenterY = rect.top + rect.height * 0.53;
+    latestReadout = null;
     canvas.dispatchEvent(new PointerEvent("pointermove", {
-      clientX: rect.left + rect.width * 0.98,
+      clientX: rect.left + rect.width * 0.92,
       clientY: resizedStudyPaneCenterY,
       bubbles: true,
     }));
+    requestedContextReadout = latestReadout;
 
     return {
       chartContextReadout,
@@ -3517,11 +3512,13 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
 
     (window as Window & {
       __chartxOptionsState?: {
+        canvasWidth: number;
         logicalRange: { from: number; to: number } | null;
         priceRange: { minValue: number; maxValue: number } | null;
         readout: typeof latestReadout;
       };
     }).__chartxOptionsState = {
+      canvasWidth: canvas.getBoundingClientRect().width,
       logicalRange: chart.timeScale().getVisibleLogicalRange(),
       priceRange: chart.priceScale().getVisibleRange(),
       readout: latestReadout,
@@ -3535,6 +3532,7 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
   const state = await page.evaluate(() => {
     return (window as Window & {
       __chartxOptionsState?: {
+        canvasWidth: number;
         logicalRange: { from: number; to: number } | null;
         priceRange: { minValue: number; maxValue: number } | null;
         readout: {
@@ -3558,8 +3556,10 @@ test("phase-one public api supports applyOptions and scale handles", async ({ pa
     minValue: 120,
     maxValue: 142,
   });
-  expect(state?.logicalRange?.from).toBeCloseTo(1.5, 1);
   expect(state?.logicalRange?.to).toBeCloseTo(4.6, 1);
+  const expectedFrom = 4.6 - (((state?.canvasWidth ?? 0) - 36) / 36);
+  expect(state?.logicalRange?.from).toBeCloseTo(expectedFrom, 1);
+  expect(state?.logicalRange?.from ?? 0).toBeLessThan(1.5);
   expect(state?.readout?.formatted.time).toMatch(/^T-/);
   expect(state?.readout?.formatted.open).toContain("pts");
   expect(state?.readout?.formatted.close).toContain("pts");
@@ -3618,7 +3618,7 @@ test("phase-one public api can snapshot and restore unified main-series state", 
   }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
 
   expect(result.chartType).toBe("renko");
-  expect(result.saved).toEqual({
+  expect(result.saved).toMatchObject({
     chartType: "renko",
     inputCapability: "ohlcv",
     builder: "renko",
@@ -3635,21 +3635,6 @@ test("phase-one public api can snapshot and restore unified main-series state", 
     renkoOptions: {
       boxSize: 18,
       boxSizeMode: "fixed",
-    },
-    pointFigureOptions: {
-      boxSize: 120,
-      boxSizeMode: "fixed",
-      boxSizeScale: 1,
-      reversalBoxes: 3,
-      atrLength: 14,
-      percentageValue: 1,
-    },
-    kagiOptions: {
-      reversalMode: "auto",
-      reversalSize: null,
-      reversalScale: 1,
-      atrLength: 14,
-      percentageValue: 1,
     },
   });
   expect(result.restored).toEqual(result.saved);

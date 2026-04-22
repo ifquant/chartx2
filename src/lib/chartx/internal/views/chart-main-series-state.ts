@@ -62,41 +62,42 @@ export function applyMainSeriesStateSnapshot<Api, Source extends MainSeriesApply
 
   const source = deps.getCurrentSource();
   source.options = deps.createOptions(source.styleSchemaId);
+  const lineBreakOptions = state.lineBreakOptions ?? source.lineBreakOptions;
+  const renkoOptions = state.renkoOptions ?? source.renkoOptions;
+  const pointFigureOptions = state.pointFigureOptions ?? source.pointFigureOptions;
+  const kagiOptions = state.kagiOptions ?? source.kagiOptions;
 
   for (const [key, value] of Object.entries(state.styleOptions)) {
     source.options[key] = value;
   }
 
   source.lineBreakOptions = {
-    lineCount: Math.max(1, Math.floor(state.lineBreakOptions.lineCount)),
+    lineCount: Math.max(1, Math.floor(lineBreakOptions.lineCount)),
   };
   source.renkoOptions = {
-    boxSize:
-      state.renkoOptions.boxSize !== null && state.renkoOptions.boxSize > 0
-        ? state.renkoOptions.boxSize
-        : null,
-    boxSizeMode: state.renkoOptions.boxSizeMode,
+    boxSize: renkoOptions.boxSize !== null && renkoOptions.boxSize > 0 ? renkoOptions.boxSize : null,
+    boxSizeMode: renkoOptions.boxSizeMode,
   };
   source.pointFigureOptions = {
     boxSize:
-      state.pointFigureOptions.boxSize !== null && state.pointFigureOptions.boxSize > 0
-        ? state.pointFigureOptions.boxSize
+      pointFigureOptions.boxSize !== null && pointFigureOptions.boxSize > 0
+        ? pointFigureOptions.boxSize
         : null,
-    boxSizeMode: state.pointFigureOptions.boxSizeMode,
-    boxSizeScale: Math.min(4, Math.max(0.25, state.pointFigureOptions.boxSizeScale)),
-    reversalBoxes: Math.max(1, Math.floor(state.pointFigureOptions.reversalBoxes)),
-    atrLength: Math.max(2, Math.floor(state.pointFigureOptions.atrLength)),
-    percentageValue: Math.min(25, Math.max(0.1, state.pointFigureOptions.percentageValue)),
+    boxSizeMode: pointFigureOptions.boxSizeMode,
+    boxSizeScale: Math.min(4, Math.max(0.25, pointFigureOptions.boxSizeScale)),
+    reversalBoxes: Math.max(1, Math.floor(pointFigureOptions.reversalBoxes)),
+    atrLength: Math.max(2, Math.floor(pointFigureOptions.atrLength)),
+    percentageValue: Math.min(25, Math.max(0.1, pointFigureOptions.percentageValue)),
   };
   source.kagiOptions = {
-    reversalMode: state.kagiOptions.reversalMode,
+    reversalMode: kagiOptions.reversalMode,
     reversalSize:
-      state.kagiOptions.reversalSize !== null && state.kagiOptions.reversalSize > 0
-        ? state.kagiOptions.reversalSize
+      kagiOptions.reversalSize !== null && kagiOptions.reversalSize > 0
+        ? kagiOptions.reversalSize
         : null,
-    reversalScale: Math.min(4, Math.max(0.25, state.kagiOptions.reversalScale)),
-    atrLength: Math.max(2, Math.floor(state.kagiOptions.atrLength)),
-    percentageValue: Math.min(25, Math.max(0.1, state.kagiOptions.percentageValue)),
+    reversalScale: Math.min(4, Math.max(0.25, kagiOptions.reversalScale)),
+    atrLength: Math.max(2, Math.floor(kagiOptions.atrLength)),
+    percentageValue: Math.min(25, Math.max(0.1, kagiOptions.percentageValue)),
   };
 
   deps.rebuildData(source);

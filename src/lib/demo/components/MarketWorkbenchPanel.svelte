@@ -285,231 +285,231 @@
         </div>
       </section>
 
-      {#if snapshot.pointFigureControls}
-        <section class="mini-card symbol-card">
-          <div class="sidebar-head">
-            <h4>P&amp;F</h4>
-            <span>{snapshot.pointFigureControls.visibleColumns ?? "--"} cols</span>
-          </div>
-          <div class="metric-list compact">
-            <article>
-              <small>Mode</small>
-              <strong>{snapshot.pointFigureControls.mode}</strong>
-            </article>
-            <article>
-              <small>Box size</small>
-              <strong>{formatPointFigureBoxSize(snapshot.pointFigureControls.effectiveBoxSize)} pts</strong>
-            </article>
-            <article>
-              <small>Reversal</small>
-              <strong>{snapshot.pointFigureControls.reversalBoxes} boxes</strong>
-            </article>
-          </div>
-          <div class="mode-strip compact">
-            <button
-              class:active={snapshot.pointFigureControls.mode === "auto"}
-              on:click={() => onSetPointFigureMode("auto")}
-            >
-              Auto
-            </button>
-            <button
-              class:active={snapshot.pointFigureControls.mode === "atr"}
-              on:click={() => onSetPointFigureMode("atr")}
-            >
-              ATR
-            </button>
-            <button
-              class:active={snapshot.pointFigureControls.mode === "percentage"}
-              on:click={() => onSetPointFigureMode("percentage")}
-            >
-              %
-            </button>
-            <button
-              class:active={snapshot.pointFigureControls.mode === "traditional"}
-              on:click={() => onSetPointFigureMode("traditional")}
-            >
-              Trad
-            </button>
-            <button
-              class:active={snapshot.pointFigureControls.mode === "fixed"}
-              on:click={() => onSetPointFigureMode("fixed")}
-            >
-              Fixed
-            </button>
-          </div>
-          {#if snapshot.pointFigureControls.mode === "auto" || snapshot.pointFigureControls.mode === "atr"}
-            <label class="inspector-field slider-field">
-              <span>Scale {snapshot.pointFigureControls.autoScale.toFixed(2)}x</span>
-              <input
-                type="range"
-                min="0.35"
-                max="2.5"
-                step="0.05"
-                value={String(snapshot.pointFigureControls.autoScale)}
-                on:input={(event) => onSetPointFigureAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-          {#if snapshot.pointFigureControls.mode === "atr"}
-            <label class="inspector-field slider-field">
-              <span>ATR length {snapshot.pointFigureControls.atrLength}</span>
-              <input
-                type="range"
-                min="2"
-                max="60"
-                step="1"
-                value={String(snapshot.pointFigureControls.atrLength)}
-                on:input={(event) => onSetPointFigureAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-          {#if snapshot.pointFigureControls.mode === "percentage"}
-            <label class="inspector-field slider-field">
-              <span>Percent {snapshot.pointFigureControls.percentageValue.toFixed(1)}%</span>
-              <input
-                type="range"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={String(snapshot.pointFigureControls.percentageValue)}
-                on:input={(event) => onSetPointFigurePercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-        </section>
-      {/if}
-
-      {#if snapshot.lineBreakControls}
-        <section class="mini-card symbol-card">
-          <div class="sidebar-head">
-            <h4>Line Break</h4>
-            <span>{snapshot.lineBreakControls.visibleColumns ?? "--"} cols</span>
-          </div>
-          <div class="metric-list compact">
-            <article>
-              <small>Mode</small>
-              <strong>{snapshot.lineBreakControls.lineCount}-line</strong>
-            </article>
-            <article>
-              <small>Visible</small>
-              <strong>{snapshot.lineBreakControls.visibleColumns ?? "--"} cols</strong>
-            </article>
-          </div>
-          <div class="mode-strip compact">
-            {#each lineBreakActions as action}
-              <button
-                class:active={action.active}
-                on:click={() => onRunAction(action.id)}
-              >
-                {action.label}
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/if}
-
-      {#if snapshot.kagiControls}
-        <section class="mini-card symbol-card">
-          <div class="sidebar-head">
-            <h4>Kagi</h4>
-            <span>{snapshot.kagiControls.visibleColumns ?? "--"} cols</span>
-          </div>
-          <div class="metric-list compact">
-            <article>
-              <small>Mode</small>
-              <strong>{snapshot.kagiControls.mode}</strong>
-            </article>
-            <article>
-              <small>Reversal</small>
-              <strong>{formatPointFigureBoxSize(snapshot.kagiControls.effectiveReversalSize)} pts</strong>
-            </article>
-            <article>
-              <small>Visible</small>
-              <strong>{snapshot.kagiControls.visibleColumns ?? "--"} cols</strong>
-            </article>
-          </div>
-          <div class="mode-strip compact">
-            <button
-              class:active={snapshot.kagiControls.mode === "auto"}
-              on:click={() => onSetKagiMode("auto")}
-            >
-              Auto
-            </button>
-            <button
-              class:active={snapshot.kagiControls.mode === "atr"}
-              on:click={() => onSetKagiMode("atr")}
-            >
-              ATR
-            </button>
-            <button
-              class:active={snapshot.kagiControls.mode === "percentage"}
-              on:click={() => onSetKagiMode("percentage")}
-            >
-              %
-            </button>
-            <button
-              class:active={snapshot.kagiControls.mode === "fixed"}
-              on:click={() => onSetKagiMode("fixed")}
-            >
-              Fixed
-            </button>
-          </div>
-          {#if snapshot.kagiControls.mode === "auto" || snapshot.kagiControls.mode === "atr"}
-            <label class="inspector-field slider-field">
-              <span>Scale {snapshot.kagiControls.autoScale.toFixed(2)}x</span>
-              <input
-                type="range"
-                min="0.35"
-                max="2.5"
-                step="0.05"
-                value={String(snapshot.kagiControls.autoScale)}
-                on:input={(event) => onSetKagiAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-          {#if snapshot.kagiControls.mode === "fixed"}
-            <label class="inspector-field slider-field">
-              <span>Fixed reversal {snapshot.kagiControls.fixedReversalSize} pts</span>
-              <input
-                type="range"
-                min="10"
-                max="2000"
-                step="10"
-                value={String(snapshot.kagiControls.fixedReversalSize)}
-                on:input={(event) => onSetKagiFixedReversalSize(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-          {#if snapshot.kagiControls.mode === "atr"}
-            <label class="inspector-field slider-field">
-              <span>ATR length {snapshot.kagiControls.atrLength}</span>
-              <input
-                type="range"
-                min="2"
-                max="60"
-                step="1"
-                value={String(snapshot.kagiControls.atrLength)}
-                on:input={(event) => onSetKagiAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-          {#if snapshot.kagiControls.mode === "percentage"}
-            <label class="inspector-field slider-field">
-              <span>Percent {snapshot.kagiControls.percentageValue.toFixed(1)}%</span>
-              <input
-                type="range"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={String(snapshot.kagiControls.percentageValue)}
-                on:input={(event) => onSetKagiPercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
-              />
-            </label>
-          {/if}
-        </section>
-      {/if}
-
       <div class="workbench-sidebar-scroll">
+        {#if snapshot.pointFigureControls}
+          <section class="mini-card symbol-card">
+            <div class="sidebar-head">
+              <h4>P&amp;F</h4>
+              <span>{snapshot.pointFigureControls.visibleColumns ?? "--"} cols</span>
+            </div>
+            <div class="metric-list compact">
+              <article>
+                <small>Mode</small>
+                <strong>{snapshot.pointFigureControls.mode}</strong>
+              </article>
+              <article>
+                <small>Box size</small>
+                <strong>{formatPointFigureBoxSize(snapshot.pointFigureControls.effectiveBoxSize)} pts</strong>
+              </article>
+              <article>
+                <small>Reversal</small>
+                <strong>{snapshot.pointFigureControls.reversalBoxes} boxes</strong>
+              </article>
+            </div>
+            <div class="mode-strip compact">
+              <button
+                class:active={snapshot.pointFigureControls.mode === "auto"}
+                on:click={() => onSetPointFigureMode("auto")}
+              >
+                Auto
+              </button>
+              <button
+                class:active={snapshot.pointFigureControls.mode === "atr"}
+                on:click={() => onSetPointFigureMode("atr")}
+              >
+                ATR
+              </button>
+              <button
+                class:active={snapshot.pointFigureControls.mode === "percentage"}
+                on:click={() => onSetPointFigureMode("percentage")}
+              >
+                %
+              </button>
+              <button
+                class:active={snapshot.pointFigureControls.mode === "traditional"}
+                on:click={() => onSetPointFigureMode("traditional")}
+              >
+                Trad
+              </button>
+              <button
+                class:active={snapshot.pointFigureControls.mode === "fixed"}
+                on:click={() => onSetPointFigureMode("fixed")}
+              >
+                Fixed
+              </button>
+            </div>
+            {#if snapshot.pointFigureControls.mode === "auto" || snapshot.pointFigureControls.mode === "atr"}
+              <label class="inspector-field slider-field">
+                <span>Scale {snapshot.pointFigureControls.autoScale.toFixed(2)}x</span>
+                <input
+                  type="range"
+                  min="0.35"
+                  max="2.5"
+                  step="0.05"
+                  value={String(snapshot.pointFigureControls.autoScale)}
+                  on:input={(event) => onSetPointFigureAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+            {#if snapshot.pointFigureControls.mode === "atr"}
+              <label class="inspector-field slider-field">
+                <span>ATR length {snapshot.pointFigureControls.atrLength}</span>
+                <input
+                  type="range"
+                  min="2"
+                  max="60"
+                  step="1"
+                  value={String(snapshot.pointFigureControls.atrLength)}
+                  on:input={(event) => onSetPointFigureAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+            {#if snapshot.pointFigureControls.mode === "percentage"}
+              <label class="inspector-field slider-field">
+                <span>Percent {snapshot.pointFigureControls.percentageValue.toFixed(1)}%</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={String(snapshot.pointFigureControls.percentageValue)}
+                  on:input={(event) => onSetPointFigurePercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+          </section>
+        {/if}
+
+        {#if snapshot.lineBreakControls}
+          <section class="mini-card symbol-card">
+            <div class="sidebar-head">
+              <h4>Line Break</h4>
+              <span>{snapshot.lineBreakControls.visibleColumns ?? "--"} cols</span>
+            </div>
+            <div class="metric-list compact">
+              <article>
+                <small>Mode</small>
+                <strong>{snapshot.lineBreakControls.lineCount}-line</strong>
+              </article>
+              <article>
+                <small>Visible</small>
+                <strong>{snapshot.lineBreakControls.visibleColumns ?? "--"} cols</strong>
+              </article>
+            </div>
+            <div class="mode-strip compact">
+              {#each lineBreakActions as action}
+                <button
+                  class:active={action.active}
+                  on:click={() => onRunAction(action.id)}
+                >
+                  {action.label}
+                </button>
+              {/each}
+            </div>
+          </section>
+        {/if}
+
+        {#if snapshot.kagiControls}
+          <section class="mini-card symbol-card">
+            <div class="sidebar-head">
+              <h4>Kagi</h4>
+              <span>{snapshot.kagiControls.visibleColumns ?? "--"} cols</span>
+            </div>
+            <div class="metric-list compact">
+              <article>
+                <small>Mode</small>
+                <strong>{snapshot.kagiControls.mode}</strong>
+              </article>
+              <article>
+                <small>Reversal</small>
+                <strong>{formatPointFigureBoxSize(snapshot.kagiControls.effectiveReversalSize)} pts</strong>
+              </article>
+              <article>
+                <small>Visible</small>
+                <strong>{snapshot.kagiControls.visibleColumns ?? "--"} cols</strong>
+              </article>
+            </div>
+            <div class="mode-strip compact">
+              <button
+                class:active={snapshot.kagiControls.mode === "auto"}
+                on:click={() => onSetKagiMode("auto")}
+              >
+                Auto
+              </button>
+              <button
+                class:active={snapshot.kagiControls.mode === "atr"}
+                on:click={() => onSetKagiMode("atr")}
+              >
+                ATR
+              </button>
+              <button
+                class:active={snapshot.kagiControls.mode === "percentage"}
+                on:click={() => onSetKagiMode("percentage")}
+              >
+                %
+              </button>
+              <button
+                class:active={snapshot.kagiControls.mode === "fixed"}
+                on:click={() => onSetKagiMode("fixed")}
+              >
+                Fixed
+              </button>
+            </div>
+            {#if snapshot.kagiControls.mode === "auto" || snapshot.kagiControls.mode === "atr"}
+              <label class="inspector-field slider-field">
+                <span>Scale {snapshot.kagiControls.autoScale.toFixed(2)}x</span>
+                <input
+                  type="range"
+                  min="0.35"
+                  max="2.5"
+                  step="0.05"
+                  value={String(snapshot.kagiControls.autoScale)}
+                  on:input={(event) => onSetKagiAutoScale(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+            {#if snapshot.kagiControls.mode === "fixed"}
+              <label class="inspector-field slider-field">
+                <span>Fixed reversal {snapshot.kagiControls.fixedReversalSize} pts</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="2000"
+                  step="10"
+                  value={String(snapshot.kagiControls.fixedReversalSize)}
+                  on:input={(event) => onSetKagiFixedReversalSize(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+            {#if snapshot.kagiControls.mode === "atr"}
+              <label class="inspector-field slider-field">
+                <span>ATR length {snapshot.kagiControls.atrLength}</span>
+                <input
+                  type="range"
+                  min="2"
+                  max="60"
+                  step="1"
+                  value={String(snapshot.kagiControls.atrLength)}
+                  on:input={(event) => onSetKagiAtrLength(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+            {#if snapshot.kagiControls.mode === "percentage"}
+              <label class="inspector-field slider-field">
+                <span>Percent {snapshot.kagiControls.percentageValue.toFixed(1)}%</span>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={String(snapshot.kagiControls.percentageValue)}
+                  on:input={(event) => onSetKagiPercentageValue(Number((event.currentTarget as HTMLInputElement).value))}
+                />
+              </label>
+            {/if}
+          </section>
+        {/if}
+
         <section class="mini-card inspector-card">
           <div class="sidebar-head">
             <h4>Drawing</h4>

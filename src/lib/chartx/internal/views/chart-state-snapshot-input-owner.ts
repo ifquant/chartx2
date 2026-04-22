@@ -26,6 +26,22 @@ type TradeLocationSession = {
   options: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["overlay"];
 };
 
+function roundSnapshotNumber(value: number): number {
+  return Number(value.toFixed(6));
+}
+
+function roundLogicalRange(
+  range: { from: number; to: number } | null,
+): { from: number; to: number } | null {
+  if (range === null) {
+    return null;
+  }
+  return {
+    from: roundSnapshotNumber(range.from),
+    to: roundSnapshotNumber(range.to),
+  };
+}
+
 export function createChartStateSnapshotInputOwner<Drawing>(deps: {
   getLayoutOptions(): Required<NonNullable<PhaseOneChartOptions["layout"]>>;
   getCrosshairOptions(): Required<NonNullable<PhaseOneChartOptions["crosshair"]>>;
@@ -44,9 +60,9 @@ export function createChartStateSnapshotInputOwner<Drawing>(deps: {
       crosshair: deps.getCrosshairOptions(),
     }),
     getTimeScaleState: () => ({
-      barSpacing: deps.getBarSpacing(),
-      rightOffset: deps.getRightOffset(),
-      visibleLogicalRange: deps.getVisibleLogicalRange(),
+      barSpacing: deps.getBarSpacing() === null ? null : roundSnapshotNumber(deps.getBarSpacing() as number),
+      rightOffset: roundSnapshotNumber(deps.getRightOffset()),
+      visibleLogicalRange: roundLogicalRange(deps.getVisibleLogicalRange()),
     }),
     getPriceScaleState: () => ({
       visibleRange: deps.getVisiblePriceRange(),

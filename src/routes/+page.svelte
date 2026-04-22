@@ -22,6 +22,7 @@
     type PerformanceDemoController,
     type PerformanceDemoSnapshot,
   } from "$lib/demo/performance-demo";
+  import { createWorkbenchTradeIntentBridge } from "$lib/demo/workbench-trade-intent-bridge";
   import type { TradeLocationIntent } from "$lib/chartx/public/performance";
   import FeatureDemoPanel from "$lib/demo/components/FeatureDemoPanel.svelte";
   import MarketWorkbenchPanel from "$lib/demo/components/MarketWorkbenchPanel.svelte";
@@ -123,7 +124,10 @@
   let workbenchController: DemoController | null = null;
   let performanceController: PerformanceDemoController | null = null;
   let featureController: DemoController | null = null;
-  let pendingWorkbenchTradeIntent: TradeLocationIntent | null = null;
+  let mountingWorkbench = false;
+  let mountingPerformance = false;
+  let mountingFeature = false;
+  const workbenchTradeIntentBridge = createWorkbenchTradeIntentBridge();
 
   let workbenchReadout = emptyReadout();
   let featureReadout = emptyReadout();
@@ -146,9 +150,7 @@
   let workbenchToolPointer: { x: number; y: number } | null = null;
 
   onMount(() => {
-    void tick().then(() => {
-      mountWorkbench();
-    });
+    void mountWorkbenchWhenReady();
 
     return () => {
       teardownWorkbench();
@@ -173,7 +175,7 @@
     return () => canvas.removeEventListener("chartx:readout", handleReadout);
   }
 
-  async function showTopTab(tabId: TopTabId): Promise<void> {
+  function showTopTab(tabId: TopTabId): void {
     if (activeTopTab === tabId) {
       return;
     }
@@ -182,8 +184,7 @@
       teardownPerformance();
       teardownFeature();
       activeTopTab = "workbench";
-      await tick();
-      mountWorkbench();
+      void mountWorkbenchWhenReady();
       return;
     }
 
@@ -191,8 +192,7 @@
       teardownWorkbench();
       teardownFeature();
       activeTopTab = "performance";
-      await tick();
-      mountPerformance();
+      void mountPerformanceWhenReady();
       return;
     }
 
@@ -204,8 +204,58 @@
     teardownWorkbench();
     teardownPerformance();
     activeTopTab = tabId;
+    void mountFeatureWhenReady(tabId);
+  }
+
+  async function mountWorkbenchWhenReady(attempt = 0): Promise<void> {
+    if (activeTopTab !== "workbench" || workbenchController !== null || mountingWorkbench) {
+      return;
+    }
     await tick();
-    mountFeature(tabId);
+    if (activeTopTab !== "workbench" || workbenchController !== null || mountingWorkbench) {
+      return;
+    }
+    if (!workbenchCanvas || !workbenchCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountWorkbenchWhenReady(attempt + 1);
+      }
+      return;
+    }
+    mountWorkbench();
+  }
+
+  async function mountPerformanceWhenReady(attempt = 0): Promise<void> {
+    if (activeTopTab !== "performance" || performanceController !== null || mountingPerformance) {
+      return;
+    }
+    await tick();
+    if (activeTopTab !== "performance" || performanceController !== null || mountingPerformance) {
+      return;
+    }
+    if (!performanceCanvas || !optimizationCanvas || !performanceCanvas.isConnected || !optimizationCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountPerformanceWhenReady(attempt + 1);
+      }
+      return;
+    }
+    mountPerformance();
+  }
+
+  async function mountFeatureWhenReady(featureId: FeatureTabId, attempt = 0): Promise<void> {
+    if (activeTopTab !== featureId || featureController !== null || mountingFeature) {
+      return;
+    }
+    await tick();
+    if (activeTopTab !== featureId || featureController !== null || mountingFeature) {
+      return;
+    }
+    if (!featureCanvas || !featureCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountFeatureWhenReady(featureId, attempt + 1);
+      }
+      return;
+    }
+    mountFeature(featureId);
   }
 
   function teardownWorkbench(): void {
@@ -213,6 +263,7 @@
     teardownWorkbenchReadout = null;
     workbenchController?.destroy();
     workbenchController = null;
+    workbenchTradeIntentBridge.disconnect();
   }
 
   function teardownPerformance(): void {
@@ -228,12 +279,17 @@
   }
 
   function mountWorkbench(): void {
+    if (mountingWorkbench) {
+      return;
+    }
+    mountingWorkbench = true;
     teardownWorkbench();
     workbenchError = "";
     workbenchReadout = emptyReadout();
     workbenchInspectorErrors = {};
 
-    if (!workbenchCanvas) {
+    if (!workbenchCanvas || !workbenchCanvas.isConnected) {
+      mountingWorkbench = false;
       return;
     }
 
@@ -244,23 +300,31 @@
     try {
       workbenchController = mountWorkbenchDemo(workbenchCanvas, (snapshot) => {
         workbenchSnapshot = snapshot;
+        workbenchTradeIntentBridge.publishSnapshot();
       });
+      workbenchTradeIntentBridge.connect(workbenchController);
       workbenchActions = workbenchController.actions();
-      flushPendingWorkbenchTradeIntent();
     } catch (error) {
       workbenchError =
         error instanceof Error ? error.message : "Unknown workbench init failure";
       teardownWorkbenchReadout?.();
       teardownWorkbenchReadout = null;
+    } finally {
+      mountingWorkbench = false;
     }
   }
 
   function mountFeature(featureId: FeatureTabId): void {
+    if (mountingFeature) {
+      return;
+    }
+    mountingFeature = true;
     teardownFeature();
     featureError = "";
     featureReadout = emptyReadout();
 
-    if (!featureCanvas) {
+    if (!featureCanvas || !featureCanvas.isConnected) {
+      mountingFeature = false;
       return;
     }
 
@@ -278,41 +342,41 @@
         error instanceof Error ? error.message : "Unknown feature demo init failure";
       teardownFeatureReadout?.();
       teardownFeatureReadout = null;
+    } finally {
+      mountingFeature = false;
     }
   }
 
   function mountPerformance(): void {
+    if (mountingPerformance) {
+      return;
+    }
+    mountingPerformance = true;
     teardownPerformance();
     performanceSnapshot = emptyPerformanceSnapshot();
 
-    if (!performanceCanvas || !optimizationCanvas) {
+    if (!performanceCanvas || !optimizationCanvas || !performanceCanvas.isConnected || !optimizationCanvas.isConnected) {
+      mountingPerformance = false;
       return;
     }
 
-    performanceController = mountPerformanceReportDemo(
-      optimizationCanvas,
-      performanceCanvas,
-      (snapshot) => {
-        performanceSnapshot = snapshot;
-      },
-      (intent) => {
-        pendingWorkbenchTradeIntent = intent;
-        if (activeTopTab === "workbench") {
-          flushPendingWorkbenchTradeIntent();
-          return;
-        }
-        void showTopTab("workbench");
-      },
-    );
-  }
-
-  function flushPendingWorkbenchTradeIntent(): void {
-    if (pendingWorkbenchTradeIntent === null) {
-      return;
-    }
-    workbenchController?.locateTrade?.(pendingWorkbenchTradeIntent);
-    if (workbenchController !== null) {
-      pendingWorkbenchTradeIntent = null;
+    try {
+      performanceController = mountPerformanceReportDemo(
+        optimizationCanvas,
+        performanceCanvas,
+        (snapshot) => {
+          performanceSnapshot = snapshot;
+        },
+        (intent) => {
+          workbenchTradeIntentBridge.queue(intent);
+          if (activeTopTab === "workbench") {
+            return;
+          }
+          void showTopTab("workbench");
+        },
+      );
+    } finally {
+      mountingPerformance = false;
     }
   }
 

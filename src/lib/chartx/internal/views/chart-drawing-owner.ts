@@ -242,8 +242,12 @@ export function createChartDrawingOwner<PaneTarget>(
       drawingId: meta.id,
       drawingTitle: meta.title,
       registry: {
-        register: deps.registry.register,
-        setVisible: deps.registry.setVisible,
+        register: (drawing) => {
+          deps.registry.register(drawing);
+        },
+        setVisible: (id, visible) => {
+          deps.registry.setVisible(id, visible);
+        },
         getByApi: (api) => {
           const drawing = deps.registry.getByApi(api);
           return drawing?.kind === "horizontal-line" ? drawing : undefined;
@@ -275,8 +279,12 @@ export function createChartDrawingOwner<PaneTarget>(
       visible: options.visible ?? true,
       drawingId: meta.id,
       registry: {
-        register: deps.registry.register,
-        setVisible: deps.registry.setVisible,
+        register: (drawing) => {
+          deps.registry.register(drawing);
+        },
+        setVisible: (id, visible) => {
+          deps.registry.setVisible(id, visible);
+        },
         getByApi: (api) => {
           const drawing = deps.registry.getByApi(api);
           return drawing?.kind === "trend-line" ? drawing : undefined;

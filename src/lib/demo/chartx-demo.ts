@@ -121,7 +121,7 @@ export type DemoSnapshot = {
 export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
-  locateTrade?(intent: TradeLocationIntent): void;
+  locateTrade?(intent: TradeLocationIntent): boolean;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
   setPointFigureAutoScale?(scale: number): void;
@@ -362,10 +362,14 @@ export function mountWorkbenchDemo(
     return bars;
   };
 
-  const applyTradeLocation = (intent: TradeLocationIntent, logEvent: boolean): void => {
+  const applyTradeLocation = (intent: TradeLocationIntent, logEvent: boolean): boolean => {
     activeTradeLocationIntent = intent;
     if (chart === null) {
-      return;
+      if (logEvent) {
+        pushLog(log, `failed to locate trade ${intent.tradeId}: workbench chart unavailable`);
+        publishSnapshot();
+      }
+      return false;
     }
 
     const state = chart.locateTrade(intent, {
@@ -375,7 +379,11 @@ export function mountWorkbenchDemo(
       showConnector: true,
     });
     if (state === null) {
-      return;
+      if (logEvent) {
+        pushLog(log, `failed to locate trade ${intent.tradeId}: chart returned no trade location state`);
+        publishSnapshot();
+      }
+      return false;
     }
 
     if (logEvent) {
@@ -385,6 +393,7 @@ export function mountWorkbenchDemo(
       );
     }
     publishSnapshot();
+    return true;
   };
 
   const resolveDefaultDrawingAnchors = (
@@ -949,24 +958,30 @@ export function mountWorkbenchDemo(
     }
 
     if (defaultDrawingAnchors !== null) {
-      chart.addHorizontalLineDrawing(undefined, {
-        price: defaultDrawingAnchors.horizontalPrice,
-        title: "Swing low",
-        color: theme === "warm" ? "#9333ea" : "#7c3aed",
-        lineWidth: 2,
-        magnetEnabled: true,
-        timeMagnetPolicy: "previous",
-      });
-      chart.addTrendLineDrawing(undefined, {
-        startTime: defaultDrawingAnchors.trendStartTime,
-        startPrice: defaultDrawingAnchors.trendStartPrice,
-        endTime: defaultDrawingAnchors.trendEndTime,
-        endPrice: defaultDrawingAnchors.trendEndPrice,
-        color: theme === "warm" ? "#ea580c" : "#2563eb",
-        lineWidth: 3,
-        magnetEnabled: true,
-        timeMagnetEnabled: true,
-        timeMagnetPolicy: "nearest",
+      const activeChart = chart;
+      queueMicrotask(() => {
+        if (chart !== activeChart) {
+          return;
+        }
+        chart.addHorizontalLineDrawing(undefined, {
+          price: defaultDrawingAnchors.horizontalPrice,
+          title: "Swing low",
+          color: theme === "warm" ? "#9333ea" : "#7c3aed",
+          lineWidth: 2,
+          magnetEnabled: true,
+          timeMagnetPolicy: "previous",
+        });
+        chart.addTrendLineDrawing(undefined, {
+          startTime: defaultDrawingAnchors.trendStartTime,
+          startPrice: defaultDrawingAnchors.trendStartPrice,
+          endTime: defaultDrawingAnchors.trendEndTime,
+          endPrice: defaultDrawingAnchors.trendEndPrice,
+          color: theme === "warm" ? "#ea580c" : "#2563eb",
+          lineWidth: 3,
+          magnetEnabled: true,
+          timeMagnetEnabled: true,
+          timeMagnetPolicy: "nearest",
+        });
       });
     }
 
@@ -1579,7 +1594,7 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     },
     locateTrade(intent) {
-      applyTradeLocation(intent, true);
+      return applyTradeLocation(intent, true);
     },
     destroy() {
       teardownChartTypeSubscription?.();

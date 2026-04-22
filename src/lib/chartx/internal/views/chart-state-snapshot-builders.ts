@@ -94,6 +94,31 @@ export type SnapshotSeriesSourceLike<PaneId> = {
   visuals: ReadonlyMap<number, SnapshotVisual>;
 };
 
+function sanitizeSeriesOptions(
+  kind: SnapshotSeriesSourceLike<unknown>["kind"],
+  options: unknown,
+): Record<string, unknown> {
+  const snapshot = { ...(options as Record<string, unknown>) };
+
+  if (snapshot.valueFormatter === null) {
+    delete snapshot.valueFormatter;
+  }
+
+  if (kind === "line") {
+    delete snapshot.kagiYangColor;
+    delete snapshot.kagiYinColor;
+    delete snapshot.kagiYangLineWidth;
+    delete snapshot.kagiYinLineWidth;
+    delete snapshot.kagiReversalMode;
+    delete snapshot.kagiReversalSize;
+    delete snapshot.kagiReversalScale;
+    delete snapshot.kagiAtrLength;
+    delete snapshot.kagiPercentageValue;
+  }
+
+  return snapshot;
+}
+
 export function buildDrawingStateSnapshots<PaneId>(
   drawings: readonly SnapshotDrawingLike<PaneId>[],
   deps: {
@@ -162,7 +187,7 @@ export function buildStudyStateSnapshots<PaneId>(
     }
 
     const paneIndex = deps.getPaneIndex(source.paneId);
-    const seriesOptions = { ...(source.options as Record<string, unknown>) } as never;
+    const seriesOptions = sanitizeSeriesOptions("line", source.options) as never;
 
     if (source.studyKind === "overlay") {
       snapshots.push({
@@ -239,7 +264,7 @@ export function buildSeriesStateSnapshots<PaneId>(
       snapshots.push({
         kind: source.kind,
         paneIndex,
-        options: { ...(source.options as Record<string, unknown>) } as never,
+        options: sanitizeSeriesOptions(source.kind, source.options) as never,
         data: [...source.inputData],
       } as PhaseOneChartStateSnapshot["series"][number]);
       continue;
@@ -249,7 +274,7 @@ export function buildSeriesStateSnapshots<PaneId>(
       snapshots.push({
         kind: source.kind,
         paneIndex,
-        options: { ...(source.options as Record<string, unknown>) } as never,
+        options: sanitizeSeriesOptions(source.kind, source.options) as never,
         data: source.inputData.map((item) => ({
           time: item.time,
           value: item.close,
@@ -262,7 +287,7 @@ export function buildSeriesStateSnapshots<PaneId>(
       snapshots.push({
         kind: source.kind,
         paneIndex,
-        options: { ...(source.options as Record<string, unknown>) } as never,
+        options: sanitizeSeriesOptions(source.kind, source.options) as never,
         data: source.inputData.map((item) => {
           const visual = source.visuals.get(item.time);
           return {

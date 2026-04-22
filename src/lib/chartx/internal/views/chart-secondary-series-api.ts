@@ -162,35 +162,31 @@ export function createSecondaryLineSeriesApi(
 export function createCompareStudySeriesApi(
   deps: SecondarySeriesApiDeps,
 ): PhaseOneCompareSeriesApi {
-  const lineApi = createSecondaryLineSeriesApi(deps);
-  return {
-    ...lineApi,
-    applyCompareOptions: (options) => {
-      deps.assertSeriesActive(lineApi);
-      deps.applyCompareOptions(lineApi, options);
-    },
-    getCompareOptions: () => {
-      deps.assertSeriesActive(lineApi);
-      return deps.getCompareOptions(lineApi);
-    },
+  const api = createSecondaryLineSeriesApi(deps) as PhaseOneCompareSeriesApi;
+  api.applyCompareOptions = (options) => {
+    deps.assertSeriesActive(api);
+    deps.applyCompareOptions(api, options);
   };
+  api.getCompareOptions = () => {
+    deps.assertSeriesActive(api);
+    return deps.getCompareOptions(api);
+  };
+  return api;
 }
 
 export function createMovingAverageStudySeriesApi(
   deps: SecondarySeriesApiDeps,
 ): PhaseOneMovingAverageStudyApi {
-  const lineApi = createSecondaryLineSeriesApi(deps);
-  return {
-    ...lineApi,
-    applyStudyOptions: (options) => {
-      deps.assertSeriesActive(lineApi);
-      deps.applyMovingAverageStudyOptions(lineApi, options);
-    },
-    getStudyOptions: () => {
-      deps.assertSeriesActive(lineApi);
-      return deps.getMovingAverageStudyOptions(lineApi);
-    },
+  const api = createSecondaryLineSeriesApi(deps) as PhaseOneMovingAverageStudyApi;
+  api.applyStudyOptions = (options) => {
+    deps.assertSeriesActive(api);
+    deps.applyMovingAverageStudyOptions(api, options);
   };
+  api.getStudyOptions = () => {
+    deps.assertSeriesActive(api);
+    return deps.getMovingAverageStudyOptions(api);
+  };
+  return api;
 }
 
 export function createSecondaryAreaSeriesApi(

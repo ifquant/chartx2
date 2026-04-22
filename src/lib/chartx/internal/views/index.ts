@@ -1,4 +1,6 @@
-export * from "./chart-harness";
+export * from "./chart-api-types";
+export * from "./chart-entry";
+export { PhaseOneChartHarness } from "./chart-harness";
 export * from "./chart-content-restore";
 export * from "./chart-drawing-restore";
 export * from "./chart-primary-series-api";

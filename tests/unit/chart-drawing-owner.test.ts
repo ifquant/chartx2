@@ -5,7 +5,7 @@ import {
   type ChartDrawingDescriptor,
   type RestorableDrawingSnapshot,
 } from "../../src/lib/chartx/internal/views/chart-drawing-owner";
-import type { PhaseOneSelectedDrawing } from "../../src/lib/chartx/internal/views/chart-harness";
+import type { PhaseOneSelectedDrawing } from "../../src/lib/chartx/internal/views/chart-api-types";
 
 type OwnerHarness = {
   owner: ReturnType<typeof createChartDrawingOwner<{ pane: { id: string } }>>;

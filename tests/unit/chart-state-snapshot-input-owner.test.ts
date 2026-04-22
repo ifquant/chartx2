@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { INVALID_DRAWING_PANE_INDEX_ERROR } from "../../src/lib/chartx/internal/views/chart-drawing-restore";
+import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-api-types";
 import { createChartStateSnapshotInputOwner } from "../../src/lib/chartx/internal/views/chart-state-snapshot-input-owner";
-import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-harness";
 
 describe("chart state snapshot input owner", () => {
   it("groups chart options, scale state, drawings, and trade-location state", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { PhaseOnePriceLineApi } from "../../src/lib/chartx/internal/views/chart-api-types";
 import { createChartSecondarySeriesApiOwner } from "../../src/lib/chartx/internal/views/chart-secondary-series-api-owner";
-import type { PhaseOnePriceLineApi } from "../../src/lib/chartx/internal/views/chart-harness";
 
 describe("chart secondary series api owner", () => {
   it("owns secondary data mutation, markers, and price lines", () => {

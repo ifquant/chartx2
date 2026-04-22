@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createChartPaneOwner } from "../../src/lib/chartx/internal/views/chart-pane-owner";
-
 import type {
   PhaseOnePaneApi,
   PhaseOnePaneEventType,
   PhaseOnePaneResizeHandler,
   PhaseOnePaneState,
-} from "../../src/lib/chartx/internal/views/chart-harness";
+} from "../../src/lib/chartx/internal/views/chart-api-types";
+import { createChartPaneOwner } from "../../src/lib/chartx/internal/views/chart-pane-owner";
 
 type PaneLike = {
   id: string;

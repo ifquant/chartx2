@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { PhaseOneTradeLocationRequest } from "../../src/lib/chartx/internal/model";
+import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-api-types";
 import { createChartStateCoordinator } from "../../src/lib/chartx/internal/views/chart-state-coordinator";
-import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-harness";
 
 type PaneLike = {
   id: string;

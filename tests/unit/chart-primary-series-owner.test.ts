@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { PriceScale } from "../../src/lib/chartx/internal/model";
+import type { PhaseOneMainSeriesApi } from "../../src/lib/chartx/internal/views/chart-api-types";
 import { createChartPrimarySeriesOwner } from "../../src/lib/chartx/internal/views/chart-primary-series-owner";
-import type { PhaseOneMainSeriesApi } from "../../src/lib/chartx/internal/views/chart-harness";
 
 describe("chart primary series owner", () => {
   it("attaches preserved primary series through one owner surface", () => {

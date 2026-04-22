@@ -9,7 +9,7 @@ import {
 import {
   createPhaseOneChartTemplate as createPhaseOneChartTemplateFromHarness,
   normalizePhaseOneChartTemplate as normalizePhaseOneChartTemplateFromHarness,
-} from "../../src/lib/chartx/internal/views/chart-harness";
+} from "../../src/lib/chartx/internal/views/chart-api-types";
 
 const emptyChartState: PhaseOneChartStateSnapshot = {
   options: {},
@@ -31,7 +31,7 @@ const emptyChartState: PhaseOneChartStateSnapshot = {
 };
 
 describe("chart api types module", () => {
-  it("owns template helpers while harness re-exports compatibility", () => {
+  it("owns template helpers directly", () => {
     const template = createPhaseOneChartTemplate(emptyChartState);
     const harnessTemplate = createPhaseOneChartTemplateFromHarness(emptyChartState);
 

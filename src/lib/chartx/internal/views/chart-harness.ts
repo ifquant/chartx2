@@ -1,21 +1,9 @@
 import {
-  createCompressedPriceBasedChartBarSequence,
-  createDirectionColumnPriceBasedChartBarSequence,
-  buildHeikinAshiData,
-  buildKagiData,
-  buildLineBreakData,
-  buildPointFigureData,
-  buildRenkoData,
   ChartModel,
-  createMainSeriesStateSnapshot,
-  resolveTradeLocationState,
-  resolveTradeOverlayOptions,
   DrawingRegistry,
   PaneCollection,
   PriceRangeImpl,
   PriceScale,
-  resolvePaneDivider,
-  resolvePaneDividerByIds,
   TimeScale,
   type PhaseOneMainChartType,
   type PhaseOneMainStyleSchemaId,
@@ -36,38 +24,25 @@ import {
   LineRenderer,
   PointFigureRenderer,
 } from "../renderers";
-import { createMainSeriesSourceState } from "./chart-main-series-source";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
 import { createChartTradeLocationOwner } from "./chart-trade-location-owner";
-import { buildCrosshairReadout } from "./chart-crosshair-readout";
-import { createChartInteractionOwner } from "./chart-interaction-owner";
+import { createChartInteractionShellOwner } from "./chart-interaction-shell-owner";
 import { createChartHandlerRegistry } from "./chart-handler-registry";
 import { createChartEventSubscriptionOwner } from "./chart-event-subscription-owner";
 import {
-  calculateBaseBarSpacing,
   measureLayout,
   resolveBarSpacing,
-  resolvePanePoint,
 } from "./chart-layout-geometry";
 import {
   resolveDrawingMagnetOptions as resolveDrawingMagnetOptionsUseCase,
 } from "./chart-drawing-snap";
 import {
-  applyDrawingMagnetOverrides as applyDrawingMagnetOverridesUseCase,
-  normalizeDrawingMagnetOverrides as normalizeDrawingMagnetOverridesUseCase,
-} from "./chart-drawing-magnet";
-import {
-  applyHorizontalLineDrawingOptions as applyHorizontalLineDrawingOptionsUseCase,
-  applyTrendLineDrawingOptions as applyTrendLineDrawingOptionsUseCase,
-} from "./chart-drawing-options";
-import {
   resolveTrendLineDefaults as resolveTrendLineDefaultsUseCase,
 } from "./chart-drawing-state";
 import { createChartScaleOwner } from "./chart-scale-owner";
 import { createChartShellOwner } from "./chart-shell-owner";
-import { createAttachedChart } from "./chart-factory";
 import { createPriceLineManager } from "./chart-price-line-management";
 import { createChartSeriesBuildOwner } from "./chart-series-build-owner";
 import {
@@ -81,29 +56,20 @@ import { createChartSecondarySeriesApiOwner } from "./chart-secondary-series-api
 import { createChartSourceMutationOwner } from "./chart-source-mutation-owner";
 import { createChartStudySourceOwner } from "./chart-study-source-owner";
 import { createChartMainSeriesSwitchOwner } from "./chart-main-series-switch-owner";
-import {
-  emitClickRuntime as emitClickRuntimeUseCase,
-} from "./chart-event-runtime";
-import { createChartCanvasLifecycleOwner } from "./chart-canvas-lifecycle-owner";
-import {
-  createChartViewState,
-  type DrawingSnapGuideState,
-} from "./chart-view-state";
+import { createChartViewState } from "./chart-view-state";
 import { createChartDrawingInteractionOwner } from "./chart-drawing-interaction-owner";
 import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInputOwner } from "./chart-render-input-owner";
 import { createChartRenderCallbackOwner } from "./chart-render-callback-owner";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
-import { createChartStateCoordinator } from "./chart-state-coordinator";
-import { createChartStateSnapshotInputOwner } from "./chart-state-snapshot-input-owner";
-import { createChartStateRestoreCommandOwner } from "./chart-state-restore-command-owner";
-import { applyChartTemplate, createChartTemplate, normalizeChartTemplate } from "./chart-template";
+import { createChartStateShellOwner } from "./chart-state-shell-owner";
+import { createChartStateRestoreShellOwner } from "./chart-state-restore-shell-owner";
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
 import { applyMainSeriesBuilderData } from "./chart-series-data-transforms";
 import { formatSeriesKindLabel } from "./chart-series-labels";
-import { mountPhaseOneChartDemo } from "./chart-demo-mount";
 import { assertCanvasElement } from "./chart-dom-guards";
-import { createChartPublicSurfaceOwner } from "./chart-public-surface-owner";
+import { createChartAdapterStateOwner } from "./chart-adapter-state-owner";
+import { createChartPublicShellOwner } from "./chart-public-shell-owner";
 import type { ChartHarnessPublicLike } from "./chart-public-api";
 import {
   BAR_SPACING_BOUNDS,
@@ -134,18 +100,15 @@ import type {
   ChartDrawingApi,
   ChartDrawingDescriptor,
   ChartDrawingKind,
-  ChartDrawingState,
   ChartSeriesApi,
   ChartSeriesKind,
   MainSeriesSourceState,
-  RequiredDrawingMagnetSources,
   RequiredDrawingOptions,
   ResolvedSeriesTarget,
   SeriesSourceState,
   StudySourceState,
 } from "./chart-runtime-types";
 import { DRAWING_PROPERTY_SCHEMAS } from "./chart-drawing-property-schema";
-export * from "./chart-api-types";
 import type {
   PhaseOneAreaSeriesApi,
   PhaseOneAreaSeriesOptions,
@@ -153,26 +116,15 @@ import type {
   PhaseOneBarSeriesOptions,
   PhaseOneBaselineSeriesApi,
   PhaseOneBaselineSeriesOptions,
-  PhaseOneCandlestickData,
   PhaseOneCandlestickSeriesApi,
   PhaseOneCandlestickSeriesOptions,
-  PhaseOneChartApi,
   PhaseOneChartOptions,
-  PhaseOneChartStateSnapshot,
-  PhaseOneChartTemplate,
-  PhaseOneChartTemplateInput,
-  PhaseOneClickHandler,
   PhaseOneCompareSeriesApi,
   PhaseOneCompareSeriesOptions,
-  PhaseOneCrosshairMoveHandler,
-  PhaseOneDrawingPropertySchema,
-  PhaseOneDrawingSelectionChangeHandler,
-  PhaseOneDrawingStateSnapshot,
   PhaseOneHistogramSeriesApi,
   PhaseOneHistogramSeriesOptions,
   PhaseOneHorizontalLineDrawingApi,
   PhaseOneHorizontalLineDrawingOptions,
-  PhaseOneLineData,
   PhaseOneLineSeriesApi,
   PhaseOneLineSeriesOptions,
   PhaseOneMainSeriesApi,
@@ -184,13 +136,8 @@ import type {
   PhaseOnePaneEventHandler,
   PhaseOnePaneOptions,
   PhaseOnePriceLineOptions,
-  PhaseOnePriceScaleApi,
-  PhaseOneReadoutBody,
-  PhaseOneReadoutDetail,
-  PhaseOneReadoutSeriesDetail,
   PhaseOneSelectedDrawing,
   PhaseOneSeriesTarget,
-  PhaseOneTimeScaleApi,
   PhaseOneTrendLineDrawingApi,
   PhaseOneTrendLineDrawingOptions,
   PhaseOneVolumeSeriesApi,
@@ -223,19 +170,11 @@ export class PhaseOneChartHarness {
   private readonly kagiRenderer = new KagiRenderer();
   private readonly areaRenderer = new AreaRenderer();
   private readonly baselineRenderer = new BaselineRenderer();
-  private nextDrawingId = 1;
-  private canvas: HTMLCanvasElement | null = null;
-  private crosshair: PanePoint | null = null;
-  private barSpacing: number | null = null;
-  private rightOffset = DEFAULT_RIGHT_OFFSET;
+  private readonly adapterState = createChartAdapterStateOwner<PriceRangeImpl>();
   private readonly chartOptions: Required<NonNullable<PhaseOneChartOptions["layout"]>> = createDefaultLayoutOptions();
   private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> =
     createDefaultCrosshairOptions();
   private readonly drawingOptions: RequiredDrawingOptions = createDefaultDrawingOptions();
-  private timeAxisFormatter: ((time: number) => string) | null = null;
-  private priceAxisFormatter: ((value: number) => string) | null = null;
-  private primaryScaleSeriesOnly = false;
-  private primaryPriceRangeOverride: PriceRangeImpl | null = null;
   private readonly candlestickOptions: Required<PhaseOneCandlestickSeriesOptions> = createDefaultCandlestickOptions();
   private readonly barOptions: Required<PhaseOneBarSeriesOptions> = createDefaultBarOptions();
   private readonly lineOptions: Required<PhaseOneLineSeriesOptions> = createDefaultLineOptions();
@@ -248,7 +187,7 @@ export class PhaseOneChartHarness {
   private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = createDefaultVolumeOptions();
   private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = createDefaultPriceLineOptions();
   private readonly renderInvalidation = createChartRenderInvalidation({
-    getCanvas: () => this.canvas,
+    getCanvas: () => this.adapterState.canvas(),
     renderCanvas: (canvas) => {
       this.render(canvas);
     },
@@ -292,7 +231,7 @@ export class PhaseOneChartHarness {
     setVisibleLogicalRange: (range) => this.scaleOwner.timeScaleApi().setVisibleLogicalRange(range),
     setVisiblePriceRange: (range) => this.scaleOwner.priceScaleApi().setVisibleRange(range),
     resetPrimaryPriceRangeOverride: () => {
-      this.primaryPriceRangeOverride = null;
+      this.adapterState.setPrimaryPriceRangeOverride(null);
     },
     render: () => {
       this.renderInvalidation.renderIfAttached();
@@ -302,11 +241,10 @@ export class PhaseOneChartHarness {
     syncMainSource: (source) => this.studyContextOwner.syncMainSource(source as MainSeriesSourceState),
     resolveStudyDisplayData: (source) => this.studyContextOwner.resolveDisplayData(source as StudySourceState),
     resetViewport: () => {
-      this.barSpacing = null;
-      this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      this.adapterState.resetViewport(DEFAULT_RIGHT_OFFSET);
     },
     clearPrimaryPriceRangeOverride: () => {
-      this.primaryPriceRangeOverride = null;
+      this.adapterState.setPrimaryPriceRangeOverride(null);
     },
     render: () => {
       this.renderInvalidation.renderIfAttached();
@@ -325,7 +263,7 @@ export class PhaseOneChartHarness {
   private readonly mainSeriesSwitchOwner = createChartMainSeriesSwitchOwner<ChartSeriesApi>({
     removeCurrent: (api) => this.chartModel.removeSourceByApi(api) !== undefined,
     clearPriceRangeOverride: () => {
-      this.primaryPriceRangeOverride = null;
+      this.adapterState.setPrimaryPriceRangeOverride(null);
     },
     attachSeries: (type, preserved) => this.primarySeriesOwner.attach(type, preserved as never),
     render: () => {
@@ -389,8 +327,11 @@ export class PhaseOneChartHarness {
     },
     listPanes: () => this.panes.list(),
     addSecondaryPane: (options) => this.panes.addSecondaryPane(options),
-    hasCanvas: () => this.canvas !== null,
-    getLayout: () => (this.canvas === null ? DEFAULT_LAYOUT : measureLayout(this.canvas, DEFAULT_LAYOUT, this.viewState.manualLayout())),
+    hasCanvas: () => this.adapterState.canvas() !== null,
+    getLayout: () => {
+      const canvas = this.adapterState.canvas();
+      return canvas === null ? DEFAULT_LAYOUT : measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
+    },
     gap: PANE_GAP,
     getCrosshair: () => this.viewState.crosshair(),
     setCrosshair: (point) => {
@@ -409,9 +350,7 @@ export class PhaseOneChartHarness {
   });
   private readonly drawingOwner = createChartDrawingOwner({
     allocateDrawingOrdinal: () => {
-      const ordinal = this.nextDrawingId;
-      this.nextDrawingId += 1;
-      return ordinal;
+      return this.adapterState.allocateDrawingOrdinal();
     },
     formatSeriesKindLabel,
     resolveTarget: (target, options) => this.paneOwner.resolveSeriesTarget(target, options) as never,
@@ -473,9 +412,9 @@ export class PhaseOneChartHarness {
     getHoveredDrawingId: () => this.viewState.hoveredDrawingId(),
     getHoveredDrawingHandle: () => this.viewState.hoveredDrawingHandle(),
     getDrawingSnapGuide: () => this.viewState.drawingSnapGuide(),
-    getManualBarSpacing: () => this.barSpacing,
-    getRightOffset: () => this.rightOffset,
-    getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
+    getManualBarSpacing: () => this.adapterState.barSpacing(),
+    getRightOffset: () => this.adapterState.rightOffset(),
+    getPrimaryScaleSeriesOnly: () => this.adapterState.primaryScaleSeriesOnly(),
     getPaneSpecs: () => this.panes.list(),
     getMainSource: () => this.sourceOwner.getMainSource() as MainSeriesSourceState | null,
     createMainBarSequenceFromSource: (source) =>
@@ -490,11 +429,11 @@ export class PhaseOneChartHarness {
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     getSecondaryScale: (paneId) => this.chartModel.getSecondaryScale(paneId),
     getPrimaryPriceScale: () => this.primaryPriceScale,
-    getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
+    getPrimaryPriceRangeOverride: () => this.adapterState.primaryPriceRangeOverride(),
     getActiveTradeLocationState: () => this.tradeLocationOwner.getState(),
     getTimeScale: () => this.timeScale,
-    getTimeAxisFormatter: () => this.timeAxisFormatter,
-    getPriceAxisFormatter: () => this.priceAxisFormatter,
+    getTimeAxisFormatter: () => this.adapterState.timeAxisFormatter(),
+    getPriceAxisFormatter: () => this.adapterState.priceAxisFormatter(),
   });
   private readonly renderCallbackOwner = createChartRenderCallbackOwner({
     getRendererRuntime: () => ({
@@ -536,34 +475,34 @@ export class PhaseOneChartHarness {
     paneGap: PANE_GAP,
     minBarSpacing: MIN_BAR_SPACING,
     maxBarSpacing: MAX_BAR_SPACING,
-    getCanvas: () => this.canvas,
+    getCanvas: () => this.adapterState.canvas(),
     getManualLayout: () => this.viewState.manualLayout(),
     getPointCount: () => this.runtimeQueryOwner.getPointCount(),
-    getBarSpacing: () => this.barSpacing,
+    getBarSpacing: () => this.adapterState.barSpacing(),
     setBarSpacing: (value) => {
-      this.barSpacing = value;
+      this.adapterState.setBarSpacing(value);
     },
-    getRightOffset: () => this.rightOffset,
+    getRightOffset: () => this.adapterState.rightOffset(),
     setRightOffset: (value) => {
-      this.rightOffset = value;
+      this.adapterState.setRightOffset(value);
     },
     getTimeScale: () => this.timeScale,
     setTimeAxisFormatter: (formatter) => {
-      this.timeAxisFormatter = formatter;
+      this.adapterState.setTimeAxisFormatter(formatter);
     },
-    getPrimaryPriceRangeOverride: () => this.primaryPriceRangeOverride,
+    getPrimaryPriceRangeOverride: () => this.adapterState.primaryPriceRangeOverride(),
     setPrimaryPriceRangeOverride: (range) => {
-      this.primaryPriceRangeOverride = range;
+      this.adapterState.setPrimaryPriceRangeOverride(range);
     },
     getPrimaryPriceScale: () => this.primaryPriceScale,
     getSecondaryVisibleRange: () =>
       this.chartModel.secondaryScales()[0]?.getPriceRange()?.toRaw() ?? null,
     getPanes: () => this.panes.list(),
     setPriceAxisFormatter: (formatter) => {
-      this.priceAxisFormatter = formatter;
+      this.adapterState.setPriceAxisFormatter(formatter);
     },
     setPrimaryScaleSeriesOnly: (value) => {
-      this.primaryScaleSeriesOnly = value;
+      this.adapterState.setPrimaryScaleSeriesOnly(value);
     },
     render: () => {
       this.renderInvalidation.renderIfAttached();
@@ -627,11 +566,10 @@ export class PhaseOneChartHarness {
     getMovingAverageLength: () => this.defaultMovingAverageOptions.length,
     removeSourceByApi: (series) => this.chartModel.removeSourceByApi(series as ChartSeriesApi),
     resetPrimaryRangeOverride: () => {
-      this.primaryPriceRangeOverride = null;
+      this.adapterState.setPrimaryPriceRangeOverride(null);
     },
     resetViewportState: () => {
-      this.barSpacing = null;
-      this.rightOffset = DEFAULT_RIGHT_OFFSET;
+      this.adapterState.resetViewport(DEFAULT_RIGHT_OFFSET);
     },
     clearCrosshair: () => {
       this.viewState.setCrosshair(null);
@@ -656,25 +594,13 @@ export class PhaseOneChartHarness {
       this.studyContextOwner.syncMainSource(source);
     },
     resetPrimaryPriceRangeOverride: () => {
-      this.primaryPriceRangeOverride = null;
+      this.adapterState.setPrimaryPriceRangeOverride(null);
     },
     render: () => {
       this.renderInvalidation.renderIfAttached();
     },
   });
-  private readonly stateSnapshotInputOwner = createChartStateSnapshotInputOwner<ChartDrawingDescriptor>({
-    getLayoutOptions: () => this.chartOptions,
-    getCrosshairOptions: () => this.crosshairOptions,
-    getBarSpacing: () => this.barSpacing,
-    getRightOffset: () => this.rightOffset,
-    getVisibleLogicalRange: () => this.scaleOwner.timeScaleApi().getVisibleLogicalRange(),
-    getVisiblePriceRange: () => this.scaleOwner.priceScaleApi().getVisibleRange(),
-    getPrimaryScaleSeriesOnly: () => this.primaryScaleSeriesOnly,
-    getActiveTradeLocation: () => this.tradeLocationOwner.getActiveSession(),
-    listDrawings: () => this.drawingOwner.listDrawings(),
-    getDrawingOptions: () => this.drawingOptions,
-  });
-  private readonly stateRestoreCommandOwner = createChartStateRestoreCommandOwner<
+  private readonly stateRestoreShellOwner = createChartStateRestoreShellOwner<
     PaneModelState,
     StudySourceState
   >({
@@ -732,26 +658,37 @@ export class PhaseOneChartHarness {
     setVisibleLogicalRange: (range) => this.scaleOwner.timeScaleApi().setVisibleLogicalRange(range),
     applyPriceScaleOptions: (options) => this.scaleOwner.priceScaleApi().applyOptions(options),
     setVisibleRange: (range) => this.scaleOwner.priceScaleApi().setVisibleRange(range),
-    hasCanvas: () => this.canvas !== null,
+    hasCanvas: () => this.adapterState.canvas() !== null,
     render: () => {
       this.renderInvalidation.renderIfAttached();
     },
   });
-  private readonly stateCoordinator = createChartStateCoordinator({
-    getOptions: this.stateSnapshotInputOwner.getOptions,
-    getTimeScaleState: this.stateSnapshotInputOwner.getTimeScaleState,
-    getPriceScaleState: this.stateSnapshotInputOwner.getPriceScaleState,
-    listPanes: () => this.panes.list(),
-    getMainSeriesState: () => this.mainSeriesStateOwner.getState(),
-    listStudySources: () => this.chartModel.listSourcesByRole("study"),
-    getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
-    getDefaultCompareOptions: () => this.defaultCompareOptions,
-    getTradeLocationState: this.stateSnapshotInputOwner.getTradeLocationState,
-    listDrawings: this.stateSnapshotInputOwner.listDrawings,
-    resolveDrawingMagnetOptions: this.stateSnapshotInputOwner.resolveDrawingMagnetOptions,
-    validateDrawings: this.stateSnapshotInputOwner.validateDrawings,
-    ...this.stateRestoreCommandOwner,
+  private readonly stateShellOwner = createChartStateShellOwner<
+    ChartDrawingDescriptor,
+    StudySourceState
+  >({
+    snapshotInput: {
+      getLayoutOptions: () => this.chartOptions,
+      getCrosshairOptions: () => this.crosshairOptions,
+      getBarSpacing: () => this.adapterState.barSpacing(),
+      getRightOffset: () => this.adapterState.rightOffset(),
+      getVisibleLogicalRange: () => this.scaleOwner.timeScaleApi().getVisibleLogicalRange(),
+      getVisiblePriceRange: () => this.scaleOwner.priceScaleApi().getVisibleRange(),
+      getPrimaryScaleSeriesOnly: () => this.adapterState.primaryScaleSeriesOnly(),
+      getActiveTradeLocation: () => this.tradeLocationOwner.getActiveSession(),
+      listDrawings: () => this.drawingOwner.listDrawings(),
+      getDrawingOptions: () => this.drawingOptions,
+    },
+    coordinator: {
+      listPanes: () => this.panes.list(),
+      getMainSeriesState: () => this.mainSeriesStateOwner.getState(),
+      listStudySources: () => this.chartModel.listSourcesByRole("study") as StudySourceState[],
+      getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
+      getDefaultCompareOptions: () => this.defaultCompareOptions,
+    },
+    restoreCommands: this.stateRestoreShellOwner.restoreCommandsInput(),
   });
+  private readonly stateCoordinator = this.stateShellOwner.coordinator();
   private get panes(): PaneCollection {
     return this.chartModel.panes();
   }
@@ -759,29 +696,29 @@ export class PhaseOneChartHarness {
   private get primaryPriceScale(): PriceScale {
     return this.chartModel.primaryScale();
   }
-  private readonly interactionHandlers = createChartInteractionOwner({
+  private readonly interactionShellOwner = createChartInteractionShellOwner({
     defaultLayout: DEFAULT_LAYOUT,
     paneGap: PANE_GAP,
     paneDividerHitSlop: PANE_DIVIDER_HIT_SLOP,
     barSpacingBounds: BAR_SPACING_BOUNDS,
-    getCanvas: () => this.canvas,
+    getCanvas: () => this.adapterState.canvas(),
     getManualLayout: () => this.viewState.manualLayout(),
     listPanes: () => this.panes.list(),
     getPointCount: () => this.runtimeQueryOwner.getPointCount(),
-    getBarSpacing: () => this.barSpacing,
+    getBarSpacing: () => this.adapterState.barSpacing(),
     setBarSpacing: (value) => {
-      this.barSpacing = value;
+      this.adapterState.setBarSpacing(value);
     },
-    getRightOffset: () => this.rightOffset,
+    getRightOffset: () => this.adapterState.rightOffset(),
     setRightOffset: (value) => {
-      this.rightOffset = value;
+      this.adapterState.setRightOffset(value);
     },
     viewState: this.viewState,
     drawingInteractionOwner: this.drawingInteractionOwner,
     paneOwner: this.paneOwner,
     drawingOwner: this.drawingOwner,
     focusCanvas: () => {
-      this.canvas?.focus({ preventScroll: true });
+      this.adapterState.canvas()?.focus({ preventScroll: true });
     },
     renderCanvas: (canvas) => {
       this.render(canvas);
@@ -790,48 +727,16 @@ export class PhaseOneChartHarness {
     emitClick: (readout, point) => {
       this.handlerRegistry.emitClick(readout, point);
     },
-  });
-  private readonly handleResize = this.interactionHandlers.handleResize;
-  private readonly handlePointerMove = this.interactionHandlers.handlePointerMove;
-  private readonly handlePointerLeave = this.interactionHandlers.handlePointerLeave;
-  private readonly handlePointerDown = this.interactionHandlers.handlePointerDown;
-  private readonly handlePointerUp = this.interactionHandlers.handlePointerUp;
-  private readonly handleWheel = this.interactionHandlers.handleWheel;
-  private readonly handleClick = this.interactionHandlers.handleClick;
-  private readonly handleKeyDown = this.interactionHandlers.handleKeyDown;
-  private readonly canvasLifecycleOwner = createChartCanvasLifecycleOwner({
-    getManualLayout: () => this.viewState.manualLayout(),
-    getCanvas: () => this.canvas,
     setCanvas: (nextCanvas) => {
-      this.canvas = nextCanvas;
-    },
-    renderCanvas: (nextCanvas) => {
-      this.render(nextCanvas);
-    },
-    getResizeObserver: () => this.viewState.resizeObserver(),
-    setResizeObserver: (observer) => {
-      this.viewState.setResizeObserver(observer);
-    },
-    handlers: {
-      handleResize: this.handleResize as EventListener,
-      handlePointerDown: this.handlePointerDown as EventListener,
-      handlePointerMove: this.handlePointerMove as EventListener,
-      handlePointerUp: this.handlePointerUp as EventListener,
-      handlePointerLeave: this.handlePointerLeave as EventListener,
-      handleWheel: this.handleWheel as EventListener,
-      handleClick: this.handleClick as EventListener,
-      handleKeyDown: this.handleKeyDown as EventListener,
-    },
-    clearInteractionState: () => {
-      this.viewState.clearInteractionState();
+      this.adapterState.setCanvas(nextCanvas);
     },
     clearSubscriptions: () => {
       this.handlerRegistry.clearAll();
     },
   });
-  private readonly publicSurfaceOwner = createChartPublicSurfaceOwner({
+  private readonly publicShellOwner = createChartPublicShellOwner({
     detach: () => {
-      this.canvasLifecycleOwner.detach();
+      this.interactionShellOwner.detach();
     },
     seriesCommandOwner: this.seriesCommandOwner,
     drawingOwner: this.drawingOwner,
@@ -852,19 +757,11 @@ export class PhaseOneChartHarness {
 
   public attach(canvas: HTMLCanvasElement): void {
     assertCanvasElement(canvas);
-    this.canvasLifecycleOwner.attach(canvas);
+    this.interactionShellOwner.attach(canvas);
   }
 
   public publicApiSurface(): ChartHarnessPublicLike {
-    return this.publicSurfaceOwner.publicApiSurface();
+    return this.publicShellOwner.publicApiSurface();
   }
 
-}
-
-export function createPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneChartApi {
-  return createAttachedChart(canvas, () => new PhaseOneChartHarness());
-}
-
-export function mountPhaseOneChartHarness(canvas: HTMLCanvasElement): () => void {
-  return mountPhaseOneChartDemo(canvas, createPhaseOneChart);
 }

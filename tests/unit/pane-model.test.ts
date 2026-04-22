@@ -70,4 +70,18 @@ describe("pane model", () => {
     expect(divider?.upperPaneId).toBe("pane-1");
     expect(divider?.lowerPaneId).toBe("pane-2");
   });
+
+  it("builds pane frames without biasing rounding remainder into the last pane", () => {
+    const panes = new PaneCollection();
+    panes.addSecondaryPane({ height: 101, resizable: true });
+    panes.addSecondaryPane({ height: 101, resizable: true });
+    panes.addSecondaryPane({ height: 101, resizable: true });
+
+    const frames = buildPaneFrames(panes.list(), 470, 10);
+
+    expect(frames.find((pane) => pane.id === "primary")?.height).toBe(160);
+    expect(frames.find((pane) => pane.id === "pane-1")?.height).toBe(94);
+    expect(frames.find((pane) => pane.id === "pane-2")?.height).toBe(93);
+    expect(frames.find((pane) => pane.id === "pane-3")?.height).toBe(93);
+  });
 });

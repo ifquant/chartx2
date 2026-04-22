@@ -1,3 +1,9 @@
+import {
+  MIN_PRIMARY_PANE_HEIGHT,
+  normalizePaneHeight,
+  resolvePaneFrameAllocation,
+} from "./pane-frame-policy";
+
 export type PaneKind = "primary" | "secondary";
 
 export type PaneModelState = {
@@ -21,10 +27,6 @@ export type PaneDivider = {
   lowerHeight: number;
   position: number;
 };
-
-const DEFAULT_SECONDARY_PANE_HEIGHT = 136;
-const MIN_SECONDARY_PANE_HEIGHT = 72;
-const MIN_PRIMARY_PANE_HEIGHT = 160;
 
 export class PaneCollection {
   private readonly panes: PaneModelState[] = [
@@ -70,13 +72,6 @@ export class PaneCollection {
   }
 }
 
-export function normalizePaneHeight(height: number | undefined): number {
-  if (height === undefined || !Number.isFinite(height)) {
-    return DEFAULT_SECONDARY_PANE_HEIGHT;
-  }
-  return Math.max(MIN_SECONDARY_PANE_HEIGHT, Math.round(height));
-}
-
 export function buildPaneFrames(
   panes: readonly PaneModelState[],
   plotHeight: number,
@@ -86,29 +81,11 @@ export function buildPaneFrames(
     return [];
   }
 
-  const effectiveGap = panes.length > 1 ? gap : 0;
-  const totalGap = effectiveGap * Math.max(0, panes.length - 1);
-  const secondaryPanes = panes.filter((pane) => pane.kind === "secondary");
-  const preferredSecondaryTotal = secondaryPanes.reduce(
-    (sum, pane) => sum + normalizePaneHeight(pane.preferredHeight ?? undefined),
-    0,
+  const { effectiveGap, primaryHeight, secondaryHeights } = resolvePaneFrameAllocation(
+    panes,
+    plotHeight,
+    gap,
   );
-  const maxSecondaryTotal = Math.max(0, plotHeight - totalGap - MIN_PRIMARY_PANE_HEIGHT);
-  const secondaryScale =
-    preferredSecondaryTotal > 0 && preferredSecondaryTotal > maxSecondaryTotal
-      ? maxSecondaryTotal / preferredSecondaryTotal
-      : 1;
-
-  const secondaryHeights = new Map<string, number>();
-  for (const pane of secondaryPanes) {
-    secondaryHeights.set(
-      pane.id,
-      Math.round(normalizePaneHeight(pane.preferredHeight ?? undefined) * secondaryScale),
-    );
-  }
-
-  const secondaryTotal = Array.from(secondaryHeights.values()).reduce((sum, height) => sum + height, 0);
-  const primaryHeight = Math.max(MIN_PRIMARY_PANE_HEIGHT, plotHeight - totalGap - secondaryTotal);
 
   const frames: PaneFrame[] = [];
   let top = 0;

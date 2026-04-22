@@ -11,6 +11,7 @@ export * from "./main-series-builders";
 export * from "./main-series-state";
 export * from "./main-series-style-schemas";
 export * from "./main-series-style-options";
+export * from "./pane-frame-policy";
 export * from "./pane-model";
 export * from "./plot-data";
 export * from "./plot-list";

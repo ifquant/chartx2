@@ -123,6 +123,7 @@ Post-harness shrink status:
   - adapter-shell responsibilities now live behind focused state, state-shell, restore-shell, interaction-shell, public-shell, and entry-shell owners
   - chart entry exports, public API types, and caller imports now route through dedicated entry/api modules instead of using `chart-harness.ts` as a fallback barrel
   - `chart-harness.ts` now acts primarily as the phase-one composition root instead of also carrying entry glue and compatibility-export policy
+  - the phase-one runtime graph now has a first explicit container boundary for `ChartModel`, `DrawingRegistry`, `TimeScale`, and renderer instances, so harness construction is less tied to direct object instantiation
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

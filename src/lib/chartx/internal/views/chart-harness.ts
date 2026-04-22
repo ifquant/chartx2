@@ -1,10 +1,7 @@
 import {
-  ChartModel,
-  DrawingRegistry,
   PaneCollection,
   PriceRangeImpl,
   PriceScale,
-  TimeScale,
   type PhaseOneMainChartType,
   type PhaseOneMainStyleSchemaId,
   type PhaseOneTradeLocationRequest,
@@ -13,17 +10,6 @@ import {
   type PaneModelState,
   type ChartBarSequence,
 } from "../model";
-import {
-  AreaRenderer,
-  BaselineRenderer,
-  BarRenderer,
-  CandlesticksRenderer,
-  GridRenderer,
-  HistogramRenderer,
-  KagiRenderer,
-  LineRenderer,
-  PointFigureRenderer,
-} from "../renderers";
 import { createChartPrimarySeriesOwner } from "./chart-primary-series-owner";
 import { createChartSeriesCommandOwner } from "./chart-series-command-owner";
 import { createChartMainSeriesStateOwner } from "./chart-main-series-state-owner";
@@ -70,6 +56,7 @@ import { formatSeriesKindLabel } from "./chart-series-labels";
 import { assertCanvasElement } from "./chart-dom-guards";
 import { createChartAdapterStateOwner } from "./chart-adapter-state-owner";
 import { createChartPublicShellOwner } from "./chart-public-shell-owner";
+import { createChartRuntimeContainer } from "./chart-runtime-container";
 import type { ChartHarnessPublicLike } from "./chart-public-api";
 import {
   BAR_SPACING_BOUNDS,
@@ -153,23 +140,7 @@ type PanePoint = {
 export class PhaseOneChartHarness {
   private readonly handlerRegistry = createChartHandlerRegistry();
   private readonly eventSubscriptionOwner = createChartEventSubscriptionOwner(this.handlerRegistry);
-  private readonly chartModel = new ChartModel<
-    ChartSeriesKind,
-    ChartSeriesApi,
-    SeriesSourceState,
-    PhaseOneMainChartType
-  >();
-  private readonly drawingRegistry = new DrawingRegistry<ChartDrawingKind, ChartDrawingApi, ChartDrawingDescriptor>();
-  private readonly timeScale = new TimeScale();
-  private readonly barRenderer = new BarRenderer();
-  private readonly candlesRenderer = new CandlesticksRenderer();
-  private readonly gridRenderer = new GridRenderer();
-  private readonly histogramRenderer = new HistogramRenderer();
-  private readonly lineRenderer = new LineRenderer();
-  private readonly pointFigureRenderer = new PointFigureRenderer();
-  private readonly kagiRenderer = new KagiRenderer();
-  private readonly areaRenderer = new AreaRenderer();
-  private readonly baselineRenderer = new BaselineRenderer();
+  private readonly runtime = createChartRuntimeContainer();
   private readonly adapterState = createChartAdapterStateOwner<PriceRangeImpl>();
   private readonly chartOptions: Required<NonNullable<PhaseOneChartOptions["layout"]>> = createDefaultLayoutOptions();
   private readonly crosshairOptions: Required<NonNullable<PhaseOneChartOptions["crosshair"]>> =
@@ -437,17 +408,17 @@ export class PhaseOneChartHarness {
   });
   private readonly renderCallbackOwner = createChartRenderCallbackOwner({
     getRendererRuntime: () => ({
-      lineRenderer: this.lineRenderer,
-      areaRenderer: this.areaRenderer,
-      baselineRenderer: this.baselineRenderer,
-      barRenderer: this.barRenderer,
-      candlesRenderer: this.candlesRenderer,
-      pointFigureRenderer: this.pointFigureRenderer,
-      histogramRenderer: this.histogramRenderer,
-      kagiRenderer: this.kagiRenderer,
+      lineRenderer: this.runtime.renderers.lineRenderer,
+      areaRenderer: this.runtime.renderers.areaRenderer,
+      baselineRenderer: this.runtime.renderers.baselineRenderer,
+      barRenderer: this.runtime.renderers.barRenderer,
+      candlesRenderer: this.runtime.renderers.candlesRenderer,
+      pointFigureRenderer: this.runtime.renderers.pointFigureRenderer,
+      histogramRenderer: this.runtime.renderers.histogramRenderer,
+      kagiRenderer: this.runtime.renderers.kagiRenderer,
     }),
     drawGrid: (context, params) => {
-      this.gridRenderer.draw(context, params);
+      this.runtime.renderers.gridRenderer.draw(context, params);
     },
     emitCrosshairMove: (readout, crosshair) => {
       this.handlerRegistry.emitCrosshairMove(readout, crosshair);
@@ -689,12 +660,24 @@ export class PhaseOneChartHarness {
     restoreCommands: this.stateRestoreShellOwner.restoreCommandsInput(),
   });
   private readonly stateCoordinator = this.stateShellOwner.coordinator();
+  private get chartModel() {
+    return this.runtime.chartModel;
+  }
+
+  private get drawingRegistry() {
+    return this.runtime.drawingRegistry;
+  }
+
   private get panes(): PaneCollection {
-    return this.chartModel.panes();
+    return this.runtime.panes();
   }
 
   private get primaryPriceScale(): PriceScale {
-    return this.chartModel.primaryScale();
+    return this.runtime.primaryPriceScale();
+  }
+
+  private get timeScale() {
+    return this.runtime.timeScale;
   }
   private readonly interactionShellOwner = createChartInteractionShellOwner({
     defaultLayout: DEFAULT_LAYOUT,

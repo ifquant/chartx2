@@ -116,6 +116,18 @@ Near-term work should continue to prioritize chart-core ownership cleanup:
 
 Current direction on that path:
 
+Post-harness shrink status:
+
+- completed:
+  - source, pane, drawing, render, scale, shell, runtime-query, and event-subscription composition now live behind focused owners and coordinators instead of one monolithic harness body
+  - adapter-shell responsibilities now live behind focused state, state-shell, restore-shell, interaction-shell, public-shell, and entry-shell owners
+  - chart entry exports, public API types, and caller imports now route through dedicated entry/api modules instead of using `chart-harness.ts` as a fallback barrel
+  - `chart-harness.ts` now acts primarily as the phase-one composition root instead of also carrying entry glue and compatibility-export policy
+- remaining:
+  - keep this architecture note honest about what is already done versus what is still a future extraction target
+  - continue moving genuinely shared leaf policy out of dense runtime modules only when that work materially improves engine and workstation scalability
+  - prioritize real capability gaps and behavior risks over reopening harness-local shrink work that is already finished
+
 - a new internal `ChartModel` owner should aggregate pane collection, source registry, chart context, and pane price-scale state so `chart-harness` can degrade toward an adapter instead of staying the runtime container
 - pane list, pane height normalization, and pane frame/divider layout logic should live in dedicated model-layer code instead of remaining embedded in `chart-harness`
 - source-state construction should keep moving out of `chart-harness`, starting with model-layer helpers for main-series descriptors, default study context, and empty runtime state allocation

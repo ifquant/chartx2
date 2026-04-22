@@ -12,11 +12,12 @@ This project is not a generic frontend app. It is a charting-suite sample progra
   - move toward a modifiable TradingView-like chart experience
   - support richer layouts, indicators, replay, alerts, custom chart types, and local integration
 
-The current repository state is still early:
+The current repository state is still early, but it is no longer just a starter shell:
 
 - the desktop host is a `Tauri + SvelteKit` shell
-- the main page is still close to the starter template
-- `docs/develop.md` contains planning history and should be read as roadmap context, not proof that all planned modules already exist on disk
+- the main page now hosts a working phase-one chart workstation/demo surface with pane, study, drawing, performance, and snapshot flows
+- the chart runtime has already been split across focused owners and coordinators instead of keeping all runtime policy in one harness file
+- `docs/develop.md` contains planning history and should be read as roadmap context, not proof that every planned future module already exists on disk
 
 ## Why This Exists
 
@@ -70,3 +71,13 @@ Before chasing the full TradingView feature surface, establish a clean engine-fi
 - interaction primitives such as crosshair, pan, and zoom
 
 The project should avoid turning `src/routes/+page.svelte` into the permanent home of chart internals. As chart logic grows, it should move into dedicated modules with clear boundaries.
+
+## Current Implementation Snapshot
+
+Today the most important implemented surfaces are:
+
+- a phase-one public chart API with managed panes, main-series switching, compare and moving-average studies, drawing tools, state snapshots, and chart templates
+- a workstation-style demo page that exercises workbench, feature, and performance flows against the same chart engine
+- a visual safety suite that covers both the phase-one API and the harness/workbench demos end-to-end
+
+The most important remaining work is no longer "can this render a chart at all", but "how far can this engine/workstation boundary scale toward richer TradingView-class behavior without re-centralizing policy in the harness or demo shell".

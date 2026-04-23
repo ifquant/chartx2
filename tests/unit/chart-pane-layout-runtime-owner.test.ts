@@ -61,15 +61,17 @@ describe("chart pane layout runtime owner", () => {
       40,
       { width: 600, height: 420, top: 10, right: 10, bottom: 10, left: 10 },
       {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
         startClientY: 20,
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 136,
-          startVariableSpan: 356,
-          minOpposingHeight: 160,
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 136,
+            startVariableSpan: 356,
+            minOpposingHeight: 160,
+          },
         },
       },
     );

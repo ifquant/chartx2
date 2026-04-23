@@ -35,15 +35,17 @@ describe("chart pointer runtime use-case", () => {
       focusCanvas,
       setPaneResizeState,
       resolvePaneResizeState: () => ({
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
         startClientY: 20,
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 280,
-          minOpposingHeight: 160,
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 120,
+            startVariableSpan: 280,
+            minOpposingHeight: 160,
+          },
         },
       }),
       setCrosshair,
@@ -58,15 +60,17 @@ describe("chart pointer runtime use-case", () => {
     });
 
     expect(setPaneResizeState).toHaveBeenCalledWith({
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-2",
       startClientY: 20,
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 280,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 280,
+          minOpposingHeight: 160,
+        },
       },
     });
     expect(setCursor).toHaveBeenCalledWith("row-resize");

@@ -16,15 +16,17 @@ type PaneFrameLike = {
 };
 
 type PaneResizeStateLike = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
   startClientY: number;
-  block: {
-    controlledPaneId: string;
-    blockPaneIds: readonly string[];
-    startControlledHeight: number;
-    startVariableSpan: number;
-    minOpposingHeight: number;
+  handle: {
+    dividerAfterPaneId: string;
+    dividerBeforePaneId: string;
+    block: {
+      controlledPaneId: string;
+      blockPaneIds: readonly string[];
+      startControlledHeight: number;
+      startVariableSpan: number;
+      minOpposingHeight: number;
+    };
   };
 };
 
@@ -95,10 +97,13 @@ export function createChartPaneLayoutPolicyOwner() {
       const controlsUpperPane = resizeGroup.variablePaneIds[0] === controlledPane.id;
 
       const requestedHeight = controlsUpperPane
-        ? resizeState.block.startControlledHeight + delta
-        : resizeState.block.startControlledHeight - delta;
+        ? resizeState.handle.block.startControlledHeight + delta
+        : resizeState.handle.block.startControlledHeight - delta;
       const maxControlled =
-        Math.max(MIN_CONTROLLED_HEIGHT, resizeState.block.startVariableSpan - resizeState.block.minOpposingHeight);
+        Math.max(
+          MIN_CONTROLLED_HEIGHT,
+          resizeState.handle.block.startVariableSpan - resizeState.handle.block.minOpposingHeight,
+        );
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,
         Math.min(maxControlled, Math.round(requestedHeight)),

@@ -1,3 +1,5 @@
+import type { PaneResizeInteractionState } from "./chart-pane-resize-block-owner";
+
 export type ManualLayout = {
   width: number;
   height: number;
@@ -100,4 +102,3 @@ export function createChartViewState<Point, Observer>() {
     },
   };
 }
-import type { PaneResizeInteractionState } from "./chart-pane-resize-block-owner";

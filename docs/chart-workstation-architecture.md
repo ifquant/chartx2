@@ -145,6 +145,7 @@ Post-harness shrink status:
   - pane resize policy now has an explicit grouping layer with `participatingPaneIds + variablePaneIds + fixedPaneIds`, so downstream linked-resize can distinguish fixed middle panes from the true variable span instead of encoding that split indirectly in snapshot math
   - pane resize target/block/group resolution now routes through a shared pane-resize-block owner, so pointer-down interaction and move-time pane layout policy no longer each compose those model-layer contracts independently
   - pane resize interaction state now stores one explicit block snapshot object instead of scattering `controlledPaneId + blockPaneIds + start*` fields across every consumer, so pane block state can keep tightening toward one ownership surface
+  - pane resize interaction state now carries an explicit resize handle object, so divider identity and block snapshot travel together as one named runtime payload instead of an anonymous nested structure
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

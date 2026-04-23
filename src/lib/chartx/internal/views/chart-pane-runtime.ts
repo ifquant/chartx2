@@ -27,15 +27,17 @@ type PaneFrameLike = {
 };
 
 type PaneResizeStateLike = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
   startClientY: number;
-  block: {
-    controlledPaneId: string;
-    blockPaneIds: readonly string[];
-    startControlledHeight: number;
-    startVariableSpan: number;
-    minOpposingHeight: number;
+  handle: {
+    dividerAfterPaneId: string;
+    dividerBeforePaneId: string;
+    block: {
+      controlledPaneId: string;
+      blockPaneIds: readonly string[];
+      startControlledHeight: number;
+      startVariableSpan: number;
+      minOpposingHeight: number;
+    };
   };
 };
 
@@ -243,8 +245,8 @@ export function applyPaneResize(
     paneGap: deps.gap,
   });
   const divider = paneLayoutOwner.resolvePaneDividerByIds(
-    resizeState.dividerAfterPaneId,
-    resizeState.dividerBeforePaneId,
+    resizeState.handle.dividerAfterPaneId,
+    resizeState.handle.dividerBeforePaneId,
     layout.height - layout.top - layout.bottom,
   );
   if (divider !== null) {

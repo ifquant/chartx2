@@ -78,6 +78,7 @@ Current slice status:
 - sixteenth slice landed: pane resize policy now has an explicit grouping layer with `participatingPaneIds + variablePaneIds + fixedPaneIds`, so downstream linked-resize can model fixed middle panes separately from the actual variable span
 - seventeenth slice landed: pane resize target, block snapshot, and validated grouping resolution now route through one shared pane-resize-block owner, so pointer-down interaction and move-time pane policy consume the same boundary
 - eighteenth slice landed: pane resize interaction state now stores one explicit block snapshot object instead of scattering `controlledPaneId + blockPaneIds + start*` fields across every consumer
+- nineteenth slice landed: pane resize interaction state now carries an explicit resize handle object, so divider identity and block snapshot move through runtime as one named payload
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

@@ -23,15 +23,17 @@ describe("chart view state", () => {
     state.setDragState({ startClientX: 10, startRightOffset: 2 });
     state.setDrawingDragState({ drawingId: "drawing-1", handle: "start" });
     state.setPaneResizeState({
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-2",
       startClientY: 300,
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
-        startControlledHeight: 180,
-        startVariableSpan: 380,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 180,
+          startVariableSpan: 380,
+          minOpposingHeight: 160,
+        },
       },
     });
 
@@ -43,7 +45,7 @@ describe("chart view state", () => {
     expect(state.manualLayout()).toEqual({ width: 800, height: 600 });
     expect(state.dragState()?.startRightOffset).toBe(2);
     expect(state.drawingDragState()?.handle).toBe("start");
-    expect(state.paneResizeState()?.dividerBeforePaneId).toBe("pane-2");
+    expect(state.paneResizeState()?.handle.dividerBeforePaneId).toBe("pane-2");
   });
 
   it("clears snap-guide time separately and resets interaction state without dropping selection", () => {
@@ -63,15 +65,17 @@ describe("chart view state", () => {
     state.setDragState({ startClientX: 10, startRightOffset: 2 });
     state.setDrawingDragState({ drawingId: "drawing-1", handle: "end" });
     state.setPaneResizeState({
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-2",
       startClientY: 300,
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
-        startControlledHeight: 180,
-        startVariableSpan: 380,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 180,
+          startVariableSpan: 380,
+          minOpposingHeight: 160,
+        },
       },
     });
 

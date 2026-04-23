@@ -23,10 +23,12 @@ type PaneResizeBlockSnapshotLike = {
   minOpposingHeight: number;
 };
 type PaneResizeStateLike = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
   startClientY: number;
-  block: PaneResizeBlockSnapshotLike;
+  handle: {
+    dividerAfterPaneId: string;
+    dividerBeforePaneId: string;
+    block: PaneResizeBlockSnapshotLike;
+  };
 };
 
 export function handlePointerDownRuntime(

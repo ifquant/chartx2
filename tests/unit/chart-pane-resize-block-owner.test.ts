@@ -25,15 +25,17 @@ describe("chart pane resize block owner", () => {
       listPanes: () => panes,
       paneFrames: () => paneFrames,
     })).toEqual({
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-1",
       startClientY: 24,
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-1", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 340,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
+        },
       },
     });
   });
@@ -48,15 +50,17 @@ describe("chart pane resize block owner", () => {
     ];
 
     expect(owner.resolvePaneResizeGroup({
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "pane-2",
       startClientY: 20,
-      block: {
-        controlledPaneId: "pane-3",
-        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-        startControlledHeight: 120,
-        startVariableSpan: 420,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
+        },
       },
     }, {
       listPanes: () => panes,
@@ -71,15 +75,17 @@ describe("chart pane resize block owner", () => {
     });
 
     expect(owner.resolvePaneResizeGroup({
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "pane-2",
       startClientY: 20,
-      block: {
-        controlledPaneId: "pane-3",
-        blockPaneIds: ["pane-1", "pane-3"],
-        startControlledHeight: 120,
-        startVariableSpan: 420,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
+        },
       },
     }, {
       listPanes: () => panes,

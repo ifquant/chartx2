@@ -48,6 +48,7 @@ export interface WatchlistItemModel {
 export interface WatchlistPanelModel {
   title: string;
   activeListId: string;
+  activeItemId?: string;
   items: readonly WatchlistItemModel[];
 }
 
@@ -190,6 +191,7 @@ export interface ChartWorkbenchModelInput {
   drawingTools?: readonly WorkbenchToolDescriptor[];
   activeToolId?: string;
   watchlistItems?: readonly WatchlistItemModel[];
+  activeWatchlistItemId?: string;
   alertItems?: readonly AlertSummaryModel[];
   activeRange?: string;
   ranges?: readonly string[];
@@ -276,6 +278,7 @@ export function createChartWorkbenchModel(
       watchlist: {
         title: "Watchlist",
         activeListId: "default",
+        activeItemId: input.activeWatchlistItemId,
         items: input.watchlistItems ?? [],
       },
       alerts: {

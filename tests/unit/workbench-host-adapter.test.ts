@@ -4,13 +4,37 @@ import {
   openWorkbenchSymbol,
   type WorkbenchHostAdapter,
 } from "../../src/lib/chartx/public/workbench-host";
-
-const NDX_BARS = [
-  { time: 1, open: 10, high: 12, low: 9, close: 11 },
-  { time: 2, open: 11, high: 13, low: 10, close: 12 },
-] as const;
+import { createWorkbenchFixtureHostAdapter } from "../../src/lib/demo/workbench-fixtures";
 
 describe("workbench host adapter", () => {
+  it("exposes deterministic fixture watchlist items and bar payloads", async () => {
+    const adapter = createWorkbenchFixtureHostAdapter();
+
+    await expect(adapter.listWatchlistItems()).resolves.toEqual([
+      expect.objectContaining({ symbol: "NDX" }),
+      expect.objectContaining({ symbol: "SPX" }),
+      expect.objectContaining({ symbol: "DJI" }),
+      expect.objectContaining({ symbol: "VIX" }),
+    ]);
+
+    const watchlistItems = await adapter.listWatchlistItems();
+    expect(watchlistItems.map((item) => item.symbol)).toEqual(["NDX", "SPX", "DJI", "VIX"]);
+
+    await expect(adapter.resolveSymbol("NDX")).resolves.toEqual({
+      symbol: "NDX",
+      name: "Nasdaq 100",
+      exchange: "NASDAQ",
+      defaultTimeframe: "1D",
+    });
+
+    const spxPayload = await adapter.loadBars("SPX", "1D");
+    const ndxPayload = await adapter.loadBars("NDX", "1D");
+
+    expect(spxPayload.bars).toHaveLength(10_000);
+    expect(ndxPayload.bars).toHaveLength(10_000);
+    expect(spxPayload.bars[0]?.close).not.toBe(ndxPayload.bars[0]?.close);
+  });
+
   it("resolves a symbol and loads bars through one open-symbol helper", async () => {
     const adapter: WorkbenchHostAdapter = {
       listWatchlistItems: vi.fn(async () => []),
@@ -24,7 +48,10 @@ describe("workbench host adapter", () => {
         symbol,
         timeframe,
         exchangeLabel: "NASDAQ",
-        bars: NDX_BARS,
+        bars: [
+          { time: 1, open: 10, high: 12, low: 9, close: 11 },
+          { time: 2, open: 11, high: 13, low: 10, close: 12 },
+        ],
         volume: [
           { time: 1, value: 1000, color: "#10b981" },
           { time: 2, value: 1200, color: "#10b981" },

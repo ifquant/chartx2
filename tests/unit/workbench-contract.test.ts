@@ -12,6 +12,7 @@ describe("chart workbench contract", () => {
       exchangeLabel: "NASDAQ",
       timeframeLabel: "1D",
       chartTypeLabel: "Candles",
+      activeWatchlistItemId: "ndx",
       activeRange: "1D",
       watchlistItems: [
         {
@@ -38,6 +39,7 @@ describe("chart workbench contract", () => {
     expect(model.layout.slots).toHaveLength(1);
     expect(model.layout.activeChartHostId).toBe("market-main");
     expect(model.chartHosts[0]?.family).toBe("market");
+    expect(model.rightSidebar.watchlist.activeItemId).toBe("ndx");
     expect(model.rightSidebar.watchlist.items).toHaveLength(1);
     expect(model.rightSidebar.alerts.items).toHaveLength(1);
     expect(model.bottomPanel.ranges[0]).toBe("1D");

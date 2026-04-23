@@ -60,10 +60,9 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
 
   await workbenchAction(page, "layout-split").click();
   await expect(layout).toHaveAttribute("data-workbench-layout-preset", "main-plus-secondary");
-
-  await workbenchAction(page, "host-main").click();
   const hostCards = layout.locator("[data-chart-host]");
   await expect(hostCards).toHaveCount(2);
+  await workbenchAction(page, "host-main").click();
 
   const watchRows = workbench.locator('[data-watchlist-symbol]');
   await expect(watchRows.nth(1)).toHaveAttribute("data-watchlist-symbol", /.+/);

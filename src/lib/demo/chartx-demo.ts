@@ -414,6 +414,9 @@ export function mountWorkbenchDemo(
   let activeIndicators: DemoActiveIndicator[] = [];
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
+  let alertsLoadPromise: Promise<boolean> | null = null;
+  let alertsLoadCompleted = options.alertsProvider === undefined;
+  let alertsLoadFailed = false;
 
   const latestActiveClose = (): number | null => {
     const latestBar = activeBarsPayload.bars.at(-1);
@@ -505,6 +508,16 @@ export function mountWorkbenchDemo(
       return true;
     }
     return provider.saveWorkbenchAlerts(createWorkbenchAlertsState({ alerts: workbenchAlerts }));
+  };
+
+  const ensureWorkbenchAlertsLoaded = async (): Promise<boolean> => {
+    if (options.alertsProvider === undefined) {
+      return true;
+    }
+    if (alertsLoadCompleted) {
+      return !alertsLoadFailed;
+    }
+    return alertsLoadPromise === null ? true : alertsLoadPromise;
   };
 
   const persistEvaluatedWorkbenchAlerts = () => {
@@ -882,26 +895,32 @@ export function mountWorkbenchDemo(
 
   if (options.alertsProvider !== undefined) {
     const loadStartedAtMutationVersion = alertMutationVersion;
-    options.alertsProvider
+    alertsLoadPromise = options.alertsProvider
       .loadWorkbenchAlerts()
       .then((state) => {
         if (destroyed) {
-          return;
+          return false;
         }
         if (alertMutationVersion !== loadStartedAtMutationVersion) {
-          return;
+          return true;
         }
         workbenchAlerts = state === null ? [] : [...state.alerts];
         persistEvaluatedWorkbenchAlerts();
         publishSnapshot();
+        return true;
       })
       .catch((error: unknown) => {
         if (destroyed) {
-          return;
+          return false;
         }
         const message = error instanceof Error ? error.message : String(error);
         pushLog(log, `failed to load alerts: ${message}`);
         publishSnapshot();
+        alertsLoadFailed = true;
+        return false;
+      })
+      .finally(() => {
+        alertsLoadCompleted = true;
       });
   }
 
@@ -2007,6 +2026,10 @@ export function mountWorkbenchDemo(
       });
     },
     async createPriceAlert() {
+      if (!(await ensureWorkbenchAlertsLoaded()) || destroyed) {
+        return false;
+      }
+
       const latestClose = latestActiveClose();
       if (latestClose === null) {
         pushLog(log, `failed to create alert ${activeSymbol}: no active close`);

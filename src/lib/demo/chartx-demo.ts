@@ -358,6 +358,7 @@ export function mountWorkbenchDemo(
   let workbenchWatchlist: readonly WatchlistItemModel[] = [];
   let destroyed = false;
   let symbolOpenSequence = 0;
+  let layoutOperationSequence = 0;
   let studyPaneEnabled = true;
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
@@ -1758,6 +1759,7 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     },
     async openSymbol(symbol) {
+      layoutOperationSequence += 1;
       return openWorkbenchDemoSymbol({
         symbol,
         timeframe: activeTimeframe,
@@ -1767,6 +1769,7 @@ export function mountWorkbenchDemo(
       });
     },
     async saveLayout() {
+      layoutOperationSequence += 1;
       const provider = options.persistenceProvider;
       if (provider === undefined) {
         pushLog(log, "failed to save layout: persistence provider unavailable");
@@ -1781,8 +1784,13 @@ export function mountWorkbenchDemo(
           chartType: mainChartType,
           chart,
         });
-        await provider.saveWorkbenchLayout(state);
+        const saved = await provider.saveWorkbenchLayout(state);
         if (destroyed) {
+          return false;
+        }
+        if (!saved) {
+          pushLog(log, "failed to save layout: persistence provider rejected the layout");
+          publishSnapshot();
           return false;
         }
         pushLog(log, `saved layout ${state.activeSymbol}`);
@@ -1806,6 +1814,7 @@ export function mountWorkbenchDemo(
         return false;
       }
 
+      const layoutOperation = ++layoutOperationSequence;
       let state: WorkbenchLayoutState | null;
       try {
         state = await provider.loadWorkbenchLayout();
@@ -1819,7 +1828,7 @@ export function mountWorkbenchDemo(
         return false;
       }
 
-      if (destroyed) {
+      if (destroyed || layoutOperation !== layoutOperationSequence) {
         return false;
       }
       if (state === null) {
@@ -1845,6 +1854,9 @@ export function mountWorkbenchDemo(
       if (!opened) {
         return false;
       }
+      if (destroyed || layoutOperation !== layoutOperationSequence) {
+        return false;
+      }
 
       try {
         if (state.chartState !== null) {
@@ -1861,7 +1873,7 @@ export function mountWorkbenchDemo(
         return false;
       }
 
-      if (destroyed) {
+      if (destroyed || layoutOperation !== layoutOperationSequence) {
         return false;
       }
       pushLog(log, `restored layout ${state.activeSymbol}`);
@@ -1869,6 +1881,7 @@ export function mountWorkbenchDemo(
       return true;
     },
     async resetLayout() {
+      layoutOperationSequence += 1;
       const opened = await openWorkbenchDemoSymbol({
         symbol: "NDX",
         timeframe: "1D",

@@ -33,7 +33,7 @@ export interface WorkbenchLayoutStateInput {
 
 export interface WorkbenchLayoutPersistenceProvider {
   loadWorkbenchLayout(): Promise<WorkbenchLayoutState | null>;
-  saveWorkbenchLayout(state: WorkbenchLayoutState): Promise<void>;
+  saveWorkbenchLayout(state: WorkbenchLayoutState): Promise<boolean>;
   clearWorkbenchLayout(): Promise<void>;
 }
 
@@ -91,6 +91,34 @@ function isAllowedDrawingType(value: unknown): value is "horizontal-line" | "tre
   return value === "horizontal-line" || value === "trend-line";
 }
 
+function isOhlcDataRow(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isNumber(value.time) &&
+    isNumber(value.open) &&
+    isNumber(value.high) &&
+    isNumber(value.low) &&
+    isNumber(value.close)
+  );
+}
+
+function isLineDataRow(value: unknown): boolean {
+  return isRecord(value) && isNumber(value.time) && isNumber(value.value);
+}
+
+function isSeriesDataRows(
+  kind: PhaseOneChartStateSnapshot["series"][number]["kind"],
+  value: unknown,
+): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  if (kind === "candlestick" || kind === "bar") {
+    return value.every((row) => isOhlcDataRow(row));
+  }
+  return value.every((row) => isLineDataRow(row));
+}
+
 function isPhaseOneMainSeriesStateSnapshot(
   value: unknown,
 ): value is Exclude<PhaseOneChartStateSnapshot["mainSeries"], null> {
@@ -117,7 +145,7 @@ function isPhaseOneSeriesSnapshot(value: unknown): value is PhaseOneChartStateSn
   if (!isRecord(value) || !isAllowedSeriesKind(value.kind) || !isNumber(value.paneIndex)) {
     return false;
   }
-  return isRecord(value.options) && Array.isArray(value.data);
+  return isRecord(value.options) && isSeriesDataRows(value.kind, value.data);
 }
 
 function isPhaseOneStudySnapshot(value: unknown): value is PhaseOneChartStateSnapshot["studies"][number] {
@@ -128,10 +156,14 @@ function isPhaseOneStudySnapshot(value: unknown): value is PhaseOneChartStateSna
     return false;
   }
   if (value.type === "overlay") {
-    return Array.isArray(value.data);
+    return Array.isArray(value.data) && value.data.every((row) => isLineDataRow(row));
   }
   if (value.type === "compare") {
-    return isRecord(value.compareOptions) && Array.isArray(value.data);
+    return (
+      isRecord(value.compareOptions) &&
+      Array.isArray(value.data) &&
+      value.data.every((row) => isLineDataRow(row))
+    );
   }
   return isRecord(value.studyOptions);
 }
@@ -333,8 +365,9 @@ export function createLocalStorageWorkbenchLayoutProvider(
     async saveWorkbenchLayout(state) {
       try {
         storage.setItem(key, JSON.stringify(state));
+        return true;
       } catch {
-        // Ignore storage quota and access failures in the local UI provider.
+        return false;
       }
     },
     async clearWorkbenchLayout() {

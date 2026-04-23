@@ -165,6 +165,93 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("rejects persisted series and study data arrays with invalid rows", () => {
+    const invalidSeriesState = {
+      kind: "workbench-layout",
+      version: 1,
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: {
+        ...minimalChartStateSnapshot,
+        series: [{ kind: "line", paneIndex: 0, options: {}, data: [{}] }],
+      },
+      panels: {
+        rightSidebar: "watchlist",
+        bottomTab: "time-presets",
+      },
+    };
+    const invalidStudyState = {
+      ...invalidSeriesState,
+      chartState: {
+        ...minimalChartStateSnapshot,
+        series: [],
+        studies: [{ type: "overlay", paneIndex: 0, seriesOptions: {}, data: [{}] }],
+      },
+    };
+
+    expect(isWorkbenchLayoutState(invalidSeriesState)).toBe(false);
+    expect(isWorkbenchLayoutState(invalidStudyState)).toBe(false);
+  });
+
+  it("accepts valid minimal persisted data rows for restored chart content", () => {
+    const state = {
+      kind: "workbench-layout",
+      version: 1,
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: {
+        ...minimalChartStateSnapshot,
+        series: [
+          {
+            kind: "candlestick",
+            paneIndex: 0,
+            options: {},
+            data: [{ time: 1, open: 1, high: 2, low: 0.5, close: 1.5 }],
+          },
+          {
+            kind: "bar",
+            paneIndex: 0,
+            options: {},
+            data: [{ time: 1, open: 1, high: 2, low: 0.5, close: 1.5 }],
+          },
+          { kind: "line", paneIndex: 0, options: {}, data: [{ time: 1, value: 1.5 }] },
+          { kind: "area", paneIndex: 0, options: {}, data: [{ time: 1, value: 1.5 }] },
+          { kind: "baseline", paneIndex: 0, options: {}, data: [{ time: 1, value: 1.5 }] },
+          { kind: "histogram", paneIndex: 0, options: {}, data: [{ time: 1, value: 1.5 }] },
+          {
+            kind: "volume",
+            paneIndex: 0,
+            options: {},
+            data: [{ time: 1, value: 100, color: "#123456", isUp: true }],
+          },
+        ],
+        studies: [
+          {
+            type: "overlay",
+            paneIndex: 0,
+            seriesOptions: {},
+            data: [{ time: 1, value: 1.5 }],
+          },
+          {
+            type: "compare",
+            paneIndex: 0,
+            seriesOptions: {},
+            compareOptions: {},
+            data: [{ time: 1, value: 1.5 }],
+          },
+        ],
+      },
+      panels: {
+        rightSidebar: "watchlist",
+        bottomTab: "time-presets",
+      },
+    };
+
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
   it("preserves the controller-saved symbol, timeframe, chart type, and chart snapshot", () => {
     const state = createWorkbenchLayoutState({
       activeSymbol: "SPX",
@@ -210,7 +297,7 @@ describe("workbench layout state", () => {
       chartState: null,
     });
 
-    await provider.saveWorkbenchLayout(state);
+    await expect(provider.saveWorkbenchLayout(state)).resolves.toBe(true);
     await expect(provider.loadWorkbenchLayout()).resolves.toEqual(state);
 
     await provider.clearWorkbenchLayout();
@@ -241,7 +328,7 @@ describe("workbench layout state", () => {
           chartState: null,
         }),
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
     await expect(provider.clearWorkbenchLayout()).resolves.toBeUndefined();
   });
 });

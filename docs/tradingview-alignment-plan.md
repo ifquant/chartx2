@@ -479,6 +479,42 @@ Acceptance:
 - Replay works on local fixture/history data.
 - Normal live/static chart state can return after replay stops.
 
+Implementation note:
+
+- Bar Replay V0 is now active-chart-only in the demo workbench. The shell
+  enables the replay bottom tab, but replay policy remains in
+  `src/lib/demo/chartx-demo.ts` rather than moving into `+page.svelte`.
+- The current slice supports enter, play, pause, step, and exit controls over
+  local fixture/history bars for the active market chart only.
+- Replay works by truncating the displayed `bars`, `line`, and `volume` payload
+  to a replay cursor, then reusing the existing rebuild/render path. Exiting
+  replay restores the full current dataset.
+- This slice is intentionally narrower than full TradingView-style replay:
+  there is no multi-chart replay sync, no cloud persistence, and no promise yet
+  that indicator/drawing replay semantics are stable beyond the current rebuild
+  behavior.
+- Saved-layout save/restore/reset is blocked while replay is active so replay
+  does not silently persist a truncated chart state as if it were the normal
+  layout snapshot.
+
+Implementation note:
+
+- Bar Replay V0 is now live in the workbench demo as an active-chart-only local
+  fixture/history capability. The public workbench shell enables the replay
+  bottom tab through `enabledBottomTabs`, but replay policy and state ownership
+  remain in the demo controller instead of `+page.svelte`.
+- The current slice supports enter, play, pause, step, and exit from the
+  workbench controller and replay card UI. Replay works by truncating the
+  displayed bars, line payload, and volume payload to the replay cursor, then
+  reusing the existing rebuild/render pipeline for the active chart host.
+- Exiting replay restores the full active dataset by leaving replay mode and
+  rebuilding against the current payload again. Save/restore/reset layout are
+  intentionally blocked while replay is active so persisted layout state cannot
+  silently capture replay-truncated chart state.
+- This is intentionally still a V0 slice: no multi-chart replay sync, no cloud
+  persistence, and no promise yet that indicator or drawing semantics under
+  replay are stable enough to treat as final behavior.
+
 ### 9. Screener V0
 
 Purpose:

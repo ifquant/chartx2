@@ -1,7 +1,10 @@
 import {
   normalizePaneHeight,
 } from "../model";
-import { createChartPaneResizeBlockOwner } from "./chart-pane-resize-block-owner";
+import {
+  createChartPaneResizeBlockOwner,
+  type PaneResizeHandle,
+} from "./chart-pane-resize-block-owner";
 
 type PaneLike = {
   id: string;
@@ -13,21 +16,6 @@ type PaneLike = {
 type PaneFrameLike = {
   id: string;
   height: number;
-};
-
-type PaneResizeStateLike = {
-  startClientY: number;
-  handle: {
-    dividerAfterPaneId: string;
-    dividerBeforePaneId: string;
-    block: {
-      controlledPaneId: string;
-      blockPaneIds: readonly string[];
-      startControlledHeight: number;
-      startVariableSpan: number;
-      minOpposingHeight: number;
-    };
-  };
 };
 
 const MIN_PRIMARY_HEIGHT = 160;
@@ -74,19 +62,22 @@ export function createChartPaneLayoutPolicyOwner() {
     },
 
     resolveControlledResizeHeight(
-      clientY: number,
-      resizeState: PaneResizeStateLike | null,
+      deltaY: number,
+      resizeHandle: PaneResizeHandle | null,
       deps: {
         getPaneById(paneId: string): PaneLike | undefined;
         listPanes(): readonly PaneLike[];
       },
     ): { paneId: string; nextHeight: number } | null {
-      if (resizeState === null) {
+      if (resizeHandle === null) {
         return null;
       }
 
-      const delta = Math.round(clientY - resizeState.startClientY);
-      const resizeGroup = paneResizeBlockOwner.resolvePaneResizeGroup(resizeState, deps);
+      const delta = Math.round(deltaY);
+      const resizeGroup = paneResizeBlockOwner.resolvePaneResizeGroup(
+        { startClientY: 0, handle: resizeHandle },
+        deps,
+      );
       if (resizeGroup === null) {
         return null;
       }
@@ -97,12 +88,12 @@ export function createChartPaneLayoutPolicyOwner() {
       const controlsUpperPane = resizeGroup.variablePaneIds[0] === controlledPane.id;
 
       const requestedHeight = controlsUpperPane
-        ? resizeState.handle.block.startControlledHeight + delta
-        : resizeState.handle.block.startControlledHeight - delta;
+        ? resizeHandle.block.startControlledHeight + delta
+        : resizeHandle.block.startControlledHeight - delta;
       const maxControlled =
         Math.max(
           MIN_CONTROLLED_HEIGHT,
-          resizeState.handle.block.startVariableSpan - resizeState.handle.block.minOpposingHeight,
+          resizeHandle.block.startVariableSpan - resizeHandle.block.minOpposingHeight,
         );
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,

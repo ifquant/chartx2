@@ -146,6 +146,7 @@ Post-harness shrink status:
   - pane resize target/block/group resolution now routes through a shared pane-resize-block owner, so pointer-down interaction and move-time pane layout policy no longer each compose those model-layer contracts independently
   - pane resize interaction state now stores one explicit block snapshot object instead of scattering `controlledPaneId + blockPaneIds + start*` fields across every consumer, so pane block state can keep tightening toward one ownership surface
   - pane resize interaction state now carries an explicit resize handle object, so divider identity and block snapshot travel together as one named runtime payload instead of an anonymous nested structure
+  - move-time pane layout policy now consumes `resizeHandle + deltaY` instead of the full interaction state, so runtime drag lifecycle fields no longer leak into pane resize policy ownership
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

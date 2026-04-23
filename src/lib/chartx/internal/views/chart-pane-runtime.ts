@@ -218,10 +218,14 @@ export function applyPaneResize(
     return;
   }
 
-  const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(clientY, resizeState, {
-    getPaneById: deps.getPaneById,
-    listPanes: deps.listPanes,
-  });
+  const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(
+    clientY - resizeState.startClientY,
+    resizeState.handle,
+    {
+      getPaneById: deps.getPaneById,
+      listPanes: deps.listPanes,
+    },
+  );
   if (controlledResize === null) {
     return;
   }

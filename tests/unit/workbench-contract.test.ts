@@ -38,7 +38,13 @@ describe("chart workbench contract", () => {
     expect(model.layout.symbolMode).toBe("shared");
     expect(model.layout.slots).toHaveLength(1);
     expect(model.layout.activeChartHostId).toBe("market-main");
-    expect(model.chartHosts[0]?.family).toBe("market");
+    expect(model.chartHosts[0]).toMatchObject({
+      family: "market",
+      symbolLabel: "NDX",
+      timeframeLabel: "1D",
+      chartTypeLabel: "Candles",
+      statusLabel: "Active",
+    });
     expect(model.rightSidebar.watchlist.activeItemId).toBe("ndx");
     expect(model.rightSidebar.watchlist.items).toHaveLength(1);
     expect(model.rightSidebar.alerts.items).toHaveLength(1);
@@ -72,6 +78,10 @@ describe("chart workbench contract", () => {
           title: "Main chart",
           slotId: "slot-1",
           active: true,
+          symbolLabel: "TSLA",
+          timeframeLabel: "1H",
+          chartTypeLabel: "Candles",
+          statusLabel: "Active",
         },
         {
           id: "performance-main",
@@ -79,6 +89,9 @@ describe("chart workbench contract", () => {
           title: "Performance report",
           slotId: "slot-2",
           active: false,
+          symbolLabel: "TSLA",
+          timeframeLabel: "1H",
+          chartTypeLabel: "Performance",
         },
       ],
     });
@@ -90,7 +103,84 @@ describe("chart workbench contract", () => {
       "market",
       "performance",
     ]);
+    expect(model.chartHosts[0]).toMatchObject({
+      symbolLabel: "TSLA",
+      timeframeLabel: "1H",
+      chartTypeLabel: "Candles",
+      statusLabel: "Active",
+    });
+    expect(model.chartHosts[1]).toMatchObject({
+      symbolLabel: "TSLA",
+      timeframeLabel: "1H",
+      chartTypeLabel: "Performance",
+      statusLabel: undefined,
+    });
     expect(model.layout.activeChartHostId).toBe("market-main");
+  });
+
+  it("keeps active-host routing metadata aligned with the selected host", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "ES",
+      timeframeLabel: "5m",
+      chartTypeLabel: "Candles",
+      chartHosts: [
+        {
+          id: "market-main",
+          family: "market",
+          title: "Primary chart",
+          slotId: "slot-main",
+          active: false,
+        },
+        {
+          id: "performance-main",
+          family: "performance",
+          title: "Performance chart",
+          slotId: "slot-side",
+          active: true,
+        },
+      ],
+      layoutPreset: "main-plus-secondary",
+    });
+
+    expect(model.layout.activeChartHostId).toBe("performance-main");
+    expect(model.chartHosts).toEqual([
+      {
+        id: "market-main",
+        family: "market",
+        title: "Primary chart",
+        slotId: "slot-main",
+        active: false,
+        symbolLabel: "ES",
+        timeframeLabel: "5m",
+        chartTypeLabel: "Candles",
+        statusLabel: undefined,
+      },
+      {
+        id: "performance-main",
+        family: "performance",
+        title: "Performance chart",
+        slotId: "slot-side",
+        active: true,
+        symbolLabel: "ES",
+        timeframeLabel: "5m",
+        chartTypeLabel: "Candles",
+        statusLabel: "Active",
+      },
+    ]);
+    expect(model.layout.slots).toEqual([
+      {
+        id: "slot-main",
+        title: "Primary chart",
+        role: "primary",
+        chartHostId: "market-main",
+      },
+      {
+        id: "slot-side",
+        title: "Performance chart",
+        role: "secondary",
+        chartHostId: "performance-main",
+      },
+    ]);
   });
 
   it("preserves an explicit object tree without affecting watchlist or alerts", () => {

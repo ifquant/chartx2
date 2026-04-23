@@ -117,6 +117,10 @@ export interface ChartHostModel {
   title: string;
   slotId: ChartSlotId;
   active: boolean;
+  symbolLabel?: string;
+  timeframeLabel?: string;
+  chartTypeLabel?: string;
+  statusLabel?: string;
 }
 
 export interface ChartSlotModel {
@@ -277,7 +281,7 @@ function defaultSlotsForPreset(preset: MultiChartLayoutPreset): ChartSlotModel[]
 export function createChartWorkbenchModel(
   input: ChartWorkbenchModelInput,
 ): ChartWorkbenchModel {
-  const chartHosts = input.chartHosts ?? [
+  const chartHosts = (input.chartHosts ?? [
     {
       id: "market-main",
       family: "market",
@@ -285,7 +289,13 @@ export function createChartWorkbenchModel(
       slotId: "slot-main",
       active: true,
     },
-  ];
+  ]).map((host) => ({
+    ...host,
+    symbolLabel: host.symbolLabel ?? input.symbol,
+    timeframeLabel: host.timeframeLabel ?? input.timeframeLabel,
+    chartTypeLabel: host.chartTypeLabel ?? input.chartTypeLabel,
+    statusLabel: host.statusLabel ?? (host.active ? "Active" : undefined),
+  }));
   const layoutPreset = input.layoutPreset ?? "single";
   const defaultSlots = defaultSlotsForPreset(layoutPreset);
   const hostBySlotId = new Map(chartHosts.map((host) => [host.slotId, host]));

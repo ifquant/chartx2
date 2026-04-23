@@ -7,6 +7,10 @@
     type PhaseOneReadoutDetail,
   } from "$lib/chartx/public/market";
   import {
+    createLocalStorageWorkbenchAlertsProvider,
+    type WorkbenchAlertsPersistenceProvider,
+  } from "$lib/chartx/public/workbench-alerts";
+  import {
     createLocalStorageWorkbenchLayoutProvider,
     type WorkbenchLayoutPersistenceProvider,
   } from "$lib/chartx/public/workbench-layout";
@@ -132,6 +136,7 @@
   let mountingPerformance = false;
   let mountingFeature = false;
   const workbenchTradeIntentBridge = createWorkbenchTradeIntentBridge();
+  let workbenchAlertsProvider: WorkbenchAlertsPersistenceProvider | undefined;
   let workbenchPersistenceProvider: WorkbenchLayoutPersistenceProvider | undefined;
 
   let workbenchReadout = emptyReadout();
@@ -155,6 +160,7 @@
   let workbenchToolPointer: { x: number; y: number } | null = null;
 
   onMount(() => {
+    workbenchAlertsProvider = createLocalStorageWorkbenchAlertsProvider(window.localStorage);
     workbenchPersistenceProvider = createLocalStorageWorkbenchLayoutProvider(window.localStorage);
     void mountWorkbenchWhenReady();
 
@@ -308,6 +314,7 @@
         workbenchSnapshot = snapshot;
         workbenchTradeIntentBridge.publishSnapshot();
       }, {
+        alertsProvider: workbenchAlertsProvider,
         persistenceProvider: workbenchPersistenceProvider,
       });
       workbenchTradeIntentBridge.connect(workbenchController);

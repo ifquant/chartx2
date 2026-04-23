@@ -478,6 +478,8 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
 
 test("workbench creates a price alert", async ({ page }) => {
   await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   const alerts = workbench.locator(".alert-card");
@@ -492,6 +494,11 @@ test("workbench creates a price alert", async ({ page }) => {
   await expect(alerts).toContainText(/Price crosses above \d+\.\d{2}/);
   await expect(alerts).toContainText("armed");
   await expect(activity).toContainText(/created alert NDX price crosses \d+\.\d{2}/);
+
+  await page.reload();
+  await expect(alerts).toContainText("NDX price cross");
+  await expect(alerts).toContainText(/Price crosses above \d+\.\d{2}/);
+  await expect(alerts).toContainText("armed");
 });
 
 test("workbench saves and restores the active layout locally", async ({ page }) => {

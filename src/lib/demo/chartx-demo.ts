@@ -15,13 +15,11 @@ import {
   type PhaseOneDrawingStateSnapshot,
   type PhaseOneHorizontalLineDrawingOptions,
   type PhaseOneHistogramData,
-  type PhaseOneLineData,
   type PhaseOneMainChartType,
   type PhaseOnePaneApi,
   type PhaseOnePaneEvent,
   type PhaseOnePaneState,
   type PhaseOneTrendLineDrawingOptions,
-  type PhaseOneVolumeData,
 } from "$lib/chartx/public/market";
 import {
   createChartWorkbenchModel,
@@ -29,6 +27,11 @@ import {
   type ChartWorkbenchModel,
   type WatchlistItemModel,
 } from "$lib/chartx/public/workbench";
+import {
+  openWorkbenchSymbol,
+  type WorkbenchBarsPayload,
+  type WorkbenchHostAdapter,
+} from "$lib/chartx/public/workbench-host";
 import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 import {
   createCompressedPriceBasedChartBarSequence,
@@ -42,6 +45,13 @@ import {
   inferKagiReversalSize,
 } from "$lib/chartx/internal/model/main-series-builders";
 import { createPlotRows } from "$lib/chartx/internal/model/series-data";
+import {
+  createLineData,
+  createVolumeData,
+  createWorkbenchBars,
+  createWorkbenchFixtureBarsPayload,
+  createWorkbenchFixtureHostAdapter,
+} from "$lib/demo/workbench-fixtures";
 
 export type DemoTabId = "workbench" | "features";
 export type FeatureTabId =
@@ -121,6 +131,7 @@ export type DemoSnapshot = {
 export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
+  openSymbol?(symbol: string): Promise<boolean>;
   locateTrade?(intent: TradeLocationIntent): boolean;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
@@ -141,6 +152,12 @@ export type FeatureExampleDescriptor = {
   label: string;
   summary: string;
   available: boolean;
+};
+
+export type WorkbenchDemoOptions = {
+  hostAdapter?: WorkbenchHostAdapter;
+  initialSymbol?: string;
+  initialTimeframe?: string;
 };
 
 type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
@@ -295,9 +312,16 @@ export const FEATURE_TABS: readonly FeatureExampleDescriptor[] = [
 export function mountWorkbenchDemo(
   canvas: HTMLCanvasElement,
   publish: SnapshotPublisher,
+  options: WorkbenchDemoOptions = {},
 ): DemoController {
   const log: EventLog = [];
+  const hostAdapter = options.hostAdapter ?? createWorkbenchFixtureHostAdapter();
   let chart: PhaseOneChartApi | null = null;
+  let activeSymbol = options.initialSymbol ?? "NDX";
+  let activeTimeframe = options.initialTimeframe ?? "1D";
+  let activeExchangeLabel = "NASDAQ";
+  let activeBarsPayload: WorkbenchBarsPayload = createWorkbenchFixtureBarsPayload(activeSymbol, activeTimeframe);
+  let workbenchWatchlist: readonly WatchlistItemModel[] = [];
   let studyPaneEnabled = true;
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
@@ -327,12 +351,12 @@ export function mountWorkbenchDemo(
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
 
-  const workbenchSeries = (chartType: WorkbenchMainChartType) => {
-    const bars = createWorkbenchBars(10_000);
+  const workbenchSeries = (_chartType: WorkbenchMainChartType) => {
+    const bars = activeBarsPayload.bars;
     return {
       bars,
-      volume: createVolumeData(bars),
-      line: createLineData(bars, chartType === "point-figure" ? 18 : 6),
+      volume: activeBarsPayload.volume,
+      line: activeBarsPayload.line,
       visibleTrendStartBar: bars.at(-52) ?? bars[0]!,
       visibleTrendEndBar: bars.at(-18) ?? bars.at(-1) ?? bars[0]!,
     };
@@ -528,33 +552,29 @@ export function mountWorkbenchDemo(
         ? null
         : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
 
-    const workbenchWatchlist: WatchlistItemModel[] = [
-      { id: "spx", symbol: "SPX", lastLabel: "6,368.86", changeLabel: "-1.67%", changeTone: "negative" },
-      { id: "ndq", symbol: "NDQ", lastLabel: "23,132.77", changeLabel: "-1.93%", changeTone: "negative" },
-      { id: "dji", symbol: "DJI", lastLabel: "45,166.64", changeLabel: "-1.73%", changeTone: "negative" },
-      { id: "vix", symbol: "VIX", lastLabel: "30.73", changeLabel: "-1.03%", changeTone: "negative" },
-    ];
+    const activeWatchlistItemId = workbenchWatchlist.find((item) => item.symbol === activeSymbol)?.id;
     const workbenchAlerts: AlertSummaryModel[] = [
       { id: "alert-breakout", label: "NDX breakout", conditionLabel: "Price crosses 23,250", status: "armed" },
       { id: "alert-draw", label: "Trend line touch", conditionLabel: "Trend line revisit on 1D", status: "armed" },
     ];
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
-      symbol: "NDX",
-      exchangeLabel: "NASDAQ",
-      timeframeLabel: "1D",
+      symbol: activeSymbol,
+      exchangeLabel: activeExchangeLabel,
+      timeframeLabel: activeTimeframe,
       chartTypeLabel: formatWorkbenchChartType(mainChartType),
       drawingTools: drawingToolsForSnapshot(drawingTool),
       activeToolId: drawingTool,
       watchlistItems: workbenchWatchlist,
+      activeWatchlistItemId,
       alertItems: workbenchAlerts,
-      activeRange: "1D",
+      activeRange: activeTimeframe,
       layoutPreset: "single",
       chartHosts: [
         {
           id: "market-main",
           family: "market",
-          title: "Primary market chart",
+          title: `${activeSymbol} market chart`,
           slotId: "slot-main",
           active: true,
         },
@@ -685,6 +705,11 @@ export function mountWorkbenchDemo(
           : null,
     });
   };
+
+  hostAdapter.listWatchlistItems().then((items) => {
+    workbenchWatchlist = items;
+    publishSnapshot();
+  });
 
   const rebuild = () => {
     const {
@@ -1593,6 +1618,28 @@ export function mountWorkbenchDemo(
       }
       publishSnapshot();
     },
+    async openSymbol(symbol) {
+      const result = await openWorkbenchSymbol(hostAdapter, {
+        symbol,
+        timeframe: activeTimeframe,
+        source: "watchlist",
+      });
+      if (!result.ok) {
+        pushLog(log, `failed to open ${symbol}: ${result.reason}`);
+        publishSnapshot();
+        return false;
+      }
+
+      activeSymbol = result.payload.symbol;
+      activeTimeframe = result.payload.timeframe;
+      activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
+      activeBarsPayload = result.payload;
+      activeTradeLocationIntent = null;
+      mainChartType = "candlestick";
+      pushLog(log, `opened symbol ${activeSymbol} from watchlist`);
+      rebuild();
+      return true;
+    },
     locateTrade(intent) {
       return applyTradeLocation(intent, true);
     },
@@ -2466,59 +2513,11 @@ function createBars(count: number): PhaseOneCandlestickData[] {
   return bars;
 }
 
-function createWorkbenchBars(count: number): PhaseOneCandlestickData[] {
-  const bars: PhaseOneCandlestickData[] = [];
-  let close = 16_860;
-
-  for (let index = 0; index < count; index += 1) {
-    const regime = Math.sin(index / 17) * 42 + Math.cos(index / 29) * 24;
-    const openGap = Math.sin(index / 2.1) * 18 + Math.cos(index / 1.35) * 12 + ((index % 6) - 2.5) * 3;
-    const body = regime + Math.sin(index / 4.4) * 61 + Math.cos(index / 7.3) * 27;
-    const open = close + openGap;
-    const nextClose = open + body;
-    const upperShadow = 14 + (index % 5) * 7 + Math.abs(Math.sin(index / 3.3)) * 12;
-    const lowerShadow = 12 + (index % 4) * 6 + Math.abs(Math.cos(index / 2.8)) * 11;
-    const high = Math.max(open, nextClose) + upperShadow;
-    const low = Math.min(open, nextClose) - lowerShadow;
-
-    bars.push({
-      time: BASE_TIME + index * DAY,
-      open: round(open),
-      high: round(high),
-      low: round(low),
-      close: round(nextClose),
-      volume: 760_000 + index * 22_000 + Math.round(Math.abs(nextClose - open) * 8_400),
-    });
-
-    close = nextClose;
-  }
-
-  return bars;
-}
-
-function createVolumeData(bars: readonly PhaseOneCandlestickData[]): PhaseOneVolumeData[] {
-  return bars.map((bar, index) => ({
-    time: bar.time,
-    value: bar.volume ?? 760_000 + index * 22_000 + Math.round(Math.abs(bar.close - bar.open) * 8_400),
-    up: bar.close >= bar.open,
-  }));
-}
-
 function createHistogramData(bars: readonly PhaseOneCandlestickData[]): PhaseOneHistogramData[] {
   return bars.map((bar, index) => ({
     time: bar.time,
     value: 48 + Math.round(Math.abs(bar.close - bar.open) * 0.55) + (index % 5) * 9,
     up: bar.close >= bar.open,
-  }));
-}
-
-function createLineData(
-  bars: readonly PhaseOneCandlestickData[],
-  offset: number,
-): PhaseOneLineData[] {
-  return bars.map((bar, index) => ({
-    time: bar.time,
-    value: round(bar.close - offset + Math.sin(index / 3.2) * 24),
   }));
 }
 

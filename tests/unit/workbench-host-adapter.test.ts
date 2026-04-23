@@ -7,6 +7,7 @@ import {
 import {
   createWorkbenchFixtureBarsPayload,
   createWorkbenchFixtureHostAdapter,
+  createWorkbenchFixtureWatchlist,
 } from "../../src/lib/demo/workbench-fixtures";
 
 describe("workbench host adapter", () => {
@@ -48,6 +49,16 @@ describe("workbench host adapter", () => {
     expect(payload.bars[0]).toEqual(ndxPayload.bars[0]);
     expect(payload.volume[0]).toEqual(ndxPayload.volume[0]);
     expect(payload.line[0]).toEqual(ndxPayload.line[0]);
+  });
+
+  it("creates aligned fixture payload data from the first watchlist symbol", () => {
+    const rows = createWorkbenchFixtureWatchlist();
+    const payload = createWorkbenchFixtureBarsPayload(rows[0]!.symbol, "1D");
+
+    expect(payload.symbol).toBe("NDX");
+    expect(payload.exchangeLabel).toBe("NASDAQ");
+    expect(payload.volume.length).toBe(payload.bars.length);
+    expect(payload.line.length).toBe(payload.bars.length);
   });
 
   it("resolves a symbol and loads bars through one open-symbol helper", async () => {

@@ -413,6 +413,7 @@ export function mountWorkbenchDemo(
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
   let activeIndicators: DemoActiveIndicator[] = [];
   let workbenchAlerts: WorkbenchAlertState[] = [];
+  let alertMutationVersion = 0;
 
   const latestActiveClose = (): number | null => {
     const latestBar = activeBarsPayload.bars.at(-1);
@@ -472,7 +473,7 @@ export function mountWorkbenchDemo(
     if (condition.direction === "below") {
       return close <= condition.price;
     }
-    return close >= condition.price || close <= condition.price;
+    return false;
   };
 
   const evaluateActivePriceAlerts = (): boolean => {
@@ -880,10 +881,14 @@ export function mountWorkbenchDemo(
   };
 
   if (options.alertsProvider !== undefined) {
+    const loadStartedAtMutationVersion = alertMutationVersion;
     options.alertsProvider
       .loadWorkbenchAlerts()
       .then((state) => {
         if (destroyed) {
+          return;
+        }
+        if (alertMutationVersion !== loadStartedAtMutationVersion) {
           return;
         }
         workbenchAlerts = state === null ? [] : [...state.alerts];
@@ -1005,6 +1010,10 @@ export function mountWorkbenchDemo(
     latestClick = null;
     latestReadout = null;
     mainChartType = input.chartType ?? "candlestick";
+    if (options.alertsProvider === undefined) {
+      workbenchAlerts = createDemoWorkbenchAlerts();
+      alertMutationVersion += 1;
+    }
     persistEvaluatedWorkbenchAlerts();
     if (input.successLog !== undefined) {
       pushLog(log, input.successLog(activeSymbol));
@@ -2023,6 +2032,7 @@ export function mountWorkbenchDemo(
       };
       const previousAlerts = workbenchAlerts;
       workbenchAlerts = [...workbenchAlerts, alert];
+      alertMutationVersion += 1;
       evaluateActivePriceAlerts();
 
       try {

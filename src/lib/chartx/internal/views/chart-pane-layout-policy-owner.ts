@@ -106,7 +106,9 @@ export function createChartPaneLayoutPolicyOwner() {
       const requestedHeight = controlsUpperPane
         ? resizeState.startControlledHeight + delta
         : resizeState.startControlledHeight - delta;
-      const totalResizableSpan = resizeState.startUpperHeight + resizeState.startLowerHeight;
+      const totalResizableSpan = controlsUpperPane
+        ? resizeState.startControlledHeight + resizeState.startLowerHeight
+        : resizeState.startUpperHeight + resizeState.startControlledHeight;
       const maxControlled =
         upperPane.kind === "secondary" && lowerPane.kind === "secondary"
           ? Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - MIN_CONTROLLED_HEIGHT)

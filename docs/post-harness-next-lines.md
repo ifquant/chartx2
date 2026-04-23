@@ -68,6 +68,7 @@ Current slice status:
 - sixth slice landed: pane frame allocation now routes through a dedicated pane-frame policy, and secondary rounding remainder no longer defaults to the last pane
 - seventh slice landed: pane runtime, scale, and readout frame consumers now go through the shared pane-layout owner instead of each path re-reading frame layout directly
 - eighth slice landed: primary-pane dividers now stay interactive when their immediate lower pane is fixed but a downstream secondary pane is resizable, and resize state now carries that downstream pane's starting height so linked drags can execute against the validated target
+- ninth slice landed: downstream primary-divider clamp math now uses the controlled pane span instead of the fixed intermediary span, so linked resize can grow the downstream pane to the real primary-min-height limit
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

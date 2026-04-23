@@ -231,4 +231,50 @@ describe("chart pane runtime use-cases", () => {
     expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
     expect(crosshair?.x).toBe(10);
   });
+
+  it("clamps downstream primary-divider growth against the controlled pane span", () => {
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const fixedSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+    const emitPaneResize = vi.fn();
+    const emitPaneEvent = vi.fn();
+
+    applyPaneResize(-100, {
+      width: 600,
+      height: 520,
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+    }, {
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      controlledPaneId: "pane-2",
+      startClientY: 20,
+      startControlledHeight: 120,
+      startUpperHeight: 220,
+      startLowerHeight: 100,
+    }, {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? primary
+          : paneId === "pane-1"
+            ? fixedSecondary
+            : paneId === "pane-2"
+              ? lowerSecondary
+              : undefined,
+      emitPaneResize,
+      emitPaneEvent,
+      hasCanvas: () => false,
+      listPanes: () => [primary, fixedSecondary, lowerSecondary],
+      gap: 12,
+      getCrosshair: () => null,
+      setCrosshair: vi.fn(),
+    });
+
+    expect(lowerSecondary.preferredHeight).toBe(180);
+    expect(fixedSecondary.preferredHeight).toBe(100);
+    expect(emitPaneResize).toHaveBeenCalledWith("pane-2");
+    expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
+  });
 });

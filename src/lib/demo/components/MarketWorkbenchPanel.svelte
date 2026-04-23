@@ -43,6 +43,11 @@
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
   export let onResetLayout: () => void;
+  export let onEnterReplay: () => void;
+  export let onPlayReplay: () => void;
+  export let onPauseReplay: () => void;
+  export let onStepReplay: () => void;
+  export let onExitReplay: () => void;
   export let onPointerMove: (event: PointerEvent) => void;
   export let onPointerLeave: () => void;
   export let onSetPointFigureAutoScale: (value: number) => void;
@@ -80,6 +85,7 @@
   let slotViews: SlotView[] = [];
   let activeSlotView: SlotView | null = null;
   let activeGrid: SlotGridPosition = { col: 1, row: 1 };
+  let replayState = snapshot.replay;
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -99,6 +105,7 @@
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
+  $: replayState = snapshot.replay;
   $: layoutPreset = workbench?.layout.preset ?? "single";
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
@@ -140,11 +147,25 @@
       </div>
       <button>{workbench?.toolbar.indicatorsLabel ?? "Indicators"}</button>
       <button>{workbench?.toolbar.alertLabel ?? "Alert"}</button>
-      <button>{workbench?.toolbar.replayLabel ?? "Replay"}</button>
+      <button
+        type="button"
+        aria-pressed={replayState?.active ? "true" : "false"}
+        on:click={() => {
+          if (replayState?.active && replayState?.playing) {
+            onPauseReplay();
+            return;
+          }
+          if (replayState?.active) {
+            onPlayReplay();
+            return;
+          }
+          onEnterReplay();
+        }}
+      >{workbench?.toolbar.replayLabel ?? "Replay"}</button>
       <button>{workbench?.toolbar.layoutLabel ?? "Layout single"}</button>
-      <button on:click={onSaveLayout}>Save layout</button>
-      <button on:click={onRestoreLayout}>Restore layout</button>
-      <button on:click={onResetLayout}>Reset layout</button>
+      <button on:click={onSaveLayout} disabled={replayState?.active}>Save layout</button>
+      <button on:click={onRestoreLayout} disabled={replayState?.active}>Restore layout</button>
+      <button on:click={onResetLayout} disabled={replayState?.active}>Reset layout</button>
     </div>
   </div>
 
@@ -438,6 +459,51 @@
           {:else}
             <p class="indicator-empty">No active indicators.</p>
           {/each}
+        </div>
+      </section>
+
+      <section class="mini-card replay-card" data-replay-panel>
+        <div class="sidebar-head">
+          <h4>Replay</h4>
+          <span>{replayState?.active ? "active" : "ready"}</span>
+        </div>
+        <div
+          class="replay-summary"
+          data-replay-active={replayState?.active ? "true" : "false"}
+          data-replay-playing={replayState?.playing ? "true" : "false"}
+          data-replay-current-step={String(replayState?.currentStep ?? 0)}
+          data-replay-total-steps={String(replayState?.totalSteps ?? 0)}
+        >
+          <strong>{replayState?.currentTimeLabel ?? "--"}</strong>
+          <span>{replayState?.currentStep ?? 0} / {replayState?.totalSteps ?? 0}</span>
+          <span>{replayState?.startTimeLabel ?? "--"} → {replayState?.endTimeLabel ?? "--"}</span>
+        </div>
+        <div class="replay-controls">
+          {#if !(replayState?.active ?? false)}
+            <button type="button" data-replay-control="enter" on:click={onEnterReplay}>
+              Enter replay
+            </button>
+          {:else}
+            <button
+              type="button"
+              data-replay-control={replayState?.playing ? "pause" : "play"}
+              on:click={() => {
+                if (replayState?.playing) {
+                  onPauseReplay();
+                  return;
+                }
+                onPlayReplay();
+              }}
+            >
+              {replayState?.playing ? "Pause" : "Play"}
+            </button>
+            <button type="button" data-replay-control="step" on:click={onStepReplay}>
+              Step
+            </button>
+            <button type="button" data-replay-control="exit" on:click={onExitReplay}>
+              Exit
+            </button>
+          {/if}
         </div>
       </section>
 
@@ -1435,6 +1501,40 @@
     align-items: center;
     color: rgba(24, 24, 27, 0.62);
     font-size: 0.78rem;
+  }
+
+  .replay-summary {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+    color: rgba(24, 24, 27, 0.64);
+    font-size: 0.76rem;
+  }
+
+  .replay-summary strong {
+    color: #18181b;
+    font-size: 0.84rem;
+  }
+
+  .replay-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .replay-controls button {
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    background: rgba(24, 24, 27, 0.08);
+    color: #18181b;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .replay-controls button:hover {
+    background: rgba(24, 24, 27, 0.12);
   }
 
   .object-tree-body {

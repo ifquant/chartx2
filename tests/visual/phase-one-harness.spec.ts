@@ -566,6 +566,63 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
   await expect(activeIndicatorList).not.toContainText("Overlay Line");
 });
 
+test("workbench replays the active dataset locally", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const replay = workbench.locator("[data-replay-panel]");
+  const summary = replay.locator(".replay-summary");
+
+  await expect(replay).toContainText("Replay");
+  await expect(summary).toHaveAttribute("data-replay-active", "false");
+
+  await workbench.getByRole("button", { name: "Replay", exact: true }).click();
+  await expect(summary).toHaveAttribute("data-replay-active", "true");
+
+  const enteredStep = Number((await summary.getAttribute("data-replay-current-step")) ?? "0");
+  expect(enteredStep).toBeGreaterThan(0);
+
+  await replay.locator('[data-replay-control="step"]').evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("replay step control is missing");
+    }
+    node.click();
+  });
+  await expect
+    .poll(async () => Number((await summary.getAttribute("data-replay-current-step")) ?? "0"))
+    .toBeGreaterThan(enteredStep);
+
+  const steppedStep = Number((await summary.getAttribute("data-replay-current-step")) ?? "0");
+
+  await replay.locator('[data-replay-control="play"]').evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("replay play control is missing");
+    }
+    node.click();
+  });
+  await expect(summary).toHaveAttribute("data-replay-playing", "true");
+  await expect
+    .poll(async () => Number((await summary.getAttribute("data-replay-current-step")) ?? "0"))
+    .toBeGreaterThan(steppedStep);
+
+  await replay.locator('[data-replay-control="pause"]').evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("replay pause control is missing");
+    }
+    node.click();
+  });
+  await expect(summary).toHaveAttribute("data-replay-playing", "false");
+
+  await replay.locator('[data-replay-control="exit"]').evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("replay exit control is missing");
+    }
+    node.click();
+  });
+  await expect(summary).toHaveAttribute("data-replay-active", "false");
+  await expect(replay.locator('[data-replay-control="enter"]')).toBeVisible();
+});
+
 test("workbench renders a read-only object tree", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());

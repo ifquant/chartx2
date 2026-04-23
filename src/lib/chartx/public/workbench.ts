@@ -229,6 +229,7 @@ export interface ChartWorkbenchModelInput {
   activeRange?: string;
   ranges?: readonly string[];
   activeTab?: BottomPanelTabId;
+  enabledBottomTabs?: readonly BottomPanelTabId[];
   layoutPreset?: MultiChartLayoutPreset;
   symbolMode?: WorkbenchSymbolMode;
   chartHosts?: readonly ChartHostModel[];
@@ -301,6 +302,7 @@ export function createChartWorkbenchModel(
     statusLabel: host.statusLabel ?? (host.id === normalizedActiveHostId ? "Active" : undefined),
   }));
   const layoutPreset = input.layoutPreset ?? "single";
+  const enabledBottomTabs = new Set(input.enabledBottomTabs ?? []);
   const defaultSlots = defaultSlotsForPreset(layoutPreset);
   const hostBySlotId = new Map(chartHosts.map((host) => [host.slotId, host]));
   const slots = defaultSlots.map((slot) => {
@@ -351,7 +353,10 @@ export function createChartWorkbenchModel(
       activeRange: input.activeRange ?? "1D",
       ranges: input.ranges ?? DEFAULT_RANGES,
       activeTab: input.activeTab ?? "time-presets",
-      tabs: DEFAULT_BOTTOM_TABS,
+      tabs: DEFAULT_BOTTOM_TABS.map((tab) => ({
+        ...tab,
+        enabled: tab.enabled || enabledBottomTabs.has(tab.id),
+      })),
     },
     layout: {
       preset: layoutPreset,

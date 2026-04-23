@@ -63,6 +63,33 @@ describe("chart workbench contract", () => {
       },
     ]);
     expect(model.bottomPanel.ranges[0]).toBe("1D");
+    expect(model.bottomPanel.tabs.find((tab) => tab.id === "replay")).toEqual({
+      id: "replay",
+      label: "Replay",
+      enabled: false,
+    });
+  });
+
+  it("allows the shell to opt into additional enabled bottom tabs", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "AAPL",
+      timeframeLabel: "1D",
+      chartTypeLabel: "Candles",
+      enabledBottomTabs: ["replay"],
+      activeTab: "replay",
+    });
+
+    expect(model.bottomPanel.activeTab).toBe("replay");
+    expect(model.bottomPanel.tabs.find((tab) => tab.id === "replay")).toEqual({
+      id: "replay",
+      label: "Replay",
+      enabled: true,
+    });
+    expect(model.bottomPanel.tabs.find((tab) => tab.id === "time-presets")).toEqual({
+      id: "time-presets",
+      label: "Time presets",
+      enabled: true,
+    });
   });
 
   it("accepts explicit multi-chart hosts without collapsing them into pane semantics", () => {

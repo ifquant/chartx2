@@ -115,6 +115,17 @@ type DemoActiveIndicator = {
   placement: WorkbenchIndicatorCatalogEntry["placement"];
 };
 
+type DemoReplayState = {
+  available: boolean;
+  active: boolean;
+  playing: boolean;
+  currentStep: number;
+  totalSteps: number;
+  currentTimeLabel: string;
+  startTimeLabel: string;
+  endTimeLabel: string;
+};
+
 export type DemoSnapshot = {
   title: string;
   summary: string;
@@ -123,6 +134,7 @@ export type DemoSnapshot = {
   workbench?: ChartWorkbenchModel | null;
   indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
   activeIndicators?: readonly DemoActiveIndicator[];
+  replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
   drawingTool?: {
@@ -169,6 +181,11 @@ export type DemoController = {
   restoreLayout?(): Promise<boolean>;
   resetLayout?(): Promise<boolean>;
   addIndicatorFromCatalog?(entryId: string): boolean;
+  enterReplay?(): boolean;
+  playReplay?(): boolean;
+  pauseReplay?(): boolean;
+  stepReplay?(): boolean;
+  exitReplay?(): boolean;
   locateTrade?(intent: TradeLocationIntent): boolean;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
@@ -210,6 +227,8 @@ type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "tradi
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
 type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
 type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
+const REPLAY_INITIAL_VISIBLE_BARS = 120;
+const REPLAY_PLAY_INTERVAL_MS = 360;
 type DemoWorkbenchChartHostRecord = {
   id: DemoWorkbenchChartHostId;
   symbol: string;
@@ -685,6 +704,10 @@ export function mountWorkbenchDemo(
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
   let activeIndicators: DemoActiveIndicator[] = [];
+  let replayActive = false;
+  let replayPlaying = false;
+  let replayCursor = -1;
+  let replayTimer: ReturnType<typeof setInterval> | null = null;
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
   let alertsLoadPromise: Promise<boolean> | null = null;
@@ -730,11 +753,66 @@ export function mountWorkbenchDemo(
   };
 
   const latestActiveClose = (): number | null => {
-    const latestBar = activeBarsPayload.bars.at(-1);
+    const latestBar = displayedBarsPayload().bars.at(-1);
     return latestBar === undefined ? null : latestBar.close;
   };
 
-  const latestActiveTimestamp = (): number => activeBarsPayload.bars.at(-1)?.time ?? Date.now();
+  const latestActiveTimestamp = (): number => displayedBarsPayload().bars.at(-1)?.time ?? Date.now();
+
+  const clearReplayTimer = () => {
+    if (replayTimer !== null) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+    }
+    replayPlaying = false;
+  };
+
+  const resolveReplayInitialCursor = () =>
+    Math.min(activeBarsPayload.bars.length - 1, REPLAY_INITIAL_VISIBLE_BARS - 1);
+
+  const displayedBarsPayload = (): WorkbenchBarsPayload => {
+    if (!replayActive || replayCursor < 0) {
+      return activeBarsPayload;
+    }
+    const end = Math.min(replayCursor + 1, activeBarsPayload.bars.length);
+    return {
+      ...activeBarsPayload,
+      bars: activeBarsPayload.bars.slice(0, end),
+      volume: activeBarsPayload.volume.slice(0, end),
+      line: activeBarsPayload.line.slice(0, end),
+    };
+  };
+
+  const buildReplaySnapshot = (): DemoReplayState => {
+    const totalSteps = activeBarsPayload.bars.length;
+    const currentBar = replayActive ? displayedBarsPayload().bars.at(-1) : activeBarsPayload.bars.at(-1);
+    return {
+      available: totalSteps > 1,
+      active: replayActive,
+      playing: replayPlaying,
+      currentStep: replayActive ? Math.max(replayCursor + 1, 0) : totalSteps,
+      totalSteps,
+      currentTimeLabel: currentBar === undefined ? "--" : formatTime(currentBar.time),
+      startTimeLabel: activeBarsPayload.bars[0] === undefined ? "--" : formatTime(activeBarsPayload.bars[0].time),
+      endTimeLabel:
+        activeBarsPayload.bars.at(-1) === undefined ? "--" : formatTime(activeBarsPayload.bars.at(-1)!.time),
+    };
+  };
+
+  const resetReplayState = () => {
+    clearReplayTimer();
+    replayActive = false;
+    replayCursor = -1;
+  };
+
+  const ensureReplayReady = (): boolean => {
+    if (activeBarsPayload.bars.length <= 1) {
+      pushLog(log, `failed to start replay ${activeSymbol}: not enough bars`);
+      publishSnapshot();
+      return false;
+    }
+    return true;
+  };
 
   const refreshObjectTreeProjection = () => {
     const chartState = chart?.getChartState() ?? null;
@@ -873,11 +951,12 @@ export function mountWorkbenchDemo(
   }
 
   const workbenchSeries = (_chartType: WorkbenchMainChartType) => {
-    const bars = activeBarsPayload.bars;
+    const payload = displayedBarsPayload();
+    const bars = payload.bars;
     return {
       bars,
-      volume: activeBarsPayload.volume,
-      line: activeBarsPayload.line,
+      volume: payload.volume,
+      line: payload.line,
       visibleTrendStartBar: bars.at(-52) ?? bars[0]!,
       visibleTrendEndBar: bars.at(-18) ?? bars.at(-1) ?? bars[0]!,
     };
@@ -1116,6 +1195,8 @@ export function mountWorkbenchDemo(
       alertItems,
       objectTree,
       activeRange: activeTimeframe,
+      activeTab: replayActive ? "replay" : "time-presets",
+      enabledBottomTabs: ["replay"],
       layoutPreset,
       chartHosts,
     });
@@ -1127,6 +1208,7 @@ export function mountWorkbenchDemo(
       workbench: workbenchModel,
       indicatorCatalog: WORKBENCH_INDICATOR_CATALOG,
       activeIndicators: [...activeIndicators],
+      replay: buildReplaySnapshot(),
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
         { label: "Main type", value: formatWorkbenchChartType(mainChartType) },
@@ -1313,6 +1395,7 @@ export function mountWorkbenchDemo(
         activeTimeframe = result.payload.timeframe;
         activeExchangeLabel = result.exchangeLabel;
         activeBarsPayload = result.payload;
+        resetReplayState();
         activeTradeLocationIntent = null;
         pendingTrendLineStart = null;
         drawingTool = "none";
@@ -1385,6 +1468,7 @@ export function mountWorkbenchDemo(
     activeTimeframe = result.payload.timeframe;
     activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
     activeBarsPayload = result.payload;
+    resetReplayState();
     activeTradeLocationIntent = null;
     pendingTrendLineStart = null;
     drawingTool = "none";
@@ -1486,6 +1570,12 @@ export function mountWorkbenchDemo(
 
   const rebuild = () => {
     activeIndicators = [];
+    if (replayActive) {
+      replayCursor = Math.min(replayCursor, activeBarsPayload.bars.length - 1);
+      if (replayCursor < 0) {
+        resetReplayState();
+      }
+    }
     const {
       bars,
       volume,
@@ -1884,6 +1974,95 @@ export function mountWorkbenchDemo(
         placement: entry.placement,
       },
     ];
+  };
+
+  const advanceReplayCursor = (source: "step" | "play"): boolean => {
+    if (!replayActive) {
+      return false;
+    }
+    if (replayCursor >= activeBarsPayload.bars.length - 1) {
+      clearReplayTimer();
+      pushLog(log, "replay reached the latest bar");
+      publishSnapshot();
+      return false;
+    }
+    replayCursor += 1;
+    if (replayCursor >= activeBarsPayload.bars.length - 1) {
+      clearReplayTimer();
+      pushLog(log, source === "step" ? "replay stepped to the latest bar" : "replay reached the latest bar");
+    } else if (source === "step") {
+      pushLog(log, `replay stepped to bar ${replayCursor + 1}/${activeBarsPayload.bars.length}`);
+    }
+    rebuild();
+    return true;
+  };
+
+  const enterReplay = (): boolean => {
+    if (!ensureReplayReady()) {
+      return false;
+    }
+    clearReplayTimer();
+    replayActive = true;
+    replayCursor = resolveReplayInitialCursor();
+    pushLog(log, `entered replay ${activeSymbol} at bar ${replayCursor + 1}/${activeBarsPayload.bars.length}`);
+    rebuild();
+    return true;
+  };
+
+  const playReplay = (): boolean => {
+    if (!replayActive) {
+      return enterReplay() ? playReplay() : false;
+    }
+    if (replayPlaying) {
+      publishSnapshot();
+      return true;
+    }
+    if (replayCursor >= activeBarsPayload.bars.length - 1) {
+      pushLog(log, "failed to play replay: already at the latest bar");
+      publishSnapshot();
+      return false;
+    }
+    replayPlaying = true;
+    replayTimer = setInterval(() => {
+      if (destroyed) {
+        clearReplayTimer();
+        return;
+      }
+      advanceReplayCursor("play");
+    }, REPLAY_PLAY_INTERVAL_MS);
+    pushLog(log, "replay playing");
+    publishSnapshot();
+    return true;
+  };
+
+  const pauseReplay = (): boolean => {
+    if (!replayActive || !replayPlaying) {
+      publishSnapshot();
+      return false;
+    }
+    clearReplayTimer();
+    pushLog(log, "replay paused");
+    publishSnapshot();
+    return true;
+  };
+
+  const stepReplay = (): boolean => {
+    if (!replayActive) {
+      return enterReplay();
+    }
+    clearReplayTimer();
+    return advanceReplayCursor("step");
+  };
+
+  const exitReplay = (): boolean => {
+    if (!replayActive) {
+      publishSnapshot();
+      return false;
+    }
+    resetReplayState();
+    pushLog(log, "replay exited");
+    rebuild();
+    return true;
   };
 
   return {
@@ -2489,7 +2668,7 @@ export function mountWorkbenchDemo(
 
       if (entry.engineKind === "compare") {
         const compare = chart.addCompareSeries();
-        compare.setData(activeBarsPayload.line);
+        compare.setData(displayedBarsPayload().line);
         compare.applyCompareOptions({
           requestedSymbol: activeSymbol,
           requestedResolution: activeTimeframe,
@@ -2507,7 +2686,7 @@ export function mountWorkbenchDemo(
         color: theme === "warm" ? "#c2410c" : "#38bdf8",
         lineWidth: 3,
       });
-      overlay.setData(activeBarsPayload.line);
+      overlay.setData(displayedBarsPayload().line);
       addActiveIndicator(entry);
       pushLog(log, "added indicator Overlay Line");
       refreshObjectTreeProjectionAndPublish();
@@ -2589,6 +2768,11 @@ export function mountWorkbenchDemo(
     // Demo note: layout persistence is still active-host-only in this slice (no multi-host save/restore yet).
     async saveLayout() {
       layoutOperationSequence += 1;
+      if (replayActive) {
+        pushLog(log, "failed to save layout: exit replay first");
+        publishSnapshot();
+        return false;
+      }
       const provider = options.persistenceProvider;
       if (provider === undefined) {
         pushLog(log, "failed to save layout: persistence provider unavailable");
@@ -2627,6 +2811,11 @@ export function mountWorkbenchDemo(
       }
     },
     async restoreLayout() {
+      if (replayActive) {
+        pushLog(log, "failed to restore layout: exit replay first");
+        publishSnapshot();
+        return false;
+      }
       const provider = options.persistenceProvider;
       if (provider === undefined) {
         pushLog(log, "failed to restore layout: persistence provider unavailable");
@@ -2714,6 +2903,11 @@ export function mountWorkbenchDemo(
       return true;
     },
     async resetLayout() {
+      if (replayActive) {
+        pushLog(log, "failed to reset layout: exit replay first");
+        publishSnapshot();
+        return false;
+      }
       layoutOperationSequence += 1;
       const opened = await openWorkbenchDemoSymbol({
         targetHostId: activeChartHostId,
@@ -2736,11 +2930,17 @@ export function mountWorkbenchDemo(
       publishSnapshot();
       return true;
     },
+    enterReplay,
+    playReplay,
+    pauseReplay,
+    stepReplay,
+    exitReplay,
     locateTrade(intent) {
       return applyTradeLocation(intent, true);
     },
     destroy() {
       destroyed = true;
+      clearReplayTimer();
       teardownChartTypeSubscription?.();
       chart?.destroy();
       chart = null;

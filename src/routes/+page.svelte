@@ -452,6 +452,41 @@
     }
   }
 
+  function enterWorkbenchReplay(): void {
+    const entered = workbenchController?.enterReplay?.();
+    if (entered) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function playWorkbenchReplay(): void {
+    const playing = workbenchController?.playReplay?.();
+    if (playing) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function pauseWorkbenchReplay(): void {
+    const paused = workbenchController?.pauseReplay?.();
+    if (paused) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function stepWorkbenchReplay(): void {
+    const stepped = workbenchController?.stepReplay?.();
+    if (stepped) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function exitWorkbenchReplay(): void {
+    const exited = workbenchController?.exitReplay?.();
+    if (exited) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   function setPointFigureAutoScale(value: number): void {
     workbenchController?.setPointFigureAutoScale?.(value);
   }
@@ -834,6 +869,11 @@
           onResetLayout={() => {
             void resetWorkbenchLayout();
           }}
+          onEnterReplay={enterWorkbenchReplay}
+          onPlayReplay={playWorkbenchReplay}
+          onPauseReplay={pauseWorkbenchReplay}
+          onStepReplay={stepWorkbenchReplay}
+          onExitReplay={exitWorkbenchReplay}
           onPointerMove={handleWorkbenchChartPointerMove}
           onPointerLeave={clearWorkbenchToolPointer}
           onSetPointFigureAutoScale={setPointFigureAutoScale}

@@ -319,9 +319,11 @@ export function mountWorkbenchDemo(
   let chart: PhaseOneChartApi | null = null;
   let activeSymbol = options.initialSymbol ?? "NDX";
   let activeTimeframe = options.initialTimeframe ?? "1D";
-  let activeExchangeLabel = "NASDAQ";
   let activeBarsPayload: WorkbenchBarsPayload = createWorkbenchFixtureBarsPayload(activeSymbol, activeTimeframe);
+  let activeExchangeLabel = activeBarsPayload.exchangeLabel ?? "NASDAQ";
   let workbenchWatchlist: readonly WatchlistItemModel[] = [];
+  let destroyed = false;
+  let symbolOpenSequence = 0;
   let studyPaneEnabled = true;
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
@@ -706,10 +708,22 @@ export function mountWorkbenchDemo(
     });
   };
 
-  hostAdapter.listWatchlistItems().then((items) => {
-    workbenchWatchlist = items;
-    publishSnapshot();
-  });
+  hostAdapter.listWatchlistItems()
+    .then((items) => {
+      if (destroyed) {
+        return;
+      }
+      workbenchWatchlist = items;
+      publishSnapshot();
+    })
+    .catch((error: unknown) => {
+      if (destroyed) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      pushLog(log, `failed to load watchlist: ${message}`);
+      publishSnapshot();
+    });
 
   const rebuild = () => {
     const {
@@ -1619,11 +1633,28 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     },
     async openSymbol(symbol) {
-      const result = await openWorkbenchSymbol(hostAdapter, {
-        symbol,
-        timeframe: activeTimeframe,
-        source: "watchlist",
-      });
+      const requestSequence = ++symbolOpenSequence;
+      let result: Awaited<ReturnType<typeof openWorkbenchSymbol>>;
+
+      try {
+        result = await openWorkbenchSymbol(hostAdapter, {
+          symbol,
+          timeframe: activeTimeframe,
+          source: "watchlist",
+        });
+      } catch (error) {
+        if (destroyed || requestSequence !== symbolOpenSequence) {
+          return false;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to open ${symbol}: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+
+      if (destroyed || requestSequence !== symbolOpenSequence) {
+        return false;
+      }
       if (!result.ok) {
         pushLog(log, `failed to open ${symbol}: ${result.reason}`);
         publishSnapshot();
@@ -1635,6 +1666,10 @@ export function mountWorkbenchDemo(
       activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
       activeBarsPayload = result.payload;
       activeTradeLocationIntent = null;
+      pendingTrendLineStart = null;
+      drawingTool = "none";
+      latestClick = null;
+      latestReadout = null;
       mainChartType = "candlestick";
       pushLog(log, `opened symbol ${activeSymbol} from watchlist`);
       rebuild();
@@ -1644,6 +1679,7 @@ export function mountWorkbenchDemo(
       return applyTradeLocation(intent, true);
     },
     destroy() {
+      destroyed = true;
       teardownChartTypeSubscription?.();
       chart?.destroy();
       chart = null;

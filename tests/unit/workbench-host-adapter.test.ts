@@ -59,6 +59,10 @@ describe("workbench host adapter", () => {
     expect(payload.exchangeLabel).toBe("NASDAQ");
     expect(payload.volume.length).toBe(payload.bars.length);
     expect(payload.line.length).toBe(payload.bars.length);
+    expect(payload.volume[0]?.time).toBe(payload.bars[0]?.time);
+    expect(payload.line[0]?.time).toBe(payload.bars[0]?.time);
+    expect(payload.volume.at(-1)?.time).toBe(payload.bars.at(-1)?.time);
+    expect(payload.line.at(-1)?.time).toBe(payload.bars.at(-1)?.time);
   });
 
   it("resolves a symbol and loads bars through one open-symbol helper", async () => {

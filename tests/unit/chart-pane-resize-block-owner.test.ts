@@ -91,4 +91,31 @@ describe("chart pane resize block owner", () => {
       listPanes: () => panes,
     })).toBeNull();
   });
+
+  it("owns controlled resize height resolution from handle plus drag delta", () => {
+    const owner = createChartPaneResizeBlockOwner();
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const fixedSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const resizableSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+    const panes = [primary, fixedSecondary, resizableSecondary];
+
+    expect(owner.resolveControlledResizeHeight(40, {
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 340,
+        minOpposingHeight: 160,
+      },
+    }, {
+      getPaneById: (paneId) => panes.find((pane) => pane.id === paneId),
+      listPanes: () => panes,
+      normalizeHeight: (height) => height,
+    })).toEqual({
+      paneId: "pane-2",
+      nextHeight: 80,
+    });
+  });
 });

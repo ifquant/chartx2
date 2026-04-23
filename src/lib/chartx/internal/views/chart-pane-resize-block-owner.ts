@@ -43,6 +43,9 @@ type PaneResizeStateLike = {
   blockPaneIds: readonly string[];
 };
 
+const MIN_PRIMARY_HEIGHT = 160;
+const MIN_CONTROLLED_HEIGHT = 72;
+
 export function createChartPaneResizeBlockOwner() {
   return {
     resolveControlledPaneId(
@@ -136,6 +139,52 @@ export function createChartPaneResizeBlockOwner() {
         blockPaneIds: resizeState.handle.block.blockPaneIds,
       });
       return resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
+    },
+
+    resolveControlledResizeHeight(
+      deltaY: number,
+      resizeHandle: PaneResizeHandle | null,
+      deps: {
+        getPaneById(paneId: string): PaneLike | undefined;
+        listPanes(): readonly PaneLike[];
+        normalizeHeight(height: number): number;
+      },
+    ): { paneId: string; nextHeight: number } | null {
+      if (resizeHandle === null) {
+        return null;
+      }
+
+      const delta = Math.round(deltaY);
+      const resizeGroup = this.resolvePaneResizeGroup(
+        { startClientY: 0, handle: resizeHandle },
+        deps,
+      );
+      if (resizeGroup === null) {
+        return null;
+      }
+      const controlledPane = deps.getPaneById(resizeGroup.controlledPaneId);
+      if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
+        return null;
+      }
+      const controlsUpperPane = resizeGroup.variablePaneIds[0] === controlledPane.id;
+
+      const requestedHeight = controlsUpperPane
+        ? resizeHandle.block.startControlledHeight + delta
+        : resizeHandle.block.startControlledHeight - delta;
+      const maxControlled =
+        Math.max(
+          MIN_CONTROLLED_HEIGHT,
+          resizeHandle.block.startVariableSpan - resizeHandle.block.minOpposingHeight,
+        );
+      const nextHeight = Math.max(
+        MIN_CONTROLLED_HEIGHT,
+        Math.min(maxControlled, Math.round(requestedHeight)),
+      );
+
+      return {
+        paneId: controlledPane.id,
+        nextHeight: deps.normalizeHeight(nextHeight),
+      };
     },
   };
 }

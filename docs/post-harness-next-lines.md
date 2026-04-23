@@ -80,6 +80,7 @@ Current slice status:
 - eighteenth slice landed: pane resize interaction state now stores one explicit block snapshot object instead of scattering `controlledPaneId + blockPaneIds + start*` fields across every consumer
 - nineteenth slice landed: pane resize interaction state now carries an explicit resize handle object, so divider identity and block snapshot move through runtime as one named payload
 - twentieth slice landed: move-time pane layout policy now consumes `resizeHandle + deltaY` instead of the full interaction state, so pane resize policy no longer depends on drag-lifecycle fields like `startClientY`
+- twenty-first slice landed: controlled resize height resolution now routes through the shared pane-resize-block owner, so pane layout policy stops duplicating block validation, grouping, and resize math
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

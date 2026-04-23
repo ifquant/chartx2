@@ -36,6 +36,13 @@ export type PaneResizeHandle = {
   block: PaneResizeBlockSnapshotState;
 };
 
+export type PaneActiveResizeBlock = {
+  handle: PaneResizeHandle;
+  group: ReturnType<typeof resolvePaneResizeGroupFromBlock>;
+  controlledPaneId: string;
+  controlsUpperPane: boolean;
+};
+
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
@@ -141,20 +148,16 @@ export function createChartPaneResizeBlockOwner() {
       return resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
     },
 
-    resolveControlledResizeHeight(
-      deltaY: number,
+    resolveActiveResizeBlock(
       resizeHandle: PaneResizeHandle | null,
       deps: {
         getPaneById(paneId: string): PaneLike | undefined;
         listPanes(): readonly PaneLike[];
-        normalizeHeight(height: number): number;
       },
-    ): { paneId: string; nextHeight: number } | null {
+    ): PaneActiveResizeBlock | null {
       if (resizeHandle === null) {
         return null;
       }
-
-      const delta = Math.round(deltaY);
       const resizeGroup = this.resolvePaneResizeGroup(
         { startClientY: 0, handle: resizeHandle },
         deps,
@@ -166,15 +169,38 @@ export function createChartPaneResizeBlockOwner() {
       if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
         return null;
       }
-      const controlsUpperPane = resizeGroup.variablePaneIds[0] === controlledPane.id;
+      return {
+        handle: resizeHandle,
+        group: resizeGroup,
+        controlledPaneId: controlledPane.id,
+        controlsUpperPane: resizeGroup.variablePaneIds[0] === controlledPane.id,
+      };
+    },
 
-      const requestedHeight = controlsUpperPane
-        ? resizeHandle.block.startControlledHeight + delta
-        : resizeHandle.block.startControlledHeight - delta;
+    resolveControlledResizeHeight(
+      deltaY: number,
+      resizeHandle: PaneResizeHandle | null,
+      deps: {
+        getPaneById(paneId: string): PaneLike | undefined;
+        listPanes(): readonly PaneLike[];
+        normalizeHeight(height: number): number;
+      },
+    ): { paneId: string; nextHeight: number } | null {
+      const delta = Math.round(deltaY);
+      const activeResizeBlock = this.resolveActiveResizeBlock(
+        resizeHandle,
+        deps,
+      );
+      if (activeResizeBlock === null) {
+        return null;
+      }
+      const requestedHeight = activeResizeBlock.controlsUpperPane
+        ? activeResizeBlock.handle.block.startControlledHeight + delta
+        : activeResizeBlock.handle.block.startControlledHeight - delta;
       const maxControlled =
         Math.max(
           MIN_CONTROLLED_HEIGHT,
-          resizeHandle.block.startVariableSpan - resizeHandle.block.minOpposingHeight,
+          activeResizeBlock.handle.block.startVariableSpan - activeResizeBlock.handle.block.minOpposingHeight,
         );
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,
@@ -182,7 +208,7 @@ export function createChartPaneResizeBlockOwner() {
       );
 
       return {
-        paneId: controlledPane.id,
+        paneId: activeResizeBlock.controlledPaneId,
         nextHeight: deps.normalizeHeight(nextHeight),
       };
     },

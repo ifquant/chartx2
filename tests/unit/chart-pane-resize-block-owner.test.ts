@@ -92,6 +92,54 @@ describe("chart pane resize block owner", () => {
     })).toBeNull();
   });
 
+  it("owns active resize block resolution from a handle", () => {
+    const owner = createChartPaneResizeBlockOwner();
+    const panes = [
+      { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false },
+      { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false },
+      { id: "pane-2", kind: "secondary" as const, preferredHeight: 90, resizable: false },
+      { id: "pane-3", kind: "secondary" as const, preferredHeight: 120, resizable: true },
+    ];
+
+    expect(owner.resolveActiveResizeBlock({
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      block: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
+      },
+    }, {
+      getPaneById: (paneId) => panes.find((pane) => pane.id === paneId),
+      listPanes: () => panes,
+    })).toEqual({
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
+        },
+      },
+      group: {
+        controlledPaneId: "pane-3",
+        opposingPaneId: "primary",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        participatingPaneIds: ["primary", "pane-1", "pane-2", "pane-3"],
+        variablePaneIds: ["primary", "pane-3"],
+        fixedPaneIds: ["pane-1", "pane-2"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-3",
+      controlsUpperPane: false,
+    });
+  });
+
   it("owns controlled resize height resolution from handle plus drag delta", () => {
     const owner = createChartPaneResizeBlockOwner();
     const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };

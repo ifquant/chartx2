@@ -183,6 +183,120 @@ describe("chart workbench contract", () => {
     ]);
   });
 
+  it("normalizes the first host as active when no host is marked active", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "CL",
+      timeframeLabel: "15m",
+      chartTypeLabel: "Candles",
+      chartHosts: [
+        {
+          id: "market-main",
+          family: "market",
+          title: "Primary chart",
+          slotId: "slot-main",
+          active: false,
+          symbolLabel: "CL",
+          timeframeLabel: "15m",
+          chartTypeLabel: "Candles",
+        },
+        {
+          id: "performance-main",
+          family: "performance",
+          title: "Performance chart",
+          slotId: "slot-side",
+          active: false,
+          symbolLabel: "CL",
+          timeframeLabel: "15m",
+          chartTypeLabel: "Performance",
+        },
+      ],
+      layoutPreset: "main-plus-secondary",
+    });
+
+    expect(model.layout.activeChartHostId).toBe("market-main");
+    expect(model.chartHosts).toEqual([
+      {
+        id: "market-main",
+        family: "market",
+        title: "Primary chart",
+        slotId: "slot-main",
+        active: true,
+        symbolLabel: "CL",
+        timeframeLabel: "15m",
+        chartTypeLabel: "Candles",
+        statusLabel: "Active",
+      },
+      {
+        id: "performance-main",
+        family: "performance",
+        title: "Performance chart",
+        slotId: "slot-side",
+        active: false,
+        symbolLabel: "CL",
+        timeframeLabel: "15m",
+        chartTypeLabel: "Performance",
+        statusLabel: undefined,
+      },
+    ]);
+  });
+
+  it("keeps the first active host active when multiple hosts are marked active", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "NQ",
+      timeframeLabel: "1H",
+      chartTypeLabel: "Candles",
+      chartHosts: [
+        {
+          id: "market-main",
+          family: "market",
+          title: "Primary chart",
+          slotId: "slot-main",
+          active: true,
+          symbolLabel: "NQ",
+          timeframeLabel: "1H",
+          chartTypeLabel: "Candles",
+        },
+        {
+          id: "performance-main",
+          family: "performance",
+          title: "Performance chart",
+          slotId: "slot-side",
+          active: true,
+          symbolLabel: "NQ",
+          timeframeLabel: "1H",
+          chartTypeLabel: "Performance",
+        },
+      ],
+      layoutPreset: "main-plus-secondary",
+    });
+
+    expect(model.layout.activeChartHostId).toBe("market-main");
+    expect(model.chartHosts).toEqual([
+      {
+        id: "market-main",
+        family: "market",
+        title: "Primary chart",
+        slotId: "slot-main",
+        active: true,
+        symbolLabel: "NQ",
+        timeframeLabel: "1H",
+        chartTypeLabel: "Candles",
+        statusLabel: "Active",
+      },
+      {
+        id: "performance-main",
+        family: "performance",
+        title: "Performance chart",
+        slotId: "slot-side",
+        active: false,
+        symbolLabel: "NQ",
+        timeframeLabel: "1H",
+        chartTypeLabel: "Performance",
+        statusLabel: undefined,
+      },
+    ]);
+  });
+
   it("preserves an explicit object tree without affecting watchlist or alerts", () => {
     const objectTree = {
       title: "Objects",

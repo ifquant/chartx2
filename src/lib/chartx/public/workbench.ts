@@ -281,7 +281,7 @@ function defaultSlotsForPreset(preset: MultiChartLayoutPreset): ChartSlotModel[]
 export function createChartWorkbenchModel(
   input: ChartWorkbenchModelInput,
 ): ChartWorkbenchModel {
-  const chartHosts = (input.chartHosts ?? [
+  const chartHostsInput = input.chartHosts ?? [
     {
       id: "market-main",
       family: "market",
@@ -289,12 +289,16 @@ export function createChartWorkbenchModel(
       slotId: "slot-main",
       active: true,
     },
-  ]).map((host) => ({
+  ];
+  const normalizedActiveHostId =
+    chartHostsInput.find((host) => host.active)?.id ?? chartHostsInput[0]?.id ?? null;
+  const chartHosts = chartHostsInput.map((host) => ({
     ...host,
+    active: host.id === normalizedActiveHostId,
     symbolLabel: host.symbolLabel ?? input.symbol,
     timeframeLabel: host.timeframeLabel ?? input.timeframeLabel,
     chartTypeLabel: host.chartTypeLabel ?? input.chartTypeLabel,
-    statusLabel: host.statusLabel ?? (host.active ? "Active" : undefined),
+    statusLabel: host.statusLabel ?? (host.id === normalizedActiveHostId ? "Active" : undefined),
   }));
   const layoutPreset = input.layoutPreset ?? "single";
   const defaultSlots = defaultSlotsForPreset(layoutPreset);
@@ -307,7 +311,6 @@ export function createChartWorkbenchModel(
       title: host?.title ?? slot.title,
     };
   });
-  const activeHost = chartHosts.find((host) => host.active) ?? chartHosts[0] ?? null;
 
   return {
     title: input.title ?? "Chart Workbench",
@@ -353,7 +356,7 @@ export function createChartWorkbenchModel(
     layout: {
       preset: layoutPreset,
       symbolMode: input.symbolMode ?? "shared",
-      activeChartHostId: activeHost?.id ?? null,
+      activeChartHostId: normalizedActiveHostId,
       slots,
     },
     chartHosts,

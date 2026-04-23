@@ -243,6 +243,7 @@
             <button
               class="watch-row"
               class:active={item.id === workbench?.rightSidebar.watchlist.activeItemId}
+              aria-current={item.id === workbench?.rightSidebar.watchlist.activeItemId ? "true" : undefined}
               type="button"
               on:click={() => onOpenWatchlistSymbol(item.symbol)}
             >

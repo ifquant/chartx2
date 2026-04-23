@@ -64,9 +64,37 @@ export interface AlertPanelModel {
   items: readonly AlertSummaryModel[];
 }
 
+export type WorkbenchObjectTreeNodeKind =
+  | "chart"
+  | "pane"
+  | "main-series"
+  | "series"
+  | "study"
+  | "drawing"
+  | "alert"
+  | "trade-location";
+
+export interface WorkbenchObjectTreeNodeModel {
+  id: string;
+  kind: WorkbenchObjectTreeNodeKind;
+  label: string;
+  detailLabel?: string;
+  badgeLabel?: string;
+  depth: number;
+  muted?: boolean;
+}
+
+export interface ObjectTreePanelModel {
+  title: string;
+  summaryLabel: string;
+  nodes: readonly WorkbenchObjectTreeNodeModel[];
+  emptyLabel: string;
+}
+
 export interface RightSidebarModel {
   watchlist: WatchlistPanelModel;
   alerts: AlertPanelModel;
+  objectTree: ObjectTreePanelModel;
   placeholders: readonly ("news" | "object-tree" | "screener" | "symbol-detail")[];
 }
 
@@ -193,6 +221,7 @@ export interface ChartWorkbenchModelInput {
   watchlistItems?: readonly WatchlistItemModel[];
   activeWatchlistItemId?: string;
   alertItems?: readonly AlertSummaryModel[];
+  objectTree?: ObjectTreePanelModel;
   activeRange?: string;
   ranges?: readonly string[];
   activeTab?: BottomPanelTabId;
@@ -209,6 +238,23 @@ const DEFAULT_BOTTOM_TABS: readonly BottomPanelTabModel[] = [
   { id: "replay", label: "Replay", enabled: false },
   { id: "performance-link", label: "Performance", enabled: false },
 ];
+
+function createDefaultObjectTree(input: ChartWorkbenchModelInput): ObjectTreePanelModel {
+  return {
+    title: "Object Tree",
+    summaryLabel: "1 object",
+    emptyLabel: "No chart objects",
+    nodes: [
+      {
+        id: `chart:${input.symbol}`,
+        kind: "chart",
+        label: input.symbol,
+        detailLabel: input.chartTypeLabel,
+        depth: 0,
+      },
+    ],
+  };
+}
 
 function defaultSlotsForPreset(preset: MultiChartLayoutPreset): ChartSlotModel[] {
   if (preset === "grid-2x2") {
@@ -285,6 +331,7 @@ export function createChartWorkbenchModel(
         title: "Alerts",
         items: input.alertItems ?? [],
       },
+      objectTree: input.objectTree ?? createDefaultObjectTree(input),
       placeholders: DEFAULT_PLACEHOLDERS,
     },
     bottomPanel: {

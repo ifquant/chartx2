@@ -42,6 +42,20 @@ describe("chart workbench contract", () => {
     expect(model.rightSidebar.watchlist.activeItemId).toBe("ndx");
     expect(model.rightSidebar.watchlist.items).toHaveLength(1);
     expect(model.rightSidebar.alerts.items).toHaveLength(1);
+    expect(model.rightSidebar.objectTree).toMatchObject({
+      title: "Object Tree",
+      summaryLabel: "1 object",
+      emptyLabel: "No chart objects",
+    });
+    expect(model.rightSidebar.objectTree.nodes).toEqual([
+      {
+        id: "chart:NDX",
+        kind: "chart",
+        label: "NDX",
+        detailLabel: "Candles",
+        depth: 0,
+      },
+    ]);
     expect(model.bottomPanel.ranges[0]).toBe("1D");
   });
 
@@ -77,5 +91,80 @@ describe("chart workbench contract", () => {
       "performance",
     ]);
     expect(model.layout.activeChartHostId).toBe("market-main");
+  });
+
+  it("preserves an explicit object tree without affecting watchlist or alerts", () => {
+    const objectTree = {
+      title: "Objects",
+      summaryLabel: "3 objects",
+      emptyLabel: "No objects",
+      nodes: [
+        {
+          id: "chart:ES",
+          kind: "chart" as const,
+          label: "ES",
+          detailLabel: "Candles",
+          depth: 0,
+        },
+        {
+          id: "pane:main",
+          kind: "pane" as const,
+          label: "Main pane",
+          badgeLabel: "2 series",
+          depth: 1,
+        },
+        {
+          id: "alert:es-breakout",
+          kind: "alert" as const,
+          label: "ES breakout",
+          detailLabel: "Price crosses 5,300",
+          depth: 1,
+          muted: true,
+        },
+      ],
+    };
+
+    const model = createChartWorkbenchModel({
+      symbol: "ES",
+      timeframeLabel: "5m",
+      chartTypeLabel: "Candles",
+      watchlistItems: [
+        {
+          id: "es",
+          symbol: "ES",
+          lastLabel: "5,284.25",
+          changeLabel: "+0.42%",
+          changeTone: "positive",
+        },
+      ],
+      alertItems: [
+        {
+          id: "alert-1",
+          label: "ES support",
+          conditionLabel: "Price crosses 5,250",
+          status: "paused",
+        },
+      ],
+      objectTree,
+    });
+
+    expect(model.rightSidebar.objectTree).toBe(objectTree);
+    expect(model.rightSidebar.watchlist.items).toEqual([
+      {
+        id: "es",
+        symbol: "ES",
+        lastLabel: "5,284.25",
+        changeLabel: "+0.42%",
+        changeTone: "positive",
+      },
+    ]);
+    expect(model.rightSidebar.alerts.items).toEqual([
+      {
+        id: "alert-1",
+        label: "ES support",
+        conditionLabel: "Price crosses 5,250",
+        status: "paused",
+      },
+    ]);
   });
 });

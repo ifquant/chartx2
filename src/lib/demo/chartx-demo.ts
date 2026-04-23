@@ -8,6 +8,7 @@ import {
   type PhaseOneCandlestickSeriesApi,
   type PhaseOneChartApi,
   type PhaseOneChartTypeChangeHandler,
+  type PhaseOneChartStateSnapshot,
   type PhaseOneChartOptions,
   type PhaseOneClickEvent,
   type PhaseOneCrosshairMoveEvent,
@@ -25,7 +26,9 @@ import {
   createChartWorkbenchModel,
   type AlertSummaryModel,
   type ChartWorkbenchModel,
+  type ObjectTreePanelModel,
   type WatchlistItemModel,
+  type WorkbenchObjectTreeNodeModel,
 } from "$lib/chartx/public/workbench";
 import {
   createWorkbenchLayoutState,
@@ -204,8 +207,135 @@ type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
 
+type WorkbenchObjectTreeInput = {
+  symbol: string;
+  chartTypeLabel: string;
+  panes: readonly PhaseOnePaneState[];
+  chartState: PhaseOneChartStateSnapshot | null;
+  alerts: readonly WorkbenchAlertState[];
+};
+
 function toWorkbenchMainChartType(type: PhaseOneMainChartType): WorkbenchMainChartType | null {
   return type === "histogram" ? null : type;
+}
+
+function formatObjectTreeKind(value: string): string {
+  return value
+    .split("-")
+    .map((part) => (part.length === 0 ? part : part[0]!.toUpperCase() + part.slice(1)))
+    .join(" ");
+}
+
+function formatObjectTreePointCount(count: number): string {
+  return `${count} pt${count === 1 ? "" : "s"}`;
+}
+
+function paneObjectTreeDetail(pane: PhaseOnePaneState): string {
+  return `${Math.round(pane.height)}px · ${pane.seriesCount} series`;
+}
+
+function buildWorkbenchObjectTree(input: WorkbenchObjectTreeInput): ObjectTreePanelModel {
+  const nodes: WorkbenchObjectTreeNodeModel[] = [
+    {
+      id: "chart:active",
+      kind: "chart",
+      label: input.symbol,
+      detailLabel: input.chartTypeLabel,
+      depth: 0,
+    },
+  ];
+
+  const panes = [...input.panes].sort((left, right) => left.paneIndex - right.paneIndex);
+  for (const pane of panes) {
+    nodes.push({
+      id: `pane:${pane.paneIndex}`,
+      kind: "pane",
+      label: pane.isPrimary ? "Main pane" : `Pane ${pane.paneIndex + 1}`,
+      detailLabel: paneObjectTreeDetail(pane),
+      badgeLabel: pane.isPrimary ? "root" : undefined,
+      depth: 1,
+      muted: !pane.hasSeries,
+    });
+  }
+
+  const paneDepth = (paneIndex: number): number =>
+    panes.some((pane) => pane.paneIndex === paneIndex) ? 2 : 1;
+
+  if (input.chartState?.mainSeries !== null && input.chartState?.mainSeries !== undefined) {
+    nodes.push({
+      id: "main-series:active",
+      kind: "main-series",
+      label: "Main series",
+      detailLabel: formatObjectTreeKind(input.chartState.mainSeries.chartType),
+      badgeLabel: input.chartState.mainSeries.renderer,
+      depth: paneDepth(0),
+    });
+  }
+
+  input.chartState?.series.forEach((series, index) => {
+    nodes.push({
+      id: `series:${index}`,
+      kind: "series",
+      label: formatObjectTreeKind(series.kind),
+      detailLabel: `Pane ${series.paneIndex + 1} · ${formatObjectTreePointCount(series.data.length)}`,
+      depth: paneDepth(series.paneIndex),
+    });
+  });
+
+  input.chartState?.studies.forEach((study, index) => {
+    nodes.push({
+      id: `study:${index}`,
+      kind: "study",
+      label: formatObjectTreeKind(study.type),
+      detailLabel: `Pane ${study.paneIndex + 1}`,
+      depth: paneDepth(study.paneIndex),
+    });
+  });
+
+  input.chartState?.drawings.forEach((drawing, index) => {
+    nodes.push({
+      id: `drawing:${index}`,
+      kind: "drawing",
+      label: formatObjectTreeKind(drawing.type),
+      detailLabel: `Pane ${drawing.paneIndex + 1}`,
+      depth: paneDepth(drawing.paneIndex),
+      muted: drawing.options.visible === false,
+    });
+  });
+
+  for (const alert of input.alerts) {
+    nodes.push({
+      id: `alert:${alert.id}`,
+      kind: "alert",
+      label: alert.label,
+      detailLabel: alert.condition.kind === "price-crosses"
+        ? `${alert.condition.direction} ${alert.condition.price.toFixed(0)}`
+        : formatObjectTreeKind(alert.condition.kind),
+      badgeLabel: alert.status,
+      depth: 1,
+      muted: alert.status === "paused",
+    });
+  }
+
+  const tradeLocation = input.chartState?.tradeLocation ?? null;
+  if (tradeLocation !== null) {
+    nodes.push({
+      id: "trade-location:active",
+      kind: "trade-location",
+      label: `Trade ${tradeLocation.request.tradeId}`,
+      detailLabel: `${tradeLocation.request.side} · ${formatTime(tradeLocation.request.entryTime)} → ${formatTime(tradeLocation.request.exitTime)}`,
+      badgeLabel: input.symbol,
+      depth: 1,
+    });
+  }
+
+  const objectCount = nodes.length;
+  return {
+    title: "Object Tree",
+    summaryLabel: `${objectCount} object${objectCount === 1 ? "" : "s"}`,
+    emptyLabel: "No chart objects",
+    nodes,
+  };
 }
 
 function createWorkbenchDemoLayoutState(input: {
@@ -668,6 +798,7 @@ export function mountWorkbenchDemo(
   };
 
   const publishSnapshot = () => {
+    const chartState = chart?.getChartState() ?? null;
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
     const visiblePrice = chart?.priceScale().getVisibleRange() ?? null;
     const lineBreakBars =
@@ -749,6 +880,13 @@ export function mountWorkbenchDemo(
 
     const activeWatchlistItemId = workbenchWatchlist.find((item) => item.symbol === activeSymbol)?.id;
     const alertItems: AlertSummaryModel[] = workbenchAlerts.map(toAlertSummaryModel);
+    const objectTree = buildWorkbenchObjectTree({
+      symbol: activeSymbol,
+      chartTypeLabel: formatWorkbenchChartType(mainChartType),
+      panes: paneSnapshot,
+      chartState,
+      alerts: workbenchAlerts,
+    });
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -760,6 +898,7 @@ export function mountWorkbenchDemo(
       watchlistItems: workbenchWatchlist,
       activeWatchlistItemId,
       alertItems,
+      objectTree,
       activeRange: activeTimeframe,
       layoutPreset: "single",
       chartHosts: [

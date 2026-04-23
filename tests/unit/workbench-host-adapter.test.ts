@@ -4,7 +4,10 @@ import {
   openWorkbenchSymbol,
   type WorkbenchHostAdapter,
 } from "../../src/lib/chartx/public/workbench-host";
-import { createWorkbenchFixtureHostAdapter } from "../../src/lib/demo/workbench-fixtures";
+import {
+  createWorkbenchFixtureBarsPayload,
+  createWorkbenchFixtureHostAdapter,
+} from "../../src/lib/demo/workbench-fixtures";
 
 describe("workbench host adapter", () => {
   it("exposes deterministic fixture watchlist items and bar payloads", async () => {
@@ -33,6 +36,18 @@ describe("workbench host adapter", () => {
     expect(spxPayload.bars).toHaveLength(10_000);
     expect(ndxPayload.bars).toHaveLength(10_000);
     expect(spxPayload.bars[0]?.close).not.toBe(ndxPayload.bars[0]?.close);
+  });
+
+  it("falls back to the NDX fixture payload for unknown symbols", () => {
+    const payload = createWorkbenchFixtureBarsPayload("UNKNOWN", "1D");
+    const ndxPayload = createWorkbenchFixtureBarsPayload("NDX", "1D");
+
+    expect(payload.symbol).toBe("NDX");
+    expect(payload.timeframe).toBe("1D");
+    expect(payload.exchangeLabel).toBe("NASDAQ");
+    expect(payload.bars[0]).toEqual(ndxPayload.bars[0]);
+    expect(payload.volume[0]).toEqual(ndxPayload.volume[0]);
+    expect(payload.line[0]).toEqual(ndxPayload.line[0]);
   });
 
   it("resolves a symbol and loads bars through one open-symbol helper", async () => {

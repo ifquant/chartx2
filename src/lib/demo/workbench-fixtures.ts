@@ -11,7 +11,7 @@ import type {
 } from "$lib/chartx/public/workbench-host";
 
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
-const DAY = 60_000;
+const BAR_INTERVAL_MS = 60_000;
 const DEFAULT_BAR_COUNT = 10_000;
 const GENERIC_BASE_CLOSE = 23_000;
 
@@ -91,7 +91,7 @@ function normalizeSymbol(symbol: string): string {
   return symbol.trim().toUpperCase();
 }
 
-function getFixtureSymbol(symbol: string): FixtureSymbol {
+function fixtureSymbolOrDefault(symbol: string): FixtureSymbol {
   return FIXTURE_BY_SYMBOL.get(normalizeSymbol(symbol)) ?? FIXTURE_BY_SYMBOL.get("NDX")!;
 }
 
@@ -143,7 +143,7 @@ export function createWorkbenchBars(
     );
 
     bars.push({
-      time: BASE_TIME + index * DAY,
+      time: BASE_TIME + index * BAR_INTERVAL_MS,
       open,
       high,
       low,
@@ -196,7 +196,7 @@ export function createWorkbenchFixtureBarsPayload(
   symbol: string,
   timeframe = "1D",
 ): WorkbenchBarsPayload {
-  const fixture = getFixtureSymbol(symbol);
+  const fixture = fixtureSymbolOrDefault(symbol);
   const bars = createWorkbenchBars(DEFAULT_BAR_COUNT, fixture.offset);
   const shift = fixture.lastValue - bars[0]!.close;
   const adjustedBars = shiftBars(bars, shift);

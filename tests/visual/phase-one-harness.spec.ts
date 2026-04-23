@@ -441,6 +441,31 @@ test("workbench opens a watchlist symbol through the host adapter", async ({ pag
   await expect(watchlist.getByRole("button", { name: /SPX/ })).toHaveClass(/active/);
 });
 
+test("workbench adds indicators from the catalog", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const indicators = workbench.locator(".indicator-card");
+
+  await expect(indicators).toContainText("Indicators");
+  await expect(indicators).toContainText("Moving Average");
+  await expect(indicators).toContainText("Compare");
+  await expect(indicators).toContainText("Overlay Line");
+
+  await indicators.getByRole("button", { name: /Moving Average/ }).click();
+  await expect(workbench).toContainText("added indicator Moving Average");
+  await expect(indicators).toContainText("Moving Average");
+  await expect(indicators).toContainText("separate-pane");
+
+  await indicators.getByRole("button", { name: /Compare/ }).click();
+  await expect(workbench).toContainText("added indicator Compare");
+  await expect(indicators).toContainText("overlay");
+
+  await indicators.getByRole("button", { name: /Overlay Line/ }).click();
+  await expect(workbench).toContainText("added indicator Overlay Line");
+  await expect(indicators).toContainText("Overlay Line");
+});
+
 test("workbench saves and restores the active layout locally", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());

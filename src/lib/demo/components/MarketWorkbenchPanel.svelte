@@ -38,6 +38,7 @@
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
+  export let onAddIndicator: (entryId: string) => void;
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
   export let onResetLayout: () => void;
@@ -278,6 +279,43 @@
               <span>{item.conditionLabel}</span>
               <span>{item.status}</span>
             </article>
+          {/each}
+        </div>
+      </section>
+
+      <section class="mini-card indicator-card">
+        <div class="sidebar-head">
+          <h4>Indicators</h4>
+          <span>{snapshot.activeIndicators?.length ?? 0} active</span>
+        </div>
+        <div class="indicator-list">
+          {#each snapshot.indicatorCatalog ?? [] as entry}
+            <button
+              class="indicator-entry"
+              type="button"
+              disabled={!entry.enabled}
+              aria-disabled={!entry.enabled}
+              title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
+              on:click={() => onAddIndicator(entry.id)}
+            >
+              <strong>{entry.label}</strong>
+              <span>{entry.shortLabel} · {entry.family}</span>
+              {#if !entry.enabled && entry.unavailableReason}
+                <small>{entry.unavailableReason}</small>
+              {/if}
+            </button>
+          {:else}
+            <p class="indicator-empty">No catalog entries published.</p>
+          {/each}
+        </div>
+        <div class="active-indicator-list">
+          {#each snapshot.activeIndicators ?? [] as indicator}
+            <article>
+              <strong>{indicator.label}</strong>
+              <span>{indicator.placement}</span>
+            </article>
+          {:else}
+            <p class="indicator-empty">No active indicators.</p>
           {/each}
         </div>
       </section>
@@ -1033,6 +1071,70 @@
 
   .watch-row.active strong {
     color: #18181b;
+  }
+
+  .indicator-list,
+  .active-indicator-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .indicator-entry {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(24, 24, 27, 0.04);
+    color: rgba(24, 24, 27, 0.68);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .indicator-entry strong,
+  .active-indicator-list strong {
+    color: #18181b;
+    font-size: 0.82rem;
+  }
+
+  .indicator-entry span,
+  .active-indicator-list span {
+    font-size: 0.74rem;
+    text-transform: capitalize;
+  }
+
+  .indicator-entry small,
+  .indicator-empty {
+    margin: 0;
+    color: rgba(159, 47, 28, 0.78);
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .indicator-entry:hover:not(:disabled) {
+    background: rgba(24, 24, 27, 0.08);
+  }
+
+  .indicator-entry:disabled {
+    opacity: 0.46;
+    cursor: not-allowed;
+  }
+
+  .active-indicator-list {
+    padding-top: 8px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .active-indicator-list article {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    color: rgba(24, 24, 27, 0.62);
+    font-size: 0.78rem;
   }
 
   .big-price {

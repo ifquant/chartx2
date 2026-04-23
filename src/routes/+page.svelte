@@ -410,6 +410,13 @@
     }
   }
 
+  function addWorkbenchIndicator(entryId: string): void {
+    const added = workbenchController?.addIndicatorFromCatalog?.(entryId);
+    if (added) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   async function saveWorkbenchLayout(): Promise<void> {
     const saved = await workbenchController?.saveLayout?.();
     if (saved) {
@@ -800,6 +807,7 @@
           onOpenWatchlistSymbol={(symbol) => {
             void openWorkbenchSymbol(symbol);
           }}
+          onAddIndicator={addWorkbenchIndicator}
           onSaveLayout={() => {
             void saveWorkbenchLayout();
           }}

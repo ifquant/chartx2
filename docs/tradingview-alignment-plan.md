@@ -277,6 +277,12 @@ Acceptance:
 - A future app can replace fixture data with real market data without rewriting
   chart internals.
 
+Implementation note:
+
+- The first executable slice landed the public host adapter and fixture-driven
+  watchlist symbol-open path before saved layouts, indicator catalog, or
+  alerts.
+
 ### 2. Watchlist And Symbol Open
 
 Purpose:

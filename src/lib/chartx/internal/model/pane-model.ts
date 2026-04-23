@@ -3,6 +3,7 @@ import {
   normalizePaneHeight,
   resolvePaneFrameAllocation,
 } from "./pane-frame-policy";
+import { resolvePaneResizeTargetId } from "./pane-linked-resize-policy";
 
 export type PaneKind = "primary" | "secondary";
 
@@ -125,14 +126,7 @@ export function resolvePaneDivider(
   for (let index = 0; index < panes.length - 1; index += 1) {
     const upper = panes[index];
     const lower = panes[index + 1];
-    const upperSpec = paneSpecs.find((pane) => pane.id === upper.id);
-    const lowerSpec = paneSpecs.find((pane) => pane.id === lower.id);
-    const canResize =
-      (upper.kind === "secondary" && (upperSpec?.resizable ?? false)) ||
-      (lower.kind === "secondary" && (lowerSpec?.resizable ?? false)) ||
-      panes
-        .slice(index + 1)
-        .some((pane) => pane.kind === "secondary" && (paneSpecs.find((entry) => entry.id === pane.id)?.resizable ?? false));
+    const canResize = resolvePaneResizeTargetId(paneSpecs, upper.id, lower.id) !== null;
     if (!canResize) {
       continue;
     }

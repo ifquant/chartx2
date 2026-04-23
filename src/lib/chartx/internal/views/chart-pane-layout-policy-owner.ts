@@ -1,4 +1,7 @@
-import { normalizePaneHeight } from "../model";
+import {
+  normalizePaneHeight,
+  resolvePaneResizeTargetId,
+} from "../model";
 
 type PaneLike = {
   id: string;
@@ -40,21 +43,7 @@ export function createChartPaneLayoutPolicyOwner() {
       if (upperPane === undefined || lowerPane === undefined) {
         return null;
       }
-
-      const upperControls = upperPane.kind === "secondary" && upperPane.resizable;
-      const lowerControls = lowerPane.kind === "secondary" && lowerPane.resizable;
-      if (!upperControls && !lowerControls) {
-        const lowerIndex = deps.listPanes().findIndex((pane) => pane.id === lowerPaneId);
-        if (lowerIndex === -1) {
-          return null;
-        }
-        const downstream = deps.listPanes()
-          .slice(lowerIndex)
-          .find((pane) => pane.kind === "secondary" && pane.resizable);
-        return downstream?.id ?? null;
-      }
-
-      return upperControls ? upperPane.id : lowerPane.id;
+      return resolvePaneResizeTargetId(deps.listPanes(), upperPaneId, lowerPaneId);
     },
 
     resolveControlledResizeHeight(

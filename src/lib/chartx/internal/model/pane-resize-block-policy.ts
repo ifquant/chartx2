@@ -5,6 +5,14 @@ type PaneFrameLike = {
   height: number;
 };
 
+export type PaneResizeBlock = {
+  upperPaneId: string;
+  lowerPaneId: string;
+  controlledPaneId: string;
+  opposingPaneId: string;
+  mode: "adjacent-upper" | "adjacent-lower" | "downstream";
+};
+
 export type PaneResizeBlockSnapshot = {
   controlledPaneId: string;
   startControlledHeight: number;
@@ -15,13 +23,12 @@ export type PaneResizeBlockSnapshot = {
 const MIN_PRIMARY_HEIGHT = 160;
 const MIN_CONTROLLED_HEIGHT = 72;
 
-export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTargetCandidate>(
+export function resolvePaneResizeBlock<PaneType extends PaneResizeTargetCandidate>(
   panes: readonly PaneType[],
-  paneFrames: readonly PaneFrameLike[],
   upperPaneId: string,
   lowerPaneId: string,
   controlledPaneId: string,
-): PaneResizeBlockSnapshot | null {
+): PaneResizeBlock | null {
   const upperPane = panes.find((pane) => pane.id === upperPaneId);
   const lowerPane = panes.find((pane) => pane.id === lowerPaneId);
   if (upperPane === undefined || lowerPane === undefined) {
@@ -33,28 +40,63 @@ export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTarget
     return null;
   }
 
-  const primaryFrame = paneFrames.find((pane) => pane.id === "primary");
-  const upperFrame = paneFrames.find((pane) => pane.id === upperPaneId);
-  const lowerFrame = paneFrames.find((pane) => pane.id === lowerPaneId);
-  const controlledFrame = paneFrames.find((pane) => pane.id === controlledPaneId);
-  if (upperFrame === undefined || lowerFrame === undefined || controlledFrame === undefined) {
+  if (controlledPaneId === upperPaneId) {
+    return {
+      upperPaneId,
+      lowerPaneId,
+      controlledPaneId,
+      opposingPaneId: lowerPaneId,
+      mode: "adjacent-upper",
+    };
+  }
+
+  if (controlledPaneId === lowerPaneId) {
+    return {
+      upperPaneId,
+      lowerPaneId,
+      controlledPaneId,
+      opposingPaneId: upperPaneId,
+      mode: "adjacent-lower",
+    };
+  }
+
+  return {
+    upperPaneId,
+    lowerPaneId,
+    controlledPaneId,
+    opposingPaneId: "primary",
+    mode: "downstream",
+  };
+}
+
+export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTargetCandidate>(
+  panes: readonly PaneType[],
+  paneFrames: readonly PaneFrameLike[],
+  upperPaneId: string,
+  lowerPaneId: string,
+  controlledPaneId: string,
+): PaneResizeBlockSnapshot | null {
+  const resizeBlock = resolvePaneResizeBlock(panes, upperPaneId, lowerPaneId, controlledPaneId);
+  if (resizeBlock === null) {
     return null;
   }
 
-  const downstreamControlled = controlledPaneId !== upperPaneId && controlledPaneId !== lowerPaneId;
-  const controlsUpperPane = controlledPaneId === upperPaneId;
-  const startVariableSpan = downstreamControlled
-    ? (primaryFrame?.height ?? 0) + controlledFrame.height
-    : controlsUpperPane
-      ? controlledFrame.height + lowerFrame.height
-      : upperFrame.height + controlledFrame.height;
+  const controlledFrame = paneFrames.find((pane) => pane.id === controlledPaneId);
+  const opposingFrame = paneFrames.find((pane) => pane.id === resizeBlock.opposingPaneId);
+  if (controlledFrame === undefined || opposingFrame === undefined) {
+    return null;
+  }
+  const opposingPane = panes.find((pane) => pane.id === resizeBlock.opposingPaneId);
+  if (opposingPane === undefined) {
+    return null;
+  }
 
   return {
     controlledPaneId,
     startControlledHeight: controlledFrame.height,
-    startVariableSpan,
+    startVariableSpan: controlledFrame.height + opposingFrame.height,
     minOpposingHeight:
-      downstreamControlled || upperPane.kind === "primary" || lowerPane.kind === "primary"
+      opposingPane.kind === "primary"
         ? MIN_PRIMARY_HEIGHT
         : MIN_CONTROLLED_HEIGHT,
   };

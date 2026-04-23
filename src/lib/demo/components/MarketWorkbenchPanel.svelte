@@ -37,6 +37,7 @@
   export let trendPreviewY2: number | null = null;
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
+  export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onPointerMove: (event: PointerEvent) => void;
   export let onPointerLeave: () => void;
   export let onSetPointFigureAutoScale: (value: number) => void;
@@ -239,11 +240,16 @@
         </div>
         <div class="watch-body">
           {#each workbench?.rightSidebar.watchlist.items ?? [] as item}
-            <article>
+            <button
+              class="watch-row"
+              class:active={item.id === workbench?.rightSidebar.watchlist.activeItemId}
+              type="button"
+              on:click={() => onOpenWatchlistSymbol(item.symbol)}
+            >
               <strong>{item.symbol}</strong>
               <span>{item.lastLabel}</span>
               <span>{item.changeLabel}</span>
-            </article>
+            </button>
           {/each}
         </div>
       </section>
@@ -994,6 +1000,31 @@
   }
 
   .watch-body strong {
+    color: #18181b;
+  }
+
+  .watch-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .watch-row:hover,
+  .watch-row.active {
+    background: rgba(24, 24, 27, 0.07);
+  }
+
+  .watch-row.active strong {
     color: #18181b;
   }
 

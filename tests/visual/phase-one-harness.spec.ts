@@ -427,6 +427,20 @@ test("workbench drawing tools show a preview and let escape cancel an unfinished
   await expect(workbench).toContainText("Click a horizontal line or trend line on the chart to inspect its properties.");
 });
 
+test("workbench opens a watchlist symbol through the host adapter", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const watchlist = workbench.locator(".watch-card").first();
+  await expect(workbench).toContainText("NDX Workbench");
+
+  await watchlist.getByRole("button", { name: /SPX/ }).click();
+
+  await expect(workbench).toContainText("SPX Workbench");
+  await expect(workbench).toContainText("opened symbol SPX from watchlist");
+  await expect(watchlist.getByRole("button", { name: /SPX/ })).toHaveClass(/active/);
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

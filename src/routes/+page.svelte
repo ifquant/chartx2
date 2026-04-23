@@ -395,6 +395,13 @@
     workbenchActions = workbenchController?.actions() ?? [];
   }
 
+  async function openWorkbenchSymbol(symbol: string): Promise<void> {
+    const opened = await workbenchController?.openSymbol?.(symbol);
+    if (opened) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   function setPointFigureAutoScale(value: number): void {
     workbenchController?.setPointFigureAutoScale?.(value);
   }
@@ -761,6 +768,9 @@
           trendPreviewY2={workbenchTrendPreviewY2}
           onRunAction={runWorkbenchAction}
           onSetDrawingTool={setWorkbenchDrawingTool}
+          onOpenWatchlistSymbol={(symbol) => {
+            void openWorkbenchSymbol(symbol);
+          }}
           onPointerMove={handleWorkbenchChartPointerMove}
           onPointerLeave={clearWorkbenchToolPointer}
           onSetPointFigureAutoScale={setPointFigureAutoScale}

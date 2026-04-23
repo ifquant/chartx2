@@ -5,6 +5,7 @@ import {
   createWorkbenchLayoutState,
   isWorkbenchLayoutState,
 } from "../../src/lib/chartx/public/workbench-layout";
+import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-api-types";
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -52,6 +53,25 @@ function createThrowingStorage(): Storage {
     },
   };
 }
+
+const minimalChartStateSnapshot: PhaseOneChartStateSnapshot = {
+  options: {},
+  timeScale: {
+    barSpacing: null,
+    rightOffset: 0,
+    visibleLogicalRange: null,
+  },
+  priceScale: {
+    visibleRange: null,
+    scaleSeriesOnly: false,
+  },
+  panes: [{ height: null, resizable: false }],
+  mainSeries: null,
+  series: [],
+  studies: [],
+  tradeLocation: null,
+  drawings: [],
+};
 
 describe("workbench layout state", () => {
   it("creates a versioned layout state for the active chart", () => {
@@ -115,27 +135,34 @@ describe("workbench layout state", () => {
         activeSymbol: "SPX",
         activeTimeframe: "1D",
         chartType: "candlestick",
-        chartState: [],
+        chartState: {
+          options: {},
+          timeScale: {},
+          priceScale: {},
+          panes: [{}],
+          mainSeries: null,
+          series: [{}],
+          studies: [{}],
+          tradeLocation: {},
+          drawings: [{}],
+        },
         panels: {
           rightSidebar: "watchlist",
           bottomTab: "time-presets",
         },
       }),
     ).toBe(false);
-    expect(
-      isWorkbenchLayoutState({
-        kind: "workbench-layout",
-        version: 1,
-        activeSymbol: "SPX",
-        activeTimeframe: "1D",
-        chartType: "candlestick",
-        chartState: {},
-        panels: {
-          rightSidebar: "watchlist",
-          bottomTab: "time-presets",
-        },
-      }),
-    ).toBe(false);
+  });
+
+  it("accepts a minimal valid persisted layout snapshot", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: minimalChartStateSnapshot,
+    });
+
+    expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
   it("saves, loads, and clears layout state from localStorage", async () => {

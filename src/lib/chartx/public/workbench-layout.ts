@@ -38,7 +38,119 @@ export interface WorkbenchLayoutPersistenceProvider {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+  return value === null || isNumber(value);
+}
+
+function isNumberRangeRecord(
+  value: unknown,
+): value is {
+  from: number;
+  to: number;
+} {
+  return isRecord(value) && isNumber(value.from) && isNumber(value.to);
+}
+
+function isVisibleRangeRecord(
+  value: unknown,
+): value is {
+  minValue: number;
+  maxValue: number;
+} {
+  return isRecord(value) && isNumber(value.minValue) && isNumber(value.maxValue);
+}
+
+function isAllowedSeriesKind(value: unknown): value is "candlestick" | "bar" | "line" | "area" | "baseline" | "histogram" | "volume" {
+  return (
+    value === "candlestick" ||
+    value === "bar" ||
+    value === "line" ||
+    value === "area" ||
+    value === "baseline" ||
+    value === "histogram" ||
+    value === "volume"
+  );
+}
+
+function isAllowedStudyType(value: unknown): value is "overlay" | "compare" | "moving-average" {
+  return value === "overlay" || value === "compare" || value === "moving-average";
+}
+
+function isAllowedDrawingType(value: unknown): value is "horizontal-line" | "trend-line" {
+  return value === "horizontal-line" || value === "trend-line";
+}
+
+function isPhaseOneMainSeriesStateSnapshot(
+  value: unknown,
+): value is Exclude<PhaseOneChartStateSnapshot["mainSeries"], null> {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.chartType === "string" &&
+    PHASE_ONE_MAIN_CHART_TYPES.includes(value.chartType as PhaseOneMainChartType) &&
+    typeof value.inputCapability === "string" &&
+    typeof value.builder === "string" &&
+    typeof value.renderer === "string" &&
+    typeof value.styleSchemaId === "string" &&
+    typeof value.styleOptionSurface === "string" &&
+    isRecord(value.styleOptions) &&
+    isRecord(value.lineBreakOptions) &&
+    isRecord(value.renkoOptions) &&
+    isRecord(value.pointFigureOptions) &&
+    isRecord(value.kagiOptions)
+  );
+}
+
+function isPhaseOneSeriesSnapshot(value: unknown): value is PhaseOneChartStateSnapshot["series"][number] {
+  if (!isRecord(value) || !isAllowedSeriesKind(value.kind) || !isNumber(value.paneIndex)) {
+    return false;
+  }
+  return isRecord(value.options) && Array.isArray(value.data);
+}
+
+function isPhaseOneStudySnapshot(value: unknown): value is PhaseOneChartStateSnapshot["studies"][number] {
+  if (!isRecord(value) || !isAllowedStudyType(value.type) || !isNumber(value.paneIndex)) {
+    return false;
+  }
+  if (!isRecord(value.seriesOptions)) {
+    return false;
+  }
+  if (value.type === "overlay") {
+    return Array.isArray(value.data);
+  }
+  if (value.type === "compare") {
+    return isRecord(value.compareOptions) && Array.isArray(value.data);
+  }
+  return isRecord(value.studyOptions);
+}
+
+function isPhaseOneDrawingSnapshot(
+  value: unknown,
+): value is PhaseOneChartStateSnapshot["drawings"][number] {
+  return (
+    isRecord(value) &&
+    isAllowedDrawingType(value.type) &&
+    isNumber(value.paneIndex) &&
+    isRecord(value.options)
+  );
+}
+
+function isPhaseOneTradeLocationSnapshot(
+  value: unknown,
+): value is NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]> {
+  return isRecord(value) && isRecord(value.request) && isRecord(value.overlay);
 }
 
 const PHASE_ONE_MAIN_CHART_TYPES: readonly PhaseOneMainChartType[] = [
@@ -85,24 +197,62 @@ function isBottomPanelTabId(value: unknown): value is BottomPanelTabId {
 }
 
 function isPhaseOneChartStateSnapshot(value: unknown): value is PhaseOneChartStateSnapshot {
-  if (!isRecord(value) || Array.isArray(value)) {
+  if (!isRecord(value)) {
     return false;
   }
+  const options = value.options;
+  const timeScale = value.timeScale;
+  const priceScale = value.priceScale;
+  const panes = value.panes;
+  const series = value.series;
+  const studies = value.studies;
+  const drawings = value.drawings;
+  const mainSeries = value.mainSeries;
+  const tradeLocation = value.tradeLocation;
   if (
-    !isRecord(value.options) ||
-    !isRecord(value.timeScale) ||
-    !isRecord(value.priceScale) ||
-    !Array.isArray(value.panes) ||
-    !Array.isArray(value.series) ||
-    !Array.isArray(value.studies) ||
-    !Array.isArray(value.drawings)
+    !isRecord(options) ||
+    !isRecord(timeScale) ||
+    !isRecord(priceScale) ||
+    !Array.isArray(panes) ||
+    !Array.isArray(series) ||
+    !Array.isArray(studies) ||
+    !Array.isArray(drawings)
   ) {
     return false;
   }
-  if (!(value.mainSeries === null || (isRecord(value.mainSeries) && !Array.isArray(value.mainSeries)))) {
+  if (
+    !isNullableNumber(timeScale.barSpacing) ||
+    !isNumber(timeScale.rightOffset) ||
+    !(timeScale.visibleLogicalRange === null || isNumberRangeRecord(timeScale.visibleLogicalRange))
+  ) {
     return false;
   }
-  if (!(value.tradeLocation === null || (isRecord(value.tradeLocation) && !Array.isArray(value.tradeLocation)))) {
+  if (
+    !(priceScale.visibleRange === null || isVisibleRangeRecord(priceScale.visibleRange)) ||
+    !isBoolean(priceScale.scaleSeriesOnly)
+  ) {
+    return false;
+  }
+  if (
+    panes.some(
+      (pane) => !isRecord(pane) || !isNullableNumber(pane.height) || !isBoolean(pane.resizable),
+    )
+  ) {
+    return false;
+  }
+  if (!(mainSeries === null || isPhaseOneMainSeriesStateSnapshot(mainSeries))) {
+    return false;
+  }
+  if (!series.every((item) => isPhaseOneSeriesSnapshot(item))) {
+    return false;
+  }
+  if (!studies.every((item) => isPhaseOneStudySnapshot(item))) {
+    return false;
+  }
+  if (!drawings.every((item) => isPhaseOneDrawingSnapshot(item))) {
+    return false;
+  }
+  if (!(tradeLocation === null || isPhaseOneTradeLocationSnapshot(tradeLocation))) {
     return false;
   }
   return true;

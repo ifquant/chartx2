@@ -35,6 +35,12 @@ describe("chart pointer runtime use-case", () => {
       focusCanvas,
       setPaneResizeState,
       resolveControlledPaneId: () => "pane-2",
+      resolvePaneResizeBlock: () => ({
+        controlledPaneId: "pane-2",
+        startControlledHeight: 120,
+        startVariableSpan: 280,
+        minOpposingHeight: 160,
+      }),
       setCrosshair,
       setDrawingDragState,
       setHoveredDrawingId,
@@ -51,10 +57,9 @@ describe("chart pointer runtime use-case", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 160,
       startControlledHeight: 120,
-      startUpperHeight: 160,
-      startLowerHeight: 120,
+      startVariableSpan: 280,
+      minOpposingHeight: 160,
     });
     expect(setCursor).toHaveBeenCalledWith("row-resize");
     expect(setPointerCapture).toHaveBeenCalledWith(7);
@@ -72,6 +77,7 @@ describe("chart pointer runtime use-case", () => {
       focusCanvas,
       setPaneResizeState,
       resolveControlledPaneId: () => null,
+      resolvePaneResizeBlock: () => null,
       setCrosshair,
       setDrawingDragState,
       setHoveredDrawingId,

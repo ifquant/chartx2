@@ -28,10 +28,9 @@ export type PaneResizeState = {
   dividerBeforePaneId: string;
   controlledPaneId: string;
   startClientY: number;
-  startPrimaryHeight: number;
   startControlledHeight: number;
-  startUpperHeight: number;
-  startLowerHeight: number;
+  startVariableSpan: number;
+  minOpposingHeight: number;
 };
 
 export function createChartViewState<Point, Observer>() {

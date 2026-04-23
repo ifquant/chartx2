@@ -27,10 +27,9 @@ describe("chart view state", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 300,
-      startPrimaryHeight: 200,
       startControlledHeight: 180,
-      startUpperHeight: 200,
-      startLowerHeight: 180,
+      startVariableSpan: 380,
+      minOpposingHeight: 160,
     });
 
     expect(state.crosshair()).toEqual({ x: 12, y: 34 });
@@ -65,10 +64,9 @@ describe("chart view state", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 300,
-      startPrimaryHeight: 200,
       startControlledHeight: 180,
-      startUpperHeight: 200,
-      startLowerHeight: 180,
+      startVariableSpan: 380,
+      minOpposingHeight: 160,
     });
 
     state.clearDrawingSnapGuideTimeOnly();

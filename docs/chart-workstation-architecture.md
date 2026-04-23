@@ -138,6 +138,7 @@ Post-harness shrink status:
   - downstream primary-divider resize clamps now use the validated controlled pane span instead of the fixed intermediary pane span, so linked growth preserves the primary minimum height without under-sizing the downstream resizable pane
   - fixed secondary-secondary dividers can now also link to a downstream resizable pane, and resize state now preserves the primary-pane starting height so generalized downstream linked resize keeps the real primary minimum-height clamp instead of treating the fixed intermediary span as the opposing side
   - linked-resize target resolution now routes through a shared model-layer pane resize policy, so divider interactivity checks and runtime controlled-pane resolution no longer carry duplicate downstream-scan rules
+  - pointer-down resize state now captures an explicit pane resize block snapshot with variable span and opposing minimum height, so move-time policy no longer reconstructs linked-resize semantics from ad-hoc primary/upper/lower height fields
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

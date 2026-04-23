@@ -71,6 +71,7 @@ Current slice status:
 - ninth slice landed: downstream primary-divider clamp math now uses the controlled pane span instead of the fixed intermediary span, so linked resize can grow the downstream pane to the real primary-min-height limit
 - tenth slice landed: fixed secondary-secondary dividers can now also delegate to the first downstream resizable pane, and generalized downstream clamp math now uses `primary + controlled` as the real variable span
 - eleventh slice landed: linked-resize target resolution now routes through one shared pane resize policy in the model layer instead of being duplicated between divider hit-testing and runtime pane policy code
+- twelfth slice landed: pointer-down resize state now stores a shared pane resize block snapshot (`startVariableSpan` + `minOpposingHeight`) so move-time resize policy no longer reconstructs block semantics from primary/upper/lower start-height fields
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

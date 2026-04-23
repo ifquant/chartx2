@@ -1,5 +1,6 @@
 import {
   normalizePaneHeight,
+  resolvePaneResizeBlockSnapshot,
   resolvePaneResizeTargetId,
 } from "../model";
 
@@ -10,15 +11,19 @@ type PaneLike = {
   resizable: boolean;
 };
 
+type PaneFrameLike = {
+  id: string;
+  height: number;
+};
+
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
   controlledPaneId: string;
   startClientY: number;
-  startPrimaryHeight: number;
   startControlledHeight: number;
-  startUpperHeight: number;
-  startLowerHeight: number;
+  startVariableSpan: number;
+  minOpposingHeight: number;
 };
 
 const MIN_PRIMARY_HEIGHT = 160;
@@ -44,6 +49,24 @@ export function createChartPaneLayoutPolicyOwner() {
         return null;
       }
       return resolvePaneResizeTargetId(deps.listPanes(), upperPaneId, lowerPaneId);
+    },
+
+    resolvePaneResizeBlock(
+      upperPaneId: string,
+      lowerPaneId: string,
+      controlledPaneId: string,
+      deps: {
+        listPanes(): readonly PaneLike[];
+        paneFrames(): readonly PaneFrameLike[];
+      },
+    ) {
+      return resolvePaneResizeBlockSnapshot(
+        deps.listPanes(),
+        deps.paneFrames(),
+        upperPaneId,
+        lowerPaneId,
+        controlledPaneId,
+      );
     },
 
     resolveControlledResizeHeight(
@@ -89,22 +112,12 @@ export function createChartPaneLayoutPolicyOwner() {
         return null;
       }
       const controlsUpperPane = controlledPane.id === upperPane.id;
-      const downstreamControlled = controlledPane.id !== upperPane.id && controlledPane.id !== lowerPane.id;
 
       const requestedHeight = controlsUpperPane
         ? resizeState.startControlledHeight + delta
         : resizeState.startControlledHeight - delta;
-      const totalResizableSpan = downstreamControlled
-        ? resizeState.startPrimaryHeight + resizeState.startControlledHeight
-        : controlsUpperPane
-        ? resizeState.startControlledHeight + resizeState.startLowerHeight
-        : resizeState.startUpperHeight + resizeState.startControlledHeight;
-      const minOpposingHeight =
-        downstreamControlled || upperPane.kind === "primary" || lowerPane.kind === "primary"
-          ? MIN_PRIMARY_HEIGHT
-          : MIN_CONTROLLED_HEIGHT;
       const maxControlled =
-        Math.max(MIN_CONTROLLED_HEIGHT, totalResizableSpan - minOpposingHeight);
+        Math.max(MIN_CONTROLLED_HEIGHT, resizeState.startVariableSpan - resizeState.minOpposingHeight);
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,
         Math.min(maxControlled, Math.round(requestedHeight)),

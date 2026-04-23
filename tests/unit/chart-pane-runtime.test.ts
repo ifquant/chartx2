@@ -110,10 +110,9 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 136,
-      startUpperHeight: 220,
-      startLowerHeight: 136,
+      startVariableSpan: 356,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) => paneId === "primary" ? primary : paneId === "pane-2" ? secondary : undefined,
       emitPaneResize,
@@ -153,10 +152,9 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 100,
-      startLowerHeight: 120,
+      startVariableSpan: 220,
+      minOpposingHeight: 72,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -204,10 +202,9 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 220,
-      startLowerHeight: 100,
+      startVariableSpan: 340,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -254,10 +251,9 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 220,
-      startLowerHeight: 100,
+      startVariableSpan: 340,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -302,10 +298,9 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-3",
       startClientY: 20,
-      startPrimaryHeight: 300,
       startControlledHeight: 120,
-      startUpperHeight: 100,
-      startLowerHeight: 90,
+      startVariableSpan: 420,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"

@@ -21,10 +21,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-1",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 136,
-      startUpperHeight: 220,
-      startLowerHeight: 136,
+      startVariableSpan: 356,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) => paneId === "primary" ? primary : paneId === "pane-1" ? secondary : undefined,
       listPanes: () => [primary, secondary],
@@ -44,10 +43,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "primary",
       controlledPaneId: "pane-1",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 100,
-      startUpperHeight: 120,
-      startLowerHeight: 220,
+      startVariableSpan: 320,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "pane-1"
@@ -66,10 +64,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 100,
-      startUpperHeight: 220,
-      startLowerHeight: 136,
+      startVariableSpan: 356,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "pane-2"
@@ -91,10 +88,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 100,
-      startLowerHeight: 120,
+      startVariableSpan: 220,
+      minOpposingHeight: 72,
     }, {
       getPaneById: (paneId) => paneId === "pane-1" ? upperSecondary : paneId === "pane-2" ? lowerSecondary : undefined,
       listPanes: () => [upperSecondary, lowerSecondary],
@@ -143,10 +139,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 220,
-      startLowerHeight: 100,
+      startVariableSpan: 340,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -174,10 +169,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
-      startPrimaryHeight: 220,
       startControlledHeight: 120,
-      startUpperHeight: 220,
-      startLowerHeight: 100,
+      startVariableSpan: 340,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -220,10 +214,9 @@ describe("chart pane layout policy owner", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-3",
       startClientY: 20,
-      startPrimaryHeight: 300,
       startControlledHeight: 120,
-      startUpperHeight: 100,
-      startLowerHeight: 90,
+      startVariableSpan: 420,
+      minOpposingHeight: 160,
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"

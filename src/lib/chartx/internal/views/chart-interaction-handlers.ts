@@ -241,6 +241,11 @@ export function createChartInteractionHandlers<Readout>(deps: {
             getPaneById: (paneId) => deps.listPanes().find((pane) => pane.id === paneId),
             listPanes: () => deps.listPanes(),
           }),
+        resolvePaneResizeBlock: (upperPaneId, lowerPaneId, controlledPaneId, paneFrames) =>
+          paneLayoutPolicyOwner.resolvePaneResizeBlock(upperPaneId, lowerPaneId, controlledPaneId, {
+            listPanes: () => deps.listPanes(),
+            paneFrames: () => paneFrames,
+          }),
         setCrosshair: (point) => {
           deps.setCrosshair(point);
         },

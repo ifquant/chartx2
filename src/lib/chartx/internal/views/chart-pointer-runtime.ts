@@ -41,12 +41,22 @@ export function handlePointerDownRuntime(
       dividerBeforePaneId: string;
       controlledPaneId: string;
       startClientY: number;
-      startPrimaryHeight: number;
       startControlledHeight: number;
-      startUpperHeight: number;
-      startLowerHeight: number;
+      startVariableSpan: number;
+      minOpposingHeight: number;
     }): void;
     resolveControlledPaneId(upperPaneId: string, lowerPaneId: string): string | null;
+    resolvePaneResizeBlock(
+      upperPaneId: string,
+      lowerPaneId: string,
+      controlledPaneId: string,
+      paneFrames: readonly PaneFrameLike[],
+    ): {
+      controlledPaneId: string;
+      startControlledHeight: number;
+      startVariableSpan: number;
+      minOpposingHeight: number;
+    } | null;
     setCrosshair(point: PanePointLike): void;
     setDrawingDragState(state: DrawingDragStateLike): void;
     setHoveredDrawingId(id: string | null): void;
@@ -72,21 +82,24 @@ export function handlePointerDownRuntime(
     if (controlledPaneId === null) {
       return;
     }
-    const controlledFrame = paneFrames.find((pane) => pane.id === controlledPaneId);
-    if (controlledFrame === undefined) {
+    const resizeBlock = deps.resolvePaneResizeBlock(
+      divider.upperPaneId,
+      divider.lowerPaneId,
+      controlledPaneId,
+      paneFrames,
+    );
+    if (resizeBlock === null) {
       return;
     }
-    const primaryFrame = paneFrames.find((pane) => pane.id === "primary");
     deps.focusCanvas();
     deps.setPaneResizeState({
       dividerAfterPaneId: divider.upperPaneId,
       dividerBeforePaneId: divider.lowerPaneId,
       controlledPaneId,
       startClientY: event.clientY,
-      startPrimaryHeight: primaryFrame?.height ?? (divider.upperPaneId === "primary" ? divider.upperHeight : 0),
-      startControlledHeight: controlledFrame.height,
-      startUpperHeight: divider.upperHeight,
-      startLowerHeight: divider.lowerHeight,
+      startControlledHeight: resizeBlock.startControlledHeight,
+      startVariableSpan: resizeBlock.startVariableSpan,
+      minOpposingHeight: resizeBlock.minOpposingHeight,
     });
     deps.setCursor("row-resize");
     deps.setPointerCapture(event.pointerId);

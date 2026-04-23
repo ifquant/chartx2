@@ -476,6 +476,61 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
   await expect(activeIndicatorList).not.toContainText("Overlay Line");
 });
 
+test("workbench renders a read-only object tree", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const objectTreeCard = workbench.locator('[data-workbench-panel="object-tree"]');
+  const tree = objectTreeCard.getByRole("tree", { name: "Workbench object tree" });
+  const alerts = workbench.locator(".alert-card");
+  await expect(objectTreeCard).toBeVisible();
+  await expect(tree).toBeVisible();
+
+  await alerts.getByRole("button", { name: "Create price alert" }).click();
+
+  await expect(tree.locator('[data-object-tree-kind="chart"]').filter({ hasText: "NDX" })).toHaveCount(1);
+  await expect(tree.locator('[data-object-tree-kind="pane"]').filter({ hasText: "Main pane" })).toHaveCount(1);
+  await expect(tree.locator('[data-object-tree-kind="main-series"]').filter({ hasText: "Main series" })).toHaveCount(1);
+  await expect(tree.locator('[data-object-tree-kind="alert"]').filter({ hasText: /price cross/i })).toBeVisible();
+});
+
+test("workbench object tree reflects indicators and drawings", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const objectTreeCard = workbench.locator('[data-workbench-panel="object-tree"]');
+  const tree = objectTreeCard.getByRole("tree", { name: "Workbench object tree" });
+  const indicators = workbench.locator(".indicator-card");
+  const inspectorKind = workbench.locator(".inspector-card .sidebar-head span");
+  const inspector = workbench.locator(".inspector-card");
+  const canvas = page.getByLabel("chartx2 phase-one chart harness");
+
+  await expect(tree).toBeVisible();
+  await expect(inspectorKind).toHaveText("None");
+  await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Moving Average" })).toHaveCount(0);
+
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one harness canvas is missing");
+  }
+
+  await page.getByRole("button", { name: "Horizontal line", exact: true }).click();
+  await expect(inspector).toContainText("Click the chart to place a horizontal line.");
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.38);
+  await expect(inspectorKind).toHaveText("horizontal-line");
+
+  await expect(tree.locator('[data-object-tree-kind="drawing"]').filter({ hasText: "Horizontal Line" }).first()).toBeVisible();
+
+  await indicators.getByRole("button", { name: /Moving Average/ }).click();
+  await expect(workbench).toContainText("added indicator Moving Average");
+  await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Moving Average" })).toHaveCount(1);
+});
+
 test("workbench creates a price alert", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());

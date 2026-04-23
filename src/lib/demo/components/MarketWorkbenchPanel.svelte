@@ -568,6 +568,40 @@
           </section>
         {/if}
 
+        <section class="mini-card object-tree-card" data-workbench-panel="object-tree">
+          <div class="sidebar-head">
+            <h4>{workbench?.rightSidebar.objectTree.title ?? "Object Tree"}</h4>
+            <span>{workbench?.rightSidebar.objectTree.summaryLabel ?? ""}</span>
+          </div>
+
+          <div class="object-tree-body" role="tree" aria-label="Workbench object tree">
+            {#each workbench?.rightSidebar.objectTree.nodes ?? [] as node (node.id)}
+              <div
+                class="object-tree-node"
+                class:muted={node.muted ?? false}
+                role="treeitem"
+                aria-level={node.depth + 1}
+                aria-selected="false"
+                data-object-tree-node={node.id}
+                data-object-tree-kind={node.kind}
+                style={`--object-tree-depth: ${node.depth};`}
+              >
+                <div class="object-tree-text">
+                  <strong>{node.label}</strong>
+                  {#if node.detailLabel}
+                    <span class="object-tree-detail">{node.detailLabel}</span>
+                  {/if}
+                </div>
+                {#if node.badgeLabel}
+                  <span class="object-tree-badge">{node.badgeLabel}</span>
+                {/if}
+              </div>
+            {:else}
+              <p class="object-tree-empty">{workbench?.rightSidebar.objectTree.emptyLabel ?? "No chart objects"}</p>
+            {/each}
+          </div>
+        </section>
+
         <section class="mini-card inspector-card">
           <div class="sidebar-head">
             <h4>Drawing</h4>
@@ -1142,6 +1176,71 @@
     align-items: center;
     color: rgba(24, 24, 27, 0.62);
     font-size: 0.78rem;
+  }
+
+  .object-tree-body {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .object-tree-node {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+    padding: 7px 8px;
+    padding-left: calc(8px + var(--object-tree-depth, 0) * 14px);
+    border-radius: 8px;
+    background: rgba(24, 24, 27, 0.04);
+    color: rgba(24, 24, 27, 0.72);
+  }
+
+  .object-tree-node.muted {
+    opacity: 0.52;
+  }
+
+  .object-tree-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .object-tree-text strong {
+    display: block;
+    color: #18181b;
+    font-size: 0.82rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .object-tree-detail {
+    color: rgba(24, 24, 27, 0.56);
+    font-size: 0.74rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .object-tree-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.08);
+    color: rgba(24, 24, 27, 0.66);
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+
+  .object-tree-empty {
+    margin: 0;
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.78rem;
+    line-height: 1.45;
   }
 
   .big-price {

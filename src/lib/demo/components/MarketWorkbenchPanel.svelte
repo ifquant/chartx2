@@ -581,14 +581,14 @@
             {#if objectTreeNodes.length === 0}
               <p class="object-tree-empty">{workbench?.rightSidebar.objectTree.emptyLabel ?? "No chart objects"}</p>
             {:else}
-              <div role="tree" aria-label="Workbench object tree">
+              <ul class="object-tree-list" role="tree" aria-label="Workbench object tree">
                 {#each objectTreeNodes as node (node.id)}
-                  <!-- svelte-ignore a11y_role_has_required_aria_props -->
-                  <div
+                  <li
                     class="object-tree-node"
                     class:muted={node.muted ?? false}
                     role="treeitem"
                     aria-level={node.depth + 1}
+                    aria-selected="false"
                     data-object-tree-node={node.id}
                     data-object-tree-kind={node.kind}
                     style={`--object-tree-depth: ${node.depth};`}
@@ -602,9 +602,9 @@
                     {#if node.badgeLabel}
                       <span class="object-tree-badge">{node.badgeLabel}</span>
                     {/if}
-                  </div>
+                  </li>
                 {/each}
-              </div>
+              </ul>
             {/if}
           </div>
         </section>
@@ -1189,6 +1189,14 @@
     display: grid;
     gap: 6px;
     margin-top: 8px;
+  }
+
+  .object-tree-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   .object-tree-node {

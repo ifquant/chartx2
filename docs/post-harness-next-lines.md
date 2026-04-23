@@ -6,6 +6,9 @@ This document replaces the old habit of keeping a giant "remaining shrink work" 
 
 `chart-harness.ts` is already sufficiently collapsed to act as a phase-one composition root. The next work should not be "extract another tiny helper". The next work should answer what new boundary the repo actually needs in order to scale toward a TradingView-like workstation without re-centralizing policy.
 
+The broader three-layer TradingView alignment plan is tracked in
+[tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md). This note remains the narrower post-harness execution guide.
+
 ## What Is Done
 
 These are treated as finished baseline, not active roadmap items:

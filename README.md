@@ -33,6 +33,8 @@ The goal is not only to avoid paying for `TradingView`. The real goal is to own 
   - session notes, roadmap fragments, and historical planning context
 - [docs/post-harness-next-lines.md](/Users/dev/workspace2/hc_apps/chartx2/docs/post-harness-next-lines.md)
   - the current post-harness roadmap for what is actually next versus what is already done
+- [docs/tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md)
+  - the three-layer plan for aligning `chartx2` with a modifiable TradingView-like workstation
 - [src](/Users/dev/workspace2/hc_apps/chartx2/src)
   - Svelte host app
 - [src-tauri](/Users/dev/workspace2/hc_apps/chartx2/src-tauri)
@@ -73,6 +75,9 @@ Before chasing the full TradingView feature surface, establish a clean engine-fi
 - interaction primitives such as crosshair, pan, and zoom
 
 The project should avoid turning `src/routes/+page.svelte` into the permanent home of chart internals. As chart logic grows, it should move into dedicated modules with clear boundaries.
+
+The full long-range alignment plan is tracked in
+[docs/tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md).
 
 ## Current Implementation Snapshot
 

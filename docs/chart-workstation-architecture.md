@@ -6,6 +6,9 @@ This document defines the next stable product boundary for `chartx2`.
 
 `chartx2` is not the final trading platform. It is the chart workstation module that a future trading product can embed and drive.
 
+The full three-layer TradingView alignment roadmap is tracked separately in
+[tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md).
+
 ## Core Decision
 
 The repository should be treated as three layers:

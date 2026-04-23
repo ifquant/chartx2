@@ -66,6 +66,7 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
   await expect(hostCards).toHaveCount(2);
 
   const watchRows = workbench.locator('[data-watchlist-symbol]');
+  await expect(watchRows.nth(1)).toHaveAttribute("data-watchlist-symbol", /.+/);
   const watchRowCount = await watchRows.count();
   expect(watchRowCount).toBeGreaterThan(1);
   const firstSymbol = await watchRows.nth(0).getAttribute("data-watchlist-symbol");

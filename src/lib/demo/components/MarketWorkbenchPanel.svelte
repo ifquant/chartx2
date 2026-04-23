@@ -192,45 +192,8 @@
         data-workbench-layout
         data-workbench-layout-preset={layoutPreset}
       >
-        {#if layoutPreset === "single"}
-          <div
-            class="chart-frame"
-            role="presentation"
-            on:pointermove={onPointerMove}
-            on:pointerleave={onPointerLeave}
-          >
-            {#if error}
-              <div class="error-state">
-                <p class="error-label">chart init failure</p>
-                <p>{error}</p>
-              </div>
-            {:else}
-              <canvas bind:this={canvasElement} aria-label="chartx2 phase-one chart harness"></canvas>
-              {#if showHorizontalPreview}
-                <svg class="drawing-tool-preview" aria-hidden="true">
-                  <line
-                    class="drawing-tool-preview-line"
-                    x1="0"
-                    x2="100%"
-                    y1={String(horizontalPreviewY)}
-                    y2={String(horizontalPreviewY)}
-                  ></line>
-                </svg>
-              {:else if showTrendPreview}
-                <svg class="drawing-tool-preview" aria-hidden="true">
-                  <line
-                    class="drawing-tool-preview-line"
-                    x1={String(trendPreviewX1)}
-                    y1={String(trendPreviewY1)}
-                    x2={String(trendPreviewX2)}
-                    y2={String(trendPreviewY2)}
-                  ></line>
-                </svg>
-              {/if}
-            {/if}
-          </div>
-        {:else}
-          <div class="workbench-layout" class:split={layoutPreset === "main-plus-secondary"} class:grid={layoutPreset === "grid-2x2"}>
+        <div class="workbench-layout" class:split={layoutPreset === "main-plus-secondary"} class:grid={layoutPreset === "grid-2x2"}>
+          {#if layoutPreset !== "single"}
             {#each slotViews as slotView (slotView.slotId)}
               <section
                 class="chart-slot"
@@ -272,11 +235,13 @@
                 </article>
               </section>
             {/each}
+          {/if}
 
-            <div
-              class="live-chart"
-              style={`grid-column: ${activeGrid.col}; grid-row: ${activeGrid.row};`}
-            >
+          <div
+            class="live-chart"
+            style={`grid-column: ${activeGrid.col}; grid-row: ${activeGrid.row};`}
+          >
+            {#if layoutPreset !== "single"}
               <div class="live-chart-badge">
                 <strong>{activeSlotView?.hostSymbol ?? workbench?.toolbar.activeSymbol ?? "NDX"}</strong>
                 <span>
@@ -285,45 +250,45 @@
                   {activeSlotView?.hostChartType ?? workbench?.toolbar.chartTypeLabel ?? "Candles"}
                 </span>
               </div>
-              <div
-                class="chart-frame"
-                role="presentation"
-                on:pointermove={onPointerMove}
-                on:pointerleave={onPointerLeave}
-              >
-                {#if error}
-                  <div class="error-state">
-                    <p class="error-label">chart init failure</p>
-                    <p>{error}</p>
-                  </div>
-                {:else}
-                  <canvas bind:this={canvasElement} aria-label="chartx2 phase-one chart harness"></canvas>
-                  {#if showHorizontalPreview}
-                    <svg class="drawing-tool-preview" aria-hidden="true">
-                      <line
-                        class="drawing-tool-preview-line"
-                        x1="0"
-                        x2="100%"
-                        y1={String(horizontalPreviewY)}
-                        y2={String(horizontalPreviewY)}
-                      ></line>
-                    </svg>
-                  {:else if showTrendPreview}
-                    <svg class="drawing-tool-preview" aria-hidden="true">
-                      <line
-                        class="drawing-tool-preview-line"
-                        x1={String(trendPreviewX1)}
-                        y1={String(trendPreviewY1)}
-                        x2={String(trendPreviewX2)}
-                        y2={String(trendPreviewY2)}
-                      ></line>
-                    </svg>
-                  {/if}
+            {/if}
+            <div
+              class="chart-frame"
+              role="presentation"
+              on:pointermove={onPointerMove}
+              on:pointerleave={onPointerLeave}
+            >
+              {#if error}
+                <div class="error-state">
+                  <p class="error-label">chart init failure</p>
+                  <p>{error}</p>
+                </div>
+              {:else}
+                <canvas bind:this={canvasElement} aria-label="chartx2 phase-one chart harness"></canvas>
+                {#if showHorizontalPreview}
+                  <svg class="drawing-tool-preview" aria-hidden="true">
+                    <line
+                      class="drawing-tool-preview-line"
+                      x1="0"
+                      x2="100%"
+                      y1={String(horizontalPreviewY)}
+                      y2={String(horizontalPreviewY)}
+                    ></line>
+                  </svg>
+                {:else if showTrendPreview}
+                  <svg class="drawing-tool-preview" aria-hidden="true">
+                    <line
+                      class="drawing-tool-preview-line"
+                      x1={String(trendPreviewX1)}
+                      y1={String(trendPreviewY1)}
+                      x2={String(trendPreviewX2)}
+                      y2={String(trendPreviewY2)}
+                    ></line>
+                  </svg>
                 {/if}
-              </div>
+              {/if}
             </div>
           </div>
-        {/if}
+        </div>
       </div>
 
       <div class="readout-bar">

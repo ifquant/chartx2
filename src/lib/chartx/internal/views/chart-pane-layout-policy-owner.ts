@@ -1,6 +1,7 @@
 import {
   normalizePaneHeight,
   resolvePaneResizeBlockFromState,
+  resolvePaneResizeGroupFromBlock,
   resolvePaneResizeBlockSnapshot,
   resolvePaneResizeTargetId,
 } from "../model";
@@ -88,11 +89,12 @@ export function createChartPaneLayoutPolicyOwner() {
       if (resizeBlock === null) {
         return null;
       }
+      const resizeGroup = resolvePaneResizeGroupFromBlock(resizeBlock);
       const controlledPane = deps.getPaneById(resizeBlock.controlledPaneId);
       if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
         return null;
       }
-      const controlsUpperPane = controlledPane.id === resizeBlock.upperPaneId;
+      const controlsUpperPane = resizeGroup.variablePaneIds[0] === controlledPane.id;
 
       const requestedHeight = controlsUpperPane
         ? resizeState.startControlledHeight + delta

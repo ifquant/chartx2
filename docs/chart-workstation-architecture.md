@@ -142,6 +142,7 @@ Post-harness shrink status:
   - pane resize blocks now have an explicit model-layer `controlledPaneId + opposingPaneId + mode` contract, so adjacent and downstream linked-resize cases no longer rely on ad-hoc conditional reconstruction to decide which panes define the active resize block
   - pane resize blocks now also carry explicit `blockPaneIds`, so downstream linked-resize cases expose the full participating pane span instead of hiding fixed middle panes behind only controlled/opposing endpoints
   - move-time pane resize policy now validates the frozen pointer-down block membership against the current pane block before applying height changes, so `blockPaneIds` participates in runtime correctness instead of living as unused state metadata
+  - pane resize policy now has an explicit grouping layer with `participatingPaneIds + variablePaneIds + fixedPaneIds`, so downstream linked-resize can distinguish fixed middle panes from the true variable span instead of encoding that split indirectly in snapshot math
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

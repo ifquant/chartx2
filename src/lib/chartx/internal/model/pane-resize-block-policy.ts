@@ -14,6 +14,16 @@ export type PaneResizeBlock = {
   mode: "adjacent-upper" | "adjacent-lower" | "downstream";
 };
 
+export type PaneResizeGroup = {
+  controlledPaneId: string;
+  opposingPaneId: string;
+  blockPaneIds: readonly string[];
+  participatingPaneIds: readonly string[];
+  variablePaneIds: readonly string[];
+  fixedPaneIds: readonly string[];
+  mode: "adjacent-upper" | "adjacent-lower" | "downstream";
+};
+
 export type PaneResizeBlockSnapshot = {
   controlledPaneId: string;
   blockPaneIds: readonly string[];
@@ -99,25 +109,57 @@ export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTarget
     return null;
   }
 
-  const controlledFrame = paneFrames.find((pane) => pane.id === controlledPaneId);
-  const opposingFrame = paneFrames.find((pane) => pane.id === resizeBlock.opposingPaneId);
-  if (controlledFrame === undefined || opposingFrame === undefined) {
+  const resizeGroup = resolvePaneResizeGroupFromBlock(resizeBlock);
+  const variableFrames = resizeGroup.variablePaneIds.map((paneId) =>
+    paneFrames.find((pane) => pane.id === paneId),
+  );
+  if (variableFrames.some((frame) => frame === undefined)) {
     return null;
   }
-  const opposingPane = panes.find((pane) => pane.id === resizeBlock.opposingPaneId);
+  const controlledFrame = variableFrames.find((frame) => frame?.id === controlledPaneId);
+  if (controlledFrame === undefined) {
+    return null;
+  }
+  const opposingPane = panes.find((pane) => pane.id === resizeGroup.opposingPaneId);
   if (opposingPane === undefined) {
     return null;
   }
 
   return {
     controlledPaneId,
-    blockPaneIds: resizeBlock.blockPaneIds,
+    blockPaneIds: resizeGroup.blockPaneIds,
     startControlledHeight: controlledFrame.height,
-    startVariableSpan: controlledFrame.height + opposingFrame.height,
+    startVariableSpan: variableFrames.reduce((sum, frame) => sum + (frame?.height ?? 0), 0),
     minOpposingHeight:
       opposingPane.kind === "primary"
         ? MIN_PRIMARY_HEIGHT
         : MIN_CONTROLLED_HEIGHT,
+  };
+}
+
+export function resolvePaneResizeGroupFromBlock(
+  resizeBlock: PaneResizeBlock,
+): PaneResizeGroup {
+  const variablePaneIds =
+    resizeBlock.mode === "adjacent-upper"
+      ? [resizeBlock.controlledPaneId, resizeBlock.opposingPaneId]
+      : resizeBlock.mode === "adjacent-lower"
+        ? [resizeBlock.opposingPaneId, resizeBlock.controlledPaneId]
+        : [resizeBlock.opposingPaneId, resizeBlock.controlledPaneId];
+  const participatingPaneIds =
+    resizeBlock.mode === "downstream"
+      ? [resizeBlock.opposingPaneId, ...resizeBlock.blockPaneIds]
+      : resizeBlock.blockPaneIds;
+  const fixedPaneIds = participatingPaneIds.filter((paneId) => !variablePaneIds.includes(paneId));
+
+  return {
+    controlledPaneId: resizeBlock.controlledPaneId,
+    opposingPaneId: resizeBlock.opposingPaneId,
+    blockPaneIds: resizeBlock.blockPaneIds,
+    participatingPaneIds,
+    variablePaneIds,
+    fixedPaneIds,
+    mode: resizeBlock.mode,
   };
 }
 

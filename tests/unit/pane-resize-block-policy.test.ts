@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolvePaneResizeBlock,
   resolvePaneResizeBlockFromState,
+  resolvePaneResizeGroupFromBlock,
   resolvePaneResizeBlockSnapshot,
 } from "../../src/lib/chartx/internal/model";
 
@@ -32,6 +33,23 @@ describe("pane resize block policy", () => {
       startControlledHeight: 136,
       startVariableSpan: 356,
       minOpposingHeight: 160,
+    });
+
+    expect(resolvePaneResizeGroupFromBlock({
+      upperPaneId: "primary",
+      lowerPaneId: "pane-1",
+      controlledPaneId: "pane-1",
+      opposingPaneId: "primary",
+      blockPaneIds: ["primary", "pane-1"],
+      mode: "adjacent-lower",
+    })).toEqual({
+      controlledPaneId: "pane-1",
+      opposingPaneId: "primary",
+      blockPaneIds: ["primary", "pane-1"],
+      participatingPaneIds: ["primary", "pane-1"],
+      variablePaneIds: ["primary", "pane-1"],
+      fixedPaneIds: [],
+      mode: "adjacent-lower",
     });
   });
 
@@ -94,6 +112,23 @@ describe("pane resize block policy", () => {
       startControlledHeight: 120,
       startVariableSpan: 420,
       minOpposingHeight: 160,
+    });
+
+    expect(resolvePaneResizeGroupFromBlock({
+      upperPaneId: "pane-1",
+      lowerPaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      opposingPaneId: "primary",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+      mode: "downstream",
+    })).toEqual({
+      controlledPaneId: "pane-3",
+      opposingPaneId: "primary",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+      participatingPaneIds: ["primary", "pane-1", "pane-2", "pane-3"],
+      variablePaneIds: ["primary", "pane-3"],
+      fixedPaneIds: ["pane-1", "pane-2"],
+      mode: "downstream",
     });
   });
 

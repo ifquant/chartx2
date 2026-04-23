@@ -2516,15 +2516,12 @@ export function mountWorkbenchDemo(
     async openSymbol(symbol) {
       layoutOperationSequence += 1;
       const targetHostId = activeChartHostId;
-      chartHostRecords[targetHostId].symbol = symbol;
-      chartHostRecords[targetHostId].chartType = mainChartType;
-      chartHostRecords[targetHostId].chartState = null;
       return openWorkbenchDemoSymbol({
         targetHostId,
         symbol,
         timeframe: chartHostRecords[targetHostId].timeframe,
         source: "watchlist",
-        chartType: chartHostRecords[targetHostId].chartType,
+        chartType: mainChartType,
         clearHostChartState: true,
         successLog: (openedSymbol) => `opened symbol ${openedSymbol} from watchlist`,
         failureLogPrefix: `failed to open ${symbol}`,
@@ -2615,7 +2612,8 @@ export function mountWorkbenchDemo(
           publishSnapshot();
           return false;
         }
-        pushLog(log, `saved layout ${state.activeSymbol}`);
+        const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+        pushLog(log, `saved layout ${state.activeSymbol}${scopeSuffix}`);
         publishSnapshot();
         return true;
       } catch (error) {
@@ -2666,10 +2664,6 @@ export function mountWorkbenchDemo(
         return false;
       }
 
-      chartHostRecords[activeChartHostId].symbol = state.activeSymbol;
-      chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
-      chartHostRecords[activeChartHostId].chartType = chartType;
-      chartHostRecords[activeChartHostId].chartState = state.chartState;
       const shouldSuppressDefaultDrawings = state.chartState !== null;
       if (shouldSuppressDefaultDrawings) {
         suppressDefaultDrawingsNextRebuild = true;
@@ -2690,6 +2684,12 @@ export function mountWorkbenchDemo(
         return false;
       }
 
+      // Only commit host-record changes once the async open succeeds.
+      chartHostRecords[activeChartHostId].symbol = state.activeSymbol;
+      chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
+      chartHostRecords[activeChartHostId].chartType = chartType;
+      chartHostRecords[activeChartHostId].chartState = state.chartState;
+
       try {
         if (state.chartState !== null) {
           chart?.applyChartState(state.chartState);
@@ -2708,16 +2708,13 @@ export function mountWorkbenchDemo(
       if (destroyed || layoutOperation !== layoutOperationSequence) {
         return false;
       }
-      pushLog(log, `restored layout ${state.activeSymbol}`);
+      const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+      pushLog(log, `restored layout ${state.activeSymbol}${scopeSuffix}`);
       publishSnapshot();
       return true;
     },
     async resetLayout() {
       layoutOperationSequence += 1;
-      chartHostRecords[activeChartHostId].symbol = "NDX";
-      chartHostRecords[activeChartHostId].timeframe = "1D";
-      chartHostRecords[activeChartHostId].chartType = "candlestick";
-      chartHostRecords[activeChartHostId].chartState = null;
       const opened = await openWorkbenchDemoSymbol({
         targetHostId: activeChartHostId,
         symbol: "NDX",
@@ -2734,7 +2731,8 @@ export function mountWorkbenchDemo(
       if (destroyed) {
         return false;
       }
-      pushLog(log, "reset layout");
+      const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+      pushLog(log, `reset layout${scopeSuffix}`);
       publishSnapshot();
       return true;
     },

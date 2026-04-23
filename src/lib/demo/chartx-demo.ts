@@ -17,9 +17,11 @@ import {
   type PhaseOneHorizontalLineDrawingOptions,
   type PhaseOneHistogramData,
   type PhaseOneMainChartType,
+  type PhaseOneMainSeriesRenderer,
   type PhaseOnePaneApi,
   type PhaseOnePaneEvent,
   type PhaseOnePaneState,
+  type PhaseOneTradeLocationRequest,
   type PhaseOneTrendLineDrawingOptions,
 } from "$lib/chartx/public/market";
 import {
@@ -211,9 +213,114 @@ type WorkbenchObjectTreeInput = {
   symbol: string;
   chartTypeLabel: string;
   panes: readonly PhaseOnePaneState[];
-  chartState: PhaseOneChartStateSnapshot | null;
+  chartProjection: WorkbenchObjectTreeChartProjection;
   alerts: readonly WorkbenchAlertState[];
 };
+
+type WorkbenchObjectTreeChartProjection = {
+  mainSeries: {
+    chartType: PhaseOneMainChartType;
+    renderer: PhaseOneMainSeriesRenderer;
+  } | null;
+  series: readonly {
+    kind: PhaseOneChartStateSnapshot["series"][number]["kind"];
+    paneIndex: number;
+    pointCount: number;
+  }[];
+  studies: readonly {
+    type: PhaseOneChartStateSnapshot["studies"][number]["type"];
+    paneIndex: number;
+  }[];
+  drawings: readonly {
+    type: PhaseOneChartStateSnapshot["drawings"][number]["type"];
+    paneIndex: number;
+    visible: boolean;
+  }[];
+  tradeLocation: {
+    request: PhaseOneTradeLocationRequest;
+  } | null;
+};
+
+function emptyWorkbenchObjectTreeChartProjection(): WorkbenchObjectTreeChartProjection {
+  return {
+    mainSeries: null,
+    series: [],
+    studies: [],
+    drawings: [],
+    tradeLocation: null,
+  };
+}
+
+function projectWorkbenchObjectTreeChartState(
+  chartState: PhaseOneChartStateSnapshot | null,
+): WorkbenchObjectTreeChartProjection {
+  if (chartState === null) {
+    return emptyWorkbenchObjectTreeChartProjection();
+  }
+
+  return {
+    mainSeries:
+      chartState.mainSeries === null
+        ? null
+        : {
+            chartType: chartState.mainSeries.chartType,
+            renderer: chartState.mainSeries.renderer,
+          },
+    series: chartState.series.map((series) => ({
+      kind: series.kind,
+      paneIndex: series.paneIndex,
+      pointCount: series.data.length,
+    })),
+    studies: chartState.studies.map((study) => ({
+      type: study.type,
+      paneIndex: study.paneIndex,
+    })),
+    drawings: chartState.drawings.map((drawing) => ({
+      type: drawing.type,
+      paneIndex: drawing.paneIndex,
+      visible: drawing.options.visible !== false,
+    })),
+    tradeLocation:
+      chartState.tradeLocation === null
+        ? null
+        : {
+            request: chartState.tradeLocation.request,
+          },
+  };
+}
+
+function paneSnapshotWithProjectedCounts(
+  panes: readonly PhaseOnePaneState[],
+  projection: WorkbenchObjectTreeChartProjection,
+): readonly PhaseOnePaneState[] {
+  const counts = new Map<number, number>();
+  const kinds = new Map<number, string[]>();
+  const bumpPane = (paneIndex: number, kind: string) => {
+    counts.set(paneIndex, (counts.get(paneIndex) ?? 0) + 1);
+    kinds.set(paneIndex, [...(kinds.get(paneIndex) ?? []), kind]);
+  };
+
+  if (projection.mainSeries !== null) {
+    bumpPane(0, projection.mainSeries.chartType);
+  }
+  for (const series of projection.series) {
+    bumpPane(series.paneIndex, series.kind);
+  }
+  for (const study of projection.studies) {
+    bumpPane(study.paneIndex, study.type);
+  }
+
+  return panes.map((pane) => {
+    const seriesCount = counts.get(pane.paneIndex) ?? pane.seriesCount;
+    const seriesKinds = kinds.get(pane.paneIndex) ?? pane.seriesKinds;
+    return {
+      ...pane,
+      hasSeries: seriesCount > 0,
+      seriesCount,
+      seriesKinds,
+    };
+  });
+}
 
 function toWorkbenchMainChartType(type: PhaseOneMainChartType): WorkbenchMainChartType | null {
   return type === "histogram" ? null : type;
@@ -261,28 +368,28 @@ function buildWorkbenchObjectTree(input: WorkbenchObjectTreeInput): ObjectTreePa
   const paneDepth = (paneIndex: number): number =>
     panes.some((pane) => pane.paneIndex === paneIndex) ? 2 : 1;
 
-  if (input.chartState?.mainSeries !== null && input.chartState?.mainSeries !== undefined) {
+  if (input.chartProjection.mainSeries !== null) {
     nodes.push({
       id: "main-series:active",
       kind: "main-series",
       label: "Main series",
-      detailLabel: formatObjectTreeKind(input.chartState.mainSeries.chartType),
-      badgeLabel: input.chartState.mainSeries.renderer,
+      detailLabel: formatObjectTreeKind(input.chartProjection.mainSeries.chartType),
+      badgeLabel: input.chartProjection.mainSeries.renderer,
       depth: paneDepth(0),
     });
   }
 
-  input.chartState?.series.forEach((series, index) => {
+  input.chartProjection.series.forEach((series, index) => {
     nodes.push({
       id: `series:${index}`,
       kind: "series",
       label: formatObjectTreeKind(series.kind),
-      detailLabel: `Pane ${series.paneIndex + 1} · ${formatObjectTreePointCount(series.data.length)}`,
+      detailLabel: `Pane ${series.paneIndex + 1} · ${formatObjectTreePointCount(series.pointCount)}`,
       depth: paneDepth(series.paneIndex),
     });
   });
 
-  input.chartState?.studies.forEach((study, index) => {
+  input.chartProjection.studies.forEach((study, index) => {
     nodes.push({
       id: `study:${index}`,
       kind: "study",
@@ -292,14 +399,14 @@ function buildWorkbenchObjectTree(input: WorkbenchObjectTreeInput): ObjectTreePa
     });
   });
 
-  input.chartState?.drawings.forEach((drawing, index) => {
+  input.chartProjection.drawings.forEach((drawing, index) => {
     nodes.push({
       id: `drawing:${index}`,
       kind: "drawing",
       label: formatObjectTreeKind(drawing.type),
       detailLabel: `Pane ${drawing.paneIndex + 1}`,
       depth: paneDepth(drawing.paneIndex),
-      muted: drawing.options.visible === false,
+      muted: !drawing.visible,
     });
   });
 
@@ -317,7 +424,7 @@ function buildWorkbenchObjectTree(input: WorkbenchObjectTreeInput): ObjectTreePa
     });
   }
 
-  const tradeLocation = input.chartState?.tradeLocation ?? null;
+  const tradeLocation = input.chartProjection.tradeLocation;
   if (tradeLocation !== null) {
     nodes.push({
       id: "trade-location:active",
@@ -539,6 +646,7 @@ export function mountWorkbenchDemo(
   let latestClick: PhaseOneClickEvent | null = null;
   let latestPaneEvent: PhaseOnePaneEvent | null = null;
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
+  let objectTreeChartProjection = emptyWorkbenchObjectTreeChartProjection();
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
   let activeIndicators: DemoActiveIndicator[] = [];
@@ -555,6 +663,22 @@ export function mountWorkbenchDemo(
   };
 
   const latestActiveTimestamp = (): number => activeBarsPayload.bars.at(-1)?.time ?? Date.now();
+
+  const refreshObjectTreeProjection = () => {
+    const chartState = chart?.getChartState() ?? null;
+    objectTreeChartProjection = projectWorkbenchObjectTreeChartState(chartState);
+    if (chart !== null) {
+      paneSnapshot = paneSnapshotWithProjectedCounts(
+        chart.panes().map(paneStateFromHandle),
+        objectTreeChartProjection,
+      );
+    }
+  };
+
+  const refreshObjectTreeProjectionAndPublish = () => {
+    refreshObjectTreeProjection();
+    publishSnapshot();
+  };
 
   const createDemoWorkbenchAlerts = (): WorkbenchAlertState[] => {
     const basePrice = latestActiveClose() ?? 23_000;
@@ -741,7 +865,7 @@ export function mountWorkbenchDemo(
         `located trade ${intent.tradeId} on workbench ${formatTime(state.resolvedEntryTime)} → ${formatTime(state.resolvedExitTime)}`,
       );
     }
-    publishSnapshot();
+    refreshObjectTreeProjectionAndPublish();
     return true;
   };
 
@@ -797,8 +921,7 @@ export function mountWorkbenchDemo(
     };
   };
 
-  const publishSnapshot = () => {
-    const chartState = chart?.getChartState() ?? null;
+  function publishSnapshot() {
     const visibleLogical = chart?.timeScale().getVisibleLogicalRange() ?? null;
     const visiblePrice = chart?.priceScale().getVisibleRange() ?? null;
     const lineBreakBars =
@@ -884,7 +1007,7 @@ export function mountWorkbenchDemo(
       symbol: activeSymbol,
       chartTypeLabel: formatWorkbenchChartType(mainChartType),
       panes: paneSnapshot,
-      chartState,
+      chartProjection: objectTreeChartProjection,
       alerts: workbenchAlerts,
     });
     const workbenchModel = createChartWorkbenchModel({
@@ -1037,7 +1160,7 @@ export function mountWorkbenchDemo(
             }
           : null,
     });
-  };
+  }
 
   if (options.alertsProvider !== undefined) {
     const loadStartedAtMutationVersion = alertMutationVersion;
@@ -1291,7 +1414,7 @@ export function mountWorkbenchDemo(
         mainChartType = type;
       }
       pushLog(log, `chart type ${type}`);
-      publishSnapshot();
+      refreshObjectTreeProjectionAndPublish();
     };
     chart.subscribeChartTypeChange(handleChartTypeChange);
     teardownChartTypeSubscription = () => {
@@ -1300,7 +1423,7 @@ export function mountWorkbenchDemo(
     };
     chart.subscribePaneEvents((event) => {
       latestPaneEvent = event;
-      paneSnapshot = event.panes;
+      paneSnapshot = paneSnapshotWithProjectedCounts(event.panes, objectTreeChartProjection);
       pushLog(log, `${event.type} pane ${event.pane.paneIndex + 1}`);
       publishSnapshot();
     });
@@ -1484,6 +1607,7 @@ export function mountWorkbenchDemo(
           timeMagnetEnabled: true,
           timeMagnetPolicy: "nearest",
         });
+        refreshObjectTreeProjectionAndPublish();
       });
     }
 
@@ -1507,7 +1631,7 @@ export function mountWorkbenchDemo(
           drawingTool = "none";
           pendingTrendLineStart = null;
           pushLog(log, `tool created horizontal-line ${event.price.toFixed(2)}`);
-          publishSnapshot();
+          refreshObjectTreeProjectionAndPublish();
           return;
         }
 
@@ -1557,7 +1681,7 @@ export function mountWorkbenchDemo(
         drawingTool = "none";
         pendingTrendLineStart = null;
         pushLog(log, `tool created trend-line ${formatTime(start.time)} → ${formatTime(end.time)}`);
-        publishSnapshot();
+        refreshObjectTreeProjectionAndPublish();
         return;
       }
       pushLog(log, `click ${formatTime(event.time)} ${formatMaybeNumber(event.price)}`);
@@ -1567,8 +1691,7 @@ export function mountWorkbenchDemo(
       pushLog(log, selection === null ? "drawing cleared" : `drawing ${selection.kind} selected`);
       publishSnapshot();
     });
-    paneSnapshot = chart.panes().map(paneStateFromHandle);
-    publishSnapshot();
+    refreshObjectTreeProjectionAndPublish();
   };
 
   rebuild();
@@ -1821,7 +1944,7 @@ export function mountWorkbenchDemo(
         }
 
         currentChart.setChartType(nextType);
-        publishSnapshot();
+        refreshObjectTreeProjectionAndPublish();
       };
 
       switch (actionId) {
@@ -2023,7 +2146,7 @@ export function mountWorkbenchDemo(
       chart.applySelectedDrawingOptions(
         options as PhaseOneHorizontalLineDrawingOptions | PhaseOneTrendLineDrawingOptions,
       );
-      publishSnapshot();
+      refreshObjectTreeProjectionAndPublish();
     },
     setDrawingTool(tool) {
       if (drawingTool === tool) {
@@ -2131,7 +2254,7 @@ export function mountWorkbenchDemo(
         study.applyStudyOptions({ length: 20 });
         addActiveIndicator(entry);
         pushLog(log, "added indicator Moving Average");
-        publishSnapshot();
+        refreshObjectTreeProjectionAndPublish();
         return true;
       }
 
@@ -2146,7 +2269,7 @@ export function mountWorkbenchDemo(
         });
         addActiveIndicator(entry);
         pushLog(log, "added indicator Compare");
-        publishSnapshot();
+        refreshObjectTreeProjectionAndPublish();
         return true;
       }
 
@@ -2158,7 +2281,7 @@ export function mountWorkbenchDemo(
       overlay.setData(activeBarsPayload.line);
       addActiveIndicator(entry);
       pushLog(log, "added indicator Overlay Line");
-      publishSnapshot();
+      refreshObjectTreeProjectionAndPublish();
       return true;
     },
     async openSymbol(symbol) {
@@ -2323,7 +2446,7 @@ export function mountWorkbenchDemo(
       try {
         if (state.chartState !== null) {
           chart?.applyChartState(state.chartState);
-          paneSnapshot = chart?.panes().map(paneStateFromHandle) ?? [];
+          refreshObjectTreeProjection();
         }
       } catch (error) {
         if (destroyed) {

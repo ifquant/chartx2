@@ -84,6 +84,7 @@ Current slice status:
 - twenty-second slice landed: pane-resize-block owner now exposes an explicit active resize block object, so validated group, controlled-pane choice, and control direction move through one owned runtime artifact
 - twenty-third slice landed: pointer-down pane resize state now stores that active resize block directly, so move-time runtime paths no longer have to recover the active block from a handle-shaped payload they already validated
 - twenty-fourth slice landed: move-time pane layout policy now consumes the active resize block directly, so controlled resize math no longer re-enters the move path through a handle-shaped contract after pointer-down already resolved the active block
+- twenty-fifth slice landed: active resize blocks now expose divider identity and block snapshot directly, so runtime consumers no longer depend on `activeBlock.handle.block` nesting once the active block has already been resolved
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

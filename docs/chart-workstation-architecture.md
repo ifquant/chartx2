@@ -151,6 +151,7 @@ Post-harness shrink status:
   - pane-resize-block owner now exposes an explicit active resize block object, so validated group, controlled-pane choice, and control direction can travel together as one owned runtime artifact instead of being recomputed piecemeal inside resize math
   - pane resize interaction state now stores that explicit active resize block directly at pointer-down time, so move-time runtime consumers no longer have to treat the resize handle as an indirect lookup key just to recover the active block they already validated
   - move-time pane layout policy and pane runtime now consume that active resize block directly instead of routing controlled resize math through a handle-shaped payload, so the move-time path stays aligned with the runtime object pointer-down already validated
+  - active resize blocks now expose divider identity and block snapshot as first-class fields instead of forcing consumers to drill through `activeBlock.handle.block`, so move-time state readers no longer depend on handle-shaped nesting once the active block has already been resolved
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

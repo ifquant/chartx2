@@ -37,7 +37,9 @@ export type PaneResizeHandle = {
 };
 
 export type PaneActiveResizeBlock = {
-  handle: PaneResizeHandle;
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  snapshot: PaneResizeBlockSnapshotState;
   group: ReturnType<typeof resolvePaneResizeGroupFromBlock>;
   controlledPaneId: string;
   controlsUpperPane: boolean;
@@ -141,10 +143,10 @@ export function createChartPaneResizeBlockOwner() {
       },
     ) {
       const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), {
-        dividerAfterPaneId: resizeState.activeBlock.handle.dividerAfterPaneId,
-        dividerBeforePaneId: resizeState.activeBlock.handle.dividerBeforePaneId,
-        controlledPaneId: resizeState.activeBlock.handle.block.controlledPaneId,
-        blockPaneIds: resizeState.activeBlock.handle.block.blockPaneIds,
+        dividerAfterPaneId: resizeState.activeBlock.dividerAfterPaneId,
+        dividerBeforePaneId: resizeState.activeBlock.dividerBeforePaneId,
+        controlledPaneId: resizeState.activeBlock.snapshot.controlledPaneId,
+        blockPaneIds: resizeState.activeBlock.snapshot.blockPaneIds,
       });
       return resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
     },
@@ -174,7 +176,9 @@ export function createChartPaneResizeBlockOwner() {
         return null;
       }
       return {
-        handle: resizeHandle,
+        dividerAfterPaneId: resizeHandle.dividerAfterPaneId,
+        dividerBeforePaneId: resizeHandle.dividerBeforePaneId,
+        snapshot: resizeHandle.block,
         group: resizeGroup,
         controlledPaneId: controlledPane.id,
         controlsUpperPane: resizeGroup.variablePaneIds[0] === controlledPane.id,
@@ -193,12 +197,12 @@ export function createChartPaneResizeBlockOwner() {
         return null;
       }
       const requestedHeight = activeResizeBlock.controlsUpperPane
-        ? activeResizeBlock.handle.block.startControlledHeight + delta
-        : activeResizeBlock.handle.block.startControlledHeight - delta;
+        ? activeResizeBlock.snapshot.startControlledHeight + delta
+        : activeResizeBlock.snapshot.startControlledHeight - delta;
       const maxControlled =
         Math.max(
           MIN_CONTROLLED_HEIGHT,
-          activeResizeBlock.handle.block.startVariableSpan - activeResizeBlock.handle.block.minOpposingHeight,
+          activeResizeBlock.snapshot.startVariableSpan - activeResizeBlock.snapshot.minOpposingHeight,
         );
       const nextHeight = Math.max(
         MIN_CONTROLLED_HEIGHT,

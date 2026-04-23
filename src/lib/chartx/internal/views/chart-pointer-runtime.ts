@@ -34,11 +34,9 @@ type PaneResizeGroupLike = {
 type PaneResizeStateLike = {
   startClientY: number;
   activeBlock: {
-    handle: {
-      dividerAfterPaneId: string;
-      dividerBeforePaneId: string;
-      block: PaneResizeBlockSnapshotLike;
-    };
+    dividerAfterPaneId: string;
+    dividerBeforePaneId: string;
+    snapshot: PaneResizeBlockSnapshotLike;
     group: PaneResizeGroupLike;
     controlledPaneId: string;
     controlsUpperPane: boolean;

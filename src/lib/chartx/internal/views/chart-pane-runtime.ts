@@ -29,16 +29,14 @@ type PaneFrameLike = {
 type PaneResizeStateLike = {
   startClientY: number;
   activeBlock: {
-    handle: {
-      dividerAfterPaneId: string;
-      dividerBeforePaneId: string;
-      block: {
-        controlledPaneId: string;
-        blockPaneIds: readonly string[];
-        startControlledHeight: number;
-        startVariableSpan: number;
-        minOpposingHeight: number;
-      };
+    dividerAfterPaneId: string;
+    dividerBeforePaneId: string;
+    snapshot: {
+      controlledPaneId: string;
+      blockPaneIds: readonly string[];
+      startControlledHeight: number;
+      startVariableSpan: number;
+      minOpposingHeight: number;
     };
     group: {
       controlledPaneId: string;
@@ -259,8 +257,8 @@ export function applyPaneResize(
     paneGap: deps.gap,
   });
   const divider = paneLayoutOwner.resolvePaneDividerByIds(
-    resizeState.activeBlock.handle.dividerAfterPaneId,
-    resizeState.activeBlock.handle.dividerBeforePaneId,
+    resizeState.activeBlock.dividerAfterPaneId,
+    resizeState.activeBlock.dividerBeforePaneId,
     layout.height - layout.top - layout.bottom,
   );
   if (divider !== null) {

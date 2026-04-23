@@ -63,16 +63,14 @@ describe("chart pane layout runtime owner", () => {
       {
         startClientY: 20,
         activeBlock: {
-          handle: {
-            dividerAfterPaneId: "primary",
-            dividerBeforePaneId: "pane-2",
-            block: {
-              controlledPaneId: "pane-2",
-              blockPaneIds: ["primary", "pane-2"],
-              startControlledHeight: 136,
-              startVariableSpan: 356,
-              minOpposingHeight: 160,
-            },
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          snapshot: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 136,
+            startVariableSpan: 356,
+            minOpposingHeight: 160,
           },
           group: {
             controlledPaneId: "pane-2",

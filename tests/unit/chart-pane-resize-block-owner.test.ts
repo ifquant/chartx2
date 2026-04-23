@@ -27,16 +27,14 @@ describe("chart pane resize block owner", () => {
     })).toEqual({
       startClientY: 24,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-1",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-1", "pane-2"],
-            startControlledHeight: 120,
-            startVariableSpan: 340,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -65,16 +63,14 @@ describe("chart pane resize block owner", () => {
     expect(owner.resolvePaneResizeGroup({
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "pane-1",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-3",
-            blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-            startControlledHeight: 120,
-            startVariableSpan: 420,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-3",
@@ -103,16 +99,14 @@ describe("chart pane resize block owner", () => {
     expect(owner.resolvePaneResizeGroup({
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "pane-1",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-3",
-            blockPaneIds: ["pane-1", "pane-3"],
-            startControlledHeight: 120,
-            startVariableSpan: 420,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-3",
@@ -154,16 +148,14 @@ describe("chart pane resize block owner", () => {
       getPaneById: (paneId) => panes.find((pane) => pane.id === paneId),
       listPanes: () => panes,
     })).toEqual({
-      handle: {
-        dividerAfterPaneId: "pane-1",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-3",
-          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-          startControlledHeight: 120,
-          startVariableSpan: 420,
-          minOpposingHeight: 160,
-        },
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      snapshot: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
       },
       group: {
         controlledPaneId: "pane-3",
@@ -183,16 +175,14 @@ describe("chart pane resize block owner", () => {
     const owner = createChartPaneResizeBlockOwner();
 
     expect(owner.resolveControlledResizeHeight(40, {
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-1",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-1", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 340,
-          minOpposingHeight: 160,
-        },
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      snapshot: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 340,
+        minOpposingHeight: 160,
       },
       group: {
         controlledPaneId: "pane-2",

@@ -108,16 +108,14 @@ describe("chart pane runtime use-cases", () => {
     }, {
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-2"],
-            startControlledHeight: 136,
-            startVariableSpan: 356,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 136,
+          startVariableSpan: 356,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -168,16 +166,14 @@ describe("chart pane runtime use-cases", () => {
     }, {
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "pane-1",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["pane-1", "pane-2"],
-            startControlledHeight: 120,
-            startVariableSpan: 220,
-            minOpposingHeight: 72,
-          },
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 220,
+          minOpposingHeight: 72,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -236,16 +232,14 @@ describe("chart pane runtime use-cases", () => {
     }, {
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-1",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-1", "pane-2"],
-            startControlledHeight: 120,
-            startVariableSpan: 340,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -303,16 +297,14 @@ describe("chart pane runtime use-cases", () => {
     }, {
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-1",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-1", "pane-2"],
-            startControlledHeight: 120,
-            startVariableSpan: 340,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -368,16 +360,14 @@ describe("chart pane runtime use-cases", () => {
     }, {
       startClientY: 20,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "pane-1",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-3",
-            blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-            startControlledHeight: 120,
-            startVariableSpan: 420,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-3",

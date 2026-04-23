@@ -25,16 +25,14 @@ describe("chart view state", () => {
     state.setPaneResizeState({
       startClientY: 300,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-2"],
-            startControlledHeight: 180,
-            startVariableSpan: 380,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 180,
+          startVariableSpan: 380,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",
@@ -58,7 +56,7 @@ describe("chart view state", () => {
     expect(state.manualLayout()).toEqual({ width: 800, height: 600 });
     expect(state.dragState()?.startRightOffset).toBe(2);
     expect(state.drawingDragState()?.handle).toBe("start");
-    expect(state.paneResizeState()?.activeBlock.handle.dividerBeforePaneId).toBe("pane-2");
+    expect(state.paneResizeState()?.activeBlock.dividerBeforePaneId).toBe("pane-2");
   });
 
   it("clears snap-guide time separately and resets interaction state without dropping selection", () => {
@@ -80,16 +78,14 @@ describe("chart view state", () => {
     state.setPaneResizeState({
       startClientY: 300,
       activeBlock: {
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-2"],
-            startControlledHeight: 180,
-            startVariableSpan: 380,
-            minOpposingHeight: 160,
-          },
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        snapshot: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 180,
+          startVariableSpan: 380,
+          minOpposingHeight: 160,
         },
         group: {
           controlledPaneId: "pane-2",

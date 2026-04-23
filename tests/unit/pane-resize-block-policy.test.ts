@@ -21,11 +21,13 @@ describe("pane resize block policy", () => {
       lowerPaneId: "pane-1",
       controlledPaneId: "pane-1",
       opposingPaneId: "primary",
+      blockPaneIds: ["primary", "pane-1"],
       mode: "adjacent-lower",
     });
 
     expect(resolvePaneResizeBlockSnapshot(panes, frames, "primary", "pane-1", "pane-1")).toEqual({
       controlledPaneId: "pane-1",
+      blockPaneIds: ["primary", "pane-1"],
       startControlledHeight: 136,
       startVariableSpan: 356,
       minOpposingHeight: 160,
@@ -49,11 +51,13 @@ describe("pane resize block policy", () => {
       lowerPaneId: "pane-2",
       controlledPaneId: "pane-1",
       opposingPaneId: "pane-2",
+      blockPaneIds: ["pane-1", "pane-2"],
       mode: "adjacent-upper",
     });
 
     expect(resolvePaneResizeBlockSnapshot(panes, frames, "pane-1", "pane-2", "pane-1")).toEqual({
       controlledPaneId: "pane-1",
+      blockPaneIds: ["pane-1", "pane-2"],
       startControlledHeight: 100,
       startVariableSpan: 190,
       minOpposingHeight: 72,
@@ -79,11 +83,13 @@ describe("pane resize block policy", () => {
       lowerPaneId: "pane-2",
       controlledPaneId: "pane-3",
       opposingPaneId: "primary",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
       mode: "downstream",
     });
 
     expect(resolvePaneResizeBlockSnapshot(panes, frames, "pane-1", "pane-2", "pane-3")).toEqual({
       controlledPaneId: "pane-3",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
       startControlledHeight: 120,
       startVariableSpan: 420,
       minOpposingHeight: 160,

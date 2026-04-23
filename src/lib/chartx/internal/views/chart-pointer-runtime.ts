@@ -40,6 +40,7 @@ export function handlePointerDownRuntime(
       dividerAfterPaneId: string;
       dividerBeforePaneId: string;
       controlledPaneId: string;
+      blockPaneIds: readonly string[];
       startClientY: number;
       startControlledHeight: number;
       startVariableSpan: number;
@@ -53,6 +54,7 @@ export function handlePointerDownRuntime(
       paneFrames: readonly PaneFrameLike[],
     ): {
       controlledPaneId: string;
+      blockPaneIds: readonly string[];
       startControlledHeight: number;
       startVariableSpan: number;
       minOpposingHeight: number;
@@ -96,6 +98,7 @@ export function handlePointerDownRuntime(
       dividerAfterPaneId: divider.upperPaneId,
       dividerBeforePaneId: divider.lowerPaneId,
       controlledPaneId,
+      blockPaneIds: resizeBlock.blockPaneIds,
       startClientY: event.clientY,
       startControlledHeight: resizeBlock.startControlledHeight,
       startVariableSpan: resizeBlock.startVariableSpan,

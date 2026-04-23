@@ -37,6 +37,7 @@ describe("chart pointer runtime use-case", () => {
       resolveControlledPaneId: () => "pane-2",
       resolvePaneResizeBlock: () => ({
         controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-2"],
         startControlledHeight: 120,
         startVariableSpan: 280,
         minOpposingHeight: 160,
@@ -56,6 +57,7 @@ describe("chart pointer runtime use-case", () => {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
+      blockPaneIds: ["primary", "pane-2"],
       startClientY: 20,
       startControlledHeight: 120,
       startVariableSpan: 280,

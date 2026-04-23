@@ -10,11 +10,13 @@ export type PaneResizeBlock = {
   lowerPaneId: string;
   controlledPaneId: string;
   opposingPaneId: string;
+  blockPaneIds: readonly string[];
   mode: "adjacent-upper" | "adjacent-lower" | "downstream";
 };
 
 export type PaneResizeBlockSnapshot = {
   controlledPaneId: string;
+  blockPaneIds: readonly string[];
   startControlledHeight: number;
   startVariableSpan: number;
   minOpposingHeight: number;
@@ -46,6 +48,7 @@ export function resolvePaneResizeBlock<PaneType extends PaneResizeTargetCandidat
       lowerPaneId,
       controlledPaneId,
       opposingPaneId: lowerPaneId,
+      blockPaneIds: [upperPaneId, lowerPaneId],
       mode: "adjacent-upper",
     };
   }
@@ -56,8 +59,15 @@ export function resolvePaneResizeBlock<PaneType extends PaneResizeTargetCandidat
       lowerPaneId,
       controlledPaneId,
       opposingPaneId: upperPaneId,
+      blockPaneIds: [upperPaneId, lowerPaneId],
       mode: "adjacent-lower",
     };
+  }
+
+  const upperIndex = panes.findIndex((pane) => pane.id === upperPaneId);
+  const controlledIndex = panes.findIndex((pane) => pane.id === controlledPaneId);
+  if (upperIndex === -1 || controlledIndex === -1 || controlledIndex < upperIndex) {
+    return null;
   }
 
   return {
@@ -65,6 +75,7 @@ export function resolvePaneResizeBlock<PaneType extends PaneResizeTargetCandidat
     lowerPaneId,
     controlledPaneId,
     opposingPaneId: "primary",
+    blockPaneIds: panes.slice(upperIndex, controlledIndex + 1).map((pane) => pane.id),
     mode: "downstream",
   };
 }
@@ -93,6 +104,7 @@ export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTarget
 
   return {
     controlledPaneId,
+    blockPaneIds: resizeBlock.blockPaneIds,
     startControlledHeight: controlledFrame.height,
     startVariableSpan: controlledFrame.height + opposingFrame.height,
     minOpposingHeight:

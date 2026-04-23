@@ -73,6 +73,7 @@ Current slice status:
 - eleventh slice landed: linked-resize target resolution now routes through one shared pane resize policy in the model layer instead of being duplicated between divider hit-testing and runtime pane policy code
 - twelfth slice landed: pointer-down resize state now stores a shared pane resize block snapshot (`startVariableSpan` + `minOpposingHeight`) so move-time resize policy no longer reconstructs block semantics from primary/upper/lower start-height fields
 - thirteenth slice landed: pane resize blocks now have an explicit `controlledPaneId + opposingPaneId + mode` model contract, and resize block snapshots now derive from that block instead of re-deriving adjacent vs downstream semantics inline
+- fourteenth slice landed: pane resize blocks now also carry explicit `blockPaneIds`, so downstream linked-resize state exposes the full participating pane span instead of only the controlled/opposing endpoints
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

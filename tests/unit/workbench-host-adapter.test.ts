@@ -8,6 +8,7 @@ import {
   createWorkbenchFixtureBarsPayload,
   createWorkbenchFixtureHostAdapter,
   createWorkbenchFixtureWatchlist,
+  loadWorkbenchInitialSymbolPayload,
 } from "../../src/lib/demo/workbench-fixtures";
 
 describe("workbench host adapter", () => {
@@ -54,9 +55,11 @@ describe("workbench host adapter", () => {
   it("creates aligned fixture payload data from the first watchlist symbol", () => {
     const rows = createWorkbenchFixtureWatchlist();
     const payload = createWorkbenchFixtureBarsPayload(rows[0]!.symbol, "1D");
+    const lastBar = payload.bars.at(-1);
 
     expect(payload.symbol).toBe("NDX");
     expect(payload.exchangeLabel).toBe("NASDAQ");
+    expect(lastBar?.close).toBe(23_132.77);
     expect(payload.volume.length).toBe(payload.bars.length);
     expect(payload.line.length).toBe(payload.bars.length);
     expect(payload.volume[0]?.time).toBe(payload.bars[0]?.time);
@@ -107,6 +110,60 @@ describe("workbench host adapter", () => {
     }
     expect(adapter.resolveSymbol).toHaveBeenCalledWith("NDX");
     expect(adapter.loadBars).toHaveBeenCalledWith("NDX", "1D");
+  });
+
+  it("loads the initial workbench symbol through the injected host adapter", async () => {
+    const adapter: WorkbenchHostAdapter = {
+      listWatchlistItems: vi.fn(async () => []),
+      resolveSymbol: vi.fn(async (symbol) => ({
+        symbol,
+        name: "E-mini S&P 500",
+        exchange: "CME",
+        defaultTimeframe: "5m",
+      })),
+      loadBars: vi.fn(async (symbol, timeframe) => ({
+        symbol,
+        timeframe,
+        exchangeLabel: "CME",
+        bars: [
+          { time: 1, open: 5200, high: 5210, low: 5195, close: 5208 },
+        ],
+        volume: [
+          { time: 1, value: 3200, color: "#10b981" },
+        ],
+        line: [
+          { time: 1, value: 5208 },
+        ],
+      })),
+    };
+
+    const result = await loadWorkbenchInitialSymbolPayload(adapter, "ES", "5m");
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.symbol).toBe("ES");
+      expect(result.payload.timeframe).toBe("5m");
+      expect(result.payload.bars[0]?.close).toBe(5208);
+      expect(result.exchangeLabel).toBe("CME");
+    }
+    expect(adapter.resolveSymbol).toHaveBeenCalledWith("ES");
+    expect(adapter.loadBars).toHaveBeenCalledWith("ES", "5m");
+  });
+
+  it("reports initial injected host adapter failures without throwing", async () => {
+    const adapter: WorkbenchHostAdapter = {
+      listWatchlistItems: vi.fn(async () => []),
+      resolveSymbol: vi.fn(async () => null),
+      loadBars: vi.fn(async () => {
+        throw new Error("loadBars should not run for unresolved symbols");
+      }),
+    };
+
+    await expect(loadWorkbenchInitialSymbolPayload(adapter, "ES", "1D")).resolves.toEqual({
+      ok: false,
+      message: "failed to open initial symbol ES: symbol-not-found",
+    });
+    expect(adapter.loadBars).not.toHaveBeenCalled();
   });
 
   it("reports an unresolved symbol without loading bars", async () => {

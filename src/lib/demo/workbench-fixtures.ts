@@ -4,11 +4,12 @@ import type {
   PhaseOneVolumeData,
 } from "$lib/chartx/public/market";
 import type { WatchlistItemModel } from "$lib/chartx/public/workbench";
-import type {
-  WorkbenchBarsPayload,
-  WorkbenchHostAdapter,
-  WorkbenchSymbolDescriptor,
-} from "$lib/chartx/public/workbench-host";
+import {
+  openWorkbenchSymbol,
+  type WorkbenchBarsPayload,
+  type WorkbenchHostAdapter,
+  type WorkbenchSymbolDescriptor,
+} from "../chartx/public/workbench-host";
 
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
 const BAR_INTERVAL_MS = 60_000;
@@ -27,6 +28,17 @@ type FixtureSymbol = {
   lastValue: number;
   offset: number;
 };
+
+export type WorkbenchInitialSymbolLoadResult =
+  | {
+      ok: true;
+      payload: WorkbenchBarsPayload;
+      exchangeLabel: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
 
 const FIXTURE_SYMBOLS: readonly FixtureSymbol[] = [
   {
@@ -198,7 +210,7 @@ export function createWorkbenchFixtureBarsPayload(
 ): WorkbenchBarsPayload {
   const fixture = fixtureSymbolOrDefault(symbol);
   const bars = createWorkbenchBars(DEFAULT_BAR_COUNT, fixture.offset);
-  const shift = fixture.lastValue - bars[0]!.close;
+  const shift = fixture.lastValue - bars[bars.length - 1]!.close;
   const adjustedBars = shiftBars(bars, shift);
 
   return {
@@ -209,6 +221,39 @@ export function createWorkbenchFixtureBarsPayload(
     volume: createVolumeData(adjustedBars),
     line: createLineData(adjustedBars),
   };
+}
+
+export async function loadWorkbenchInitialSymbolPayload(
+  hostAdapter: WorkbenchHostAdapter,
+  symbol: string,
+  timeframe: string,
+): Promise<WorkbenchInitialSymbolLoadResult> {
+  try {
+    const result = await openWorkbenchSymbol(hostAdapter, {
+      symbol,
+      timeframe,
+      source: "host",
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        message: `failed to open initial symbol ${symbol}: ${result.reason}`,
+      };
+    }
+
+    return {
+      ok: true,
+      payload: result.payload,
+      exchangeLabel: result.payload.exchangeLabel ?? result.symbol.exchange ?? "",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      message: `failed to open initial symbol ${symbol}: ${message}`,
+    };
+  }
 }
 
 export function createWorkbenchFixtureHostAdapter(): WorkbenchHostAdapter {

@@ -51,6 +51,7 @@ import {
   createWorkbenchBars,
   createWorkbenchFixtureBarsPayload,
   createWorkbenchFixtureHostAdapter,
+  loadWorkbenchInitialSymbolPayload,
 } from "$lib/demo/workbench-fixtures";
 
 export type DemoTabId = "workbench" | "features";
@@ -315,11 +316,16 @@ export function mountWorkbenchDemo(
   options: WorkbenchDemoOptions = {},
 ): DemoController {
   const log: EventLog = [];
+  const hasInjectedHostAdapter = options.hostAdapter !== undefined;
   const hostAdapter = options.hostAdapter ?? createWorkbenchFixtureHostAdapter();
   let chart: PhaseOneChartApi | null = null;
-  let activeSymbol = options.initialSymbol ?? "NDX";
+  const requestedInitialSymbol = options.initialSymbol ?? "NDX";
   let activeTimeframe = options.initialTimeframe ?? "1D";
-  let activeBarsPayload: WorkbenchBarsPayload = createWorkbenchFixtureBarsPayload(activeSymbol, activeTimeframe);
+  let activeBarsPayload: WorkbenchBarsPayload = createWorkbenchFixtureBarsPayload(
+    hasInjectedHostAdapter ? "NDX" : requestedInitialSymbol,
+    activeTimeframe,
+  );
+  let activeSymbol = hasInjectedHostAdapter ? activeBarsPayload.symbol : requestedInitialSymbol;
   let activeExchangeLabel = activeBarsPayload.exchangeLabel ?? "NASDAQ";
   let workbenchWatchlist: readonly WatchlistItemModel[] = [];
   let destroyed = false;
@@ -724,6 +730,44 @@ export function mountWorkbenchDemo(
       pushLog(log, `failed to load watchlist: ${message}`);
       publishSnapshot();
     });
+
+  if (hasInjectedHostAdapter) {
+    const requestSequence = ++symbolOpenSequence;
+    loadWorkbenchInitialSymbolPayload(hostAdapter, requestedInitialSymbol, activeTimeframe)
+      .then((result) => {
+        if (destroyed || requestSequence !== symbolOpenSequence) {
+          return;
+        }
+
+        if (!result.ok) {
+          pushLog(log, result.message);
+          publishSnapshot();
+          return;
+        }
+
+        activeSymbol = result.payload.symbol;
+        activeTimeframe = result.payload.timeframe;
+        activeExchangeLabel = result.exchangeLabel;
+        activeBarsPayload = result.payload;
+        activeTradeLocationIntent = null;
+        pendingTrendLineStart = null;
+        drawingTool = "none";
+        latestClick = null;
+        latestReadout = null;
+        mainChartType = "candlestick";
+        pushLog(log, `opened initial symbol ${activeSymbol} from host`);
+        rebuild();
+      })
+      .catch((error: unknown) => {
+        if (destroyed || requestSequence !== symbolOpenSequence) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to open initial symbol ${requestedInitialSymbol}: ${message}`);
+        publishSnapshot();
+      });
+  }
 
   const rebuild = () => {
     const {

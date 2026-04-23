@@ -1,10 +1,7 @@
 import {
   normalizePaneHeight,
-  resolvePaneResizeBlockFromState,
-  resolvePaneResizeGroupFromBlock,
-  resolvePaneResizeBlockSnapshot,
-  resolvePaneResizeTargetId,
 } from "../model";
+import { createChartPaneResizeBlockOwner } from "./chart-pane-resize-block-owner";
 
 type PaneLike = {
   id: string;
@@ -31,6 +28,7 @@ type PaneResizeStateLike = {
 
 const MIN_PRIMARY_HEIGHT = 160;
 const MIN_CONTROLLED_HEIGHT = 72;
+const paneResizeBlockOwner = createChartPaneResizeBlockOwner();
 
 export function createChartPaneLayoutPolicyOwner() {
   return {
@@ -51,7 +49,7 @@ export function createChartPaneLayoutPolicyOwner() {
       if (upperPane === undefined || lowerPane === undefined) {
         return null;
       }
-      return resolvePaneResizeTargetId(deps.listPanes(), upperPaneId, lowerPaneId);
+      return paneResizeBlockOwner.resolveControlledPaneId(upperPaneId, lowerPaneId, deps);
     },
 
     resolvePaneResizeBlock(
@@ -63,12 +61,11 @@ export function createChartPaneLayoutPolicyOwner() {
         paneFrames(): readonly PaneFrameLike[];
       },
     ) {
-      return resolvePaneResizeBlockSnapshot(
-        deps.listPanes(),
-        deps.paneFrames(),
+      return paneResizeBlockOwner.resolvePaneResizeBlockSnapshot(
         upperPaneId,
         lowerPaneId,
         controlledPaneId,
+        deps,
       );
     },
 
@@ -85,12 +82,11 @@ export function createChartPaneLayoutPolicyOwner() {
       }
 
       const delta = Math.round(clientY - resizeState.startClientY);
-      const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), resizeState);
-      if (resizeBlock === null) {
+      const resizeGroup = paneResizeBlockOwner.resolvePaneResizeGroup(resizeState, deps);
+      if (resizeGroup === null) {
         return null;
       }
-      const resizeGroup = resolvePaneResizeGroupFromBlock(resizeBlock);
-      const controlledPane = deps.getPaneById(resizeBlock.controlledPaneId);
+      const controlledPane = deps.getPaneById(resizeGroup.controlledPaneId);
       if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
         return null;
       }

@@ -23,7 +23,7 @@ import {
   handlePointerDownRuntime,
   handlePointerMoveRuntime,
 } from "./chart-pointer-runtime";
-import { createChartPaneLayoutPolicyOwner } from "./chart-pane-layout-policy-owner";
+import { createChartPaneResizeBlockOwner } from "./chart-pane-resize-block-owner";
 import type {
   DragState,
   DrawingDragHandle,
@@ -104,7 +104,7 @@ export function createChartInteractionHandlers<Readout>(deps: {
     listPanes: () => deps.listPanes(),
     paneGap: deps.paneGap,
   });
-  const paneLayoutPolicyOwner = createChartPaneLayoutPolicyOwner();
+  const paneResizeBlockOwner = createChartPaneResizeBlockOwner();
 
   const getPaneFrames = (layout: LayoutGeometry): readonly PaneFrame[] =>
     paneLayoutOwner.paneFrames(layout.height - layout.top - layout.bottom);
@@ -237,12 +237,12 @@ export function createChartInteractionHandlers<Readout>(deps: {
           deps.setPaneResizeState(state);
         },
         resolveControlledPaneId: (upperPaneId, lowerPaneId) =>
-          paneLayoutPolicyOwner.resolveControlledPaneId(upperPaneId, lowerPaneId, {
+          paneResizeBlockOwner.resolveControlledPaneId(upperPaneId, lowerPaneId, {
             getPaneById: (paneId) => deps.listPanes().find((pane) => pane.id === paneId),
             listPanes: () => deps.listPanes(),
           }),
         resolvePaneResizeBlock: (upperPaneId, lowerPaneId, controlledPaneId, paneFrames) =>
-          paneLayoutPolicyOwner.resolvePaneResizeBlock(upperPaneId, lowerPaneId, controlledPaneId, {
+          paneResizeBlockOwner.resolvePaneResizeBlockSnapshot(upperPaneId, lowerPaneId, controlledPaneId, {
             listPanes: () => deps.listPanes(),
             paneFrames: () => paneFrames,
           }),

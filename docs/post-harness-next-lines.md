@@ -76,6 +76,7 @@ Current slice status:
 - fourteenth slice landed: pane resize blocks now also carry explicit `blockPaneIds`, so downstream linked-resize state exposes the full participating pane span instead of only the controlled/opposing endpoints
 - fifteenth slice landed: move-time pane resize now validates the frozen pointer-down block membership against the current model-layer block before applying height changes, so `blockPaneIds` is a real runtime input instead of dead state metadata
 - sixteenth slice landed: pane resize policy now has an explicit grouping layer with `participatingPaneIds + variablePaneIds + fixedPaneIds`, so downstream linked-resize can model fixed middle panes separately from the actual variable span
+- seventeenth slice landed: pane resize target, block snapshot, and validated grouping resolution now route through one shared pane-resize-block owner, so pointer-down interaction and move-time pane policy consume the same boundary
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

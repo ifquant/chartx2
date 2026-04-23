@@ -208,6 +208,15 @@ export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
+type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
+type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
+type DemoWorkbenchChartHostRecord = {
+  id: DemoWorkbenchChartHostId;
+  symbol: string;
+  timeframe: string;
+  chartType: WorkbenchMainChartType;
+  chartState: PhaseOneChartStateSnapshot | null;
+};
 
 type WorkbenchObjectTreeInput = {
   symbol: string;
@@ -624,6 +633,32 @@ export function mountWorkbenchDemo(
   let emptyPaneCount = 0;
   let theme: ThemeId = "warm";
   let mainChartType: WorkbenchMainChartType = "candlestick";
+  let layoutPreset: DemoWorkbenchLayoutPreset = "single";
+  let activeChartHostId: DemoWorkbenchChartHostId = "market-main";
+  let hostActivationSequence = 0;
+  let suppressDefaultDrawingsNextRebuild = false;
+  const defaultSecondarySymbol =
+    requestedInitialSymbol === "NDX"
+      ? "SPX"
+      : requestedInitialSymbol === "SPX"
+        ? "NDX"
+        : "SPX";
+  const chartHostRecords: Record<DemoWorkbenchChartHostId, DemoWorkbenchChartHostRecord> = {
+    "market-main": {
+      id: "market-main",
+      symbol: activeSymbol,
+      timeframe: activeTimeframe,
+      chartType: mainChartType,
+      chartState: null,
+    },
+    "market-secondary": {
+      id: "market-secondary",
+      symbol: defaultSecondarySymbol,
+      timeframe: activeTimeframe,
+      chartType: "candlestick",
+      chartState: null,
+    },
+  };
   let renkoMode: WorkbenchRenkoMode = "auto";
   let renkoFixedBoxSize = 4;
   let lineBreakCount = 3;
@@ -656,6 +691,43 @@ export function mountWorkbenchDemo(
   let alertsSavePromise: Promise<unknown> = Promise.resolve();
   let alertsLoadCompleted = options.alertsProvider === undefined;
   let alertsLoadFailed = false;
+
+  const buildWorkbenchChartHostModel = (input: {
+    record: DemoWorkbenchChartHostRecord;
+    slotId: "slot-main" | "slot-side";
+    active: boolean;
+  }) => ({
+    id: input.record.id,
+    family: "market" as const,
+    title: `${input.record.symbol} market chart`,
+    slotId: input.slotId,
+    active: input.active,
+    symbolLabel: input.record.symbol,
+    timeframeLabel: input.record.timeframe,
+    chartTypeLabel: formatWorkbenchChartType(input.record.chartType),
+  });
+
+  const snapshotLiveChartIntoHostRecord = (hostId: DemoWorkbenchChartHostId) => {
+    const record = chartHostRecords[hostId];
+    record.symbol = activeSymbol;
+    record.timeframe = activeTimeframe;
+    record.chartType = mainChartType;
+    if (chart === null) {
+      record.chartState = null;
+      return;
+    }
+    try {
+      record.chartState = chart.getChartState();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      pushLog(log, `failed to snapshot host ${hostId}: ${message}`);
+      record.chartState = null;
+    }
+  };
+
+  const updateActiveHostChartType = () => {
+    chartHostRecords[activeChartHostId].chartType = mainChartType;
+  };
 
   const latestActiveClose = (): number | null => {
     const latestBar = activeBarsPayload.bars.at(-1);
@@ -1010,6 +1082,27 @@ export function mountWorkbenchDemo(
       chartProjection: objectTreeChartProjection,
       alerts: workbenchAlerts,
     });
+    const chartHosts =
+      layoutPreset === "single"
+        ? [
+            buildWorkbenchChartHostModel({
+              record: chartHostRecords[activeChartHostId],
+              slotId: "slot-main",
+              active: true,
+            }),
+          ]
+        : [
+            buildWorkbenchChartHostModel({
+              record: chartHostRecords["market-main"],
+              slotId: "slot-main",
+              active: activeChartHostId === "market-main",
+            }),
+            buildWorkbenchChartHostModel({
+              record: chartHostRecords["market-secondary"],
+              slotId: "slot-side",
+              active: activeChartHostId === "market-secondary",
+            }),
+          ];
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -1023,16 +1116,8 @@ export function mountWorkbenchDemo(
       alertItems,
       objectTree,
       activeRange: activeTimeframe,
-      layoutPreset: "single",
-      chartHosts: [
-        {
-          id: "market-main",
-          family: "market",
-          title: `${activeSymbol} market chart`,
-          slotId: "slot-main",
-          active: true,
-        },
-      ],
+      layoutPreset,
+      chartHosts,
     });
 
     publish({
@@ -1234,6 +1319,11 @@ export function mountWorkbenchDemo(
         latestClick = null;
         latestReadout = null;
         mainChartType = "candlestick";
+        activeChartHostId = "market-main";
+        chartHostRecords["market-main"].symbol = activeSymbol;
+        chartHostRecords["market-main"].timeframe = activeTimeframe;
+        chartHostRecords["market-main"].chartType = mainChartType;
+        chartHostRecords["market-main"].chartState = null;
         if (options.alertsProvider === undefined) {
           workbenchAlerts = createDemoWorkbenchAlerts();
         }
@@ -1253,10 +1343,12 @@ export function mountWorkbenchDemo(
   }
 
   const openWorkbenchDemoSymbol = async (input: {
+    targetHostId: DemoWorkbenchChartHostId;
     symbol: string;
     timeframe: string;
     source: WorkbenchSymbolOpenSource;
     chartType?: WorkbenchMainChartType;
+    clearHostChartState?: boolean;
     successLog?: (symbol: string) => string;
     failureLogPrefix: string;
   }): Promise<boolean> => {
@@ -1288,6 +1380,7 @@ export function mountWorkbenchDemo(
       return false;
     }
 
+    activeChartHostId = input.targetHostId;
     activeSymbol = result.payload.symbol;
     activeTimeframe = result.payload.timeframe;
     activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
@@ -1298,6 +1391,12 @@ export function mountWorkbenchDemo(
     latestClick = null;
     latestReadout = null;
     mainChartType = input.chartType ?? "candlestick";
+    chartHostRecords[activeChartHostId].symbol = activeSymbol;
+    chartHostRecords[activeChartHostId].timeframe = activeTimeframe;
+    chartHostRecords[activeChartHostId].chartType = mainChartType;
+    if (input.clearHostChartState === true) {
+      chartHostRecords[activeChartHostId].chartState = null;
+    }
     if (options.alertsProvider === undefined) {
       workbenchAlerts = createDemoWorkbenchAlerts();
       alertMutationVersion += 1;
@@ -1307,6 +1406,81 @@ export function mountWorkbenchDemo(
       pushLog(log, input.successLog(activeSymbol));
     }
     rebuild();
+    return true;
+  };
+
+  const applyHostChartSnapshot = (input: {
+    chartState: PhaseOneChartStateSnapshot;
+    failureLogPrefix: string;
+  }): boolean => {
+    if (chart === null) {
+      return false;
+    }
+    try {
+      chart.applyChartState(input.chartState);
+      refreshObjectTreeProjection();
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      pushLog(log, `${input.failureLogPrefix}: ${message}`);
+      publishSnapshot();
+      return false;
+    }
+  };
+
+  const setDemoLayoutPreset = (preset: DemoWorkbenchLayoutPreset) => {
+    if (layoutPreset === preset) {
+      return;
+    }
+    layoutPreset = preset;
+    pushLog(log, preset === "single" ? "layout preset single" : "layout preset main-plus-secondary");
+    publishSnapshot();
+  };
+
+  const activateDemoChartHost = async (targetHostId: DemoWorkbenchChartHostId): Promise<boolean> => {
+    if (destroyed) {
+      return false;
+    }
+    if (targetHostId === activeChartHostId) {
+      publishSnapshot();
+      return true;
+    }
+
+    const activationSequence = ++hostActivationSequence;
+    snapshotLiveChartIntoHostRecord(activeChartHostId);
+
+    const targetRecord = chartHostRecords[targetHostId];
+    const shouldRestoreSnapshot = targetRecord.chartState !== null;
+    if (shouldRestoreSnapshot) {
+      suppressDefaultDrawingsNextRebuild = true;
+    }
+
+    const opened = await openWorkbenchDemoSymbol({
+      targetHostId,
+      symbol: targetRecord.symbol,
+      timeframe: targetRecord.timeframe,
+      source: "host",
+      chartType: targetRecord.chartType,
+      successLog: (openedSymbol) => `activated ${targetHostId} host (${openedSymbol})`,
+      failureLogPrefix: `failed to activate ${targetHostId}`,
+    });
+
+    if (!opened || destroyed || activationSequence !== hostActivationSequence) {
+      suppressDefaultDrawingsNextRebuild = false;
+      return opened;
+    }
+
+    if (shouldRestoreSnapshot && targetRecord.chartState !== null) {
+      const restored = applyHostChartSnapshot({
+        chartState: targetRecord.chartState,
+        failureLogPrefix: `failed to restore ${targetHostId} snapshot`,
+      });
+      if (restored) {
+        pushLog(log, `restored ${targetHostId} snapshot (demo-local)`);
+      }
+    }
+
+    publishSnapshot();
     return true;
   };
 
@@ -1412,6 +1586,7 @@ export function mountWorkbenchDemo(
     const handleChartTypeChange: PhaseOneChartTypeChangeHandler = (type) => {
       if (type !== "histogram") {
         mainChartType = type;
+        updateActiveHostChartType();
       }
       pushLog(log, `chart type ${type}`);
       refreshObjectTreeProjectionAndPublish();
@@ -1582,7 +1757,10 @@ export function mountWorkbenchDemo(
       applyTradeLocation(activeTradeLocationIntent, false);
     }
 
-    if (defaultDrawingAnchors !== null) {
+    const shouldAddDefaultDrawings =
+      defaultDrawingAnchors !== null && !suppressDefaultDrawingsNextRebuild;
+    suppressDefaultDrawingsNextRebuild = false;
+    if (shouldAddDefaultDrawings && defaultDrawingAnchors !== null) {
       const activeChart = chart;
       queueMicrotask(() => {
         if (chart !== activeChart) {
@@ -1919,9 +2097,59 @@ export function mountWorkbenchDemo(
           tone: "default",
           group: "chart-action",
         },
+        {
+          id: "layout-single",
+          label: "Layout single",
+          tone: "default",
+          group: "chart-action",
+          active: layoutPreset === "single",
+        },
+        {
+          id: "layout-split",
+          label: "Layout split",
+          tone: "default",
+          group: "chart-action",
+          active: layoutPreset === "main-plus-secondary",
+        },
+        {
+          id: "host-main",
+          label: "Activate main host",
+          tone: "default",
+          group: "chart-action",
+          active: activeChartHostId === "market-main",
+        },
+        {
+          id: "host-secondary",
+          label: "Activate secondary host",
+          tone: "default",
+          group: "chart-action",
+          active: activeChartHostId === "market-secondary",
+        },
       ];
     },
     runAction(actionId) {
+      switch (actionId) {
+        case "layout-single":
+          setDemoLayoutPreset("single");
+          return;
+        case "layout-split":
+          setDemoLayoutPreset("main-plus-secondary");
+          return;
+        case "host-main":
+          void activateDemoChartHost("market-main");
+          return;
+        case "host-secondary":
+          if (layoutPreset !== "main-plus-secondary") {
+            pushLog(log, "secondary host requires split layout preset");
+            publishSnapshot();
+            return;
+          }
+          void activateDemoChartHost("market-secondary");
+          return;
+        default:
+          break;
+      }
+
       if (chart === null) {
         return;
       }
@@ -1933,6 +2161,7 @@ export function mountWorkbenchDemo(
         }
         const previousType = mainChartType;
         mainChartType = nextType;
+        updateActiveHostChartType();
         if (
           previousType === "point-figure" ||
           nextType === "point-figure" ||
@@ -2286,10 +2515,17 @@ export function mountWorkbenchDemo(
     },
     async openSymbol(symbol) {
       layoutOperationSequence += 1;
+      const targetHostId = activeChartHostId;
+      chartHostRecords[targetHostId].symbol = symbol;
+      chartHostRecords[targetHostId].chartType = mainChartType;
+      chartHostRecords[targetHostId].chartState = null;
       return openWorkbenchDemoSymbol({
+        targetHostId,
         symbol,
-        timeframe: activeTimeframe,
+        timeframe: chartHostRecords[targetHostId].timeframe,
         source: "watchlist",
+        chartType: chartHostRecords[targetHostId].chartType,
+        clearHostChartState: true,
         successLog: (openedSymbol) => `opened symbol ${openedSymbol} from watchlist`,
         failureLogPrefix: `failed to open ${symbol}`,
       });
@@ -2353,6 +2589,7 @@ export function mountWorkbenchDemo(
       publishSnapshot();
       return true;
     },
+    // Demo note: layout persistence is still active-host-only in this slice (no multi-host save/restore yet).
     async saveLayout() {
       layoutOperationSequence += 1;
       const provider = options.persistenceProvider;
@@ -2429,7 +2666,16 @@ export function mountWorkbenchDemo(
         return false;
       }
 
+      chartHostRecords[activeChartHostId].symbol = state.activeSymbol;
+      chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
+      chartHostRecords[activeChartHostId].chartType = chartType;
+      chartHostRecords[activeChartHostId].chartState = state.chartState;
+      const shouldSuppressDefaultDrawings = state.chartState !== null;
+      if (shouldSuppressDefaultDrawings) {
+        suppressDefaultDrawingsNextRebuild = true;
+      }
       const opened = await openWorkbenchDemoSymbol({
+        targetHostId: activeChartHostId,
         symbol: state.activeSymbol,
         timeframe: state.activeTimeframe,
         source: "host",
@@ -2437,6 +2683,7 @@ export function mountWorkbenchDemo(
         failureLogPrefix: `failed to restore layout ${state.activeSymbol}`,
       });
       if (!opened) {
+        suppressDefaultDrawingsNextRebuild = false;
         return false;
       }
       if (destroyed || layoutOperation !== layoutOperationSequence) {
@@ -2467,11 +2714,17 @@ export function mountWorkbenchDemo(
     },
     async resetLayout() {
       layoutOperationSequence += 1;
+      chartHostRecords[activeChartHostId].symbol = "NDX";
+      chartHostRecords[activeChartHostId].timeframe = "1D";
+      chartHostRecords[activeChartHostId].chartType = "candlestick";
+      chartHostRecords[activeChartHostId].chartState = null;
       const opened = await openWorkbenchDemoSymbol({
+        targetHostId: activeChartHostId,
         symbol: "NDX",
         timeframe: "1D",
         source: "host",
         chartType: "candlestick",
+        clearHostChartState: true,
         failureLogPrefix: "failed to reset layout",
       });
       if (!opened) {

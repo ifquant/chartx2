@@ -28,9 +28,15 @@ import {
   type WatchlistItemModel,
 } from "$lib/chartx/public/workbench";
 import {
+  createWorkbenchLayoutState,
+  type WorkbenchLayoutPersistenceProvider,
+  type WorkbenchLayoutState,
+} from "$lib/chartx/public/workbench-layout";
+import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
   type WorkbenchHostAdapter,
+  type WorkbenchSymbolOpenSource,
 } from "$lib/chartx/public/workbench-host";
 import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 import {
@@ -133,6 +139,9 @@ export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
   openSymbol?(symbol: string): Promise<boolean>;
+  saveLayout?(): Promise<boolean>;
+  restoreLayout?(): Promise<boolean>;
+  resetLayout?(): Promise<boolean>;
   locateTrade?(intent: TradeLocationIntent): boolean;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
@@ -159,6 +168,7 @@ export type WorkbenchDemoOptions = {
   hostAdapter?: WorkbenchHostAdapter;
   initialSymbol?: string;
   initialTimeframe?: string;
+  persistenceProvider?: WorkbenchLayoutPersistenceProvider;
 };
 
 type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
@@ -169,6 +179,24 @@ export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
 type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "traditional";
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
+
+function toWorkbenchMainChartType(type: PhaseOneMainChartType): WorkbenchMainChartType | null {
+  return type === "histogram" ? null : type;
+}
+
+function createWorkbenchDemoLayoutState(input: {
+  activeSymbol: string;
+  activeTimeframe: string;
+  chartType: WorkbenchMainChartType;
+  chart?: Pick<PhaseOneChartApi, "getChartState"> | null;
+}): WorkbenchLayoutState {
+  return createWorkbenchLayoutState({
+    activeSymbol: input.activeSymbol,
+    activeTimeframe: input.activeTimeframe,
+    chartType: input.chartType,
+    chartState: input.chart?.getChartState() ?? null,
+  });
+}
 
 function drawingToolsForSnapshot(
   activeTool: WorkbenchDrawingTool,
@@ -768,6 +796,59 @@ export function mountWorkbenchDemo(
         publishSnapshot();
       });
   }
+
+  const openWorkbenchDemoSymbol = async (input: {
+    symbol: string;
+    timeframe: string;
+    source: WorkbenchSymbolOpenSource;
+    chartType?: WorkbenchMainChartType;
+    successLog?: (symbol: string) => string;
+    failureLogPrefix: string;
+  }): Promise<boolean> => {
+    const requestSequence = ++symbolOpenSequence;
+    let result: Awaited<ReturnType<typeof openWorkbenchSymbol>>;
+
+    try {
+      result = await openWorkbenchSymbol(hostAdapter, {
+        symbol: input.symbol,
+        timeframe: input.timeframe,
+        source: input.source,
+      });
+    } catch (error) {
+      if (destroyed || requestSequence !== symbolOpenSequence) {
+        return false;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      pushLog(log, `${input.failureLogPrefix}: ${message}`);
+      publishSnapshot();
+      return false;
+    }
+
+    if (destroyed || requestSequence !== symbolOpenSequence) {
+      return false;
+    }
+    if (!result.ok) {
+      pushLog(log, `${input.failureLogPrefix}: ${result.reason}`);
+      publishSnapshot();
+      return false;
+    }
+
+    activeSymbol = result.payload.symbol;
+    activeTimeframe = result.payload.timeframe;
+    activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
+    activeBarsPayload = result.payload;
+    activeTradeLocationIntent = null;
+    pendingTrendLineStart = null;
+    drawingTool = "none";
+    latestClick = null;
+    latestReadout = null;
+    mainChartType = input.chartType ?? "candlestick";
+    if (input.successLog !== undefined) {
+      pushLog(log, input.successLog(activeSymbol));
+    }
+    rebuild();
+    return true;
+  };
 
   const rebuild = () => {
     const {
@@ -1677,46 +1758,147 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     },
     async openSymbol(symbol) {
-      const requestSequence = ++symbolOpenSequence;
-      let result: Awaited<ReturnType<typeof openWorkbenchSymbol>>;
+      return openWorkbenchDemoSymbol({
+        symbol,
+        timeframe: activeTimeframe,
+        source: "watchlist",
+        successLog: (openedSymbol) => `opened symbol ${openedSymbol} from watchlist`,
+        failureLogPrefix: `failed to open ${symbol}`,
+      });
+    },
+    async saveLayout() {
+      const provider = options.persistenceProvider;
+      if (provider === undefined) {
+        pushLog(log, "failed to save layout: persistence provider unavailable");
+        publishSnapshot();
+        return false;
+      }
 
       try {
-        result = await openWorkbenchSymbol(hostAdapter, {
-          symbol,
-          timeframe: activeTimeframe,
-          source: "watchlist",
+        const state = createWorkbenchDemoLayoutState({
+          activeSymbol,
+          activeTimeframe,
+          chartType: mainChartType,
+          chart,
         });
+        await provider.saveWorkbenchLayout(state);
+        if (destroyed) {
+          return false;
+        }
+        pushLog(log, `saved layout ${state.activeSymbol}`);
+        publishSnapshot();
+        return true;
       } catch (error) {
-        if (destroyed || requestSequence !== symbolOpenSequence) {
+        if (destroyed) {
           return false;
         }
         const message = error instanceof Error ? error.message : String(error);
-        pushLog(log, `failed to open ${symbol}: ${message}`);
+        pushLog(log, `failed to save layout: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+    },
+    async restoreLayout() {
+      const provider = options.persistenceProvider;
+      if (provider === undefined) {
+        pushLog(log, "failed to restore layout: persistence provider unavailable");
         publishSnapshot();
         return false;
       }
 
-      if (destroyed || requestSequence !== symbolOpenSequence) {
-        return false;
-      }
-      if (!result.ok) {
-        pushLog(log, `failed to open ${symbol}: ${result.reason}`);
+      let state: WorkbenchLayoutState | null;
+      try {
+        state = await provider.loadWorkbenchLayout();
+      } catch (error) {
+        if (destroyed) {
+          return false;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to restore layout: ${message}`);
         publishSnapshot();
         return false;
       }
 
-      activeSymbol = result.payload.symbol;
-      activeTimeframe = result.payload.timeframe;
-      activeExchangeLabel = result.payload.exchangeLabel ?? result.symbol.exchange ?? "";
-      activeBarsPayload = result.payload;
-      activeTradeLocationIntent = null;
-      pendingTrendLineStart = null;
-      drawingTool = "none";
-      latestClick = null;
-      latestReadout = null;
-      mainChartType = "candlestick";
-      pushLog(log, `opened symbol ${activeSymbol} from watchlist`);
-      rebuild();
+      if (destroyed) {
+        return false;
+      }
+      if (state === null) {
+        pushLog(log, "failed to restore layout: no saved layout");
+        publishSnapshot();
+        return false;
+      }
+
+      const chartType = toWorkbenchMainChartType(state.chartType);
+      if (chartType === null) {
+        pushLog(log, `failed to restore layout ${state.activeSymbol}: unsupported chart type ${state.chartType}`);
+        publishSnapshot();
+        return false;
+      }
+
+      const opened = await openWorkbenchDemoSymbol({
+        symbol: state.activeSymbol,
+        timeframe: state.activeTimeframe,
+        source: "host",
+        chartType,
+        failureLogPrefix: `failed to restore layout ${state.activeSymbol}`,
+      });
+      if (!opened) {
+        return false;
+      }
+
+      try {
+        if (state.chartState !== null) {
+          chart?.applyChartState(state.chartState);
+          paneSnapshot = chart?.panes().map(paneStateFromHandle) ?? [];
+        }
+      } catch (error) {
+        if (destroyed) {
+          return false;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to restore layout ${state.activeSymbol}: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+
+      if (destroyed) {
+        return false;
+      }
+      pushLog(log, `restored layout ${state.activeSymbol}`);
+      publishSnapshot();
+      return true;
+    },
+    async resetLayout() {
+      const provider = options.persistenceProvider;
+      if (provider !== undefined) {
+        try {
+          await provider.clearWorkbenchLayout();
+        } catch (error) {
+          if (destroyed) {
+            return false;
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          pushLog(log, `failed to reset layout: ${message}`);
+          publishSnapshot();
+          return false;
+        }
+      }
+
+      if (destroyed) {
+        return false;
+      }
+      const opened = await openWorkbenchDemoSymbol({
+        symbol: "NDX",
+        timeframe: "1D",
+        source: "host",
+        chartType: "candlestick",
+        failureLogPrefix: "failed to reset layout",
+      });
+      if (!opened) {
+        return false;
+      }
+      pushLog(log, "reset layout");
+      publishSnapshot();
       return true;
     },
     locateTrade(intent) {

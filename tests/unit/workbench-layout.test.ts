@@ -165,6 +165,41 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("preserves the controller-saved symbol, timeframe, chart type, and chart snapshot", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "4H",
+      chartType: "renko",
+      chartState: minimalChartStateSnapshot,
+    });
+
+    expect(state).toEqual({
+      kind: "workbench-layout",
+      version: 1,
+      activeSymbol: "SPX",
+      activeTimeframe: "4H",
+      chartType: "renko",
+      chartState: minimalChartStateSnapshot,
+      panels: {
+        rightSidebar: "watchlist",
+        bottomTab: "time-presets",
+      },
+    });
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
+  it("preserves the controller-saved null chart snapshot", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "NDX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: null,
+    });
+
+    expect(state.chartState).toBeNull();
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
   it("saves, loads, and clears layout state from localStorage", async () => {
     const storage = createMemoryStorage();
     const provider = createLocalStorageWorkbenchLayoutProvider(storage, "chartx2:test-layout");

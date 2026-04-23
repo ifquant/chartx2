@@ -1870,6 +1870,17 @@ export function mountWorkbenchDemo(
     },
     async resetLayout() {
       const provider = options.persistenceProvider;
+      const opened = await openWorkbenchDemoSymbol({
+        symbol: "NDX",
+        timeframe: "1D",
+        source: "host",
+        chartType: "candlestick",
+        failureLogPrefix: "failed to reset layout",
+      });
+      if (!opened) {
+        return false;
+      }
+
       if (provider !== undefined) {
         try {
           await provider.clearWorkbenchLayout();
@@ -1885,16 +1896,6 @@ export function mountWorkbenchDemo(
       }
 
       if (destroyed) {
-        return false;
-      }
-      const opened = await openWorkbenchDemoSymbol({
-        symbol: "NDX",
-        timeframe: "1D",
-        source: "host",
-        chartType: "candlestick",
-        failureLogPrefix: "failed to reset layout",
-      });
-      if (!opened) {
         return false;
       }
       pushLog(log, "reset layout");

@@ -1819,6 +1819,7 @@ export function mountWorkbenchDemo(
 
       if (entry.engineKind === "compare") {
         const compare = chart.addCompareSeries();
+        compare.setData(activeBarsPayload.line);
         compare.applyCompareOptions({
           requestedSymbol: activeSymbol,
           requestedResolution: activeTimeframe,

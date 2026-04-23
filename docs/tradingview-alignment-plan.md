@@ -404,6 +404,26 @@ Acceptance:
 - Users can manage chart objects without direct canvas hit-testing.
 - Object tree operations call public/internal owners, not ad-hoc page logic.
 
+Implementation note:
+
+- Object tree V0 is read-only and intentionally does not implement selection,
+  collapse, or click routing yet.
+- The public workbench contract includes `ObjectTreePanelModel` +
+  `WorkbenchObjectTreeNodeModel` in `src/lib/chartx/public/workbench.ts`. This is
+  a UI-facing projection, not the chart runtime graph.
+- The demo controller builds the object-tree projection in
+  `src/lib/demo/chartx-demo.ts` by deriving `nodes` from
+  `PhaseOneChartStateSnapshot` plus pane snapshots and persisted workbench
+  alerts. The projection is shallow and deterministic (labels, detail labels,
+  muted state, and a `depth` number), rather than exposing mutable runtime
+  objects.
+- The UI renders the projection in
+  `src/lib/demo/components/MarketWorkbenchPanel.svelte` as a read-only tree
+  (`role="tree"` and `role="treeitem"` with `aria-level`), without wiring click
+  handlers, selection state, or expand/collapse.
+- Visual coverage for the V0 contract lives in `tests/visual/phase-one-harness.spec.ts`
+  under the "object tree" workbench tests.
+
 ### 7. Multi-Chart Layout V0
 
 Purpose:

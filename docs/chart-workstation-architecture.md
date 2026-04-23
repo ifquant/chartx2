@@ -134,6 +134,7 @@ Post-harness shrink status:
   - pane resize state now captures `controlledPaneId` at pointer-down time, so divider drags execute against one validated control target instead of re-deriving the resizable side on every move
   - pane frame allocation now routes through a dedicated pane-frame policy, so secondary scaling and rounding remainder distribution are no longer implicit inside `buildPaneFrames` or biased toward the last pane
   - pane runtime, scale, and readout frame consumers now route through a shared pane-layout owner surface instead of each module calling `buildPaneFrames` directly
+  - primary-pane dividers can now stay interactive even when the immediate lower pane is fixed, as long as a downstream secondary pane is resizable, and resize state now preserves the downstream pane's starting height so linked drags can execute against that validated target
 - remaining:
   - keep this note honest about what is already done and stop using it as a parking lot for every past shrink subtask
   - drive new refactors from actual capability pressure, correctness pressure, or engine/workstation boundary pressure

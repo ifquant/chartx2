@@ -67,6 +67,7 @@ Current slice status:
 - fifth slice landed: pane resize state now records the validated `controlledPaneId` at pointer-down time, so move-time resize execution no longer has to rediscover which side owns the drag
 - sixth slice landed: pane frame allocation now routes through a dedicated pane-frame policy, and secondary rounding remainder no longer defaults to the last pane
 - seventh slice landed: pane runtime, scale, and readout frame consumers now go through the shared pane-layout owner instead of each path re-reading frame layout directly
+- eighth slice landed: primary-pane dividers now stay interactive when their immediate lower pane is fixed but a downstream secondary pane is resizable, and resize state now carries that downstream pane's starting height so linked drags can execute against the validated target
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

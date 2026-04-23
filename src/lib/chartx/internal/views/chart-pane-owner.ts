@@ -58,6 +58,7 @@ type PaneResizeStateLike = {
   dividerBeforePaneId: string;
   controlledPaneId: string;
   startClientY: number;
+  startControlledHeight: number;
   startUpperHeight: number;
   startLowerHeight: number;
 };

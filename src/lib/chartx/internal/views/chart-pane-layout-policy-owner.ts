@@ -12,6 +12,7 @@ type PaneResizeStateLike = {
   dividerBeforePaneId: string;
   controlledPaneId: string;
   startClientY: number;
+  startControlledHeight: number;
   startUpperHeight: number;
   startLowerHeight: number;
 };
@@ -30,6 +31,7 @@ export function createChartPaneLayoutPolicyOwner() {
       lowerPaneId: string,
       deps: {
         getPaneById(paneId: string): PaneLike | undefined;
+        listPanes(): readonly PaneLike[];
       },
     ): string | null {
       const upperPane = deps.getPaneById(upperPaneId);
@@ -41,7 +43,17 @@ export function createChartPaneLayoutPolicyOwner() {
       const upperControls = upperPane.kind === "secondary" && upperPane.resizable;
       const lowerControls = lowerPane.kind === "secondary" && lowerPane.resizable;
       if (!upperControls && !lowerControls) {
-        return null;
+        if (upperPane.kind !== "primary") {
+          return null;
+        }
+        const lowerIndex = deps.listPanes().findIndex((pane) => pane.id === lowerPaneId);
+        if (lowerIndex === -1) {
+          return null;
+        }
+        const downstream = deps.listPanes()
+          .slice(lowerIndex)
+          .find((pane) => pane.kind === "secondary" && pane.resizable);
+        return downstream?.id ?? null;
       }
 
       return upperControls ? upperPane.id : lowerPane.id;
@@ -52,6 +64,7 @@ export function createChartPaneLayoutPolicyOwner() {
       resizeState: PaneResizeStateLike | null,
       deps: {
         getPaneById(paneId: string): PaneLike | undefined;
+        listPanes(): readonly PaneLike[];
       },
     ): { paneId: string; nextHeight: number } | null {
       if (resizeState === null) {
@@ -84,18 +97,15 @@ export function createChartPaneLayoutPolicyOwner() {
       if (controlledPaneId === null) {
         return null;
       }
-      const controlledPane = controlledPaneId === upperPane.id ? upperPane : controlledPaneId === lowerPane.id ? lowerPane : null;
-      if (controlledPane === null) {
+      const controlledPane = deps.getPaneById(controlledPaneId);
+      if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
         return null;
       }
       const controlsUpperPane = controlledPane.id === upperPane.id;
 
-      const startControlled = controlsUpperPane
-        ? resizeState.startUpperHeight
-        : resizeState.startLowerHeight;
       const requestedHeight = controlsUpperPane
-        ? startControlled + delta
-        : startControlled - delta;
+        ? resizeState.startControlledHeight + delta
+        : resizeState.startControlledHeight - delta;
       const totalResizableSpan = resizeState.startUpperHeight + resizeState.startLowerHeight;
       const maxControlled =
         upperPane.kind === "secondary" && lowerPane.kind === "secondary"

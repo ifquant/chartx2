@@ -239,6 +239,7 @@ export function createChartInteractionHandlers<Readout>(deps: {
         resolveControlledPaneId: (upperPaneId, lowerPaneId) =>
           paneLayoutPolicyOwner.resolveControlledPaneId(upperPaneId, lowerPaneId, {
             getPaneById: (paneId) => deps.listPanes().find((pane) => pane.id === paneId),
+            listPanes: () => deps.listPanes(),
           }),
         setCrosshair: (point) => {
           deps.setCrosshair(point);

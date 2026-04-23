@@ -110,6 +110,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startControlledHeight: 136,
       startUpperHeight: 220,
       startLowerHeight: 136,
     }, {
@@ -151,6 +152,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startControlledHeight: 120,
       startUpperHeight: 100,
       startLowerHeight: 120,
     }, {
@@ -175,6 +177,56 @@ describe("chart pane runtime use-cases", () => {
 
     expect(lowerSecondary.preferredHeight).toBe(80);
     expect(upperSecondary.preferredHeight).toBe(100);
+    expect(emitPaneResize).toHaveBeenCalledWith("pane-2");
+    expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
+    expect(crosshair?.x).toBe(10);
+  });
+
+  it("applies primary-divider drags to the first downstream resizable secondary pane", () => {
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const fixedSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+    const emitPaneResize = vi.fn();
+    const emitPaneEvent = vi.fn();
+    let crosshair: { x: number; y: number } | null = { x: 10, y: 20 };
+
+    applyPaneResize(60, {
+      width: 600,
+      height: 520,
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+    }, {
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      controlledPaneId: "pane-2",
+      startClientY: 20,
+      startControlledHeight: 120,
+      startUpperHeight: 220,
+      startLowerHeight: 100,
+    }, {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? primary
+          : paneId === "pane-1"
+            ? fixedSecondary
+            : paneId === "pane-2"
+              ? lowerSecondary
+              : undefined,
+      emitPaneResize,
+      emitPaneEvent,
+      hasCanvas: () => true,
+      listPanes: () => [primary, fixedSecondary, lowerSecondary],
+      gap: 12,
+      getCrosshair: () => crosshair,
+      setCrosshair: (point) => {
+        crosshair = point;
+      },
+    });
+
+    expect(lowerSecondary.preferredHeight).toBe(80);
+    expect(fixedSecondary.preferredHeight).toBe(100);
     expect(emitPaneResize).toHaveBeenCalledWith("pane-2");
     expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
     expect(crosshair?.x).toBe(10);

@@ -41,6 +41,7 @@ export function handlePointerDownRuntime(
       dividerBeforePaneId: string;
       controlledPaneId: string;
       startClientY: number;
+      startControlledHeight: number;
       startUpperHeight: number;
       startLowerHeight: number;
     }): void;
@@ -70,12 +71,17 @@ export function handlePointerDownRuntime(
     if (controlledPaneId === null) {
       return;
     }
+    const controlledFrame = paneFrames.find((pane) => pane.id === controlledPaneId);
+    if (controlledFrame === undefined) {
+      return;
+    }
     deps.focusCanvas();
     deps.setPaneResizeState({
       dividerAfterPaneId: divider.upperPaneId,
       dividerBeforePaneId: divider.lowerPaneId,
       controlledPaneId,
       startClientY: event.clientY,
+      startControlledHeight: controlledFrame.height,
       startUpperHeight: divider.upperHeight,
       startLowerHeight: divider.lowerHeight,
     });

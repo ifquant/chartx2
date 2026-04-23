@@ -31,6 +31,7 @@ type PaneResizeStateLike = {
   dividerBeforePaneId: string;
   controlledPaneId: string;
   startClientY: number;
+  startControlledHeight: number;
   startUpperHeight: number;
   startLowerHeight: number;
 };
@@ -214,6 +215,7 @@ export function applyPaneResize(
 
   const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(clientY, resizeState, {
     getPaneById: deps.getPaneById,
+    listPanes: deps.listPanes,
   });
   if (controlledResize === null) {
     return;

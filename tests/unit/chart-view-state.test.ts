@@ -27,6 +27,7 @@ describe("chart view state", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 300,
+      startControlledHeight: 180,
       startUpperHeight: 200,
       startLowerHeight: 180,
     });
@@ -63,6 +64,7 @@ describe("chart view state", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 300,
+      startControlledHeight: 180,
       startUpperHeight: 200,
       startLowerHeight: 180,
     });

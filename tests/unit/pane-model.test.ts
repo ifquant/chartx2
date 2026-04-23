@@ -71,6 +71,24 @@ describe("pane model", () => {
     expect(divider?.lowerPaneId).toBe("pane-2");
   });
 
+  it("keeps the primary divider interactive when a downstream secondary pane is resizable", () => {
+    const panes = new PaneCollection();
+    panes.addSecondaryPane({ height: 120, resizable: false });
+    panes.addSecondaryPane({ height: 100, resizable: true });
+
+    const frames = buildPaneFrames(panes.list(), 420, 10);
+    const divider = resolvePaneDivider(
+      panes.list(),
+      frames,
+      frames[0]!.top + frames[0]!.height + 5,
+      10,
+      6,
+    );
+
+    expect(divider?.upperPaneId).toBe("primary");
+    expect(divider?.lowerPaneId).toBe("pane-1");
+  });
+
   it("builds pane frames without biasing rounding remainder into the last pane", () => {
     const panes = new PaneCollection();
     panes.addSecondaryPane({ height: 101, resizable: true });

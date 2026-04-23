@@ -476,6 +476,24 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
   await expect(activeIndicatorList).not.toContainText("Overlay Line");
 });
 
+test("workbench creates a price alert", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const alerts = workbench.locator(".alert-card");
+  const activity = workbench.locator(".action-card", { hasText: "Activity" });
+
+  await expect(alerts).toContainText("Alerts");
+  await expect(alerts).not.toContainText("NDX price cross");
+
+  await alerts.getByRole("button", { name: "Create price alert" }).click();
+
+  await expect(alerts).toContainText("NDX price cross");
+  await expect(alerts).toContainText(/Price crosses above \d+\.\d{2}/);
+  await expect(alerts).toContainText("armed");
+  await expect(activity).toContainText(/created alert NDX price crosses \d+\.\d{2}/);
+});
+
 test("workbench saves and restores the active layout locally", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());

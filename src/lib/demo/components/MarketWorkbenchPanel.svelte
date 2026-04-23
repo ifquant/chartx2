@@ -39,6 +39,7 @@
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string) => void;
+  export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
   export let onResetLayout: () => void;
@@ -262,10 +263,16 @@
         </div>
       </section>
 
-      <section class="mini-card watch-card">
+      <section class="mini-card watch-card alert-card">
         <div class="sidebar-head">
           <h4>{workbench?.rightSidebar.alerts.title ?? "Alerts"}</h4>
-          <button>＋</button>
+          <button
+            type="button"
+            aria-label="Create price alert"
+            on:click={() => {
+              void onCreatePriceAlert();
+            }}
+          >＋</button>
         </div>
         <div class="watch-head">
           <span>Name</span>

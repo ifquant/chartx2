@@ -417,6 +417,13 @@
     }
   }
 
+  async function createWorkbenchPriceAlert(): Promise<void> {
+    const created = await workbenchController?.createPriceAlert?.();
+    if (created) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   async function saveWorkbenchLayout(): Promise<void> {
     const saved = await workbenchController?.saveLayout?.();
     if (saved) {
@@ -808,6 +815,9 @@
             void openWorkbenchSymbol(symbol);
           }}
           onAddIndicator={addWorkbenchIndicator}
+          onCreatePriceAlert={() => {
+            void createWorkbenchPriceAlert();
+          }}
           onSaveLayout={() => {
             void saveWorkbenchLayout();
           }}

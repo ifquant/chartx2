@@ -323,6 +323,18 @@ Acceptance:
 - Save, restore, reset, and import/export flows work locally.
 - Saved layout state is versioned separately from runtime state.
 
+Implementation note:
+
+- The first saved-layout slice persists the active symbol, timeframe, chart type,
+  chart state snapshot, and basic panel metadata through a versioned localStorage
+  provider.
+- The Svelte page remains a shell: it creates the browser provider and forwards
+  save, restore, and reset actions to the workbench controller instead of
+  owning persistence policy.
+- Reset currently means resetting the active workbench view to the default
+  `NDX` / `1D` state; it intentionally does not delete the saved layout, so a
+  user can reset the view and still restore the saved layout.
+
 ### 4. Indicator Catalog V0
 
 Purpose:

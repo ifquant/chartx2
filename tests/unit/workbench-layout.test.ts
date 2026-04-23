@@ -30,6 +30,29 @@ function createMemoryStorage(): Storage {
   };
 }
 
+function createThrowingStorage(): Storage {
+  return {
+    get length() {
+      return 0;
+    },
+    clear() {
+      throw new Error("clear failed");
+    },
+    getItem() {
+      throw new Error("getItem failed");
+    },
+    key() {
+      return null;
+    },
+    removeItem() {
+      throw new Error("removeItem failed");
+    },
+    setItem() {
+      throw new Error("setItem failed");
+    },
+  };
+}
+
 describe("workbench layout state", () => {
   it("creates a versioned layout state for the active chart", () => {
     const state = createWorkbenchLayoutState({
@@ -61,10 +84,52 @@ describe("workbench layout state", () => {
       isWorkbenchLayoutState({
         kind: "workbench-layout",
         version: 1,
+        activeSymbol: "SPX",
+        activeTimeframe: "1D",
+        chartType: "unsupported-type",
+        chartState: null,
+        panels: {
+          rightSidebar: "watchlist",
+          bottomTab: "time-presets",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        kind: "workbench-layout",
+        version: 1,
         activeSymbol: "",
         activeTimeframe: "1D",
         chartType: "candlestick",
         chartState: null,
+        panels: {
+          rightSidebar: "watchlist",
+          bottomTab: "time-presets",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        kind: "workbench-layout",
+        version: 1,
+        activeSymbol: "SPX",
+        activeTimeframe: "1D",
+        chartType: "candlestick",
+        chartState: [],
+        panels: {
+          rightSidebar: "watchlist",
+          bottomTab: "time-presets",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        kind: "workbench-layout",
+        version: 1,
+        activeSymbol: "SPX",
+        activeTimeframe: "1D",
+        chartType: "candlestick",
+        chartState: {},
         panels: {
           rightSidebar: "watchlist",
           bottomTab: "time-presets",
@@ -96,5 +161,25 @@ describe("workbench layout state", () => {
     const provider = createLocalStorageWorkbenchLayoutProvider(storage, "chartx2:test-layout");
 
     await expect(provider.loadWorkbenchLayout()).resolves.toBeNull();
+  });
+
+  it("treats storage access failures as empty layout state", async () => {
+    const provider = createLocalStorageWorkbenchLayoutProvider(
+      createThrowingStorage(),
+      "chartx2:test-layout",
+    );
+
+    await expect(provider.loadWorkbenchLayout()).resolves.toBeNull();
+    await expect(
+      provider.saveWorkbenchLayout(
+        createWorkbenchLayoutState({
+          activeSymbol: "SPX",
+          activeTimeframe: "1D",
+          chartType: "candlestick",
+          chartState: null,
+        }),
+      ),
+    ).resolves.toBeUndefined();
+    await expect(provider.clearWorkbenchLayout()).resolves.toBeUndefined();
   });
 });

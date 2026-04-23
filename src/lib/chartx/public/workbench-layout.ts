@@ -41,6 +41,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+const PHASE_ONE_MAIN_CHART_TYPES: readonly PhaseOneMainChartType[] = [
+  "candlestick",
+  "line-break",
+  "kagi",
+  "point-figure",
+  "columns",
+  "volume-candles",
+  "hollow-candles",
+  "heikin-ashi",
+  "renko",
+  "bar",
+  "hlc-bars",
+  "high-low",
+  "hlc-area",
+  "line",
+  "line-markers",
+  "stepline",
+  "area",
+  "baseline",
+  "histogram",
+];
+
 function isWorkbenchLayoutRightSidebarPanel(
   value: unknown,
 ): value is WorkbenchLayoutRightSidebarPanel {
@@ -60,6 +82,30 @@ function isBottomPanelTabId(value: unknown): value is BottomPanelTabId {
     value === "performance-link" ||
     value === "custom"
   );
+}
+
+function isPhaseOneChartStateSnapshot(value: unknown): value is PhaseOneChartStateSnapshot {
+  if (!isRecord(value) || Array.isArray(value)) {
+    return false;
+  }
+  if (
+    !isRecord(value.options) ||
+    !isRecord(value.timeScale) ||
+    !isRecord(value.priceScale) ||
+    !Array.isArray(value.panes) ||
+    !Array.isArray(value.series) ||
+    !Array.isArray(value.studies) ||
+    !Array.isArray(value.drawings)
+  ) {
+    return false;
+  }
+  if (!(value.mainSeries === null || (isRecord(value.mainSeries) && !Array.isArray(value.mainSeries)))) {
+    return false;
+  }
+  if (!(value.tradeLocation === null || (isRecord(value.tradeLocation) && !Array.isArray(value.tradeLocation)))) {
+    return false;
+  }
+  return true;
 }
 
 export function createWorkbenchLayoutState(
@@ -92,10 +138,13 @@ export function isWorkbenchLayoutState(value: unknown): value is WorkbenchLayout
   if (typeof value.activeTimeframe !== "string" || value.activeTimeframe.trim().length === 0) {
     return false;
   }
-  if (typeof value.chartType !== "string" || value.chartType.trim().length === 0) {
+  if (
+    typeof value.chartType !== "string" ||
+    !PHASE_ONE_MAIN_CHART_TYPES.includes(value.chartType as PhaseOneMainChartType)
+  ) {
     return false;
   }
-  if (!(value.chartState === null || isRecord(value.chartState))) {
+  if (!(value.chartState === null || isPhaseOneChartStateSnapshot(value.chartState))) {
     return false;
   }
   if (!isRecord(value.panels)) {
@@ -116,22 +165,34 @@ export function createLocalStorageWorkbenchLayoutProvider(
 ): WorkbenchLayoutPersistenceProvider {
   return {
     async loadWorkbenchLayout() {
-      const raw = storage.getItem(key);
-      if (raw === null) {
-        return null;
-      }
       try {
-        const parsed: unknown = JSON.parse(raw);
-        return isWorkbenchLayoutState(parsed) ? parsed : null;
+        const raw = storage.getItem(key);
+        if (raw === null) {
+          return null;
+        }
+        try {
+          const parsed: unknown = JSON.parse(raw);
+          return isWorkbenchLayoutState(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
       } catch {
         return null;
       }
     },
     async saveWorkbenchLayout(state) {
-      storage.setItem(key, JSON.stringify(state));
+      try {
+        storage.setItem(key, JSON.stringify(state));
+      } catch {
+        // Ignore storage quota and access failures in the local UI provider.
+      }
     },
     async clearWorkbenchLayout() {
-      storage.removeItem(key);
+      try {
+        storage.removeItem(key);
+      } catch {
+        // Ignore storage access failures in the local UI provider.
+      }
     },
   };
 }

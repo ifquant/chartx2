@@ -28,16 +28,29 @@ type PaneFrameLike = {
 
 type PaneResizeStateLike = {
   startClientY: number;
-  handle: {
-    dividerAfterPaneId: string;
-    dividerBeforePaneId: string;
-    block: {
-      controlledPaneId: string;
-      blockPaneIds: readonly string[];
-      startControlledHeight: number;
-      startVariableSpan: number;
-      minOpposingHeight: number;
+  activeBlock: {
+    handle: {
+      dividerAfterPaneId: string;
+      dividerBeforePaneId: string;
+      block: {
+        controlledPaneId: string;
+        blockPaneIds: readonly string[];
+        startControlledHeight: number;
+        startVariableSpan: number;
+        minOpposingHeight: number;
+      };
     };
+    group: {
+      controlledPaneId: string;
+      opposingPaneId: string;
+      blockPaneIds: readonly string[];
+      participatingPaneIds: readonly string[];
+      variablePaneIds: readonly string[];
+      fixedPaneIds: readonly string[];
+      mode: "adjacent-upper" | "adjacent-lower" | "downstream";
+    };
+    controlledPaneId: string;
+    controlsUpperPane: boolean;
   };
 };
 
@@ -220,7 +233,7 @@ export function applyPaneResize(
 
   const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(
     clientY - resizeState.startClientY,
-    resizeState.handle,
+    resizeState.activeBlock.handle,
     {
       getPaneById: deps.getPaneById,
       listPanes: deps.listPanes,
@@ -249,8 +262,8 @@ export function applyPaneResize(
     paneGap: deps.gap,
   });
   const divider = paneLayoutOwner.resolvePaneDividerByIds(
-    resizeState.handle.dividerAfterPaneId,
-    resizeState.handle.dividerBeforePaneId,
+    resizeState.activeBlock.handle.dividerAfterPaneId,
+    resizeState.activeBlock.handle.dividerBeforePaneId,
     layout.height - layout.top - layout.bottom,
   );
   if (divider !== null) {

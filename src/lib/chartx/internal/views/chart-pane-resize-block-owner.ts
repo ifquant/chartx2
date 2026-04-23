@@ -27,7 +27,7 @@ export type PaneResizeBlockSnapshotState = {
 
 export type PaneResizeInteractionState = {
   startClientY: number;
-  handle: PaneResizeHandle;
+  activeBlock: PaneActiveResizeBlock;
 };
 
 export type PaneResizeHandle = {
@@ -100,12 +100,13 @@ export function createChartPaneResizeBlockOwner() {
       },
     ): PaneResizeInteractionState | null {
       const handle = this.resolvePaneResizeHandle(upperPaneId, lowerPaneId, deps);
-      if (handle === null) {
+      const activeBlock = this.resolveActiveResizeBlock(handle, deps);
+      if (activeBlock === null) {
         return null;
       }
       return {
         startClientY,
-        handle,
+        activeBlock,
       };
     },
 
@@ -140,10 +141,10 @@ export function createChartPaneResizeBlockOwner() {
       },
     ) {
       const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), {
-        dividerAfterPaneId: resizeState.handle.dividerAfterPaneId,
-        dividerBeforePaneId: resizeState.handle.dividerBeforePaneId,
-        controlledPaneId: resizeState.handle.block.controlledPaneId,
-        blockPaneIds: resizeState.handle.block.blockPaneIds,
+        dividerAfterPaneId: resizeState.activeBlock.handle.dividerAfterPaneId,
+        dividerBeforePaneId: resizeState.activeBlock.handle.dividerBeforePaneId,
+        controlledPaneId: resizeState.activeBlock.handle.block.controlledPaneId,
+        blockPaneIds: resizeState.activeBlock.handle.block.blockPaneIds,
       });
       return resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
     },
@@ -158,10 +159,13 @@ export function createChartPaneResizeBlockOwner() {
       if (resizeHandle === null) {
         return null;
       }
-      const resizeGroup = this.resolvePaneResizeGroup(
-        { startClientY: 0, handle: resizeHandle },
-        deps,
-      );
+      const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), {
+        dividerAfterPaneId: resizeHandle.dividerAfterPaneId,
+        dividerBeforePaneId: resizeHandle.dividerBeforePaneId,
+        controlledPaneId: resizeHandle.block.controlledPaneId,
+        blockPaneIds: resizeHandle.block.blockPaneIds,
+      });
+      const resizeGroup = resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
       if (resizeGroup === null) {
         return null;
       }

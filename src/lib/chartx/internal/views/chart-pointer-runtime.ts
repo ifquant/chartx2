@@ -22,12 +22,26 @@ type PaneResizeBlockSnapshotLike = {
   startVariableSpan: number;
   minOpposingHeight: number;
 };
+type PaneResizeGroupLike = {
+  controlledPaneId: string;
+  opposingPaneId: string;
+  blockPaneIds: readonly string[];
+  participatingPaneIds: readonly string[];
+  variablePaneIds: readonly string[];
+  fixedPaneIds: readonly string[];
+  mode: "adjacent-upper" | "adjacent-lower" | "downstream";
+};
 type PaneResizeStateLike = {
   startClientY: number;
-  handle: {
-    dividerAfterPaneId: string;
-    dividerBeforePaneId: string;
-    block: PaneResizeBlockSnapshotLike;
+  activeBlock: {
+    handle: {
+      dividerAfterPaneId: string;
+      dividerBeforePaneId: string;
+      block: PaneResizeBlockSnapshotLike;
+    };
+    group: PaneResizeGroupLike;
+    controlledPaneId: string;
+    controlsUpperPane: boolean;
   };
 };
 

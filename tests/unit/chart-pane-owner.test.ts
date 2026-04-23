@@ -227,16 +227,29 @@ describe("chart pane owner", () => {
       { width: 600, height: 420, top: 10, right: 10, bottom: 10, left: 10 },
       {
         startClientY: 20,
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-2"],
-            startControlledHeight: 136,
-            startVariableSpan: 356,
-            minOpposingHeight: 160,
+        activeBlock: {
+          handle: {
+            dividerAfterPaneId: "primary",
+            dividerBeforePaneId: "pane-2",
+            block: {
+              controlledPaneId: "pane-2",
+              blockPaneIds: ["primary", "pane-2"],
+              startControlledHeight: 136,
+              startVariableSpan: 356,
+              minOpposingHeight: 160,
+            },
           },
+          group: {
+            controlledPaneId: "pane-2",
+            opposingPaneId: "primary",
+            blockPaneIds: ["primary", "pane-2"],
+            participatingPaneIds: ["primary", "pane-2"],
+            variablePaneIds: ["primary", "pane-2"],
+            fixedPaneIds: [],
+            mode: "adjacent-lower",
+          },
+          controlledPaneId: "pane-2",
+          controlsUpperPane: false,
         },
       },
     );

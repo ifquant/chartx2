@@ -55,16 +55,29 @@ type LayoutLike = {
 
 type PaneResizeStateLike = {
   startClientY: number;
-  handle: {
-    dividerAfterPaneId: string;
-    dividerBeforePaneId: string;
-    block: {
-      controlledPaneId: string;
-      blockPaneIds: readonly string[];
-      startControlledHeight: number;
-      startVariableSpan: number;
-      minOpposingHeight: number;
+  activeBlock: {
+    handle: {
+      dividerAfterPaneId: string;
+      dividerBeforePaneId: string;
+      block: {
+        controlledPaneId: string;
+        blockPaneIds: readonly string[];
+        startControlledHeight: number;
+        startVariableSpan: number;
+        minOpposingHeight: number;
+      };
     };
+    group: {
+      controlledPaneId: string;
+      opposingPaneId: string;
+      blockPaneIds: readonly string[];
+      participatingPaneIds: readonly string[];
+      variablePaneIds: readonly string[];
+      fixedPaneIds: readonly string[];
+      mode: "adjacent-upper" | "adjacent-lower" | "downstream";
+    };
+    controlledPaneId: string;
+    controlsUpperPane: boolean;
   };
 };
 

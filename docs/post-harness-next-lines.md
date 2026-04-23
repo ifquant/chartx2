@@ -82,6 +82,7 @@ Current slice status:
 - twentieth slice landed: move-time pane layout policy now consumes `resizeHandle + deltaY` instead of the full interaction state, so pane resize policy no longer depends on drag-lifecycle fields like `startClientY`
 - twenty-first slice landed: controlled resize height resolution now routes through the shared pane-resize-block owner, so pane layout policy stops duplicating block validation, grouping, and resize math
 - twenty-second slice landed: pane-resize-block owner now exposes an explicit active resize block object, so validated group, controlled-pane choice, and control direction move through one owned runtime artifact
+- twenty-third slice landed: pointer-down pane resize state now stores that active resize block directly, so move-time runtime paths no longer have to recover the active block from a handle-shaped payload they already validated
 - not done yet: richer resize rules and multi-layout ownership still remain broader follow-up lines
 
 ### 3. Host And Workbench Contract

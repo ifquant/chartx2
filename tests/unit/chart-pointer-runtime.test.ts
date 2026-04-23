@@ -36,16 +36,29 @@ describe("chart pointer runtime use-case", () => {
       setPaneResizeState,
       resolvePaneResizeState: () => ({
         startClientY: 20,
-        handle: {
-          dividerAfterPaneId: "primary",
-          dividerBeforePaneId: "pane-2",
-          block: {
-            controlledPaneId: "pane-2",
-            blockPaneIds: ["primary", "pane-2"],
-            startControlledHeight: 120,
-            startVariableSpan: 280,
-            minOpposingHeight: 160,
+        activeBlock: {
+          handle: {
+            dividerAfterPaneId: "primary",
+            dividerBeforePaneId: "pane-2",
+            block: {
+              controlledPaneId: "pane-2",
+              blockPaneIds: ["primary", "pane-2"],
+              startControlledHeight: 120,
+              startVariableSpan: 280,
+              minOpposingHeight: 160,
+            },
           },
+          group: {
+            controlledPaneId: "pane-2",
+            opposingPaneId: "primary",
+            blockPaneIds: ["primary", "pane-2"],
+            participatingPaneIds: ["primary", "pane-2"],
+            variablePaneIds: ["primary", "pane-2"],
+            fixedPaneIds: [],
+            mode: "adjacent-lower",
+          },
+          controlledPaneId: "pane-2",
+          controlsUpperPane: false,
         },
       }),
       setCrosshair,
@@ -61,16 +74,29 @@ describe("chart pointer runtime use-case", () => {
 
     expect(setPaneResizeState).toHaveBeenCalledWith({
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 280,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 120,
+            startVariableSpan: 280,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-2"],
+          participatingPaneIds: ["primary", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: [],
+          mode: "adjacent-lower",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     });
     expect(setCursor).toHaveBeenCalledWith("row-resize");

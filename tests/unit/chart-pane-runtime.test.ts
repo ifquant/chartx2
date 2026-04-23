@@ -107,16 +107,29 @@ describe("chart pane runtime use-cases", () => {
       left: 10,
     }, {
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 136,
-          startVariableSpan: 356,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 136,
+            startVariableSpan: 356,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-2"],
+          participatingPaneIds: ["primary", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: [],
+          mode: "adjacent-lower",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     }, {
       getPaneById: (paneId) => paneId === "primary" ? primary : paneId === "pane-2" ? secondary : undefined,
@@ -154,16 +167,29 @@ describe("chart pane runtime use-cases", () => {
       left: 10,
     }, {
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "pane-1",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["pane-1", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 220,
-          minOpposingHeight: 72,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "pane-1",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["pane-1", "pane-2"],
+            startControlledHeight: 120,
+            startVariableSpan: 220,
+            minOpposingHeight: 72,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "pane-1",
+          blockPaneIds: ["pane-1", "pane-2"],
+          participatingPaneIds: ["pane-1", "pane-2"],
+          variablePaneIds: ["pane-2"],
+          fixedPaneIds: ["pane-1"],
+          mode: "adjacent-lower",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     }, {
       getPaneById: (paneId) =>
@@ -209,16 +235,29 @@ describe("chart pane runtime use-cases", () => {
       left: 10,
     }, {
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-1",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-1", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 340,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-1",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-1", "pane-2"],
+            startControlledHeight: 120,
+            startVariableSpan: 340,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          participatingPaneIds: ["primary", "primary", "pane-1", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: ["pane-1"],
+          mode: "downstream",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     }, {
       getPaneById: (paneId) =>
@@ -263,16 +302,29 @@ describe("chart pane runtime use-cases", () => {
       left: 10,
     }, {
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-1",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-1", "pane-2"],
-          startControlledHeight: 120,
-          startVariableSpan: 340,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-1",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-1", "pane-2"],
+            startControlledHeight: 120,
+            startVariableSpan: 340,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          participatingPaneIds: ["primary", "primary", "pane-1", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: ["pane-1"],
+          mode: "downstream",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     }, {
       getPaneById: (paneId) =>
@@ -315,16 +367,29 @@ describe("chart pane runtime use-cases", () => {
       left: 10,
     }, {
       startClientY: 20,
-      handle: {
-        dividerAfterPaneId: "pane-1",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-3",
-          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-          startControlledHeight: 120,
-          startVariableSpan: 420,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "pane-1",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-3",
+            blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+            startControlledHeight: 120,
+            startVariableSpan: 420,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-3",
+          opposingPaneId: "primary",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          participatingPaneIds: ["primary", "pane-1", "pane-2", "pane-3"],
+          variablePaneIds: ["primary", "pane-3"],
+          fixedPaneIds: ["pane-1", "pane-2"],
+          mode: "downstream",
+        },
+        controlledPaneId: "pane-3",
+        controlsUpperPane: false,
       },
     }, {
       getPaneById: (paneId) =>

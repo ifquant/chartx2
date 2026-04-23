@@ -24,16 +24,29 @@ describe("chart view state", () => {
     state.setDrawingDragState({ drawingId: "drawing-1", handle: "start" });
     state.setPaneResizeState({
       startClientY: 300,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 180,
-          startVariableSpan: 380,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 180,
+            startVariableSpan: 380,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-2"],
+          participatingPaneIds: ["primary", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: [],
+          mode: "adjacent-lower",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     });
 
@@ -45,7 +58,7 @@ describe("chart view state", () => {
     expect(state.manualLayout()).toEqual({ width: 800, height: 600 });
     expect(state.dragState()?.startRightOffset).toBe(2);
     expect(state.drawingDragState()?.handle).toBe("start");
-    expect(state.paneResizeState()?.handle.dividerBeforePaneId).toBe("pane-2");
+    expect(state.paneResizeState()?.activeBlock.handle.dividerBeforePaneId).toBe("pane-2");
   });
 
   it("clears snap-guide time separately and resets interaction state without dropping selection", () => {
@@ -66,16 +79,29 @@ describe("chart view state", () => {
     state.setDrawingDragState({ drawingId: "drawing-1", handle: "end" });
     state.setPaneResizeState({
       startClientY: 300,
-      handle: {
-        dividerAfterPaneId: "primary",
-        dividerBeforePaneId: "pane-2",
-        block: {
-          controlledPaneId: "pane-2",
-          blockPaneIds: ["primary", "pane-2"],
-          startControlledHeight: 180,
-          startVariableSpan: 380,
-          minOpposingHeight: 160,
+      activeBlock: {
+        handle: {
+          dividerAfterPaneId: "primary",
+          dividerBeforePaneId: "pane-2",
+          block: {
+            controlledPaneId: "pane-2",
+            blockPaneIds: ["primary", "pane-2"],
+            startControlledHeight: 180,
+            startVariableSpan: 380,
+            minOpposingHeight: 160,
+          },
         },
+        group: {
+          controlledPaneId: "pane-2",
+          opposingPaneId: "primary",
+          blockPaneIds: ["primary", "pane-2"],
+          participatingPaneIds: ["primary", "pane-2"],
+          variablePaneIds: ["primary", "pane-2"],
+          fixedPaneIds: [],
+          mode: "adjacent-lower",
+        },
+        controlledPaneId: "pane-2",
+        controlsUpperPane: false,
       },
     });
 

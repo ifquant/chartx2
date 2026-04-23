@@ -62,6 +62,31 @@
   ) => void;
   export let formatPointFigureBoxSize: (value: number | null) => string;
   let objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
+  type SlotGridPosition = { col: number; row: number };
+  type SlotView = {
+    slotId: string;
+    title: string;
+    role: "primary" | "secondary";
+    hostId: string | null;
+    hostTitle: string;
+    hostActive: boolean;
+    hostSymbol: string;
+    hostTimeframe: string;
+    hostChartType: string;
+    hostStatus: string;
+    grid: SlotGridPosition;
+  };
+  let layoutPreset: string = "single";
+  let slotViews: SlotView[] = [];
+  let activeSlotView: SlotView | null = null;
+  let activeGrid: SlotGridPosition = { col: 1, row: 1 };
+
+  function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
+    if (preset === "grid-2x2") {
+      return { col: (index % 2) + 1, row: Math.floor(index / 2) + 1 };
+    }
+    return { col: index + 1, row: 1 };
+  }
 
   function actionClass(tone: DemoAction["tone"]): string {
     if (tone === "accent") {
@@ -74,6 +99,28 @@
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
+  $: layoutPreset = workbench?.layout.preset ?? "single";
+  $: slotViews =
+    workbench?.layout.slots.map((slot, index) => {
+      const host = slot.chartHostId
+        ? workbench?.chartHosts.find((entry) => entry.id === slot.chartHostId) ?? null
+        : null;
+      return {
+        slotId: slot.id,
+        title: slot.title,
+        role: slot.role,
+        hostId: slot.chartHostId ?? null,
+        hostTitle: host?.title ?? slot.title,
+        hostActive: host?.active ?? false,
+        hostSymbol: host?.symbolLabel ?? "--",
+        hostTimeframe: host?.timeframeLabel ?? "--",
+        hostChartType: host?.chartTypeLabel ?? "--",
+        hostStatus: host?.statusLabel ?? "",
+        grid: gridPositionForSlot(workbench?.layout.preset ?? "single", index),
+      } satisfies SlotView;
+    }) ?? [];
+  $: activeSlotView = slotViews.find((view) => view.hostActive) ?? slotViews[0] ?? null;
+  $: activeGrid = activeSlotView?.grid ?? { col: 1, row: 1 };
 </script>
 
 <article class="demo-card workbench-card" data-demo-tab="workbench">
@@ -140,46 +187,143 @@
         </div>
       </div>
 
-      <div class="chart-frame-shell">
-        <div
-          class="chart-frame"
-          role="presentation"
-          on:pointermove={onPointerMove}
-          on:pointerleave={onPointerLeave}
-        >
-          {#if error}
-            <div class="error-state">
-              <p class="error-label">chart init failure</p>
-              <p>{error}</p>
-            </div>
-          {:else}
-            <canvas
-              bind:this={canvasElement}
-              aria-label="chartx2 phase-one chart harness"
-            ></canvas>
-            {#if showHorizontalPreview}
-              <svg class="drawing-tool-preview" aria-hidden="true">
-                <line
-                  class="drawing-tool-preview-line"
-                  x1="0"
-                  x2="100%"
-                  y1={String(horizontalPreviewY)}
-                  y2={String(horizontalPreviewY)}
-                ></line>
-              </svg>
-            {:else if showTrendPreview}
-              <svg class="drawing-tool-preview" aria-hidden="true">
-                <line
-                  class="drawing-tool-preview-line"
-                  x1={String(trendPreviewX1)}
-                  y1={String(trendPreviewY1)}
-                  x2={String(trendPreviewX2)}
-                  y2={String(trendPreviewY2)}
-                ></line>
-              </svg>
+      <div
+        class="chart-frame-shell"
+        data-workbench-layout
+        data-workbench-layout-preset={layoutPreset}
+      >
+        {#if layoutPreset === "single"}
+          <div
+            class="chart-frame"
+            role="presentation"
+            on:pointermove={onPointerMove}
+            on:pointerleave={onPointerLeave}
+          >
+            {#if error}
+              <div class="error-state">
+                <p class="error-label">chart init failure</p>
+                <p>{error}</p>
+              </div>
+            {:else}
+              <canvas bind:this={canvasElement} aria-label="chartx2 phase-one chart harness"></canvas>
+              {#if showHorizontalPreview}
+                <svg class="drawing-tool-preview" aria-hidden="true">
+                  <line
+                    class="drawing-tool-preview-line"
+                    x1="0"
+                    x2="100%"
+                    y1={String(horizontalPreviewY)}
+                    y2={String(horizontalPreviewY)}
+                  ></line>
+                </svg>
+              {:else if showTrendPreview}
+                <svg class="drawing-tool-preview" aria-hidden="true">
+                  <line
+                    class="drawing-tool-preview-line"
+                    x1={String(trendPreviewX1)}
+                    y1={String(trendPreviewY1)}
+                    x2={String(trendPreviewX2)}
+                    y2={String(trendPreviewY2)}
+                  ></line>
+                </svg>
+              {/if}
             {/if}
-          {/if}
-        </div>
+          </div>
+        {:else}
+          <div class="workbench-layout" class:split={layoutPreset === "main-plus-secondary"} class:grid={layoutPreset === "grid-2x2"}>
+            {#each slotViews as slotView (slotView.slotId)}
+              <section
+                class="chart-slot"
+                class:active={slotView.hostActive}
+                data-chart-slot={slotView.slotId}
+                style={`grid-column: ${slotView.grid.col}; grid-row: ${slotView.grid.row};`}
+              >
+                <article
+                  class="chart-host-card"
+                  class:active={slotView.hostActive}
+                  class:empty={!slotView.hostId}
+                  data-chart-host={slotView.hostId ?? undefined}
+                  data-chart-host-active={slotView.hostActive ? "true" : "false"}
+                  data-chart-host-symbol={slotView.hostSymbol}
+                >
+                  <div class="chart-host-badge">
+                    <strong>{slotView.hostSymbol}</strong>
+                    <span class="chart-host-badge-detail"
+                      >{slotView.hostTimeframe} · {slotView.hostChartType}</span
+                    >
+                    {#if slotView.hostActive}
+                      <span class="chart-host-badge-tag">Live</span>
+                    {:else if slotView.hostStatus}
+                      <span class="chart-host-badge-tag">{slotView.hostStatus}</span>
+                    {:else}
+                      <span class="chart-host-badge-tag">Read-only</span>
+                    {/if}
+                  </div>
+
+                  {#if !slotView.hostActive}
+                    <div class="chart-host-summary" aria-label="chart host summary">
+                      <p class="chart-host-summary-title">{slotView.hostTitle}</p>
+                      <p class="chart-host-summary-detail">
+                        {slotView.role === "primary" ? "Primary slot" : "Secondary slot"}
+                      </p>
+                      <p class="chart-host-summary-detail">This host is a shell in this slice.</p>
+                    </div>
+                  {/if}
+                </article>
+              </section>
+            {/each}
+
+            <div
+              class="live-chart"
+              style={`grid-column: ${activeGrid.col}; grid-row: ${activeGrid.row};`}
+            >
+              <div class="live-chart-badge">
+                <strong>{activeSlotView?.hostSymbol ?? workbench?.toolbar.activeSymbol ?? "NDX"}</strong>
+                <span>
+                  {activeSlotView?.hostTimeframe ?? workbench?.toolbar.timeframeLabel ?? "1D"}
+                  {" · "}
+                  {activeSlotView?.hostChartType ?? workbench?.toolbar.chartTypeLabel ?? "Candles"}
+                </span>
+              </div>
+              <div
+                class="chart-frame"
+                role="presentation"
+                on:pointermove={onPointerMove}
+                on:pointerleave={onPointerLeave}
+              >
+                {#if error}
+                  <div class="error-state">
+                    <p class="error-label">chart init failure</p>
+                    <p>{error}</p>
+                  </div>
+                {:else}
+                  <canvas bind:this={canvasElement} aria-label="chartx2 phase-one chart harness"></canvas>
+                  {#if showHorizontalPreview}
+                    <svg class="drawing-tool-preview" aria-hidden="true">
+                      <line
+                        class="drawing-tool-preview-line"
+                        x1="0"
+                        x2="100%"
+                        y1={String(horizontalPreviewY)}
+                        y2={String(horizontalPreviewY)}
+                      ></line>
+                    </svg>
+                  {:else if showTrendPreview}
+                    <svg class="drawing-tool-preview" aria-hidden="true">
+                      <line
+                        class="drawing-tool-preview-line"
+                        x1={String(trendPreviewX1)}
+                        y1={String(trendPreviewY1)}
+                        x2={String(trendPreviewX2)}
+                        y2={String(trendPreviewY2)}
+                      ></line>
+                    </svg>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
 
       <div class="readout-bar">
@@ -229,6 +373,7 @@
           {#each chartActions as action}
             <button
               class={`${actionClass(action.tone)} ${action.active ? "active" : ""}`}
+              data-demo-action={action.id}
               on:click={() => onRunAction(action.id)}
             >
               {action.label}
@@ -255,6 +400,7 @@
               class="watch-row"
               class:active={item.id === workbench?.rightSidebar.watchlist.activeItemId}
               aria-current={item.id === workbench?.rightSidebar.watchlist.activeItemId ? "true" : undefined}
+              data-watchlist-symbol={item.symbol}
               type="button"
               on:click={() => onOpenWatchlistSymbol(item.symbol)}
             >
@@ -904,8 +1050,149 @@
   }
 
   .chart-frame-shell {
+    position: relative;
     min-height: 0;
     background: #fffdf7;
+  }
+
+  .workbench-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    height: 100%;
+    min-height: 0;
+    background: #fffdf7;
+  }
+
+  .workbench-layout.split {
+    grid-template-columns: minmax(0, 1fr) 292px;
+  }
+
+  .workbench-layout.grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .chart-slot {
+    position: relative;
+    min-height: 0;
+    border-right: 1px solid rgba(24, 24, 27, 0.08);
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(255, 253, 247, 0.96);
+  }
+
+  .workbench-layout:not(.split):not(.grid) .chart-slot {
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .workbench-layout.split .chart-slot:nth-child(2) {
+    border-right: 0;
+  }
+
+  .chart-host-card {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border: 2px solid rgba(24, 24, 27, 0.08);
+    background: rgba(255, 253, 247, 0.94);
+  }
+
+  .chart-host-card.active {
+    border-color: rgba(24, 24, 27, 0.28);
+  }
+
+  .chart-host-card.empty {
+    opacity: 0.8;
+  }
+
+  .chart-host-badge {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 10px 8px 10px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: rgba(247, 243, 235, 0.96);
+    color: rgba(24, 24, 27, 0.78);
+  }
+
+  .chart-host-badge strong {
+    color: #18181b;
+    font-size: 0.9rem;
+  }
+
+  .chart-host-badge-detail {
+    font-size: 0.78rem;
+    color: rgba(24, 24, 27, 0.64);
+  }
+
+  .chart-host-badge-tag {
+    margin-left: auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.06);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(24, 24, 27, 0.72);
+  }
+
+  .chart-host-card.active .chart-host-badge-tag {
+    background: rgba(24, 24, 27, 0.9);
+    color: #fffdf8;
+  }
+
+  .chart-host-summary {
+    display: grid;
+    gap: 6px;
+    padding: 12px 12px 14px 12px;
+    align-content: start;
+    color: rgba(24, 24, 27, 0.68);
+    font-size: 0.82rem;
+  }
+
+  .chart-host-summary-title {
+    margin: 0;
+    color: #18181b;
+    font-weight: 700;
+  }
+
+  .chart-host-summary-detail {
+    margin: 0;
+  }
+
+  .live-chart {
+    position: relative;
+    z-index: 2;
+    min-height: 0;
+    outline: 2px solid rgba(24, 24, 27, 0.24);
+    outline-offset: 2px;
+  }
+
+  .live-chart-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: rgba(24, 24, 27, 0.78);
+    color: rgba(255, 253, 248, 0.96);
+    font-size: 0.8rem;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: 0 10px 26px rgba(24, 24, 27, 0.18);
+  }
+
+  .live-chart-badge strong {
+    color: #fffdf8;
   }
 
   .chart-frame {

@@ -4,6 +4,14 @@ function featureTab(page: Page, name: string) {
   return page.locator(".top-tabs").getByRole("button", { name, exact: true });
 }
 
+function workbenchPanel(page: Page) {
+  return page.locator('[data-demo-tab="workbench"]');
+}
+
+function workbenchAction(page: Page, actionId: string) {
+  return workbenchPanel(page).locator(`[data-demo-action="${actionId}"]`);
+}
+
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) {
     return false;
@@ -20,15 +28,94 @@ test("workbench opens by default and renders the baseline chart", async ({ page 
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Workbench" })).toHaveClass(/active/);
 
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness.png");
 });
 
-test("workbench keeps a deterministic smaller-layout baseline", async ({ page }) => {
+test("layout: switching to split renders both slots and hosts", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const layout = workbench.locator("[data-workbench-layout]");
+
+  await expect(layout).toBeVisible();
+  await expect(layout).toHaveAttribute("data-workbench-layout-preset", "single");
+
+  await workbenchAction(page, "layout-split").click();
+  await expect(layout).toHaveAttribute("data-workbench-layout-preset", "main-plus-secondary");
+  await expect(layout.locator("[data-chart-slot]")).toHaveCount(2);
+  await expect(layout.locator("[data-chart-host]")).toHaveCount(2);
+
+  await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(
+    1,
+  );
+});
+
+test("layout: watchlist routes symbol opens to the active host and follows host activation", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const layout = workbench.locator("[data-workbench-layout]");
+
+  await workbenchAction(page, "layout-split").click();
+  await expect(layout).toHaveAttribute("data-workbench-layout-preset", "main-plus-secondary");
+
+  await workbenchAction(page, "host-main").click();
+  const hostCards = layout.locator("[data-chart-host]");
+  await expect(hostCards).toHaveCount(2);
+
+  const watchRows = workbench.locator('[data-watchlist-symbol]');
+  const watchRowCount = await watchRows.count();
+  expect(watchRowCount).toBeGreaterThan(1);
+  const firstSymbol = await watchRows.nth(0).getAttribute("data-watchlist-symbol");
+  const secondSymbol = await watchRows.nth(1).getAttribute("data-watchlist-symbol");
+
+  expect(firstSymbol).not.toBeNull();
+  expect(secondSymbol).not.toBeNull();
+  if (firstSymbol === null || secondSymbol === null) {
+    throw new Error("watchlist symbols are missing");
+  }
+
+  const activeHostCard = () => layout.locator('[data-chart-host][data-chart-host-active="true"]').first();
+
+  await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(1);
+  const beforeHostId = await activeHostCard().getAttribute("data-chart-host");
+  expect(beforeHostId).not.toBeNull();
+  if (beforeHostId === null) {
+    throw new Error("active chart host id is missing");
+  }
+
+  await watchRows.nth(0).click();
+  await expect(layout.locator(`[data-chart-host="${beforeHostId}"]`)).toHaveAttribute(
+    "data-chart-host-symbol",
+    firstSymbol,
+  );
+
+  await workbenchAction(page, "host-secondary").click();
+  await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(1);
+  const afterHostId = await activeHostCard().getAttribute("data-chart-host");
+  expect(afterHostId).not.toBeNull();
+  if (afterHostId === null) {
+    throw new Error("secondary chart host id is missing");
+  }
+  expect(afterHostId).not.toBe(beforeHostId);
+
+  await watchRows.nth(1).click();
+  await expect(layout.locator(`[data-chart-host="${afterHostId}"]`)).toHaveAttribute(
+    "data-chart-host-symbol",
+    secondSymbol,
+  );
+  await expect(layout.locator(`[data-chart-host="${beforeHostId}"]`)).toHaveAttribute(
+    "data-chart-host-symbol",
+    firstSymbol,
+  );
+});
+
+test("workbench keeps a deterministic narrow baseline", async ({ page }) => {
   await page.setViewportSize({ width: 840, height: 1100 });
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-narrow.png");
 });
@@ -42,7 +129,7 @@ test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {
   });
 
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(frame).toBeVisible();
   await expect(frame).toHaveScreenshot("phase-one-harness-hidpi.png");
@@ -66,9 +153,9 @@ test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {
 
 test("workbench renders a deterministic crosshair snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
-  const readout = page.locator('[data-demo-tab="workbench"] .readout-bar').first();
+  const readout = workbenchPanel(page).locator(".readout-bar").first();
   await expect(canvas).toBeVisible();
 
   const box = await canvas.boundingBox();
@@ -86,7 +173,7 @@ test("workbench renders a deterministic crosshair snapshot", async ({ page }) =>
 
 test("workbench renders a deterministic zoomed viewport snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -100,7 +187,7 @@ test("workbench renders a deterministic zoomed viewport snapshot", async ({ page
 
 test("workbench supports keyboard zoom after the chart takes focus", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -113,7 +200,7 @@ test("workbench supports keyboard zoom after the chart takes focus", async ({ pa
 
 test("workbench renders a deterministic dragged viewport snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 
@@ -134,7 +221,7 @@ test("workbench renders a deterministic dragged viewport snapshot", async ({ pag
 
 test("workbench renders a deterministic pane-resized snapshot", async ({ page }) => {
   await page.goto("/");
-  const frame = page.locator('[data-demo-tab="workbench"] .chart-frame');
+  const frame = workbenchPanel(page).locator(".chart-frame");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
   await expect(canvas).toBeVisible();
 

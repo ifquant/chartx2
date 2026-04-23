@@ -415,6 +415,7 @@ export function mountWorkbenchDemo(
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
   let alertsLoadPromise: Promise<boolean> | null = null;
+  let alertsSavePromise: Promise<unknown> = Promise.resolve();
   let alertsLoadCompleted = options.alertsProvider === undefined;
   let alertsLoadFailed = false;
 
@@ -507,7 +508,13 @@ export function mountWorkbenchDemo(
     if (provider === undefined) {
       return true;
     }
-    return provider.saveWorkbenchAlerts(createWorkbenchAlertsState({ alerts: workbenchAlerts }));
+    const state = createWorkbenchAlertsState({ alerts: [...workbenchAlerts] });
+    const savePromise = alertsSavePromise.then(
+      () => provider.saveWorkbenchAlerts(state),
+      () => provider.saveWorkbenchAlerts(state),
+    );
+    alertsSavePromise = savePromise.catch(() => undefined);
+    return savePromise;
   };
 
   const ensureWorkbenchAlertsLoaded = async (): Promise<boolean> => {

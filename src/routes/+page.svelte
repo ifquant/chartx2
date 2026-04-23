@@ -425,12 +425,8 @@
   }
 
   async function resetWorkbenchLayout(): Promise<void> {
-    const savedLayout = await workbenchPersistenceProvider?.loadWorkbenchLayout();
     const reset = await workbenchController?.resetLayout?.();
     if (reset) {
-      if (savedLayout !== undefined && savedLayout !== null) {
-        await workbenchPersistenceProvider?.saveWorkbenchLayout(savedLayout);
-      }
       workbenchActions = workbenchController?.actions() ?? [];
     }
   }

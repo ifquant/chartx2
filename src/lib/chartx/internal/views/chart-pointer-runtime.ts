@@ -15,6 +15,19 @@ type PaneDividerLike = {
 type PanePointLike = { x: number; y: number } | null;
 type DragStateLike = { startClientX: number; startRightOffset: number };
 type DrawingDragStateLike = { drawingId: string; handle: "start" | "end" };
+type PaneResizeBlockSnapshotLike = {
+  controlledPaneId: string;
+  blockPaneIds: readonly string[];
+  startControlledHeight: number;
+  startVariableSpan: number;
+  minOpposingHeight: number;
+};
+type PaneResizeStateLike = {
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  startClientY: number;
+  block: PaneResizeBlockSnapshotLike;
+};
 
 export function handlePointerDownRuntime(
   event: { clientX: number; clientY: number; pointerId: number },
@@ -36,29 +49,13 @@ export function handlePointerDownRuntime(
       paneFrames: readonly PaneFrameLike[],
     ): DrawingDragStateLike | null;
     focusCanvas(): void;
-    setPaneResizeState(state: {
-      dividerAfterPaneId: string;
-      dividerBeforePaneId: string;
-      controlledPaneId: string;
-      blockPaneIds: readonly string[];
-      startClientY: number;
-      startControlledHeight: number;
-      startVariableSpan: number;
-      minOpposingHeight: number;
-    }): void;
-    resolveControlledPaneId(upperPaneId: string, lowerPaneId: string): string | null;
-    resolvePaneResizeBlock(
+    setPaneResizeState(state: PaneResizeStateLike): void;
+    resolvePaneResizeState(
       upperPaneId: string,
       lowerPaneId: string,
-      controlledPaneId: string,
+      startClientY: number,
       paneFrames: readonly PaneFrameLike[],
-    ): {
-      controlledPaneId: string;
-      blockPaneIds: readonly string[];
-      startControlledHeight: number;
-      startVariableSpan: number;
-      minOpposingHeight: number;
-    } | null;
+    ): PaneResizeStateLike | null;
     setCrosshair(point: PanePointLike): void;
     setDrawingDragState(state: DrawingDragStateLike): void;
     setHoveredDrawingId(id: string | null): void;
@@ -80,30 +77,17 @@ export function handlePointerDownRuntime(
   const divider = deps.resolvePaneDivider(deps.listPanes(), paneFrames, point?.y ?? null);
 
   if (divider !== null) {
-    const controlledPaneId = deps.resolveControlledPaneId(divider.upperPaneId, divider.lowerPaneId);
-    if (controlledPaneId === null) {
-      return;
-    }
-    const resizeBlock = deps.resolvePaneResizeBlock(
+    const resizeState = deps.resolvePaneResizeState(
       divider.upperPaneId,
       divider.lowerPaneId,
-      controlledPaneId,
+      event.clientY,
       paneFrames,
     );
-    if (resizeBlock === null) {
+    if (resizeState === null) {
       return;
     }
     deps.focusCanvas();
-    deps.setPaneResizeState({
-      dividerAfterPaneId: divider.upperPaneId,
-      dividerBeforePaneId: divider.lowerPaneId,
-      controlledPaneId,
-      blockPaneIds: resizeBlock.blockPaneIds,
-      startClientY: event.clientY,
-      startControlledHeight: resizeBlock.startControlledHeight,
-      startVariableSpan: resizeBlock.startVariableSpan,
-      minOpposingHeight: resizeBlock.minOpposingHeight,
-    });
+    deps.setPaneResizeState(resizeState);
     deps.setCursor("row-resize");
     deps.setPointerCapture(event.pointerId);
     return;

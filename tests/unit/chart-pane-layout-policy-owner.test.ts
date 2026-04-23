@@ -19,12 +19,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(40, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-1",
-      controlledPaneId: "pane-1",
-      blockPaneIds: ["primary", "pane-1"],
       startClientY: 20,
-      startControlledHeight: 136,
-      startVariableSpan: 356,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-1",
+        blockPaneIds: ["primary", "pane-1"],
+        startControlledHeight: 136,
+        startVariableSpan: 356,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) => paneId === "primary" ? primary : paneId === "pane-1" ? secondary : undefined,
       listPanes: () => [primary, secondary],
@@ -42,12 +44,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(500, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "primary",
-      controlledPaneId: "pane-1",
-      blockPaneIds: ["pane-1", "primary"],
       startClientY: 20,
-      startControlledHeight: 100,
-      startVariableSpan: 320,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-1",
+        blockPaneIds: ["pane-1", "primary"],
+        startControlledHeight: 100,
+        startVariableSpan: 320,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "pane-1"
@@ -64,12 +68,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(40, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["primary", "pane-2"],
       startClientY: 20,
-      startControlledHeight: 100,
-      startVariableSpan: 356,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-2"],
+        startControlledHeight: 100,
+        startVariableSpan: 356,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "pane-2"
@@ -89,12 +95,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(60, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["pane-1", "pane-2"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 220,
-      minOpposingHeight: 72,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 220,
+        minOpposingHeight: 72,
+      },
     }, {
       getPaneById: (paneId) => paneId === "pane-1" ? upperSecondary : paneId === "pane-2" ? lowerSecondary : undefined,
       listPanes: () => [upperSecondary, lowerSecondary],
@@ -141,12 +149,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(60, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-1",
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["primary", "pane-1", "pane-2"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 340,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 340,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -172,12 +182,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(-100, {
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-1",
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["primary", "pane-1", "pane-2"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 340,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 340,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -218,12 +230,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(-160, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-3",
-      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 420,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"
@@ -252,12 +266,14 @@ describe("chart pane layout policy owner", () => {
     expect(owner.resolveControlledResizeHeight(-160, {
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-3",
-      blockPaneIds: ["pane-1", "pane-3"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 420,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
+      },
     }, {
       getPaneById: (paneId) =>
         paneId === "primary"

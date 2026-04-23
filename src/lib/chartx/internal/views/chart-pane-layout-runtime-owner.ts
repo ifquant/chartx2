@@ -27,12 +27,14 @@ type LayoutLike = {
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
-  controlledPaneId: string;
-  blockPaneIds: readonly string[];
   startClientY: number;
-  startControlledHeight: number;
-  startVariableSpan: number;
-  minOpposingHeight: number;
+  block: {
+    controlledPaneId: string;
+    blockPaneIds: readonly string[];
+    startControlledHeight: number;
+    startVariableSpan: number;
+    minOpposingHeight: number;
+  };
 };
 
 type PanePointLike = {

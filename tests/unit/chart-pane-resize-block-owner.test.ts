@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createChartPaneResizeBlockOwner } from "../../src/lib/chartx/internal/views/chart-pane-resize-block-owner";
 
 describe("chart pane resize block owner", () => {
-  it("owns controlled-pane and pointer-down block snapshot composition", () => {
+  it("owns controlled-pane and pointer-down resize-state composition", () => {
     const owner = createChartPaneResizeBlockOwner();
     const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
     const fixedSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
@@ -20,15 +20,21 @@ describe("chart pane resize block owner", () => {
       listPanes: () => panes,
     })).toBe("pane-2");
 
-    expect(owner.resolvePaneResizeBlockSnapshot("primary", "pane-1", "pane-2", {
+    expect(owner.resolvePaneResizeState("primary", "pane-1", 24, {
+      getPaneById: (paneId) => panes.find((pane) => pane.id === paneId),
       listPanes: () => panes,
       paneFrames: () => paneFrames,
     })).toEqual({
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["primary", "pane-1", "pane-2"],
-      startControlledHeight: 120,
-      startVariableSpan: 340,
-      minOpposingHeight: 160,
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      startClientY: 24,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 340,
+        minOpposingHeight: 160,
+      },
     });
   });
 
@@ -44,8 +50,14 @@ describe("chart pane resize block owner", () => {
     expect(owner.resolvePaneResizeGroup({
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-3",
-      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+      startClientY: 20,
+      block: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
+      },
     }, {
       listPanes: () => panes,
     })).toEqual({
@@ -61,8 +73,14 @@ describe("chart pane resize block owner", () => {
     expect(owner.resolvePaneResizeGroup({
       dividerAfterPaneId: "pane-1",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-3",
-      blockPaneIds: ["pane-1", "pane-3"],
+      startClientY: 20,
+      block: {
+        controlledPaneId: "pane-3",
+        blockPaneIds: ["pane-1", "pane-3"],
+        startControlledHeight: 120,
+        startVariableSpan: 420,
+        minOpposingHeight: 160,
+      },
     }, {
       listPanes: () => panes,
     })).toBeNull();

@@ -34,13 +34,17 @@ describe("chart pointer runtime use-case", () => {
       resolveSelectedTrendLineDragHandle: () => null,
       focusCanvas,
       setPaneResizeState,
-      resolveControlledPaneId: () => "pane-2",
-      resolvePaneResizeBlock: () => ({
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 280,
-        minOpposingHeight: 160,
+      resolvePaneResizeState: () => ({
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-2",
+        startClientY: 20,
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 280,
+          minOpposingHeight: 160,
+        },
       }),
       setCrosshair,
       setDrawingDragState,
@@ -56,12 +60,14 @@ describe("chart pointer runtime use-case", () => {
     expect(setPaneResizeState).toHaveBeenCalledWith({
       dividerAfterPaneId: "primary",
       dividerBeforePaneId: "pane-2",
-      controlledPaneId: "pane-2",
-      blockPaneIds: ["primary", "pane-2"],
       startClientY: 20,
-      startControlledHeight: 120,
-      startVariableSpan: 280,
-      minOpposingHeight: 160,
+      block: {
+        controlledPaneId: "pane-2",
+        blockPaneIds: ["primary", "pane-2"],
+        startControlledHeight: 120,
+        startVariableSpan: 280,
+        minOpposingHeight: 160,
+      },
     });
     expect(setCursor).toHaveBeenCalledWith("row-resize");
     expect(setPointerCapture).toHaveBeenCalledWith(7);
@@ -78,8 +84,7 @@ describe("chart pointer runtime use-case", () => {
       resolveSelectedTrendLineDragHandle: () => ({ drawingId: "drawing-1", handle: "start" }),
       focusCanvas,
       setPaneResizeState,
-      resolveControlledPaneId: () => null,
-      resolvePaneResizeBlock: () => null,
+      resolvePaneResizeState: () => null,
       setCrosshair,
       setDrawingDragState,
       setHoveredDrawingId,

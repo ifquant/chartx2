@@ -23,16 +23,7 @@ export type DrawingSnapGuideState = {
   time: number | null;
 };
 
-export type PaneResizeState = {
-  dividerAfterPaneId: string;
-  dividerBeforePaneId: string;
-  controlledPaneId: string;
-  blockPaneIds: readonly string[];
-  startClientY: number;
-  startControlledHeight: number;
-  startVariableSpan: number;
-  minOpposingHeight: number;
-};
+export type PaneResizeState = PaneResizeInteractionState;
 
 export function createChartViewState<Point, Observer>() {
   let crosshair: Point | null = null;
@@ -109,3 +100,4 @@ export function createChartViewState<Point, Observer>() {
     },
   };
 }
+import type { PaneResizeInteractionState } from "./chart-pane-resize-block-owner";

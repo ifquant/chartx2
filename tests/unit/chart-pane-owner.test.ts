@@ -228,12 +228,14 @@ describe("chart pane owner", () => {
       {
         dividerAfterPaneId: "primary",
         dividerBeforePaneId: "pane-2",
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
         startClientY: 20,
-        startControlledHeight: 136,
-        startVariableSpan: 356,
-        minOpposingHeight: 160,
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-2"],
+          startControlledHeight: 136,
+          startVariableSpan: 356,
+          minOpposingHeight: 160,
+        },
       },
     );
 

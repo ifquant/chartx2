@@ -17,6 +17,21 @@ type PaneFrameLike = {
   height: number;
 };
 
+export type PaneResizeBlockSnapshotState = {
+  controlledPaneId: string;
+  blockPaneIds: readonly string[];
+  startControlledHeight: number;
+  startVariableSpan: number;
+  minOpposingHeight: number;
+};
+
+export type PaneResizeInteractionState = {
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  startClientY: number;
+  block: PaneResizeBlockSnapshotState;
+};
+
 type PaneResizeStateLike = {
   dividerAfterPaneId: string;
   dividerBeforePaneId: string;
@@ -60,13 +75,44 @@ export function createChartPaneResizeBlockOwner() {
       );
     },
 
+    resolvePaneResizeState(
+      upperPaneId: string,
+      lowerPaneId: string,
+      startClientY: number,
+      deps: {
+        getPaneById(paneId: string): PaneLike | undefined;
+        listPanes(): readonly PaneLike[];
+        paneFrames(): readonly PaneFrameLike[];
+      },
+    ): PaneResizeInteractionState | null {
+      const controlledPaneId = this.resolveControlledPaneId(upperPaneId, lowerPaneId, deps);
+      if (controlledPaneId === null) {
+        return null;
+      }
+      const block = this.resolvePaneResizeBlockSnapshot(upperPaneId, lowerPaneId, controlledPaneId, deps);
+      if (block === null) {
+        return null;
+      }
+      return {
+        dividerAfterPaneId: upperPaneId,
+        dividerBeforePaneId: lowerPaneId,
+        startClientY,
+        block,
+      };
+    },
+
     resolvePaneResizeGroup(
-      resizeState: PaneResizeStateLike,
+      resizeState: PaneResizeInteractionState,
       deps: {
         listPanes(): readonly PaneLike[];
       },
     ) {
-      const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), resizeState);
+      const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), {
+        dividerAfterPaneId: resizeState.dividerAfterPaneId,
+        dividerBeforePaneId: resizeState.dividerBeforePaneId,
+        controlledPaneId: resizeState.block.controlledPaneId,
+        blockPaneIds: resizeState.block.blockPaneIds,
+      });
       return resizeBlock === null ? null : resolvePaneResizeGroupFromBlock(resizeBlock);
     },
   };

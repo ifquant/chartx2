@@ -236,13 +236,9 @@ export function createChartInteractionHandlers<Readout>(deps: {
         setPaneResizeState: (state) => {
           deps.setPaneResizeState(state);
         },
-        resolveControlledPaneId: (upperPaneId, lowerPaneId) =>
-          paneResizeBlockOwner.resolveControlledPaneId(upperPaneId, lowerPaneId, {
+        resolvePaneResizeState: (upperPaneId, lowerPaneId, startClientY, paneFrames) =>
+          paneResizeBlockOwner.resolvePaneResizeState(upperPaneId, lowerPaneId, startClientY, {
             getPaneById: (paneId) => deps.listPanes().find((pane) => pane.id === paneId),
-            listPanes: () => deps.listPanes(),
-          }),
-        resolvePaneResizeBlock: (upperPaneId, lowerPaneId, controlledPaneId, paneFrames) =>
-          paneResizeBlockOwner.resolvePaneResizeBlockSnapshot(upperPaneId, lowerPaneId, controlledPaneId, {
             listPanes: () => deps.listPanes(),
             paneFrames: () => paneFrames,
           }),

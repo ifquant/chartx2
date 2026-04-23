@@ -110,6 +110,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startPrimaryHeight: 220,
       startControlledHeight: 136,
       startUpperHeight: 220,
       startLowerHeight: 136,
@@ -152,6 +153,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-2",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startPrimaryHeight: 220,
       startControlledHeight: 120,
       startUpperHeight: 100,
       startLowerHeight: 120,
@@ -202,6 +204,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startPrimaryHeight: 220,
       startControlledHeight: 120,
       startUpperHeight: 220,
       startLowerHeight: 100,
@@ -251,6 +254,7 @@ describe("chart pane runtime use-cases", () => {
       dividerBeforePaneId: "pane-1",
       controlledPaneId: "pane-2",
       startClientY: 20,
+      startPrimaryHeight: 220,
       startControlledHeight: 120,
       startUpperHeight: 220,
       startLowerHeight: 100,
@@ -276,5 +280,56 @@ describe("chart pane runtime use-cases", () => {
     expect(fixedSecondary.preferredHeight).toBe(100);
     expect(emitPaneResize).toHaveBeenCalledWith("pane-2");
     expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-2");
+  });
+
+  it("applies fixed secondary-secondary divider drags to the first downstream resizable pane", () => {
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const fixedUpper = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const fixedLower = { id: "pane-2", kind: "secondary" as const, preferredHeight: 90, resizable: false };
+    const lowerSecondary = { id: "pane-3", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+    const emitPaneResize = vi.fn();
+    const emitPaneEvent = vi.fn();
+
+    applyPaneResize(-160, {
+      width: 600,
+      height: 720,
+      top: 10,
+      right: 10,
+      bottom: 10,
+      left: 10,
+    }, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      startClientY: 20,
+      startPrimaryHeight: 300,
+      startControlledHeight: 120,
+      startUpperHeight: 100,
+      startLowerHeight: 90,
+    }, {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? primary
+          : paneId === "pane-1"
+            ? fixedUpper
+            : paneId === "pane-2"
+              ? fixedLower
+              : paneId === "pane-3"
+                ? lowerSecondary
+                : undefined,
+      emitPaneResize,
+      emitPaneEvent,
+      hasCanvas: () => false,
+      listPanes: () => [primary, fixedUpper, fixedLower, lowerSecondary],
+      gap: 12,
+      getCrosshair: () => null,
+      setCrosshair: vi.fn(),
+    });
+
+    expect(lowerSecondary.preferredHeight).toBe(260);
+    expect(fixedUpper.preferredHeight).toBe(100);
+    expect(fixedLower.preferredHeight).toBe(90);
+    expect(emitPaneResize).toHaveBeenCalledWith("pane-3");
+    expect(emitPaneEvent).toHaveBeenCalledWith("resized", "pane-3");
   });
 });

@@ -130,12 +130,9 @@ export function resolvePaneDivider(
     const canResize =
       (upper.kind === "secondary" && (upperSpec?.resizable ?? false)) ||
       (lower.kind === "secondary" && (lowerSpec?.resizable ?? false)) ||
-      (
-        upper.kind === "primary"
-        && panes
-          .slice(index + 1)
-          .some((pane) => pane.kind === "secondary" && (paneSpecs.find((entry) => entry.id === pane.id)?.resizable ?? false))
-      );
+      panes
+        .slice(index + 1)
+        .some((pane) => pane.kind === "secondary" && (paneSpecs.find((entry) => entry.id === pane.id)?.resizable ?? false));
     if (!canResize) {
       continue;
     }

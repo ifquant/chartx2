@@ -41,6 +41,7 @@ export function handlePointerDownRuntime(
       dividerBeforePaneId: string;
       controlledPaneId: string;
       startClientY: number;
+      startPrimaryHeight: number;
       startControlledHeight: number;
       startUpperHeight: number;
       startLowerHeight: number;
@@ -75,12 +76,14 @@ export function handlePointerDownRuntime(
     if (controlledFrame === undefined) {
       return;
     }
+    const primaryFrame = paneFrames.find((pane) => pane.id === "primary");
     deps.focusCanvas();
     deps.setPaneResizeState({
       dividerAfterPaneId: divider.upperPaneId,
       dividerBeforePaneId: divider.lowerPaneId,
       controlledPaneId,
       startClientY: event.clientY,
+      startPrimaryHeight: primaryFrame?.height ?? (divider.upperPaneId === "primary" ? divider.upperHeight : 0),
       startControlledHeight: controlledFrame.height,
       startUpperHeight: divider.upperHeight,
       startLowerHeight: divider.lowerHeight,

@@ -485,6 +485,7 @@ test("workbench renders a read-only object tree", async ({ page }) => {
   const objectTreeCard = workbench.locator('[data-workbench-panel="object-tree"]');
   const tree = objectTreeCard.getByRole("tree", { name: "Workbench object tree" });
   const alerts = workbench.locator(".alert-card");
+  await tree.scrollIntoViewIfNeeded();
   await expect(objectTreeCard).toBeVisible();
   await expect(tree).toBeVisible();
 
@@ -508,6 +509,7 @@ test("workbench object tree reflects indicators and drawings", async ({ page }) 
   const inspectorKind = workbench.locator(".inspector-card .sidebar-head span");
   const inspector = workbench.locator(".inspector-card");
   const canvas = page.getByLabel("chartx2 phase-one chart harness");
+  await tree.scrollIntoViewIfNeeded();
 
   await expect(tree).toBeVisible();
   await expect(inspectorKind).toHaveText("None");
@@ -519,7 +521,7 @@ test("workbench object tree reflects indicators and drawings", async ({ page }) 
     throw new Error("phase-one harness canvas is missing");
   }
 
-  await page.getByRole("button", { name: "Horizontal line", exact: true }).click();
+  await workbench.locator(".tool-rail").getByRole("button", { name: "Horizontal line", exact: true }).click();
   await expect(inspector).toContainText("Click the chart to place a horizontal line.");
   await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.38);
   await expect(inspectorKind).toHaveText("horizontal-line");

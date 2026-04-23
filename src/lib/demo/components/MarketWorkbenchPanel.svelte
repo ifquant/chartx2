@@ -61,6 +61,7 @@
     event: Event,
   ) => void;
   export let formatPointFigureBoxSize: (value: number | null) => string;
+  let objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
 
   function actionClass(tone: DemoAction["tone"]): string {
     if (tone === "accent") {
@@ -71,6 +72,8 @@
     }
     return "action-btn";
   }
+
+  $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
 </script>
 
 <article class="demo-card workbench-card" data-demo-tab="workbench">
@@ -574,31 +577,35 @@
             <span>{workbench?.rightSidebar.objectTree.summaryLabel ?? ""}</span>
           </div>
 
-          <div class="object-tree-body" role="tree" aria-label="Workbench object tree">
-            {#each workbench?.rightSidebar.objectTree.nodes ?? [] as node (node.id)}
-              <div
-                class="object-tree-node"
-                class:muted={node.muted ?? false}
-                role="treeitem"
-                aria-level={node.depth + 1}
-                aria-selected="false"
-                data-object-tree-node={node.id}
-                data-object-tree-kind={node.kind}
-                style={`--object-tree-depth: ${node.depth};`}
-              >
-                <div class="object-tree-text">
-                  <strong>{node.label}</strong>
-                  {#if node.detailLabel}
-                    <span class="object-tree-detail">{node.detailLabel}</span>
-                  {/if}
-                </div>
-                {#if node.badgeLabel}
-                  <span class="object-tree-badge">{node.badgeLabel}</span>
-                {/if}
-              </div>
-            {:else}
+          <div class="object-tree-body">
+            {#if objectTreeNodes.length === 0}
               <p class="object-tree-empty">{workbench?.rightSidebar.objectTree.emptyLabel ?? "No chart objects"}</p>
-            {/each}
+            {:else}
+              <div role="tree" aria-label="Workbench object tree">
+                {#each objectTreeNodes as node (node.id)}
+                  <!-- svelte-ignore a11y_role_has_required_aria_props -->
+                  <div
+                    class="object-tree-node"
+                    class:muted={node.muted ?? false}
+                    role="treeitem"
+                    aria-level={node.depth + 1}
+                    data-object-tree-node={node.id}
+                    data-object-tree-kind={node.kind}
+                    style={`--object-tree-depth: ${node.depth};`}
+                  >
+                    <div class="object-tree-text">
+                      <strong>{node.label}</strong>
+                      {#if node.detailLabel}
+                        <span class="object-tree-detail">{node.detailLabel}</span>
+                      {/if}
+                    </div>
+                    {#if node.badgeLabel}
+                      <span class="object-tree-badge">{node.badgeLabel}</span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
         </section>
 

@@ -63,6 +63,8 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
   const hostCards = layout.locator("[data-chart-host]");
   await expect(hostCards).toHaveCount(2);
   await workbenchAction(page, "host-main").click();
+  const liveChart = layout.locator(".live-chart");
+  await expect(liveChart).toHaveAttribute("style", /grid-area:\s*1\s*\/\s*1;/);
 
   const watchRows = workbench.locator('[data-watchlist-symbol]');
   await expect(watchRows.nth(1)).toHaveAttribute("data-watchlist-symbol", /.+/);
@@ -94,6 +96,7 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
 
   await workbenchAction(page, "host-secondary").click();
   await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(1);
+  await expect(liveChart).toHaveAttribute("style", /grid-area:\s*1\s*\/\s*2;/);
   const afterHostId = await activeHostCard().getAttribute("data-chart-host");
   expect(afterHostId).not.toBeNull();
   if (afterHostId === null) {

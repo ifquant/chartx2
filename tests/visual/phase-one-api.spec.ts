@@ -2536,6 +2536,112 @@ test("phase-one public api lets pane handles observe resize events", async ({ pa
   await expect(fixture).toHaveScreenshot("phase-one-api-pane-resize-events.png");
 });
 
+test("phase-one public api keeps fixed middle dividers interactive when a downstream pane is resizable", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const setup = await page.evaluate(async ({ bars, line, publicEntry }) => {
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ publicEntry);
+
+    document.body.innerHTML = `
+      <div id="api-linked-pane-resize-fixture" style="width: 760px; padding: 20px; background: #fffdf7;">
+        <canvas id="api-linked-pane-resize-canvas" aria-label="phase-one api linked pane resize chart"></canvas>
+      </div>
+    `;
+
+    const canvas = document.getElementById("api-linked-pane-resize-canvas");
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("API linked pane resize fixture did not create a canvas");
+    }
+
+    const chart = createChartxPhaseOneChart(canvas);
+    const fixedUpperPane = chart.addPane({ height: 100, resizable: false });
+    const fixedLowerPane = chart.addPane({ height: 90, resizable: false });
+    const resizablePane = chart.addPane({ height: 120, resizable: true });
+
+    const mainSeries = chart.addCandlestickSeries();
+    const upperSeries = chart.addLineSeries({ pane: fixedUpperPane });
+    const lowerSeries = chart.addLineSeries({ pane: fixedLowerPane });
+    const trailingSeries = chart.addLineSeries({ pane: resizablePane });
+
+    mainSeries.setData(bars);
+    upperSeries.setData(line);
+    lowerSeries.setData(line.map((point) => ({ ...point, value: point.value - 4 })));
+    trailingSeries.setData(line.map((point) => ({ ...point, value: point.value + 6 })));
+
+    const allPanes = chart.panes();
+    const initial = {
+      primary: allPanes[0]?.getHeight() ?? 0,
+      fixedUpper: fixedUpperPane.getHeight(),
+      fixedLower: fixedLowerPane.getHeight(),
+      trailing: resizablePane.getHeight(),
+      fixedUpperOptionHeight: fixedUpperPane.getOptions().height,
+      fixedLowerOptionHeight: fixedLowerPane.getOptions().height,
+      trailingOptionHeight: resizablePane.getOptions().height,
+    };
+
+    const dividerOffsetY = 28 + initial.primary + 10 + initial.fixedUpper + 5;
+
+    (window as Window & {
+      __linkedPaneResizeFixture?: {
+        fixedUpperPane: { getHeight(): number; getOptions(): { height: number } };
+        fixedLowerPane: { getHeight(): number; getOptions(): { height: number } };
+        resizablePane: { getHeight(): number; getOptions(): { height: number } };
+      };
+    }).__linkedPaneResizeFixture = {
+      fixedUpperPane,
+      fixedLowerPane,
+      resizablePane,
+    };
+
+    return {
+      dividerOffsetY,
+      plotOffsetX: 18 + ((760 - 18 - 18) * 0.52),
+      initial,
+    };
+  }, { bars: API_DATA, line: LINE_API_DATA, publicEntry: PUBLIC_ENTRY });
+
+  const canvas = page.getByLabel("phase-one api linked pane resize chart");
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  if (box === null) {
+    throw new Error("phase-one api linked pane resize canvas is missing");
+  }
+
+  await page.mouse.move(box.x + setup.plotOffsetX, box.y + setup.dividerOffsetY);
+  await page.mouse.down();
+  await page.mouse.move(box.x + setup.plotOffsetX, box.y + setup.dividerOffsetY + 70, { steps: 8 });
+  await page.mouse.up();
+
+  const result = await page.evaluate(() => {
+    const fixture = (window as Window & {
+      __linkedPaneResizeFixture?: {
+        fixedUpperPane: { getHeight(): number; getOptions(): { height: number } };
+        fixedLowerPane: { getHeight(): number; getOptions(): { height: number } };
+        resizablePane: { getHeight(): number; getOptions(): { height: number } };
+      };
+    }).__linkedPaneResizeFixture;
+
+    if (fixture === undefined) {
+      throw new Error("Linked pane resize fixture state is unavailable");
+    }
+
+    return {
+      fixedUpper: fixture.fixedUpperPane.getHeight(),
+      fixedLower: fixture.fixedLowerPane.getHeight(),
+      trailing: fixture.resizablePane.getHeight(),
+      fixedUpperOptionHeight: fixture.fixedUpperPane.getOptions().height,
+      fixedLowerOptionHeight: fixture.fixedLowerPane.getOptions().height,
+      trailingOptionHeight: fixture.resizablePane.getOptions().height,
+    };
+  });
+
+  expect(result.fixedUpperOptionHeight).toBe(setup.initial.fixedUpperOptionHeight);
+  expect(result.fixedLowerOptionHeight).toBe(setup.initial.fixedLowerOptionHeight);
+  expect(result.trailingOptionHeight).not.toBe(setup.initial.trailingOptionHeight);
+  expect(result.trailing).not.toBe(setup.initial.trailing);
+});
+
 test("phase-one public api exposes a chart-level pane event bus", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async ({ bars, volume, publicEntry }) => {

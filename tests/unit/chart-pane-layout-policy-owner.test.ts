@@ -3,6 +3,31 @@ import { describe, expect, it } from "vitest";
 import { createChartPaneLayoutPolicyOwner } from "../../src/lib/chartx/internal/views/chart-pane-layout-policy-owner";
 
 describe("chart pane layout policy owner", () => {
+  const adjacentActiveBlock = {
+    handle: {
+      dividerAfterPaneId: "primary",
+      dividerBeforePaneId: "pane-1",
+      block: {
+        controlledPaneId: "pane-1",
+        blockPaneIds: ["primary", "pane-1"],
+        startControlledHeight: 136,
+        startVariableSpan: 356,
+        minOpposingHeight: 160,
+      },
+    },
+    group: {
+      controlledPaneId: "pane-1",
+      opposingPaneId: "primary",
+      blockPaneIds: ["primary", "pane-1"],
+      participatingPaneIds: ["primary", "pane-1"],
+      variablePaneIds: ["primary", "pane-1"],
+      fixedPaneIds: [],
+      mode: "adjacent-lower" as const,
+    },
+    controlledPaneId: "pane-1",
+    controlsUpperPane: false,
+  };
+
   it("normalizes preferred heights through shared pane policy", () => {
     const owner = createChartPaneLayoutPolicyOwner();
 
@@ -13,23 +38,8 @@ describe("chart pane layout policy owner", () => {
 
   it("resolves controlled resize heights for primary-secondary dividers", () => {
     const owner = createChartPaneLayoutPolicyOwner();
-    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
-    const secondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 136, resizable: true };
 
-    expect(owner.resolveControlledResizeHeight(20, {
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-1",
-      block: {
-        controlledPaneId: "pane-1",
-        blockPaneIds: ["primary", "pane-1"],
-        startControlledHeight: 136,
-        startVariableSpan: 356,
-        minOpposingHeight: 160,
-      },
-    }, {
-      getPaneById: (paneId) => paneId === "primary" ? primary : paneId === "pane-1" ? secondary : undefined,
-      listPanes: () => [primary, secondary],
-    })).toEqual({
+    expect(owner.resolveControlledResizeHeight(20, adjacentActiveBlock, {})).toEqual({
       paneId: "pane-1",
       nextHeight: 116,
     });
@@ -37,72 +47,65 @@ describe("chart pane layout policy owner", () => {
 
   it("clamps resize output and ignores non-resizable dividers", () => {
     const owner = createChartPaneLayoutPolicyOwner();
-    const upperSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: true };
-    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 100, resizable: false };
 
     expect(owner.resolveControlledResizeHeight(480, {
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "primary",
-      block: {
-        controlledPaneId: "pane-1",
-        blockPaneIds: ["pane-1", "primary"],
-        startControlledHeight: 100,
-        startVariableSpan: 320,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "primary",
+        block: {
+          controlledPaneId: "pane-1",
+          blockPaneIds: ["pane-1", "primary"],
+          startControlledHeight: 100,
+          startVariableSpan: 320,
+          minOpposingHeight: 160,
+        },
       },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "pane-1"
-          ? upperSecondary
-          : paneId === "primary"
-            ? { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false }
-            : undefined,
-      listPanes: () => [upperSecondary, { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false }],
-    })).toEqual({
+      group: {
+        controlledPaneId: "pane-1",
+        opposingPaneId: "primary",
+        blockPaneIds: ["pane-1", "primary"],
+        participatingPaneIds: ["pane-1", "primary"],
+        variablePaneIds: ["pane-1", "primary"],
+        fixedPaneIds: [],
+        mode: "adjacent-upper",
+      },
+      controlledPaneId: "pane-1",
+      controlsUpperPane: true,
+    }, {})).toEqual({
       paneId: "pane-1",
       nextHeight: 160,
     });
 
-    expect(owner.resolveControlledResizeHeight(20, {
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-2",
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-2"],
-        startControlledHeight: 100,
-        startVariableSpan: 356,
-        minOpposingHeight: 160,
-      },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "pane-2"
-          ? lowerSecondary
-          : paneId === "primary"
-            ? { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false }
-            : undefined,
-      listPanes: () => [{ id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false }, lowerSecondary],
-    })).toBeNull();
+    expect(owner.resolveControlledResizeHeight(20, null, {})).toBeNull();
   });
 
   it("lets the lower secondary pane control a secondary-secondary divider when the upper pane is fixed", () => {
     const owner = createChartPaneLayoutPolicyOwner();
-    const upperSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
-    const lowerSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
 
     expect(owner.resolveControlledResizeHeight(40, {
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "pane-2",
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["pane-1", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 220,
-        minOpposingHeight: 72,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 220,
+          minOpposingHeight: 72,
+        },
       },
-    }, {
-      getPaneById: (paneId) => paneId === "pane-1" ? upperSecondary : paneId === "pane-2" ? lowerSecondary : undefined,
-      listPanes: () => [upperSecondary, lowerSecondary],
-    })).toEqual({
+      group: {
+        controlledPaneId: "pane-2",
+        opposingPaneId: "pane-1",
+        blockPaneIds: ["pane-1", "pane-2"],
+        participatingPaneIds: ["pane-1", "pane-2"],
+        variablePaneIds: ["pane-2"],
+        fixedPaneIds: ["pane-1"],
+        mode: "adjacent-lower",
+      },
+      controlledPaneId: "pane-2",
+      controlsUpperPane: false,
+    }, {})).toEqual({
       paneId: "pane-2",
       nextHeight: 80,
     });
@@ -143,26 +146,29 @@ describe("chart pane layout policy owner", () => {
     })).toBe("pane-2");
 
     expect(owner.resolveControlledResizeHeight(40, {
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-1",
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-1", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 340,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
+        },
       },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "primary"
-          ? primary
-          : paneId === "pane-1"
-            ? fixedSecondary
-            : paneId === "pane-2"
-              ? resizableSecondary
-              : undefined,
-      listPanes: () => [primary, fixedSecondary, resizableSecondary],
-    })).toEqual({
+      group: {
+        controlledPaneId: "pane-2",
+        opposingPaneId: "primary",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        participatingPaneIds: ["primary", "primary", "pane-1", "pane-2"],
+        variablePaneIds: ["primary", "pane-2"],
+        fixedPaneIds: ["pane-1"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-2",
+      controlsUpperPane: false,
+    }, {})).toEqual({
       paneId: "pane-2",
       nextHeight: 80,
     });
@@ -175,26 +181,29 @@ describe("chart pane layout policy owner", () => {
     const resizableSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
 
     expect(owner.resolveControlledResizeHeight(-120, {
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-1",
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-1", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 340,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
+        },
       },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "primary"
-          ? primary
-          : paneId === "pane-1"
-            ? fixedSecondary
-            : paneId === "pane-2"
-              ? resizableSecondary
-              : undefined,
-      listPanes: () => [primary, fixedSecondary, resizableSecondary],
-    })).toEqual({
+      group: {
+        controlledPaneId: "pane-2",
+        opposingPaneId: "primary",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        participatingPaneIds: ["primary", "primary", "pane-1", "pane-2"],
+        variablePaneIds: ["primary", "pane-2"],
+        fixedPaneIds: ["pane-1"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-2",
+      controlsUpperPane: false,
+    }, {})).toEqual({
       paneId: "pane-2",
       nextHeight: 180,
     });
@@ -222,34 +231,35 @@ describe("chart pane layout policy owner", () => {
     })).toBe("pane-3");
 
     expect(owner.resolveControlledResizeHeight(-180, {
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "pane-2",
-      block: {
-        controlledPaneId: "pane-3",
-        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
-        startControlledHeight: 120,
-        startVariableSpan: 420,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
+        },
       },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "primary"
-          ? primary
-          : paneId === "pane-1"
-            ? fixedUpper
-            : paneId === "pane-2"
-              ? fixedLower
-              : paneId === "pane-3"
-                ? resizableSecondary
-                : undefined,
-      listPanes: () => [primary, fixedUpper, fixedLower, resizableSecondary],
-    })).toEqual({
+      group: {
+        controlledPaneId: "pane-3",
+        opposingPaneId: "primary",
+        blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+        participatingPaneIds: ["primary", "pane-1", "pane-2", "pane-3"],
+        variablePaneIds: ["primary", "pane-3"],
+        fixedPaneIds: ["pane-1", "pane-2"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-3",
+      controlsUpperPane: false,
+    }, {})).toEqual({
       paneId: "pane-3",
       nextHeight: 260,
     });
   });
 
-  it("rejects move-time resize when pointer state block membership no longer matches the active block", () => {
+  it("treats the active resize block as the validated move-time contract", () => {
     const owner = createChartPaneLayoutPolicyOwner();
     const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
     const fixedUpper = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
@@ -257,27 +267,31 @@ describe("chart pane layout policy owner", () => {
     const resizableSecondary = { id: "pane-3", kind: "secondary" as const, preferredHeight: 120, resizable: true };
 
     expect(owner.resolveControlledResizeHeight(-180, {
-      dividerAfterPaneId: "pane-1",
-      dividerBeforePaneId: "pane-2",
-      block: {
-        controlledPaneId: "pane-3",
-        blockPaneIds: ["pane-1", "pane-3"],
-        startControlledHeight: 120,
-        startVariableSpan: 420,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "pane-1",
+        dividerBeforePaneId: "pane-2",
+        block: {
+          controlledPaneId: "pane-3",
+          blockPaneIds: ["pane-1", "pane-3"],
+          startControlledHeight: 120,
+          startVariableSpan: 420,
+          minOpposingHeight: 160,
+        },
       },
-    }, {
-      getPaneById: (paneId) =>
-        paneId === "primary"
-          ? primary
-          : paneId === "pane-1"
-            ? fixedUpper
-            : paneId === "pane-2"
-              ? fixedLower
-              : paneId === "pane-3"
-                ? resizableSecondary
-                : undefined,
-      listPanes: () => [primary, fixedUpper, fixedLower, resizableSecondary],
-    })).toBeNull();
+      group: {
+        controlledPaneId: "pane-3",
+        opposingPaneId: "primary",
+        blockPaneIds: ["pane-1", "pane-3"],
+        participatingPaneIds: ["primary", "pane-1", "pane-3"],
+        variablePaneIds: ["primary", "pane-3"],
+        fixedPaneIds: ["pane-1"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-3",
+      controlsUpperPane: false,
+    }, {})).toEqual({
+      paneId: "pane-3",
+      nextHeight: 260,
+    });
   });
 });

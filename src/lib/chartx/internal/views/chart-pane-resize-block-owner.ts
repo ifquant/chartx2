@@ -183,18 +183,12 @@ export function createChartPaneResizeBlockOwner() {
 
     resolveControlledResizeHeight(
       deltaY: number,
-      resizeHandle: PaneResizeHandle | null,
+      activeResizeBlock: PaneActiveResizeBlock | null,
       deps: {
-        getPaneById(paneId: string): PaneLike | undefined;
-        listPanes(): readonly PaneLike[];
         normalizeHeight(height: number): number;
       },
     ): { paneId: string; nextHeight: number } | null {
       const delta = Math.round(deltaY);
-      const activeResizeBlock = this.resolveActiveResizeBlock(
-        resizeHandle,
-        deps,
-      );
       if (activeResizeBlock === null) {
         return null;
       }

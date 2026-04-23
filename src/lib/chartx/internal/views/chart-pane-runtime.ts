@@ -233,11 +233,8 @@ export function applyPaneResize(
 
   const controlledResize = paneLayoutPolicyOwner.resolveControlledResizeHeight(
     clientY - resizeState.startClientY,
-    resizeState.activeBlock.handle,
-    {
-      getPaneById: deps.getPaneById,
-      listPanes: deps.listPanes,
-    },
+    resizeState.activeBlock,
+    {},
   );
   if (controlledResize === null) {
     return;

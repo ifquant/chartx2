@@ -179,26 +179,33 @@ describe("chart pane resize block owner", () => {
     });
   });
 
-  it("owns controlled resize height resolution from handle plus drag delta", () => {
+  it("owns controlled resize height resolution from active block plus drag delta", () => {
     const owner = createChartPaneResizeBlockOwner();
-    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
-    const fixedSecondary = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
-    const resizableSecondary = { id: "pane-2", kind: "secondary" as const, preferredHeight: 120, resizable: true };
-    const panes = [primary, fixedSecondary, resizableSecondary];
 
     expect(owner.resolveControlledResizeHeight(40, {
-      dividerAfterPaneId: "primary",
-      dividerBeforePaneId: "pane-1",
-      block: {
-        controlledPaneId: "pane-2",
-        blockPaneIds: ["primary", "pane-1", "pane-2"],
-        startControlledHeight: 120,
-        startVariableSpan: 340,
-        minOpposingHeight: 160,
+      handle: {
+        dividerAfterPaneId: "primary",
+        dividerBeforePaneId: "pane-1",
+        block: {
+          controlledPaneId: "pane-2",
+          blockPaneIds: ["primary", "pane-1", "pane-2"],
+          startControlledHeight: 120,
+          startVariableSpan: 340,
+          minOpposingHeight: 160,
+        },
       },
+      group: {
+        controlledPaneId: "pane-2",
+        opposingPaneId: "primary",
+        blockPaneIds: ["primary", "pane-1", "pane-2"],
+        participatingPaneIds: ["primary", "primary", "pane-1", "pane-2"],
+        variablePaneIds: ["primary", "pane-2"],
+        fixedPaneIds: ["pane-1"],
+        mode: "downstream",
+      },
+      controlledPaneId: "pane-2",
+      controlsUpperPane: false,
     }, {
-      getPaneById: (paneId) => panes.find((pane) => pane.id === paneId),
-      listPanes: () => panes,
       normalizeHeight: (height) => height,
     })).toEqual({
       paneId: "pane-2",

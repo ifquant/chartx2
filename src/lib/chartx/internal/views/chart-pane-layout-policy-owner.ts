@@ -3,7 +3,7 @@ import {
 } from "../model";
 import {
   createChartPaneResizeBlockOwner,
-  type PaneResizeHandle,
+  type PaneActiveResizeBlock,
 } from "./chart-pane-resize-block-owner";
 
 type PaneLike = {
@@ -61,15 +61,11 @@ export function createChartPaneLayoutPolicyOwner() {
 
     resolveControlledResizeHeight(
       deltaY: number,
-      resizeHandle: PaneResizeHandle | null,
+      activeResizeBlock: PaneActiveResizeBlock | null,
       deps: {
-        getPaneById(paneId: string): PaneLike | undefined;
-        listPanes(): readonly PaneLike[];
       },
     ): { paneId: string; nextHeight: number } | null {
-      return paneResizeBlockOwner.resolveControlledResizeHeight(deltaY, resizeHandle, {
-        getPaneById: deps.getPaneById,
-        listPanes: deps.listPanes,
+      return paneResizeBlockOwner.resolveControlledResizeHeight(deltaY, activeResizeBlock, {
         normalizeHeight: (height) => this.normalizePreferredHeight(height),
       });
     },

@@ -2062,7 +2062,7 @@ export function mountWorkbenchDemo(
             renkoBoxSizeMode: "auto",
             renkoBoxSize: null,
           });
-          publishSnapshot();
+          refreshObjectTreeProjectionAndPublish();
           return;
         case "renko-box-2":
           renkoMode = "fixed";
@@ -2071,7 +2071,7 @@ export function mountWorkbenchDemo(
             renkoBoxSizeMode: "fixed",
             renkoBoxSize: 2,
           });
-          publishSnapshot();
+          refreshObjectTreeProjectionAndPublish();
           return;
         case "renko-box-4":
           renkoMode = "fixed";
@@ -2080,7 +2080,7 @@ export function mountWorkbenchDemo(
             renkoBoxSizeMode: "fixed",
             renkoBoxSize: 4,
           });
-          publishSnapshot();
+          refreshObjectTreeProjectionAndPublish();
           return;
         case "renko-box-8":
           renkoMode = "fixed";
@@ -2089,7 +2089,7 @@ export function mountWorkbenchDemo(
             renkoBoxSizeMode: "fixed",
             renkoBoxSize: 8,
           });
-          publishSnapshot();
+          refreshObjectTreeProjectionAndPublish();
           return;
         case "main-heikin-ashi":
           switchMainChartType("heikin-ashi");

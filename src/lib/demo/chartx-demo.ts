@@ -33,6 +33,12 @@ import {
   type WorkbenchLayoutState,
 } from "$lib/chartx/public/workbench-layout";
 import {
+  createWorkbenchAlertsState,
+  toAlertSummaryModel,
+  type WorkbenchAlertsPersistenceProvider,
+  type WorkbenchAlertStateV1,
+} from "$lib/chartx/public/workbench-alerts";
+import {
   getWorkbenchIndicatorCatalogEntry,
   WORKBENCH_INDICATOR_CATALOG,
   type WorkbenchIndicatorCatalogEntry,
@@ -153,6 +159,7 @@ export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
   openSymbol?(symbol: string): Promise<boolean>;
+  createPriceAlert?(): Promise<boolean>;
   saveLayout?(): Promise<boolean>;
   restoreLayout?(): Promise<boolean>;
   resetLayout?(): Promise<boolean>;
@@ -184,11 +191,13 @@ export type WorkbenchDemoOptions = {
   initialSymbol?: string;
   initialTimeframe?: string;
   persistenceProvider?: WorkbenchLayoutPersistenceProvider;
+  alertsProvider?: WorkbenchAlertsPersistenceProvider;
 };
 
 type SnapshotPublisher = (snapshot: DemoSnapshot) => void;
 type EventLog = string[];
 type ThemeId = "warm" | "ink";
+type WorkbenchAlertState = WorkbenchAlertStateV1;
 type WorkbenchMainChartType = Exclude<PhaseOneMainChartType, "histogram">;
 export type WorkbenchDrawingTool = "none" | "horizontal-line" | "trend-line";
 type WorkbenchRenkoMode = "auto" | "fixed";
@@ -403,6 +412,118 @@ export function mountWorkbenchDemo(
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
   let activeIndicators: DemoActiveIndicator[] = [];
+  let workbenchAlerts: WorkbenchAlertState[] = [];
+
+  const latestActiveClose = (): number | null => {
+    const latestBar = activeBarsPayload.bars.at(-1);
+    return latestBar === undefined ? null : latestBar.close;
+  };
+
+  const latestActiveTimestamp = (): number => activeBarsPayload.bars.at(-1)?.time ?? Date.now();
+
+  const createDemoWorkbenchAlerts = (): WorkbenchAlertState[] => {
+    const basePrice = latestActiveClose() ?? 23_000;
+    const now = latestActiveTimestamp();
+    return [
+      {
+        id: "alert-demo-breakout",
+        label: `${activeSymbol} breakout`,
+        condition: {
+          kind: "price-crosses",
+          symbol: activeSymbol,
+          timeframe: activeTimeframe,
+          price: Math.round(basePrice) + 120,
+          direction: "above",
+        },
+        status: "armed",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "alert-demo-pullback",
+        label: `${activeSymbol} pullback`,
+        condition: {
+          kind: "price-crosses",
+          symbol: activeSymbol,
+          timeframe: activeTimeframe,
+          price: Math.round(basePrice) - 160,
+          direction: "below",
+        },
+        status: "armed",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  };
+
+  const isActivePriceAlertTriggered = (alert: WorkbenchAlertState, close: number): boolean => {
+    const condition = alert.condition;
+    if (
+      alert.status !== "armed" ||
+      condition.kind !== "price-crosses" ||
+      condition.symbol !== activeSymbol ||
+      condition.timeframe !== activeTimeframe
+    ) {
+      return false;
+    }
+    if (condition.direction === "above") {
+      return close >= condition.price;
+    }
+    if (condition.direction === "below") {
+      return close <= condition.price;
+    }
+    return close >= condition.price || close <= condition.price;
+  };
+
+  const evaluateActivePriceAlerts = (): boolean => {
+    const close = latestActiveClose();
+    if (close === null) {
+      return false;
+    }
+
+    let changed = false;
+    const triggeredAt = latestActiveTimestamp();
+    workbenchAlerts = workbenchAlerts.map((alert) => {
+      if (!isActivePriceAlertTriggered(alert, close)) {
+        return alert;
+      }
+      changed = true;
+      return {
+        ...alert,
+        status: "triggered",
+        updatedAt: triggeredAt,
+        triggeredAt,
+      };
+    });
+    return changed;
+  };
+
+  const saveWorkbenchAlerts = async (): Promise<boolean> => {
+    const provider = options.alertsProvider;
+    if (provider === undefined) {
+      return true;
+    }
+    return provider.saveWorkbenchAlerts(createWorkbenchAlertsState({ alerts: workbenchAlerts }));
+  };
+
+  const persistEvaluatedWorkbenchAlerts = () => {
+    if (!evaluateActivePriceAlerts() || options.alertsProvider === undefined) {
+      return;
+    }
+    void saveWorkbenchAlerts().catch((error: unknown) => {
+      if (destroyed) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      pushLog(log, `failed to save evaluated alerts: ${message}`);
+      publishSnapshot();
+    });
+  };
+
+  if (options.alertsProvider === undefined) {
+    workbenchAlerts = createDemoWorkbenchAlerts();
+    evaluateActivePriceAlerts();
+  }
 
   const workbenchSeries = (_chartType: WorkbenchMainChartType) => {
     const bars = activeBarsPayload.bars;
@@ -606,10 +727,7 @@ export function mountWorkbenchDemo(
         : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
 
     const activeWatchlistItemId = workbenchWatchlist.find((item) => item.symbol === activeSymbol)?.id;
-    const workbenchAlerts: AlertSummaryModel[] = [
-      { id: "alert-breakout", label: "NDX breakout", conditionLabel: "Price crosses 23,250", status: "armed" },
-      { id: "alert-draw", label: "Trend line touch", conditionLabel: "Trend line revisit on 1D", status: "armed" },
-    ];
+    const alertItems: AlertSummaryModel[] = workbenchAlerts.map(toAlertSummaryModel);
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -620,7 +738,7 @@ export function mountWorkbenchDemo(
       activeToolId: drawingTool,
       watchlistItems: workbenchWatchlist,
       activeWatchlistItemId,
-      alertItems: workbenchAlerts,
+      alertItems,
       activeRange: activeTimeframe,
       layoutPreset: "single",
       chartHosts: [
@@ -761,6 +879,27 @@ export function mountWorkbenchDemo(
     });
   };
 
+  if (options.alertsProvider !== undefined) {
+    options.alertsProvider
+      .loadWorkbenchAlerts()
+      .then((state) => {
+        if (destroyed) {
+          return;
+        }
+        workbenchAlerts = state === null ? [] : [...state.alerts];
+        persistEvaluatedWorkbenchAlerts();
+        publishSnapshot();
+      })
+      .catch((error: unknown) => {
+        if (destroyed) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to load alerts: ${message}`);
+        publishSnapshot();
+      });
+  }
+
   hostAdapter.listWatchlistItems()
     .then((items) => {
       if (destroyed) {
@@ -802,6 +941,10 @@ export function mountWorkbenchDemo(
         latestClick = null;
         latestReadout = null;
         mainChartType = "candlestick";
+        if (options.alertsProvider === undefined) {
+          workbenchAlerts = createDemoWorkbenchAlerts();
+        }
+        persistEvaluatedWorkbenchAlerts();
         pushLog(log, `opened initial symbol ${activeSymbol} from host`);
         rebuild();
       })
@@ -862,6 +1005,7 @@ export function mountWorkbenchDemo(
     latestClick = null;
     latestReadout = null;
     mainChartType = input.chartType ?? "candlestick";
+    persistEvaluatedWorkbenchAlerts();
     if (input.successLog !== undefined) {
       pushLog(log, input.successLog(activeSymbol));
     }
@@ -1852,6 +1996,60 @@ export function mountWorkbenchDemo(
         successLog: (openedSymbol) => `opened symbol ${openedSymbol} from watchlist`,
         failureLogPrefix: `failed to open ${symbol}`,
       });
+    },
+    async createPriceAlert() {
+      const latestClose = latestActiveClose();
+      if (latestClose === null) {
+        pushLog(log, `failed to create alert ${activeSymbol}: no active close`);
+        publishSnapshot();
+        return false;
+      }
+
+      const now = latestActiveTimestamp();
+      const targetPrice = Math.round(latestClose) + 25;
+      const alert: WorkbenchAlertState = {
+        id: `alert-${activeSymbol.toLowerCase()}-${activeTimeframe.toLowerCase()}-${workbenchAlerts.length + 1}`,
+        label: `${activeSymbol} price cross`,
+        condition: {
+          kind: "price-crosses",
+          symbol: activeSymbol,
+          timeframe: activeTimeframe,
+          price: targetPrice,
+          direction: "above",
+        },
+        status: "armed",
+        createdAt: now,
+        updatedAt: now,
+      };
+      const previousAlerts = workbenchAlerts;
+      workbenchAlerts = [...workbenchAlerts, alert];
+      evaluateActivePriceAlerts();
+
+      try {
+        const saved = await saveWorkbenchAlerts();
+        if (destroyed) {
+          return false;
+        }
+        if (!saved) {
+          workbenchAlerts = previousAlerts;
+          pushLog(log, `failed to create alert ${activeSymbol}: alerts provider rejected the alert`);
+          publishSnapshot();
+          return false;
+        }
+      } catch (error) {
+        if (destroyed) {
+          return false;
+        }
+        workbenchAlerts = previousAlerts;
+        const message = error instanceof Error ? error.message : String(error);
+        pushLog(log, `failed to create alert ${activeSymbol}: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+
+      pushLog(log, `created alert ${activeSymbol} price crosses ${targetPrice.toFixed(2)}`);
+      publishSnapshot();
+      return true;
     },
     async saveLayout() {
       layoutOperationSequence += 1;

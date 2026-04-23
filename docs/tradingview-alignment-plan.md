@@ -375,6 +375,17 @@ Acceptance:
 - Alerts evaluate against chart state without owning chart internals.
 - Triggered alert state survives local restore.
 
+Implementation note:
+
+- Alerts V0 now has a separate public V1 state contract and localStorage
+  provider instead of storing alert records inside the saved layout snapshot.
+- The demo controller owns the Workbench alert runtime list, projects persisted
+  alert records into the sidebar summary model, and creates deterministic
+  active-symbol price-cross alerts from the Workbench Alerts card.
+- V0 intentionally remains local and narrow: no drawing alerts, indicator
+  alerts, cloud sync, notification delivery, edit/delete flows, or
+  broker/order behavior are included yet.
+
 ### 6. Object Tree And Inspector
 
 Purpose:

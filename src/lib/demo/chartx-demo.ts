@@ -870,6 +870,7 @@ export function mountWorkbenchDemo(
   };
 
   const rebuild = () => {
+    activeIndicators = [];
     const {
       bars,
       volume,

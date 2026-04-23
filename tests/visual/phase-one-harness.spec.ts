@@ -441,6 +441,28 @@ test("workbench opens a watchlist symbol through the host adapter", async ({ pag
   await expect(watchlist.getByRole("button", { name: /SPX/ })).toHaveClass(/active/);
 });
 
+test("workbench saves and restores the active layout locally", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const workbench = page.locator('[data-demo-tab="workbench"]');
+  const watchlist = workbench.locator(".watch-card").first();
+
+  await watchlist.getByRole("button", { name: /SPX/ }).click();
+  await expect(workbench).toContainText("SPX Workbench");
+
+  await workbench.getByRole("button", { name: "Save layout", exact: true }).click();
+  await expect(workbench).toContainText("saved layout SPX");
+
+  await workbench.getByRole("button", { name: "Reset layout", exact: true }).click();
+  await expect(workbench).toContainText("NDX Workbench");
+
+  await workbench.getByRole("button", { name: "Restore layout", exact: true }).click();
+  await expect(workbench).toContainText("SPX Workbench");
+  await expect(workbench).toContainText("restored layout SPX");
+});
+
 test("features renders the panes tab as a deterministic grouped example baseline", async ({
   page,
 }) => {

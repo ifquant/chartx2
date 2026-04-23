@@ -38,6 +38,9 @@
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
+  export let onSaveLayout: () => void;
+  export let onRestoreLayout: () => void;
+  export let onResetLayout: () => void;
   export let onPointerMove: (event: PointerEvent) => void;
   export let onPointerLeave: () => void;
   export let onSetPointFigureAutoScale: (value: number) => void;
@@ -87,6 +90,9 @@
       <button>{workbench?.toolbar.alertLabel ?? "Alert"}</button>
       <button>{workbench?.toolbar.replayLabel ?? "Replay"}</button>
       <button>{workbench?.toolbar.layoutLabel ?? "Layout single"}</button>
+      <button on:click={onSaveLayout}>Save layout</button>
+      <button on:click={onRestoreLayout}>Restore layout</button>
+      <button on:click={onResetLayout}>Reset layout</button>
     </div>
   </div>
 

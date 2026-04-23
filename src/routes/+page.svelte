@@ -7,6 +7,10 @@
     type PhaseOneReadoutDetail,
   } from "$lib/chartx/public/market";
   import {
+    createLocalStorageWorkbenchLayoutProvider,
+    type WorkbenchLayoutPersistenceProvider,
+  } from "$lib/chartx/public/workbench-layout";
+  import {
     FEATURE_TABS,
     mountFeatureDemo,
     mountWorkbenchDemo,
@@ -128,6 +132,7 @@
   let mountingPerformance = false;
   let mountingFeature = false;
   const workbenchTradeIntentBridge = createWorkbenchTradeIntentBridge();
+  let workbenchPersistenceProvider: WorkbenchLayoutPersistenceProvider | undefined;
 
   let workbenchReadout = emptyReadout();
   let featureReadout = emptyReadout();
@@ -150,6 +155,7 @@
   let workbenchToolPointer: { x: number; y: number } | null = null;
 
   onMount(() => {
+    workbenchPersistenceProvider = createLocalStorageWorkbenchLayoutProvider(window.localStorage);
     void mountWorkbenchWhenReady();
 
     return () => {
@@ -301,6 +307,8 @@
       workbenchController = mountWorkbenchDemo(workbenchCanvas, (snapshot) => {
         workbenchSnapshot = snapshot;
         workbenchTradeIntentBridge.publishSnapshot();
+      }, {
+        persistenceProvider: workbenchPersistenceProvider,
       });
       workbenchTradeIntentBridge.connect(workbenchController);
       workbenchActions = workbenchController.actions();
@@ -398,6 +406,31 @@
   async function openWorkbenchSymbol(symbol: string): Promise<void> {
     const opened = await workbenchController?.openSymbol?.(symbol);
     if (opened) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function saveWorkbenchLayout(): Promise<void> {
+    const saved = await workbenchController?.saveLayout?.();
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function restoreWorkbenchLayout(): Promise<void> {
+    const restored = await workbenchController?.restoreLayout?.();
+    if (restored) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function resetWorkbenchLayout(): Promise<void> {
+    const savedLayout = await workbenchPersistenceProvider?.loadWorkbenchLayout();
+    const reset = await workbenchController?.resetLayout?.();
+    if (reset) {
+      if (savedLayout !== undefined && savedLayout !== null) {
+        await workbenchPersistenceProvider?.saveWorkbenchLayout(savedLayout);
+      }
       workbenchActions = workbenchController?.actions() ?? [];
     }
   }
@@ -770,6 +803,15 @@
           onSetDrawingTool={setWorkbenchDrawingTool}
           onOpenWatchlistSymbol={(symbol) => {
             void openWorkbenchSymbol(symbol);
+          }}
+          onSaveLayout={() => {
+            void saveWorkbenchLayout();
+          }}
+          onRestoreLayout={() => {
+            void restoreWorkbenchLayout();
+          }}
+          onResetLayout={() => {
+            void resetWorkbenchLayout();
           }}
           onPointerMove={handleWorkbenchChartPointerMove}
           onPointerLeave={clearWorkbenchToolPointer}

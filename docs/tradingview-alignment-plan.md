@@ -443,6 +443,23 @@ Acceptance:
 - Multiple chart hosts can coexist without sharing runtime state accidentally.
 - Watchlist open and saved layout flows target the active chart.
 
+Implementation note:
+
+- Multi-Chart Layout V0 is currently shell-first. The public workbench contract
+  already models layout presets, slots, and active-host routing, and the demo
+  workbench can render a visible split host shell with main/secondary host
+  cards plus active-host switching.
+- The executable slice is still limited to one live market chart runtime/canvas.
+  In split mode, the active host owns that single live canvas while inactive
+  hosts render summary cards only; there is not yet true simultaneous
+  multi-runtime rendering.
+- Active-host routing is real in the current code: watchlist symbol-open and
+  saved-layout save/restore/reset flows operate on the active host record, with
+  split-layout logs explicitly marked as active-host-only.
+- The broader scope listed above remains deferred: no real 2x2 runtime layout
+  yet, no simultaneous multi-runtime/canvas layout, and no sync groups for
+  symbol, interval, or crosshair behavior.
+
 ### 8. Bar Replay V0
 
 Purpose:

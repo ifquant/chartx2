@@ -50,4 +50,30 @@ describe("workbench indicator catalog", () => {
       expect(entry.enabled).toBe(true);
     }
   });
+
+  it("maps catalog entries to the expected controller dispatch targets", () => {
+    expect(
+      WORKBENCH_INDICATOR_CATALOG.map((entry) => ({
+        id: entry.id,
+        engineKind: entry.engineKind,
+        placement: entry.placement,
+      })),
+    ).toEqual([
+      {
+        id: "moving-average",
+        engineKind: "moving-average",
+        placement: "separate-pane",
+      },
+      {
+        id: "compare",
+        engineKind: "compare",
+        placement: "overlay",
+      },
+      {
+        id: "overlay-line",
+        engineKind: "overlay",
+        placement: "overlay",
+      },
+    ]);
+  });
 });

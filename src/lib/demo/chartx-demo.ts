@@ -33,6 +33,11 @@ import {
   type WorkbenchLayoutState,
 } from "$lib/chartx/public/workbench-layout";
 import {
+  getWorkbenchIndicatorCatalogEntry,
+  WORKBENCH_INDICATOR_CATALOG,
+  type WorkbenchIndicatorCatalogEntry,
+} from "$lib/chartx/public/workbench-indicators";
+import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
   type WorkbenchHostAdapter,
@@ -92,12 +97,21 @@ export type DemoMetric = {
   value: string;
 };
 
+type DemoActiveIndicator = {
+  id: string;
+  label: string;
+  kind: WorkbenchIndicatorCatalogEntry["engineKind"];
+  placement: WorkbenchIndicatorCatalogEntry["placement"];
+};
+
 export type DemoSnapshot = {
   title: string;
   summary: string;
   metrics: readonly DemoMetric[];
   eventLog: readonly string[];
   workbench?: ChartWorkbenchModel | null;
+  indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
+  activeIndicators?: readonly DemoActiveIndicator[];
   note?: string;
   featureGap?: string;
   drawingTool?: {
@@ -142,6 +156,7 @@ export type DemoController = {
   saveLayout?(): Promise<boolean>;
   restoreLayout?(): Promise<boolean>;
   resetLayout?(): Promise<boolean>;
+  addIndicatorFromCatalog?(entryId: string): boolean;
   locateTrade?(intent: TradeLocationIntent): boolean;
   applySelectedDrawingOptions?(options: Record<string, unknown>): void;
   setDrawingTool?(tool: WorkbenchDrawingTool): void;
@@ -387,6 +402,7 @@ export function mountWorkbenchDemo(
   let paneSnapshot: readonly PhaseOnePaneState[] = [];
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
+  let activeIndicators: DemoActiveIndicator[] = [];
 
   const workbenchSeries = (_chartType: WorkbenchMainChartType) => {
     const bars = activeBarsPayload.bars;
@@ -623,6 +639,8 @@ export function mountWorkbenchDemo(
       summary:
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       workbench: workbenchModel,
+      indicatorCatalog: WORKBENCH_INDICATOR_CATALOG,
+      activeIndicators: [...activeIndicators],
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
         { label: "Main type", value: formatWorkbenchChartType(mainChartType) },
@@ -1236,6 +1254,18 @@ export function mountWorkbenchDemo(
 
   rebuild();
 
+  const addActiveIndicator = (entry: WorkbenchIndicatorCatalogEntry) => {
+    activeIndicators = [
+      ...activeIndicators,
+      {
+        id: entry.id,
+        label: entry.label,
+        kind: entry.engineKind,
+        placement: entry.placement,
+      },
+    ];
+  };
+
   return {
     actions() {
       return [
@@ -1757,6 +1787,59 @@ export function mountWorkbenchDemo(
         return;
       }
       publishSnapshot();
+    },
+    addIndicatorFromCatalog(entryId) {
+      const entry = getWorkbenchIndicatorCatalogEntry(entryId);
+      if (entry === null) {
+        pushLog(log, `failed to add indicator ${entryId}: unknown catalog entry`);
+        publishSnapshot();
+        return false;
+      }
+      if (!entry.enabled) {
+        pushLog(log, `failed to add indicator ${entry.label}: ${entry.unavailableReason ?? "disabled"}`);
+        publishSnapshot();
+        return false;
+      }
+      if (chart === null) {
+        pushLog(log, `failed to add indicator ${entry.label}: chart unavailable`);
+        publishSnapshot();
+        return false;
+      }
+
+      if (entry.engineKind === "moving-average") {
+        const pane = chart.addPane({ height: 126 });
+        const study = chart.addMovingAverageStudy({ pane });
+        study.applyStudyOptions({ length: 20 });
+        addActiveIndicator(entry);
+        pushLog(log, "added indicator Moving Average");
+        publishSnapshot();
+        return true;
+      }
+
+      if (entry.engineKind === "compare") {
+        const compare = chart.addCompareSeries();
+        compare.applyCompareOptions({
+          requestedSymbol: activeSymbol,
+          requestedResolution: activeTimeframe,
+          inputContextMode: "chart-context",
+          affectMainScale: false,
+        });
+        addActiveIndicator(entry);
+        pushLog(log, "added indicator Compare");
+        publishSnapshot();
+        return true;
+      }
+
+      const overlay = chart.addOverlaySeries();
+      overlay.applyOptions({
+        color: theme === "warm" ? "#c2410c" : "#38bdf8",
+        lineWidth: 3,
+      });
+      overlay.setData(activeBarsPayload.line);
+      addActiveIndicator(entry);
+      pushLog(log, "added indicator Overlay Line");
+      publishSnapshot();
+      return true;
     },
     async openSymbol(symbol) {
       layoutOperationSequence += 1;

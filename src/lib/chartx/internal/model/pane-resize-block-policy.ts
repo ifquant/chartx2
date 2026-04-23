@@ -22,6 +22,13 @@ export type PaneResizeBlockSnapshot = {
   minOpposingHeight: number;
 };
 
+export type PaneResizeBlockStateLike = {
+  dividerAfterPaneId: string;
+  dividerBeforePaneId: string;
+  controlledPaneId: string;
+  blockPaneIds: readonly string[];
+};
+
 const MIN_PRIMARY_HEIGHT = 160;
 const MIN_CONTROLLED_HEIGHT = 72;
 
@@ -112,4 +119,25 @@ export function resolvePaneResizeBlockSnapshot<PaneType extends PaneResizeTarget
         ? MIN_PRIMARY_HEIGHT
         : MIN_CONTROLLED_HEIGHT,
   };
+}
+
+export function resolvePaneResizeBlockFromState<PaneType extends PaneResizeTargetCandidate>(
+  panes: readonly PaneType[],
+  resizeState: PaneResizeBlockStateLike,
+): PaneResizeBlock | null {
+  const resizeBlock = resolvePaneResizeBlock(
+    panes,
+    resizeState.dividerAfterPaneId,
+    resizeState.dividerBeforePaneId,
+    resizeState.controlledPaneId,
+  );
+  if (resizeBlock === null) {
+    return null;
+  }
+  if (resizeBlock.blockPaneIds.length !== resizeState.blockPaneIds.length) {
+    return null;
+  }
+  return resizeBlock.blockPaneIds.every((paneId, index) => paneId === resizeState.blockPaneIds[index])
+    ? resizeBlock
+    : null;
 }

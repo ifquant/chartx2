@@ -1,5 +1,6 @@
 import {
   normalizePaneHeight,
+  resolvePaneResizeBlockFromState,
   resolvePaneResizeBlockSnapshot,
   resolvePaneResizeTargetId,
 } from "../model";
@@ -83,36 +84,15 @@ export function createChartPaneLayoutPolicyOwner() {
       }
 
       const delta = Math.round(clientY - resizeState.startClientY);
-      const upperPane = deps.getPaneById(resizeState.dividerAfterPaneId);
-      const lowerPane = deps.getPaneById(resizeState.dividerBeforePaneId);
-      if (upperPane === undefined || lowerPane === undefined) {
+      const resizeBlock = resolvePaneResizeBlockFromState(deps.listPanes(), resizeState);
+      if (resizeBlock === null) {
         return null;
       }
-
-      const explicitControlledPane =
-        resizeState.controlledPaneId === upperPane.id
-          ? upperPane
-          : resizeState.controlledPaneId === lowerPane.id
-            ? lowerPane
-            : null;
-      const controlledPaneId =
-        explicitControlledPane !== null
-        && explicitControlledPane.kind === "secondary"
-        && explicitControlledPane.resizable
-          ? explicitControlledPane.id
-          : this.resolveControlledPaneId(
-            resizeState.dividerAfterPaneId,
-            resizeState.dividerBeforePaneId,
-            deps,
-          );
-      if (controlledPaneId === null) {
-        return null;
-      }
-      const controlledPane = deps.getPaneById(controlledPaneId);
+      const controlledPane = deps.getPaneById(resizeBlock.controlledPaneId);
       if (controlledPane === undefined || controlledPane.kind !== "secondary" || !controlledPane.resizable) {
         return null;
       }
-      const controlsUpperPane = controlledPane.id === upperPane.id;
+      const controlsUpperPane = controlledPane.id === resizeBlock.upperPaneId;
 
       const requestedHeight = controlsUpperPane
         ? resizeState.startControlledHeight + delta

@@ -241,4 +241,35 @@ describe("chart pane layout policy owner", () => {
       nextHeight: 260,
     });
   });
+
+  it("rejects move-time resize when pointer state block membership no longer matches the active block", () => {
+    const owner = createChartPaneLayoutPolicyOwner();
+    const primary = { id: "primary", kind: "primary" as const, preferredHeight: null, resizable: false };
+    const fixedUpper = { id: "pane-1", kind: "secondary" as const, preferredHeight: 100, resizable: false };
+    const fixedLower = { id: "pane-2", kind: "secondary" as const, preferredHeight: 90, resizable: false };
+    const resizableSecondary = { id: "pane-3", kind: "secondary" as const, preferredHeight: 120, resizable: true };
+
+    expect(owner.resolveControlledResizeHeight(-160, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      blockPaneIds: ["pane-1", "pane-3"],
+      startClientY: 20,
+      startControlledHeight: 120,
+      startVariableSpan: 420,
+      minOpposingHeight: 160,
+    }, {
+      getPaneById: (paneId) =>
+        paneId === "primary"
+          ? primary
+          : paneId === "pane-1"
+            ? fixedUpper
+            : paneId === "pane-2"
+              ? fixedLower
+              : paneId === "pane-3"
+                ? resizableSecondary
+                : undefined,
+      listPanes: () => [primary, fixedUpper, fixedLower, resizableSecondary],
+    })).toBeNull();
+  });
 });

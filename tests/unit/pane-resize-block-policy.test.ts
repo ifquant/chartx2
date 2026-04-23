@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolvePaneResizeBlock,
+  resolvePaneResizeBlockFromState,
   resolvePaneResizeBlockSnapshot,
 } from "../../src/lib/chartx/internal/model";
 
@@ -109,5 +110,44 @@ describe("pane resize block policy", () => {
     ];
 
     expect(resolvePaneResizeBlockSnapshot(panes, frames, "primary", "pane-1", "pane-1")).toBeNull();
+  });
+
+  it("rebuilds a resize block from pointer state when block membership still matches", () => {
+    const panes = [
+      { id: "primary", kind: "primary" as const, resizable: false },
+      { id: "pane-1", kind: "secondary" as const, resizable: false },
+      { id: "pane-2", kind: "secondary" as const, resizable: false },
+      { id: "pane-3", kind: "secondary" as const, resizable: true },
+    ];
+
+    expect(resolvePaneResizeBlockFromState(panes, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+    })).toEqual({
+      upperPaneId: "pane-1",
+      lowerPaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      opposingPaneId: "primary",
+      blockPaneIds: ["pane-1", "pane-2", "pane-3"],
+      mode: "downstream",
+    });
+  });
+
+  it("rejects pointer state whose block membership drifted from the current pane block", () => {
+    const panes = [
+      { id: "primary", kind: "primary" as const, resizable: false },
+      { id: "pane-1", kind: "secondary" as const, resizable: false },
+      { id: "pane-2", kind: "secondary" as const, resizable: false },
+      { id: "pane-3", kind: "secondary" as const, resizable: true },
+    ];
+
+    expect(resolvePaneResizeBlockFromState(panes, {
+      dividerAfterPaneId: "pane-1",
+      dividerBeforePaneId: "pane-2",
+      controlledPaneId: "pane-3",
+      blockPaneIds: ["pane-1", "pane-3"],
+    })).toBeNull();
   });
 });

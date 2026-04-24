@@ -151,6 +151,7 @@
   let customScriptImportExpressionInput = "";
   let customScriptImportError: string | null = null;
   let customScriptFilter = "";
+  let customScriptSortMode: "newest" | "label" | "in-use" = "newest";
   let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
   let customScriptDefaultLengthErrorMessage: string | null = null;
   let customScriptLaunchErrors: Record<string, string | null> = {};
@@ -266,6 +267,27 @@
       script.description.toLowerCase().includes(needle) ||
       script.expressionText.toLowerCase().includes(needle)
     );
+  }
+
+  function customScriptSequenceValue(scriptId: string): number {
+    const suffix = Number(scriptId.replace("custom-script-", ""));
+    return Number.isFinite(suffix) ? suffix : 0;
+  }
+
+  function compareCustomScripts(
+    left: DemoCustomScriptLibraryEntry,
+    right: DemoCustomScriptLibraryEntry,
+    mode: "newest" | "label" | "in-use",
+  ): number {
+    if (mode === "label") {
+      return left.label.localeCompare(right.label);
+    }
+    if (mode === "in-use") {
+      if (Boolean(left.inUse) !== Boolean(right.inUse)) {
+        return left.inUse ? -1 : 1;
+      }
+    }
+    return customScriptSequenceValue(right.id) - customScriptSequenceValue(left.id);
   }
 
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
@@ -513,9 +535,9 @@
     customScriptLaunchErrors = nextErrors;
     customScriptLaunchPayloads = nextPayloads;
   }
-  $: filteredCustomScripts = (snapshot.customScripts ?? []).filter((script) =>
-    matchesCustomScriptFilter(script, customScriptFilter),
-  );
+  $: filteredCustomScripts = [...(snapshot.customScripts ?? [])]
+    .filter((script) => matchesCustomScriptFilter(script, customScriptFilter))
+    .sort((left, right) => compareCustomScripts(left, right, customScriptSortMode));
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
       const host = slot.chartHostId
@@ -1164,6 +1186,14 @@
                 data-custom-script-filter
                 placeholder="label, short label, or expression"
               />
+            </label>
+            <label class="script-input-field">
+              <span>Sort saved scripts</span>
+              <select bind:value={customScriptSortMode} data-custom-script-sort>
+                <option value="newest">Newest first</option>
+                <option value="label">Label A-Z</option>
+                <option value="in-use">In use first</option>
+              </select>
             </label>
             <button
               type="button"

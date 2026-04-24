@@ -793,6 +793,50 @@ test("script library: local filter narrows saved scripts without touching runtim
   await expect(workbench.locator("[data-custom-script-filter-clear]")).toBeDisabled();
 });
 
+test("script library: local sort reorders saved scripts without changing runtime state", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "Alpha Spread",
+    shortLabel: "Alpha",
+    description: "Alpha expression.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "7",
+  });
+  await expect(workbench).toContainText("saved custom script Alpha Spread");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText("Alpha Spread");
+  await saveCustomScript(page, {
+    label: "Zulu Spread",
+    shortLabel: "Zulu",
+    description: "Zulu expression.",
+    expressionText: "sma(hlc3, length)",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+  await expect(workbench).toContainText("saved custom script Zulu Spread");
+  await expect(workbench.locator('[data-custom-script="custom-script-2"]')).toContainText("Zulu Spread");
+
+  const rows = workbench.locator("[data-custom-script]");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("Zulu Spread");
+  await expect(rows.nth(1)).toContainText("Alpha Spread");
+
+  await workbench.locator("[data-custom-script-sort]").selectOption("label");
+  await expect(rows.nth(0)).toContainText("Alpha Spread");
+  await expect(rows.nth(1)).toContainText("Zulu Spread");
+
+  await addCustomScriptFromLibrary(page, "custom-script-1", "5");
+  await workbench.locator("[data-custom-script-sort]").selectOption("in-use");
+  await expect(rows.nth(0)).toContainText("Alpha Spread");
+  await expect(rows.nth(0).locator('[data-custom-script-in-use="custom-script-1"]')).toContainText(
+    "In use on an active chart.",
+  );
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

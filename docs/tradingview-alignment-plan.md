@@ -690,6 +690,7 @@ Progress checklist:
 - [x] Saved custom-script rows surface in-use state and fence edit/delete affordances
 - [x] Script Library import text can resync to the current builder expression
 - [x] Script Library can locally filter saved scripts without touching runtime state
+- [x] Script Library can locally sort saved scripts for management views
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -761,6 +762,9 @@ Implementation note:
   widening runtime scope: saved custom scripts can now be filtered locally by
   metadata or expression text, and the empty/count states follow the filtered
   view instead of the raw library length.
+- `Script Library Sort V0` continues that local management line: saved scripts
+  can now be reordered by recency, alphabetical label, or in-use priority
+  without changing any runtime or persistence contracts.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

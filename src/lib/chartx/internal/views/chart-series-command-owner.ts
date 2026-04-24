@@ -8,6 +8,7 @@ import {
 import {
   createCompareStudySeriesApi,
   createMovingAverageStudySeriesApi,
+  createScriptedStudySeriesApi,
   createSecondaryAreaSeriesApi,
   createSecondaryBarSeriesApi,
   createSecondaryBaselineSeriesApi,
@@ -29,6 +30,7 @@ import type {
   PhaseOneMovingAverageStudyApi,
   PhaseOneOverlaySeriesApi,
   PhaseOneSeriesTarget,
+  PhaseOneScriptedStudyOptions,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesTarget,
 } from "./chart-api-types";
@@ -47,6 +49,11 @@ type SeriesApi =
 
 type RemovedSource = {
   role: string;
+};
+
+type ScriptedStudyApi = PhaseOneLineSeriesApi & {
+  applyStudyOptions(options: PhaseOneScriptedStudyOptions): void;
+  getStudyOptions(): Required<PhaseOneScriptedStudyOptions>;
 };
 
 export function createChartSeriesCommandOwner(deps: {
@@ -202,6 +209,19 @@ export function createChartSeriesCommandOwner(deps: {
         },
         createApi: (apiDeps) => createMovingAverageStudySeriesApi(apiDeps),
       });
+    },
+    addScriptedStudyToPane(
+      paneId: string,
+      studyOptions: PhaseOneScriptedStudyOptions,
+    ): ScriptedStudyApi {
+      return deps.addLineStudySeries(paneId, "indicator", {
+        indicator: {
+          kind: "scripted-study",
+          scriptId: studyOptions.scriptId,
+          inputValues: { ...(studyOptions.inputValues ?? {}) },
+        },
+        createApi: (apiDeps) => createScriptedStudySeriesApi(apiDeps),
+      }) as ScriptedStudyApi;
     },
     removeSeries(series: SeriesApi): void {
       removeSeriesCommand(series, {

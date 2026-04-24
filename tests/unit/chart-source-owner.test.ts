@@ -96,6 +96,8 @@ function createOwnerFixture() {
   const getCompareOptions = vi.fn(() => ({ baseline: "compare" }));
   const applyMovingAverageStudyOptions = vi.fn();
   const getMovingAverageStudyOptions = vi.fn(() => ({ length: 20 }));
+  const applyScriptedStudyOptions = vi.fn();
+  const getScriptedStudyOptions = vi.fn(() => ({ scriptId: "script-1" }));
   const registerSource = vi.fn();
 
   const setTradeLocationActive = vi.fn((next) => {
@@ -180,6 +182,8 @@ function createOwnerFixture() {
       getCompareOptions,
       applyMovingAverageStudyOptions,
       getMovingAverageStudyOptions,
+      applyScriptedStudyOptions,
+      getScriptedStudyOptions,
     },
     tradeLocation: {
       active: () => activeTradeLocation,
@@ -221,6 +225,8 @@ function createOwnerFixture() {
       getCompareOptions,
       applyMovingAverageStudyOptions,
       getMovingAverageStudyOptions,
+      applyScriptedStudyOptions,
+      getScriptedStudyOptions,
       registerSource,
       setTradeLocationActive,
       setVisibleLogicalRange,
@@ -307,6 +313,8 @@ describe("chart source owner", () => {
       apiDeps.getCompareOptions(fixture.compareApi);
       apiDeps.applyMovingAverageStudyOptions(fixture.movingAverageApi, { length: 10 });
       apiDeps.getMovingAverageStudyOptions(fixture.movingAverageApi);
+      apiDeps.applyScriptedStudyOptions(fixture.compareApi, { scriptId: "script-1" });
+      apiDeps.getScriptedStudyOptions(fixture.compareApi);
       return apiDeps;
     });
 
@@ -326,6 +334,11 @@ describe("chart source owner", () => {
     expect(fixture.calls.getMovingAverageStudyOptions).toHaveBeenCalledWith(
       fixture.movingAverageStudy,
     );
+    expect(fixture.calls.applyScriptedStudyOptions).toHaveBeenCalledWith(
+      fixture.compareStudy,
+      { scriptId: "script-1" },
+    );
+    expect(fixture.calls.getScriptedStudyOptions).toHaveBeenCalledWith(fixture.compareStudy);
 
     factoryDeps.attachStudySeries({
       paneId: "pane-9",

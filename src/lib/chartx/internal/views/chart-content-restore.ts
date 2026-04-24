@@ -78,10 +78,18 @@ export type RestorableMovingAverageStudySnapshot = {
   studyOptions: unknown;
 };
 
+export type RestorableScriptedStudySnapshot = {
+  type: "scripted-study";
+  paneIndex: number;
+  seriesOptions: unknown;
+  studyOptions: unknown;
+};
+
 export type RestorableStudySnapshot =
   | RestorableOverlayStudySnapshot
   | RestorableCompareStudySnapshot
-  | RestorableMovingAverageStudySnapshot;
+  | RestorableMovingAverageStudySnapshot
+  | RestorableScriptedStudySnapshot;
 
 export type SeriesRestoreDependencies<
   PaneTarget,
@@ -134,6 +142,10 @@ export type StudyRestoreDependencies<
   restoreMovingAverage(
     paneId: PaneId,
     snapshot: Extract<StudySnapshot, RestorableMovingAverageStudySnapshot>,
+  ): void;
+  restoreScriptedStudy(
+    paneId: PaneId,
+    snapshot: Extract<StudySnapshot, RestorableScriptedStudySnapshot>,
   ): void;
 };
 
@@ -192,6 +204,9 @@ export function restoreStudyCollection<
         break;
       case "moving-average":
         deps.restoreMovingAverage(paneId, study as Extract<StudySnapshot, RestorableMovingAverageStudySnapshot>);
+        break;
+      case "scripted-study":
+        deps.restoreScriptedStudy(paneId, study as Extract<StudySnapshot, RestorableScriptedStudySnapshot>);
         break;
     }
   }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCompareStudySeriesApi,
   createMovingAverageStudySeriesApi,
+  createScriptedStudySeriesApi,
   createSecondaryLineSeriesApi,
   createSecondaryVolumeSeriesApi,
 } from "../../src/lib/chartx/internal/views/chart-secondary-series-api";
@@ -65,6 +66,18 @@ function createDeps() {
       requestedTimezone: null,
       mergePolicy: "carry-forward" as const,
     }),
+    applyScriptedStudyOptions: (_api: unknown, options: { scriptId: string }) =>
+      calls.push(`scripted-study:${options.scriptId}`),
+    getScriptedStudyOptions: () => ({
+      scriptId: "script-1",
+      inputValues: { length: 21 },
+      inputContextMode: "chart-context" as const,
+      requestedSymbol: null,
+      requestedResolution: null,
+      requestedSession: null,
+      requestedTimezone: null,
+      mergePolicy: "carry-forward" as const,
+    }),
   };
 
   return { calls, source, deps };
@@ -103,6 +116,21 @@ describe("chart secondary series api use-case", () => {
     movingAverageApi.applyStudyOptions({ length: 9 });
     expect(movingAverageApi.getStudyOptions().length).toBe(5);
     expect(movingAverageState.calls).toEqual(["assert", "moving-average:9", "assert"]);
+
+    const scriptedStudyState = createDeps();
+    const scriptedStudyApi = createScriptedStudySeriesApi(scriptedStudyState.deps);
+    scriptedStudyApi.applyStudyOptions({
+      scriptId: "script-2",
+      inputValues: { length: 13 },
+      inputContextMode: "chart-context",
+      requestedSymbol: null,
+      requestedResolution: null,
+      requestedSession: null,
+      requestedTimezone: null,
+      mergePolicy: "carry-forward",
+    });
+    expect(scriptedStudyApi.getStudyOptions().scriptId).toBe("script-1");
+    expect(scriptedStudyState.calls).toEqual(["assert", "scripted-study:script-2", "assert"]);
   });
 
   it("routes volume series through histogram-like mutation hooks", () => {

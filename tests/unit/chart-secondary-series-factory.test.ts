@@ -26,6 +26,8 @@ describe("chart secondary series factory use-cases", () => {
       getCompareOptions: () => ({}),
       applyMovingAverageStudyOptions: () => {},
       getMovingAverageStudyOptions: () => ({}),
+      applyScriptedStudyOptions: () => {},
+      getScriptedStudyOptions: () => ({}),
     };
 
     const result = createSecondarySeriesApiDeps((nextDeps) => nextDeps, deps);
@@ -121,6 +123,8 @@ describe("chart secondary series factory use-cases", () => {
             getCompareOptions: () => ({}),
             applyMovingAverageStudyOptions: () => {},
             getMovingAverageStudyOptions: () => ({}),
+            applyScriptedStudyOptions: () => {},
+            getScriptedStudyOptions: () => ({}),
           }),
         attachStudySeries: ({ paneId, kind, api, meta, studyKind }) => {
           calls.push(`attach:${paneId}:${kind}:${meta.id}:${studyKind}:${(api as { id: string }).id}`);

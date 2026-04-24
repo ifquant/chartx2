@@ -140,6 +140,8 @@ export type ChartSourceOwnerDeps = {
     getCompareOptions(state: unknown): unknown;
     applyMovingAverageStudyOptions(state: unknown, options: unknown): void;
     getMovingAverageStudyOptions(state: unknown): unknown;
+    applyScriptedStudyOptions(state: unknown, options: unknown): void;
+    getScriptedStudyOptions(state: unknown): unknown;
   };
   tradeLocation: {
     active(): unknown | null;
@@ -238,6 +240,10 @@ export function createChartSourceOwner(deps: ChartSourceOwnerDeps) {
         ),
       getMovingAverageStudyOptions: (api) =>
         deps.secondarySeriesApi.getMovingAverageStudyOptions(getMovingAverageStudyState(api)),
+      applyScriptedStudyOptions: (api, options) =>
+        deps.secondarySeriesApi.applyScriptedStudyOptions(getSourceByApi(api, "line"), options),
+      getScriptedStudyOptions: (api) =>
+        deps.secondarySeriesApi.getScriptedStudyOptions(getSourceByApi(api, "line")),
     });
 
   const createSecondarySeriesFactoryDeps = () => ({

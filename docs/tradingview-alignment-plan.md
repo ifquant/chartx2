@@ -698,7 +698,8 @@ Progress checklist:
 - [x] Script Library delete uses an explicit confirm/cancel row state before removing a saved custom script
 - [x] Script Library fences dirty draft replacement before switching saved edit targets
 - [x] Workbench layout exposes a normalized scripted-study descriptor bridge ahead of chart-state-native promotion
-- [ ] Persist scripted indicators as first-class chart-state studies
+- [x] Persist separate-pane scripted indicators as first-class chart-state studies
+- [x] Engine chart-state restore replays separate-pane scripted-study snapshots through the shared study coordinator path
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -790,36 +791,33 @@ Implementation note:
   layer now normalizes scripted descriptors through a dedicated helper before
   save/export/import/restore paths touch them, and the demo bridge uses that
   helper instead of open-coded descriptor copies.
+- `Engine Scripted Study State Shape V0` promotes the snapshot contract itself:
+  engine chart state now has a dedicated `scripted-study` study variant, and
+  chart-state builders can serialize scripted-study indicator sources into that
+  shape without depending on workbench-local descriptor replay.
 - `Scripted Study Chart-State Restore V0` hardens the next step of that seam:
   demo-local host and workspace records now keep scripted studies in the same
   normalized descriptor shape used by layout persistence, and restore/import
   both rebuild mounted scripted studies through one descriptor-based helper
   instead of ad hoc `DemoActiveIndicator` replay.
-- `Scripted Study Promotion Review Pass` closes the current execution wave with
-  an explicit boundary audit: the workbench descriptor bridge and restore path
-  are now stable enough to support the next promotion step, but scripted studies
-  are still not first-class engine-native chart-state studies because
-  `chartState.studies` has no scripted variant, `getChartState()` still strips
-  scripted panes, and `applyChartState()` still depends on workbench-side
-  descriptor replay rather than engine-owned study restoration.
+- `Engine Scripted Study Restore Mount Seam V0` closes the restore regression in
+  the engine path itself: `applyChartState()` now clears, mounts, and reapplies
+  `scripted-study` snapshots through the same coordinator/restore chain used by
+  other restorable studies, so `chart.getChartState(); chart.applyChartState(saved);`
+  no longer drops separate-pane scripted studies.
+- `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
+  descriptor bridge is still useful for surrounding layout/library flows, but
+  engine chart state now owns the separate-pane scripted-study snapshot and
+  restore seam instead of treating scripted studies as descriptor-only state.
 - Planned `Active Script Use Remove V0` should add a workbench-owned remove
   action for active scripted indicators so users can clear library `inUse`
   fences from the active indicator list without deleting the saved custom
   script definition or changing chart-state persistence.
-- Demo-local host/workspace snapshot capture strips scripted panes back out of
-  exported layout/chart state, but the workbench layout schema now carries
-  scripted indicator descriptors separately so save/restore/export/import can
-  reapply them without pretending they are chart-state-native studies.
-- This does not yet mean scripts are chart-state-native. V0 does not persist
-  scripted indicators as distinct study definitions through `getChartState()`
-  or `applyChartState()`. The current authoring path is still a structured
-  workbench form for saved SMA presets, not a general text editor, parser, or
-  Pine-compatible authoring surface. The new descriptor bridge is intentionally
-  a workbench-layout normalization seam only, so later chart-state promotion
-  can start from a stable descriptor contract instead of demo-local mapping.
-  Restore hardening still stays on that side of the boundary: chart state
-  remains stripped of scripted panes, while the descriptor bridge owns the
-  scripted-study round-trip after save/restore/export/import.
+- This still does not mean full scripted-study parity. The current engine seam
+  only covers separate-pane scripted-study snapshots that are already present
+  in chart state. This wave does not add Pine compatibility, overlay scripted
+  studies, or broader layout/chart-state migration beyond the restore/mount
+  seam itself.
 
 ### 2. Strategy Tester
 

@@ -77,6 +77,17 @@ function createMovingAverageApi(log: string[]) {
   };
 }
 
+function createScriptedStudyApi(log: string[]) {
+  return {
+    applyOptions(options: unknown) {
+      log.push(`scripted-study:series:${JSON.stringify(options)}`);
+    },
+    applyStudyOptions(options: unknown) {
+      log.push(`scripted-study:study:${JSON.stringify(options)}`);
+    },
+  };
+}
+
 describe("chart state coordinator", () => {
   it("builds chart state snapshots through one coordinator surface", () => {
     const coordinator = createChartStateCoordinator({
@@ -144,6 +155,7 @@ describe("chart state coordinator", () => {
       addOverlaySeries: () => createSeriesApi([]),
       addCompareSeries: () => createCompareApi([]),
       addMovingAverageStudy: () => createMovingAverageApi([]),
+      addScriptedStudy: (_paneId) => createScriptedStudyApi([]),
       locateTrade() {},
       restoreDrawings() {},
       applyTimeScaleOptions() {},
@@ -306,6 +318,10 @@ describe("chart state coordinator", () => {
         log.push(`study:add:moving-average:${paneId}`);
         return createMovingAverageApi(log);
       },
+      addScriptedStudy: (paneId) => {
+        log.push(`study:add:scripted:${paneId}`);
+        return createScriptedStudyApi(log);
+      },
       locateTrade: (request, overlay) => {
         log.push(`trade:locate:${request.tradeId}:${overlay.longColor}`);
       },
@@ -365,6 +381,21 @@ describe("chart state coordinator", () => {
           seriesOptions: { color: "#3b82f6" },
           data: [{ value: 12 }],
         },
+        {
+          type: "scripted-study",
+          paneIndex: 1,
+          seriesOptions: { color: "#14b8a6" },
+          studyOptions: {
+            scriptId: "close-sma-20-v0",
+            inputValues: { length: 20 },
+            inputContextMode: "requested-context",
+            requestedSymbol: "ES1!",
+            requestedResolution: "5",
+            requestedSession: "regular",
+            requestedTimezone: "UTC",
+            mergePolicy: "exact",
+          },
+        },
       ] as never,
       tradeLocation: {
         request: createTradeRequest("trade-2"),
@@ -412,6 +443,9 @@ describe("chart state coordinator", () => {
       "study:add:overlay:pane-1",
       "series:options:{\"color\":\"#3b82f6\"}",
       "series:data:1",
+      "study:add:scripted:pane-1",
+      "scripted-study:study:{\"scriptId\":\"close-sma-20-v0\",\"inputValues\":{\"length\":20},\"inputContextMode\":\"requested-context\",\"requestedSymbol\":\"ES1!\",\"requestedResolution\":\"5\",\"requestedSession\":\"regular\",\"requestedTimezone\":\"UTC\",\"mergePolicy\":\"exact\"}",
+      "scripted-study:series:{\"color\":\"#14b8a6\"}",
       "trade:locate:trade-2:#f97316",
       "drawings:restore:1",
       "time:options:9:2",
@@ -483,6 +517,7 @@ describe("chart state coordinator", () => {
       addOverlaySeries: () => createSeriesApi([]),
       addCompareSeries: () => createCompareApi([]),
       addMovingAverageStudy: () => createMovingAverageApi([]),
+      addScriptedStudy: (_paneId) => createScriptedStudyApi([]),
       locateTrade() {},
       restoreDrawings() {},
       applyTimeScaleOptions() {},

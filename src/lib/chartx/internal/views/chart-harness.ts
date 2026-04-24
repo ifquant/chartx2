@@ -607,6 +607,20 @@ export class PhaseOneChartHarness {
     addOverlaySeries: (paneId) => this.seriesCommandOwner.addOverlaySeriesToPane(paneId),
     addCompareSeries: (paneId) => this.seriesCommandOwner.addCompareSeriesToPane(paneId),
     addMovingAverageStudy: (paneId) => this.seriesCommandOwner.addMovingAverageStudyToPane(paneId),
+    addScriptedStudy: (paneId, studyOptions) =>
+      this.seriesCommandOwner.addScriptedStudyToPane(
+        paneId,
+        studyOptions ?? {
+          scriptId: "",
+          inputValues: {},
+          inputContextMode: "chart-context",
+          requestedSymbol: null,
+          requestedResolution: null,
+          requestedSession: null,
+          requestedTimezone: null,
+          mergePolicy: "carry-forward",
+        },
+      ),
     locateTrade: (request, overlay) => {
       this.tradeLocationOwner.locate(request, overlay);
     },

@@ -2,6 +2,7 @@ import type { MovingAverageIndicatorState, StudyInputContextState } from "../mod
 import type {
   PhaseOneCompareSeriesOptions,
   PhaseOneMovingAverageStudyOptions,
+  PhaseOneScriptedStudyOptions,
 } from "./chart-api-types";
 
 type CompareStudyState = {
@@ -12,6 +13,16 @@ type CompareStudyState = {
 
 type MovingAverageStudyState = {
   indicator?: MovingAverageIndicatorState;
+  inputContext: StudyInputContextState;
+  data: readonly unknown[];
+};
+
+type ScriptedStudyState = {
+  indicator?: {
+    kind: "scripted-study";
+    scriptId: string;
+    inputValues?: Readonly<Record<string, number>>;
+  };
   inputContext: StudyInputContextState;
   data: readonly unknown[];
 };
@@ -118,6 +129,53 @@ export function getMovingAverageStudyOptions(
 ): Required<PhaseOneMovingAverageStudyOptions> {
   return {
     length: movingAverageLength(state.indicator) ?? defaultMovingAverageOptions.length,
+    inputContextMode: state.inputContext.mode,
+    requestedSymbol: state.inputContext.symbol,
+    requestedResolution: state.inputContext.resolution,
+    requestedSession: state.inputContext.session,
+    requestedTimezone: state.inputContext.timezone,
+    mergePolicy: state.inputContext.mergePolicy,
+  };
+}
+
+export function applyScriptedStudyOptions(
+  state: ScriptedStudyState,
+  options: PhaseOneScriptedStudyOptions,
+  deps: {
+    resolveDisplayData(state: ScriptedStudyState): readonly unknown[];
+    render(): void;
+  },
+): void {
+  state.indicator = {
+    kind: "scripted-study",
+    scriptId: options.scriptId,
+    inputValues: { ...(options.inputValues ?? {}) },
+  };
+
+  state.inputContext = {
+    ...state.inputContext,
+    mode: options.inputContextMode ?? state.inputContext.mode,
+    symbol:
+      options.requestedSymbol !== undefined ? options.requestedSymbol : state.inputContext.symbol,
+    resolution:
+      options.requestedResolution !== undefined ? options.requestedResolution : state.inputContext.resolution,
+    session:
+      options.requestedSession !== undefined ? options.requestedSession : state.inputContext.session,
+    timezone:
+      options.requestedTimezone !== undefined ? options.requestedTimezone : state.inputContext.timezone,
+    mergePolicy: options.mergePolicy ?? state.inputContext.mergePolicy,
+  };
+
+  state.data = deps.resolveDisplayData(state);
+  deps.render();
+}
+
+export function getScriptedStudyOptions(
+  state: ScriptedStudyState,
+): Required<PhaseOneScriptedStudyOptions> {
+  return {
+    scriptId: state.indicator?.scriptId ?? "",
+    inputValues: { ...(state.indicator?.inputValues ?? {}) },
     inputContextMode: state.inputContext.mode,
     requestedSymbol: state.inputContext.symbol,
     requestedResolution: state.inputContext.resolution,

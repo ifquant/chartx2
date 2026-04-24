@@ -48,7 +48,7 @@ type ChartStateSeriesSnapshots = PhaseOneChartStateSnapshot["series"];
 type ChartStateStudiesSnapshots = PhaseOneChartStateSnapshot["studies"];
 type RestorableChartStateStudiesSnapshots = Extract<
   ChartStateStudiesSnapshots[number],
-  { type: "overlay" | "compare" | "moving-average" }
+  { type: "overlay" | "compare" | "moving-average" | "scripted-study" }
 >[];
 type ChartStateDrawingSnapshots = PhaseOneChartStateSnapshot["drawings"];
 
@@ -62,6 +62,11 @@ type RestorableCompareApi = RestorableDataSeriesApi & {
 };
 
 type RestorableMovingAverageApi = {
+  applyOptions(options: unknown): void;
+  applyStudyOptions(options: unknown): void;
+};
+
+type RestorableScriptedStudyApi = {
   applyOptions(options: unknown): void;
   applyStudyOptions(options: unknown): void;
 };
@@ -117,6 +122,10 @@ export function createChartStateCoordinator(deps: {
   addOverlaySeries(paneId: string): RestorableDataSeriesApi;
   addCompareSeries(paneId: string): RestorableCompareApi;
   addMovingAverageStudy(paneId: string): RestorableMovingAverageApi;
+  addScriptedStudy(
+    paneId: string,
+    studyOptions?: Extract<ChartStateStudiesSnapshots[number], { type: "scripted-study" }>["studyOptions"],
+  ): RestorableScriptedStudyApi;
   locateTrade(
     request: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["request"],
     overlay: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["overlay"],
@@ -206,7 +215,8 @@ export function createChartStateCoordinator(deps: {
         (study): study is RestorableChartStateStudiesSnapshots[number] =>
           study.type === "overlay" ||
           study.type === "compare" ||
-          study.type === "moving-average",
+          study.type === "moving-average" ||
+          study.type === "scripted-study",
       );
 
       restoreStateStudiesContentUseCase(restorableStudies, {
@@ -215,6 +225,7 @@ export function createChartStateCoordinator(deps: {
         addOverlay: (paneId) => deps.addOverlaySeries(paneId),
         addCompare: (paneId) => deps.addCompareSeries(paneId),
         addMovingAverage: (paneId) => deps.addMovingAverageStudy(paneId),
+        addScriptedStudy: (paneId, studyOptions) => deps.addScriptedStudy(paneId, studyOptions),
       });
     },
 

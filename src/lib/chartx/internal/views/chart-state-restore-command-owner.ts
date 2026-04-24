@@ -18,6 +18,11 @@ type RestorableMovingAverageApi = {
   applyStudyOptions(options: unknown): void;
 };
 
+type RestorableScriptedStudyApi = {
+  applyOptions(options: unknown): void;
+  applyStudyOptions(options: unknown): void;
+};
+
 export function createChartStateRestoreCommandOwner<
   Pane extends { id: string },
   Source,
@@ -45,6 +50,10 @@ export function createChartStateRestoreCommandOwner<
   addOverlaySeries(paneId: string): RestorableDataSeriesApi;
   addCompareSeries(paneId: string): RestorableCompareApi;
   addMovingAverageStudy(paneId: string): RestorableMovingAverageApi;
+  addScriptedStudy(
+    paneId: string,
+    studyOptions?: Extract<PhaseOneChartStateSnapshot["studies"][number], { type: "scripted-study" }>["studyOptions"],
+  ): RestorableScriptedStudyApi;
   locateTrade(
     request: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["request"],
     overlay: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["overlay"],
@@ -83,6 +92,7 @@ export function createChartStateRestoreCommandOwner<
     addOverlaySeries: deps.addOverlaySeries,
     addCompareSeries: deps.addCompareSeries,
     addMovingAverageStudy: deps.addMovingAverageStudy,
+    addScriptedStudy: deps.addScriptedStudy,
     locateTrade: deps.locateTrade,
     restoreDrawings: deps.restoreDrawings,
     applyTimeScaleOptions: deps.applyTimeScaleOptions,

@@ -68,6 +68,11 @@ type RestorableMovingAverageApi = {
   applyStudyOptions(options: unknown): void;
 };
 
+type RestorableScriptedStudyApi = {
+  applyOptions(options: unknown): void;
+  applyStudyOptions(options: unknown): void;
+};
+
 type StateCoordinatorLike = ReturnType<typeof createChartStateCoordinator>;
 
 export function createChartStateShellOwner<
@@ -117,6 +122,10 @@ export function createChartStateShellOwner<
     addOverlaySeries(paneId: string): RestorableDataSeriesApi;
     addCompareSeries(paneId: string): RestorableCompareApi;
     addMovingAverageStudy(paneId: string): RestorableMovingAverageApi;
+    addScriptedStudy(
+      paneId: string,
+      studyOptions?: Extract<PhaseOneChartStateSnapshot["studies"][number], { type: "scripted-study" }>["studyOptions"],
+    ): RestorableScriptedStudyApi;
     locateTrade(
       request: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["request"],
       overlay: NonNullable<PhaseOneChartStateSnapshot["tradeLocation"]>["overlay"],

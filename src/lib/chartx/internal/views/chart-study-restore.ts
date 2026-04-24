@@ -3,6 +3,7 @@ import {
   type RestorableCompareStudySnapshot,
   type RestorableMovingAverageStudySnapshot,
   type RestorableOverlayStudySnapshot,
+  type RestorableScriptedStudySnapshot,
   type RestorableStudySnapshot,
 } from "./chart-content-restore";
 import { requireRestorablePane } from "./chart-restore-pane";
@@ -28,6 +29,10 @@ export function restoreChartStudies<
       paneId: PaneId,
       snapshot: Extract<StudySnapshot, RestorableMovingAverageStudySnapshot>,
     ): void;
+    restoreScriptedStudy(
+      paneId: PaneId,
+      snapshot: Extract<StudySnapshot, RestorableScriptedStudySnapshot>,
+    ): void;
   },
 ): void {
   restoreStudyCollection(studies, {
@@ -35,5 +40,6 @@ export function restoreChartStudies<
     restoreOverlay: deps.restoreOverlay,
     restoreCompare: deps.restoreCompare,
     restoreMovingAverage: deps.restoreMovingAverage,
+    restoreScriptedStudy: deps.restoreScriptedStudy,
   });
 }

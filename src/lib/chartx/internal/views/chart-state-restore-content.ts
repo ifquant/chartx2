@@ -17,6 +17,11 @@ type RestorableMovingAverageApi = {
   applyStudyOptions(options: unknown): void;
 };
 
+type RestorableScriptedStudyApi = {
+  applyOptions(options: unknown): void;
+  applyStudyOptions(options: unknown): void;
+};
+
 type RestorableCompareApi = RestorableDataSeriesApi & {
   applyCompareOptions(options: unknown): void;
 };
@@ -92,6 +97,10 @@ export function restoreStateStudiesContent<
     addOverlay(paneId: PaneId): RestorableDataSeriesApi;
     addCompare(paneId: PaneId): RestorableCompareApi;
     addMovingAverage(paneId: PaneId): RestorableMovingAverageApi;
+    addScriptedStudy(
+      paneId: PaneId,
+      studyOptions?: Extract<StudySnapshot, { type: "scripted-study" }>["studyOptions"],
+    ): RestorableScriptedStudyApi;
   },
 ): void {
   restoreChartStudies(studies, {
@@ -112,6 +121,11 @@ export function restoreStateStudiesContent<
       const movingAverage = deps.addMovingAverage(paneId);
       movingAverage.applyOptions(snapshot.seriesOptions);
       movingAverage.applyStudyOptions(snapshot.studyOptions);
+    },
+    restoreScriptedStudy: (paneId, snapshot) => {
+      const scriptedStudy = deps.addScriptedStudy(paneId, snapshot.studyOptions);
+      scriptedStudy.applyStudyOptions(snapshot.studyOptions);
+      scriptedStudy.applyOptions(snapshot.seriesOptions);
     },
   });
 }

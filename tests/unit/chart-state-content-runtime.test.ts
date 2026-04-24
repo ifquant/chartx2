@@ -13,6 +13,7 @@ describe("chart state content runtime", () => {
       { id: "overlay", role: "study", studyKind: "overlay" },
       { id: "compare", role: "study", studyKind: "compare" },
       { id: "ma", role: "study", studyKind: "indicator", indicator: { kind: "moving-average" } },
+      { id: "scripted", role: "study", studyKind: "indicator", indicator: { kind: "scripted-study" } },
       { id: "series", role: "study", studyKind: "series" },
       { id: "main", role: "main-series" },
     ] as const;
@@ -27,7 +28,7 @@ describe("chart state content runtime", () => {
       },
     });
 
-    expect(removed).toEqual(["overlay", "compare", "ma"]);
+    expect(removed).toEqual(["overlay", "compare", "ma", "scripted"]);
   });
 
   it("clears restorable study-series sources", () => {

@@ -40,6 +40,10 @@ describe("chart state restore shell owner", () => {
         applyOptions: (options) => log.push(`ma-series:${paneId}:${JSON.stringify(options)}`),
         applyStudyOptions: (options) => log.push(`ma-study:${paneId}:${JSON.stringify(options)}`),
       }),
+      addScriptedStudy: (paneId: string, _studyOptions) => ({
+        applyOptions: (options: unknown) => log.push(`scripted-series:${paneId}:${JSON.stringify(options)}`),
+        applyStudyOptions: (options: unknown) => log.push(`scripted-study:${paneId}:${JSON.stringify(options)}`),
+      }),
       locateTrade: (request, overlay) => log.push(`trade:${request.tradeId}:${overlay.longColor}`),
       restoreDrawings: (drawings) => log.push(`drawings:${drawings.length}`),
       applyTimeScaleOptions: (options) => log.push(`time-options:${options.barSpacing}`),
@@ -66,6 +70,16 @@ describe("chart state restore shell owner", () => {
     expect(restoreCommands.createPaneTarget({ id: "pane-1" }).pane).toEqual({ id: "handle-pane-1" });
     restoreCommands.addCompareSeries("pane-1").applyCompareOptions({ affectMainScale: true });
     restoreCommands.addMovingAverageStudy("pane-1").applyStudyOptions({ length: 20 });
+    restoreCommands.addScriptedStudy("pane-1", {
+      scriptId: "script-1",
+      inputValues: {},
+      inputContextMode: "chart-context",
+      requestedSymbol: null,
+      requestedResolution: null,
+      requestedSession: null,
+      requestedTimezone: null,
+      mergePolicy: "carry-forward",
+    }).applyStudyOptions({ scriptId: "script-1" });
     restoreCommands.locateTrade({
       kind: "locate-trade",
       tradeId: "trade-1",
@@ -111,6 +125,7 @@ describe("chart state restore shell owner", () => {
       "main:line",
       "compare-options:{\"affectMainScale\":true}",
       "ma-study:pane-1:{\"length\":20}",
+      "scripted-study:pane-1:{\"scriptId\":\"script-1\"}",
       "trade:trade-1:#16a34a",
       "drawings:1",
       "time-options:9",

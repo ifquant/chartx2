@@ -57,6 +57,7 @@ describe("chart state restore content", () => {
           setData: (data) => calls.push(`compare:data:${paneId}:${(data[0] as { time: number }).time}`),
         }),
         addMovingAverage: () => ({ applyOptions: () => {}, applyStudyOptions: () => {} }),
+        addScriptedStudy: () => ({ applyOptions: () => {}, applyStudyOptions: () => {} }),
       },
     );
 
@@ -64,6 +65,80 @@ describe("chart state restore content", () => {
       "compare:options:pane-1:#2",
       "compare:compare:pane-1:true",
       "compare:data:pane-1:2",
+    ]);
+  });
+
+  it("restores scripted-study content through add-and-apply wiring", () => {
+    const calls: string[] = [];
+
+    restoreStateStudiesContent(
+      [
+        {
+          type: "scripted-study",
+          paneIndex: 1,
+          seriesOptions: { color: "#3" },
+          studyOptions: { scriptId: "script-1", inputValues: { length: 21 } },
+        },
+      ] as const,
+      {
+        getPaneByIndex: (index) => ({ id: `pane-${index}` }),
+        getPaneId: (pane) => pane.id,
+        addOverlay: () => ({ applyOptions: () => {}, setData: () => {} }),
+        addCompare: () => ({ applyOptions: () => {}, applyCompareOptions: () => {}, setData: () => {} }),
+        addMovingAverage: () => ({ applyOptions: () => {}, applyStudyOptions: () => {} }),
+        addScriptedStudy: (_paneId, _studyOptions) => ({
+          applyOptions: (options) => calls.push(`scripted:options:pane-1:${(options as { color: string }).color}`),
+          applyStudyOptions: (options) => calls.push(`scripted:study:pane-1:${(options as { scriptId: string }).scriptId}`),
+        }),
+      },
+    );
+
+    expect(calls).toEqual([
+      "scripted:study:pane-1:script-1",
+      "scripted:options:pane-1:#3",
+    ]);
+  });
+
+  it("restores scripted-study content through add-and-apply wiring", () => {
+    const calls: string[] = [];
+
+    restoreStateStudiesContent(
+      [
+        {
+          type: "scripted-study",
+          paneIndex: 2,
+          seriesOptions: { color: "#4" },
+          studyOptions: {
+            scriptId: "close-sma-20-v0",
+            inputValues: { length: 20 },
+            inputContextMode: "requested-context",
+            requestedSymbol: "ES1!",
+            requestedResolution: "5",
+            requestedSession: "regular",
+            requestedTimezone: "UTC",
+            mergePolicy: "exact",
+          },
+        },
+      ] as const,
+      {
+        getPaneByIndex: (index) => ({ id: `pane-${index}` }),
+        getPaneId: (pane) => pane.id,
+        addOverlay: () => ({ applyOptions: () => {}, setData: () => {} }),
+        addCompare: () => ({ applyOptions: () => {}, applyCompareOptions: () => {}, setData: () => {} }),
+        addMovingAverage: () => ({ applyOptions: () => {}, applyStudyOptions: () => {} }),
+        addScriptedStudy: (paneId, studyOptions) => ({
+          applyOptions: (options) => calls.push(`scripted:options:${paneId}:${(options as { color: string }).color}`),
+          applyStudyOptions: (options) =>
+            calls.push(
+              `scripted:study:${paneId}:${(studyOptions as { scriptId: string }).scriptId}:${(options as { scriptId: string }).scriptId}`,
+            ),
+        }),
+      },
+    );
+
+    expect(calls).toEqual([
+      "scripted:study:pane-2:close-sma-20-v0:close-sma-20-v0",
+      "scripted:options:pane-2:#4",
     ]);
   });
 

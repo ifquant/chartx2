@@ -11,6 +11,7 @@ import {
   type RestorableOverlayStudySnapshot,
   type RestorableCompareStudySnapshot,
   type RestorableMovingAverageStudySnapshot,
+  type RestorableScriptedStudySnapshot,
   restoreSeriesCollection,
   restoreStudyCollection,
   type RestorableSeriesSnapshot,
@@ -36,6 +37,10 @@ type TestStudySnapshot =
   | (RestorableMovingAverageStudySnapshot & {
       seriesOptions: { color?: string };
       studyOptions: { length?: number };
+    })
+  | (RestorableScriptedStudySnapshot & {
+      seriesOptions: { color?: string };
+      studyOptions: { scriptId: string };
     });
 
 describe("chart content restore", () => {
@@ -90,6 +95,12 @@ describe("chart content restore", () => {
         seriesOptions: { color: "#3" },
         studyOptions: { length: 9 },
       },
+      {
+        type: "scripted-study",
+        paneIndex: 4,
+        seriesOptions: { color: "#4" },
+        studyOptions: { scriptId: "script-1" },
+      },
     ];
 
     restoreStudyCollection(studies, {
@@ -97,12 +108,14 @@ describe("chart content restore", () => {
       restoreOverlay: (paneId, snapshot) => calls.push(`overlay:${paneId}:${snapshot.data[0]?.time}`),
       restoreCompare: (paneId, snapshot) => calls.push(`compare:${paneId}:${snapshot.data[0]?.time}`),
       restoreMovingAverage: (paneId, snapshot) => calls.push(`moving-average:${paneId}:${snapshot.studyOptions.length}`),
+      restoreScriptedStudy: (paneId, snapshot) => calls.push(`scripted-study:${paneId}:${snapshot.studyOptions.scriptId}`),
     });
 
     expect(calls).toEqual([
       "overlay:pane-1:1",
       "compare:pane-2:2",
       "moving-average:pane-3:9",
+      "scripted-study:pane-4:script-1",
     ]);
   });
 });

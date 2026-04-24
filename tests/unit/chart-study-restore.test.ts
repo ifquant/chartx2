@@ -4,7 +4,7 @@ import { INVALID_RESTORABLE_PANE_INDEX_ERROR } from "../../src/lib/chartx/intern
 import { restoreChartStudies } from "../../src/lib/chartx/internal/views/chart-study-restore";
 
 describe("chart study restore use-case", () => {
-  it("restores overlay, compare, and moving-average studies in pane order", () => {
+  it("restores overlay, compare, moving-average, and scripted-study entries in pane order", () => {
     const calls: string[] = [];
 
     restoreChartStudies(
@@ -28,6 +28,21 @@ describe("chart study restore use-case", () => {
           seriesOptions: { color: "#3" },
           studyOptions: { length: 9 },
         },
+        {
+          type: "scripted-study",
+          paneIndex: 4,
+          seriesOptions: { color: "#4" },
+          studyOptions: {
+            scriptId: "close-sma-20-v0",
+            inputValues: { length: 20 },
+            inputContextMode: "requested-context",
+            requestedSymbol: "ES1!",
+            requestedResolution: "5",
+            requestedSession: "regular",
+            requestedTimezone: "UTC",
+            mergePolicy: "exact",
+          },
+        },
       ] as const,
       {
         getPaneByIndex: (index) => ({ id: `pane-${index}` }),
@@ -41,6 +56,9 @@ describe("chart study restore use-case", () => {
         restoreMovingAverage: (paneId, snapshot) => {
           calls.push(`moving-average:${paneId}:${snapshot.studyOptions.length}`);
         },
+        restoreScriptedStudy: (paneId, snapshot) => {
+          calls.push(`scripted-study:${paneId}:${snapshot.studyOptions.scriptId}:${snapshot.studyOptions.inputValues.length}`);
+        },
       },
     );
 
@@ -48,6 +66,7 @@ describe("chart study restore use-case", () => {
       "overlay:pane-1:1",
       "compare:pane-2:true",
       "moving-average:pane-3:9",
+      "scripted-study:pane-4:close-sma-20-v0:20",
     ]);
   });
 
@@ -68,6 +87,7 @@ describe("chart study restore use-case", () => {
           restoreOverlay: () => {},
           restoreCompare: () => {},
           restoreMovingAverage: () => {},
+          restoreScriptedStudy: () => {},
         },
       ),
     ).toThrow(INVALID_RESTORABLE_PANE_INDEX_ERROR);

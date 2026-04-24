@@ -78,6 +78,39 @@ describe("chart secondary series api owner", () => {
     expect(source.data.every((row) => (row as { resolved?: boolean }).resolved)).toBe(true);
     expect(calls).toEqual(["resolve", "render", "resolve", "render"]);
   });
+
+  it("routes scripted-study options through study state", () => {
+    const source = createSource();
+    const calls: string[] = [];
+    const owner = createOwner(source, calls, {
+      remove: vi.fn(),
+      applyOptions: vi.fn(),
+    } as PhaseOnePriceLineApi);
+
+    owner.applyScriptedStudyOptions(source, {
+      scriptId: "script-1",
+      inputValues: { length: 21 },
+      inputContextMode: "requested-context",
+      requestedSymbol: "CL1!",
+      requestedResolution: "60",
+      requestedSession: "regular",
+      requestedTimezone: "UTC",
+      mergePolicy: "exact",
+    });
+
+    expect(owner.getScriptedStudyOptions(source)).toEqual({
+      scriptId: "script-1",
+      inputValues: { length: 21 },
+      inputContextMode: "requested-context",
+      requestedSymbol: "CL1!",
+      requestedResolution: "60",
+      requestedSession: "regular",
+      requestedTimezone: "UTC",
+      mergePolicy: "exact",
+    });
+    expect(source.data.every((row) => (row as { resolved?: boolean }).resolved)).toBe(true);
+    expect(calls).toEqual(["resolve", "render"]);
+  });
 });
 
 function createOwner(
@@ -174,6 +207,8 @@ function createSource() {
       mergePolicy: "carry-forward" as const,
     },
     compareOptions: undefined as undefined | { affectMainScale: boolean },
-    indicator: undefined as undefined | { kind: string; length?: number },
+    indicator: undefined as
+      | undefined
+      | { kind: string; length?: number; scriptId?: string; inputValues?: Record<string, number> },
   };
 }

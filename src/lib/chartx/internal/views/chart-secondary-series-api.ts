@@ -21,6 +21,7 @@ import type {
   PhaseOnePriceLineApi,
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
+  PhaseOneScriptedStudyOptions,
   PhaseOneVolumeData,
   PhaseOneVolumeSeriesApi,
   PhaseOneVolumeSeriesOptions,
@@ -72,6 +73,8 @@ type SecondarySeriesApiDeps = {
   getCompareOptions(api: unknown): Required<PhaseOneCompareSeriesOptions>;
   applyMovingAverageStudyOptions(api: unknown, options: PhaseOneMovingAverageStudyOptions): void;
   getMovingAverageStudyOptions(api: unknown): Required<PhaseOneMovingAverageStudyOptions>;
+  applyScriptedStudyOptions(api: unknown, options: PhaseOneScriptedStudyOptions): void;
+  getScriptedStudyOptions(api: unknown): Required<PhaseOneScriptedStudyOptions>;
 };
 
 export function createSecondaryCandlestickSeriesApi(
@@ -185,6 +188,27 @@ export function createMovingAverageStudySeriesApi(
   api.getStudyOptions = () => {
     deps.assertSeriesActive(api);
     return deps.getMovingAverageStudyOptions(api);
+  };
+  return api;
+}
+
+export function createScriptedStudySeriesApi(
+  deps: SecondarySeriesApiDeps,
+): PhaseOneLineSeriesApi & {
+  applyStudyOptions(options: PhaseOneScriptedStudyOptions): void;
+  getStudyOptions(): Required<PhaseOneScriptedStudyOptions>;
+} {
+  const api = createSecondaryLineSeriesApi(deps) as PhaseOneLineSeriesApi & {
+    applyStudyOptions(options: PhaseOneScriptedStudyOptions): void;
+    getStudyOptions(): Required<PhaseOneScriptedStudyOptions>;
+  };
+  api.applyStudyOptions = (options) => {
+    deps.assertSeriesActive(api);
+    deps.applyScriptedStudyOptions(api, options);
+  };
+  api.getStudyOptions = () => {
+    deps.assertSeriesActive(api);
+    return deps.getScriptedStudyOptions(api);
   };
   return api;
 }

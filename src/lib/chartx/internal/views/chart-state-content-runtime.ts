@@ -18,7 +18,13 @@ export function clearRestorableStudies<Source extends StudyLikeSource>(
     (
       source.studyKind === "overlay" ||
       source.studyKind === "compare" ||
-      (source.studyKind === "indicator" && source.indicator?.kind === "moving-average")
+      (
+        source.studyKind === "indicator" &&
+        (
+          source.indicator?.kind === "moving-average" ||
+          source.indicator?.kind === "scripted-study"
+        )
+      )
     ));
 }
 

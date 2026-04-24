@@ -1,8 +1,10 @@
 import {
   applyCompareStudyOptions,
   applyMovingAverageStudyOptions,
+  applyScriptedStudyOptions,
   getCompareStudyOptions,
   getMovingAverageStudyOptions,
+  getScriptedStudyOptions,
 } from "./chart-study-options";
 import {
   applySeriesFormatterOptions,
@@ -29,6 +31,7 @@ import type {
   PhaseOnePriceLineApi,
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
+  PhaseOneScriptedStudyOptions,
   PhaseOneVolumeData,
 } from "./chart-api-types";
 import type { PriceLineState } from "./chart-price-line-runtime";
@@ -63,6 +66,15 @@ type MovingAverageStudyState = SecondarySeriesSourceState & {
   indicator?: {
     kind: "moving-average";
     length: number;
+  };
+  inputContext: CompareStudyState["inputContext"];
+};
+
+type ScriptedStudyState = SecondarySeriesSourceState & {
+  indicator?: {
+    kind: "scripted-study";
+    scriptId: string;
+    inputValues?: Readonly<Record<string, number>>;
   };
   inputContext: CompareStudyState["inputContext"];
 };
@@ -191,5 +203,17 @@ export function createChartSecondarySeriesApiOwner(deps: {
         state as unknown as MovingAverageStudyState,
         deps.defaultMovingAverageOptions,
       ),
+    applyScriptedStudyOptions: (state: unknown, options: unknown) =>
+      applyScriptedStudyOptions(
+        state as ScriptedStudyState,
+        options as PhaseOneScriptedStudyOptions,
+        {
+          resolveDisplayData: (study) =>
+            deps.resolveDisplayData(study as unknown as SecondarySeriesSourceState),
+          render: deps.render,
+        },
+      ),
+    getScriptedStudyOptions: (state: unknown) =>
+      getScriptedStudyOptions(state as ScriptedStudyState),
   };
 }

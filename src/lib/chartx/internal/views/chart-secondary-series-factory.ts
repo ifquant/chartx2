@@ -40,6 +40,8 @@ export type SecondarySeriesApiDepsBuilder = {
   getCompareOptions(api: any): any;
   applyMovingAverageStudyOptions(api: any, options: any): void;
   getMovingAverageStudyOptions(api: any): any;
+  applyScriptedStudyOptions(api: any, options: any): void;
+  getScriptedStudyOptions(api: any): any;
 };
 
 export function createSecondarySeriesApiDeps<T>(

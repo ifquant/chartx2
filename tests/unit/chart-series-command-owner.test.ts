@@ -55,7 +55,10 @@ describe("chart series command owner", () => {
       },
       addLineStudySeries: (paneId, studyKind, params) => {
         calls.push(`study:${paneId}:${studyKind}:${JSON.stringify(params.indicator ?? null)}`);
-        return { kind: studyKind } as never;
+        return {
+          kind: studyKind,
+          applyStudyOptions: (options: unknown) => calls.push(`study-options:${paneId}:${JSON.stringify(options)}`),
+        } as never;
       },
       getMovingAverageLength: () => 34,
       removeSourceByApi: () => undefined,
@@ -69,6 +72,16 @@ describe("chart series command owner", () => {
     owner.addOverlaySeries();
     owner.addCompareSeries();
     owner.addMovingAverageStudy();
+    owner.addScriptedStudyToPane("pane-script", {
+      scriptId: "script-1",
+      inputValues: { length: 21 },
+      inputContextMode: "chart-context",
+      requestedSymbol: null,
+      requestedResolution: null,
+      requestedSession: null,
+      requestedTimezone: null,
+      mergePolicy: "carry-forward",
+    });
     owner.addOverlaySeriesToPane("pane-restore");
     owner.addCompareSeriesToPane("pane-restore");
     owner.addMovingAverageStudyToPane("pane-restore");
@@ -82,6 +95,7 @@ describe("chart series command owner", () => {
       "study:pane-2:compare:null",
       "resolve:true:true",
       'study:pane-2:indicator:{"kind":"moving-average","length":34}',
+      'study:pane-script:indicator:{"kind":"scripted-study","scriptId":"script-1","inputValues":{"length":21}}',
       "study:pane-restore:overlay:null",
       "study:pane-restore:compare:null",
       'study:pane-restore:indicator:{"kind":"moving-average","length":34}',

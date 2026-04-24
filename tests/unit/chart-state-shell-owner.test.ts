@@ -123,6 +123,10 @@ describe("chart state shell owner", () => {
           applyOptions: vi.fn(),
           applyStudyOptions: vi.fn(),
         }),
+        addScriptedStudy: () => ({
+          applyOptions: vi.fn(),
+          applyStudyOptions: vi.fn(),
+        }),
         locateTrade() {},
         restoreDrawings() {},
         applyTimeScaleOptions() {},

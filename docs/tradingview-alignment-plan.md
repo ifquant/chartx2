@@ -692,6 +692,7 @@ Progress checklist:
 - [x] Script Library can locally filter saved scripts without touching runtime state
 - [x] Script Library can locally sort saved scripts for management views
 - [x] Script Library empty filter states can recover in place
+- [x] Script Library delete uses an explicit confirm/cancel row state before removing a saved custom script
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -769,6 +770,11 @@ Implementation note:
 - `Script Library Filter Recovery V0` tightens the filter UX loop: when a local
   saved-script query produces no matches, the empty state can now clear that
   query in place instead of forcing the user back to the top controls.
+- `Script Library Delete Confirm V0` closes the remaining one-click destructive
+  row action in the local library shell: saved custom-script rows now require an
+  explicit confirm/cancel step before deletion, while keeping in-use rows
+  fenced and clearing the editor back to create mode if the deleted row was the
+  current edit target.
 - Planned `Script Library Stale Edit Target Fence V0` should keep the
   workbench-owned editor from holding a deleted custom-script id: if a saved
   script is deleted while its draft is loaded for edit, the local editor target

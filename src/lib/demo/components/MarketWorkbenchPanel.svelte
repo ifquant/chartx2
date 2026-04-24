@@ -158,6 +158,7 @@
   let customScriptLaunchErrors: Record<string, string | null> = {};
   let customScriptLaunchPayloads: Record<string, Record<string, number> | null> = {};
   let filteredCustomScripts: readonly DemoCustomScriptLibraryEntry[] = [];
+  let pendingCustomScriptDeleteId: string | null = null;
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -177,6 +178,7 @@
   }
 
   function resetCustomScriptDraft(): void {
+    pendingCustomScriptDeleteId = null;
     editingCustomScriptId = null;
     customScriptDraftError = null;
     customScriptImportError = null;
@@ -201,6 +203,16 @@
       defaultLength: 20,
     };
     customScriptDefaultLengthInput = "20";
+  }
+
+  function requestCustomScriptDelete(scriptId: string): void {
+    pendingCustomScriptDeleteId = scriptId;
+  }
+
+  function cancelCustomScriptDelete(scriptId: string): void {
+    if (pendingCustomScriptDeleteId === scriptId) {
+      pendingCustomScriptDeleteId = null;
+    }
   }
 
   function layoutPersistenceMissing(): boolean {
@@ -292,6 +304,7 @@
   }
 
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
+    pendingCustomScriptDeleteId = null;
     editingCustomScriptId = entry.id;
     customScriptDraftError = null;
     customScriptImportError = null;
@@ -322,9 +335,13 @@
     customScriptDefaultLengthInput = String(entry.defaultLength);
   }
 
-  function deleteCustomScriptEntry(scriptId: string): void {
+  function confirmCustomScriptDelete(scriptId: string): void {
     const deleted = onDeleteCustomScript(scriptId);
-    if (deleted && editingCustomScriptId === scriptId) {
+    if (!deleted) {
+      return;
+    }
+    pendingCustomScriptDeleteId = null;
+    if (editingCustomScriptId === scriptId) {
       resetCustomScriptDraft();
     }
   }
@@ -476,6 +493,8 @@
     });
     if (saved) {
       resetCustomScriptDraft();
+    } else if (editingCustomScriptId === null) {
+      pendingCustomScriptDeleteId = null;
     }
   }
 
@@ -546,6 +565,12 @@
   $: filteredCustomScripts = [...(snapshot.customScripts ?? [])]
     .filter((script) => matchesCustomScriptFilter(script, customScriptFilter))
     .sort((left, right) => compareCustomScripts(left, right, customScriptSortMode));
+  $: if (
+    pendingCustomScriptDeleteId !== null &&
+    !filteredCustomScripts.some((script) => script.id === pendingCustomScriptDeleteId)
+  ) {
+    pendingCustomScriptDeleteId = null;
+  }
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
       const host = slot.chartHostId
@@ -1393,15 +1418,36 @@
                   <button type="button" class="indicator-secondary-btn" data-custom-script-duplicate={script.id} on:click={() => onDuplicateCustomScript(script.id)}>
                     Duplicate
                   </button>
-                  <button
-                    type="button"
-                    class="indicator-secondary-btn danger"
-                    data-custom-script-delete={script.id}
-                    disabled={script.inUse}
-                    on:click={() => deleteCustomScriptEntry(script.id)}
-                  >
-                    Delete
-                  </button>
+                  {#if pendingCustomScriptDeleteId === script.id}
+                    <button
+                      type="button"
+                      class="indicator-secondary-btn danger"
+                      data-custom-script-delete-confirm={script.id}
+                      disabled={script.inUse}
+                      on:click={() => confirmCustomScriptDelete(script.id)}
+                    >
+                      Confirm delete
+                    </button>
+                    <button
+                      type="button"
+                      class="indicator-secondary-btn"
+                      data-custom-script-delete-cancel={script.id}
+                      disabled={script.inUse}
+                      on:click={() => cancelCustomScriptDelete(script.id)}
+                    >
+                      Cancel
+                    </button>
+                  {:else}
+                    <button
+                      type="button"
+                      class="indicator-secondary-btn danger"
+                      data-custom-script-delete={script.id}
+                      disabled={script.inUse}
+                      on:click={() => requestCustomScriptDelete(script.id)}
+                    >
+                      Delete
+                    </button>
+                  {/if}
                 </div>
               </article>
             {:else}

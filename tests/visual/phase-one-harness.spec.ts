@@ -737,6 +737,49 @@ test("script library: active custom scripts surface in-use state and fence edit/
   await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeEnabled();
 });
 
+test("script library: delete requires an explicit confirm step", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "Delete Confirm Spread",
+    shortLabel: "DeleteConfirm",
+    description: "Delete confirmation demo.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "8",
+  });
+
+  await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete-cancel="custom-script-1"]')).toBeVisible();
+
+  await workbench.locator('[data-custom-script-delete-cancel="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toHaveCount(0);
+
+  await workbench.locator('[data-custom-script-edit="custom-script-1"]').click();
+  await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await workbench.locator('[data-custom-script-cancel]').click();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toHaveCount(0);
+
+  await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await workbench.locator('[data-custom-script-filter]').fill("missing script");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
+  await workbench.locator('[data-custom-script-filter-clear]').click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeVisible();
+  await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toHaveCount(0);
+
+  await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
+  await expect(workbench).toContainText("deleted custom script Delete Confirm Spread");
+});
+
 test("script library: deleting the edited script clears the stale update target", async ({
   page,
 }) => {
@@ -757,6 +800,8 @@ test("script library: deleting the edited script clears the stale update target"
   await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("My Editable Spread");
 
   await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toBeVisible();
+  await workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]').click();
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
   await expect(workbench.locator("[data-custom-script-save]")).toContainText("Save script");
   await expect(workbench.locator("[data-custom-script-cancel]")).toHaveCount(0);

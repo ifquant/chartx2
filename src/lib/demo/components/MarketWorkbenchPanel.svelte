@@ -1239,6 +1239,11 @@
                 <div class="custom-script-copy">
                   <strong>{script.label}</strong>
                   <span>{script.expressionText} · {script.placement} · length {script.defaultLength}</span>
+                  {#if script.inUse}
+                    <span class="indicator-empty" data-custom-script-in-use={script.id}>
+                      In use on an active chart. Remove active uses before editing or deleting.
+                    </span>
+                  {/if}
                 </div>
                 <label class="script-input-field compact-launch-field">
                   <span>Length</span>
@@ -1268,13 +1273,25 @@
                   >
                     Add
                   </button>
-                  <button type="button" class="indicator-secondary-btn" data-custom-script-edit={script.id} on:click={() => loadCustomScriptDraft(script)}>
+                  <button
+                    type="button"
+                    class="indicator-secondary-btn"
+                    data-custom-script-edit={script.id}
+                    disabled={script.inUse}
+                    on:click={() => loadCustomScriptDraft(script)}
+                  >
                     Edit
                   </button>
                   <button type="button" class="indicator-secondary-btn" data-custom-script-duplicate={script.id} on:click={() => onDuplicateCustomScript(script.id)}>
                     Duplicate
                   </button>
-                  <button type="button" class="indicator-secondary-btn danger" data-custom-script-delete={script.id} on:click={() => onDeleteCustomScript(script.id)}>
+                  <button
+                    type="button"
+                    class="indicator-secondary-btn danger"
+                    data-custom-script-delete={script.id}
+                    disabled={script.inUse}
+                    on:click={() => onDeleteCustomScript(script.id)}
+                  >
                     Delete
                   </button>
                 </div>

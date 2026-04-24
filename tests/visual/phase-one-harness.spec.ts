@@ -697,6 +697,33 @@ test("script library: imports expression text into the builder without clobberin
   );
 });
 
+test("script library: active custom scripts surface in-use state and fence edit/delete", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
+
+  await saveCustomScript(page, {
+    label: "My Guarded Spread",
+    shortLabel: "Guarded",
+    description: "Edit/delete guard demo.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "7",
+  });
+
+  await addCustomScriptFromLibrary(page, "custom-script-1", "5");
+  await expect(activeIndicatorList).toContainText("My Guarded Spread");
+  await expect(workbench.locator('[data-custom-script-in-use="custom-script-1"]')).toContainText(
+    "Remove active uses before editing or deleting.",
+  );
+  await expect(workbench.locator('[data-custom-script-edit="custom-script-1"]')).toBeDisabled();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeDisabled();
+  await expect(workbench.locator('[data-custom-script-duplicate="custom-script-1"]')).toBeEnabled();
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

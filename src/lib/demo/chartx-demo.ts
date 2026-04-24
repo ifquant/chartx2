@@ -148,6 +148,7 @@ export type DemoCustomScriptLibraryEntry = {
   expressionText: string;
   placement: WorkbenchIndicatorCatalogEntry["placement"];
   defaultLength: number;
+  inUse?: boolean;
 };
 
 type DemoReplayState = {
@@ -1265,6 +1266,7 @@ export function mountWorkbenchDemo(
           expressionText: draft.expressionText,
           placement: definition.placement,
           defaultLength: draft.defaultLength,
+          inUse: isCustomScriptInUse(definition.id),
         } satisfies DemoCustomScriptLibraryEntry,
       ];
     });

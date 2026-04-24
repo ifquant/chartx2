@@ -15,6 +15,7 @@ export interface WorkbenchLayoutScriptedIndicatorDescriptor {
   kind: "script";
   placement: WorkbenchLayoutScriptedIndicatorPlacement;
   scriptId: string;
+  inputValues?: Readonly<Record<string, number>>;
 }
 
 export interface WorkbenchLayoutWorkspaceTabState {
@@ -142,7 +143,10 @@ function isWorkbenchLayoutScriptedIndicatorDescriptor(
     isNonEmptyString(value.label) &&
     value.kind === "script" &&
     isWorkbenchLayoutScriptedIndicatorPlacement(value.placement) &&
-    isNonEmptyString(value.scriptId)
+    isNonEmptyString(value.scriptId) &&
+    (value.inputValues === undefined ||
+      (isRecord(value.inputValues) &&
+        Object.values(value.inputValues).every((entry) => isNumber(entry))))
   );
 }
 

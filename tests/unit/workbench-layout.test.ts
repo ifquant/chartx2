@@ -80,6 +80,9 @@ const scriptedIndicators = [
     kind: "script" as const,
     placement: "separate-pane" as const,
     scriptId: "close-sma-20-v0",
+    inputValues: {
+      length: 8,
+    },
   },
 ] as const;
 
@@ -425,6 +428,12 @@ describe("workbench layout state", () => {
             },
           ],
         },
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        ...baseState,
+        scriptedIndicators: [{ ...scriptedIndicators[0], inputValues: { length: Number.NaN } }],
       }),
     ).toBe(false);
   });

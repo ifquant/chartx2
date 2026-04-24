@@ -51,7 +51,7 @@
   export let onExecuteCommand: (commandId: string) => void | Promise<void>;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onOpenScreenerSymbol: (symbol: string) => void;
-  export let onAddIndicator: (entryId: string) => void;
+  export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void;
   export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
@@ -102,6 +102,7 @@
   let activeGrid: SlotGridPosition = { col: 1, row: 1 };
   let replayState = snapshot.replay;
   let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
+  let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -127,10 +128,65 @@
     );
   }
 
+  function ensureScriptDraft(entryId: string, inputId: string, defaultValue: number): void {
+    scriptedIndicatorDrafts = {
+      ...scriptedIndicatorDrafts,
+      [entryId]: {
+        ...(scriptedIndicatorDrafts[entryId] ?? {}),
+        [inputId]: scriptedIndicatorDrafts[entryId]?.[inputId] ?? String(defaultValue),
+      },
+    };
+  }
+
+  function scriptDraftValue(entryId: string, inputId: string, defaultValue: number): string {
+    ensureScriptDraft(entryId, inputId, defaultValue);
+    return scriptedIndicatorDrafts[entryId]?.[inputId] ?? String(defaultValue);
+  }
+
+  function updateScriptDraft(entryId: string, inputId: string, value: string): void {
+    scriptedIndicatorDrafts = {
+      ...scriptedIndicatorDrafts,
+      [entryId]: {
+        ...(scriptedIndicatorDrafts[entryId] ?? {}),
+        [inputId]: value,
+      },
+    };
+  }
+
+  function scriptInputPayload(entry: NonNullable<DemoSnapshot["indicatorCatalog"]>[number]): Record<string, number> | undefined {
+    if (entry.engineKind !== "script" || (entry.scriptInputs?.length ?? 0) === 0) {
+      return undefined;
+    }
+    const payload: Record<string, number> = {};
+    for (const input of entry.scriptInputs ?? []) {
+      payload[input.id] = Number(scriptedIndicatorDrafts[entry.id]?.[input.id] ?? input.defaultValue);
+    }
+    return payload;
+  }
+
+  function formatIndicatorInputValues(inputValues: Record<string, number> | undefined): string | null {
+    if (inputValues === undefined) {
+      return null;
+    }
+    const entries = Object.entries(inputValues);
+    if (entries.length === 0) {
+      return null;
+    }
+    return entries.map(([key, value]) => `${key} ${String(value)}`).join(" · ");
+  }
+
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
   $: replayState = snapshot.replay;
   $: layoutPreset = workbench?.layout.preset ?? "single";
   $: activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
+  $: for (const entry of snapshot.indicatorCatalog ?? []) {
+    if (entry.engineKind !== "script") {
+      continue;
+    }
+    for (const input of entry.scriptInputs ?? []) {
+      ensureScriptDraft(entry.id, input.id, input.defaultValue);
+    }
+  }
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
       const host = slot.chartHostId
@@ -672,20 +728,61 @@
         </div>
         <div class="indicator-list">
           {#each snapshot.indicatorCatalog ?? [] as entry}
-            <button
-              class="indicator-entry"
-              type="button"
-              disabled={!entry.enabled}
-              aria-disabled={!entry.enabled}
-              title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
-              on:click={() => onAddIndicator(entry.id)}
-            >
-              <strong>{entry.label}</strong>
-              <span>{entry.shortLabel} · {entry.family}</span>
-              {#if !entry.enabled && entry.unavailableReason}
-                <small>{entry.unavailableReason}</small>
-              {/if}
-            </button>
+            {#if entry.engineKind === "script" && (entry.scriptInputs?.length ?? 0) > 0}
+              <article
+                class="indicator-entry scripted-entry"
+                title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
+              >
+                <strong>{entry.label}</strong>
+                <span>{entry.shortLabel} · {entry.family}</span>
+                <div class="script-input-grid">
+                  {#each entry.scriptInputs ?? [] as input}
+                    <label class="script-input-field">
+                      <span>{input.label}</span>
+                      <input
+                        type="number"
+                        min={String(input.min)}
+                        max={String(input.max)}
+                        step={String(input.step)}
+                        value={scriptDraftValue(entry.id, input.id, input.defaultValue)}
+                        data-script-input-entry={entry.id}
+                        data-script-input-id={input.id}
+                        on:input={(event) =>
+                          updateScriptDraft(entry.id, input.id, (event.currentTarget as HTMLInputElement).value)}
+                      />
+                    </label>
+                  {/each}
+                </div>
+                <button
+                  class="indicator-add-btn"
+                  type="button"
+                  disabled={!entry.enabled}
+                  aria-disabled={!entry.enabled}
+                  data-script-add-entry={entry.id}
+                  on:click={() => onAddIndicator(entry.id, scriptInputPayload(entry))}
+                >
+                  Add
+                </button>
+                {#if !entry.enabled && entry.unavailableReason}
+                  <small>{entry.unavailableReason}</small>
+                {/if}
+              </article>
+            {:else}
+              <button
+                class="indicator-entry"
+                type="button"
+                disabled={!entry.enabled}
+                aria-disabled={!entry.enabled}
+                title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
+                on:click={() => onAddIndicator(entry.id)}
+              >
+                <strong>{entry.label}</strong>
+                <span>{entry.shortLabel} · {entry.family}</span>
+                {#if !entry.enabled && entry.unavailableReason}
+                  <small>{entry.unavailableReason}</small>
+                {/if}
+              </button>
+            {/if}
           {:else}
             <p class="indicator-empty">No catalog entries published.</p>
           {/each}
@@ -694,7 +791,13 @@
           {#each snapshot.activeIndicators ?? [] as indicator}
             <article>
               <strong>{indicator.label}</strong>
-              <span>{indicator.placement}</span>
+              <span>
+                {indicator.placement}
+                {#if formatIndicatorInputValues(indicator.inputValues) !== null}
+                  {" · "}
+                  {formatIndicatorInputValues(indicator.inputValues)}
+                {/if}
+              </span>
             </article>
           {:else}
             <p class="indicator-empty">No active indicators.</p>
@@ -1980,7 +2083,7 @@
 
   .indicator-entry {
     display: grid;
-    gap: 2px;
+    gap: 6px;
     width: 100%;
     padding: 8px;
     border: 0;
@@ -2014,6 +2117,52 @@
 
   .indicator-entry:hover:not(:disabled) {
     background: rgba(24, 24, 27, 0.08);
+  }
+
+  .scripted-entry {
+    cursor: default;
+  }
+
+  .script-input-grid {
+    display: grid;
+    gap: 6px;
+  }
+
+  .script-input-field {
+    display: grid;
+    gap: 4px;
+  }
+
+  .script-input-field span {
+    font-size: 0.7rem;
+    text-transform: none;
+    color: rgba(24, 24, 27, 0.58);
+  }
+
+  .script-input-field input {
+    width: 100%;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 7px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #18181b;
+    font: inherit;
+  }
+
+  .indicator-add-btn {
+    justify-self: start;
+    border: 0;
+    border-radius: 7px;
+    padding: 6px 10px;
+    background: rgba(15, 118, 110, 0.14);
+    color: #0f766e;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .indicator-add-btn:disabled {
+    opacity: 0.46;
+    cursor: not-allowed;
   }
 
   .indicator-entry:disabled {

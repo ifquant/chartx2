@@ -15,8 +15,12 @@ const bars = [
 
 describe("workbench script runtime", () => {
   it("publishes the deterministic V0 script library", () => {
-    expect(WORKBENCH_SCRIPT_LIBRARY.map((definition) => definition.id)).toEqual(["close-sma-20-v0"]);
+    expect(WORKBENCH_SCRIPT_LIBRARY.map((definition) => definition.id)).toEqual([
+      "close-sma-20-v0",
+      "hlc3-sma-10-v0",
+    ]);
     expect(getWorkbenchScriptDefinition("close-sma-20-v0")?.label).toBe("Scripted SMA 20");
+    expect(getWorkbenchScriptDefinition("hlc3-sma-10-v0")?.label).toBe("Scripted HLC3 SMA 10");
   });
 
   it("executes bounded arithmetic expressions over bar inputs", () => {
@@ -150,6 +154,75 @@ describe("workbench script runtime", () => {
       ok: false,
       reason: "invalid-config",
       message: "Script execution budget must be a positive integer.",
+      operations: 0,
+    });
+  });
+
+  it("uses default numeric input values published by the script definition", () => {
+    const definition = getWorkbenchScriptDefinition("hlc3-sma-10-v0");
+    expect(definition).not.toBeNull();
+    const result = executeWorkbenchScript(
+      {
+        ...definition!,
+        inputs: [
+          {
+            id: "length",
+            label: "Length",
+            min: 2,
+            max: 60,
+            step: 1,
+            defaultValue: 3,
+          },
+        ],
+      },
+      { bars },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      output: [
+        { time: 3, value: 11.666666666666666 },
+        { time: 4, value: 12.666666666666666 },
+      ],
+      operations: 8,
+    });
+  });
+
+  it("accepts numeric input overrides for scripted parameters", () => {
+    const definition = getWorkbenchScriptDefinition("close-sma-20-v0");
+    expect(definition).not.toBeNull();
+    const result = executeWorkbenchScript(definition!, {
+      bars,
+      numericInputs: {
+        length: 2,
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      output: [
+        { time: 2, value: 11.5 },
+        { time: 3, value: 12.5 },
+        { time: 4, value: 13.5 },
+      ],
+      operations: 8,
+    });
+  });
+
+  it("rejects invalid numeric input overrides", () => {
+    const definition = getWorkbenchScriptDefinition("close-sma-20-v0");
+    expect(definition).not.toBeNull();
+    const result = executeWorkbenchScript(definition!, {
+      bars,
+      numericInputs: {
+        length: 100,
+      },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "invalid-config",
+      message: "Length must be between 2 and 60.",
       operations: 0,
     });
   });

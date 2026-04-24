@@ -1,8 +1,14 @@
+import {
+  getWorkbenchScriptDefinition,
+  type WorkbenchScriptNumericInputDefinition,
+} from "./workbench-scripts";
+
 export type WorkbenchIndicatorCatalogEntryId =
   | "moving-average"
   | "compare"
   | "overlay-line"
-  | "scripted-close-sma";
+  | "scripted-close-sma"
+  | "scripted-hlc3-sma";
 
 export type WorkbenchIndicatorPlacement = "overlay" | "separate-pane";
 
@@ -17,6 +23,31 @@ export interface WorkbenchIndicatorCatalogEntry {
   enabled: boolean;
   unavailableReason?: string;
   scriptId?: string;
+  scriptInputs?: readonly WorkbenchScriptNumericInputDefinition[];
+}
+
+function createScriptIndicatorCatalogEntry(input: {
+  id: Extract<WorkbenchIndicatorCatalogEntryId, `scripted-${string}`>;
+  scriptId: string;
+  description: string;
+}): WorkbenchIndicatorCatalogEntry {
+  const definition = getWorkbenchScriptDefinition(input.scriptId);
+  if (definition === null) {
+    throw new Error(`Unknown scripted indicator definition ${input.scriptId}`);
+  }
+
+  return {
+    id: input.id,
+    label: definition.label,
+    shortLabel: definition.shortLabel,
+    description: input.description,
+    family: "script",
+    placement: definition.placement,
+    engineKind: "script",
+    enabled: true,
+    scriptId: definition.id,
+    scriptInputs: definition.inputs ?? [],
+  };
 }
 
 export const WORKBENCH_INDICATOR_CATALOG = [
@@ -50,17 +81,16 @@ export const WORKBENCH_INDICATOR_CATALOG = [
     engineKind: "overlay",
     enabled: true,
   },
-  {
+  createScriptIndicatorCatalogEntry({
     id: "scripted-close-sma",
-    label: "Scripted SMA 20",
-    shortLabel: "Script SMA",
-    description: "Execute a sandboxed close-price SMA script in a separate indicator pane.",
-    family: "script",
-    placement: "separate-pane",
-    engineKind: "script",
-    enabled: true,
     scriptId: "close-sma-20-v0",
-  },
+    description: "Execute a sandboxed close-price SMA script in a separate indicator pane.",
+  }),
+  createScriptIndicatorCatalogEntry({
+    id: "scripted-hlc3-sma",
+    scriptId: "hlc3-sma-10-v0",
+    description: "Execute a sandboxed HLC3 SMA script in a separate indicator pane.",
+  }),
 ] as const satisfies readonly WorkbenchIndicatorCatalogEntry[];
 
 export function getWorkbenchIndicatorCatalogEntry(

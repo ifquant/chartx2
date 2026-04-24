@@ -673,9 +673,13 @@ Progress checklist:
 - [x] Local scripted indicator runtime with typed V0 expression model
 - [x] Execution budget and isolated failure result
 - [x] Catalog-visible canned scripted indicator
+- [x] Scripted catalog entries expose numeric input metadata
 - [x] Demo/workbench execution against active bars
+- [x] Demo/workbench add flow accepts scripted input values
 - [x] Active-indicator and object-tree reflection for the scripted entry
+- [x] Active-indicator summaries surface scripted input values
 - [x] Workbench-owned scripted layout/workspace persistence through save, restore, export, and import
+- [x] Scripted input values persist through workbench save, restore, export, and import
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] User-authored scripts and editable script library
 - [ ] Pine-compatible subset evaluation
@@ -686,11 +690,19 @@ Implementation note:
   first-class chart study contract yet. The local script runtime lives in
   `src/lib/chartx/public/workbench-scripts.ts` with a small typed expression
   model, a bounded execution budget, and structured success/failure results.
-- The workbench indicator catalog now exposes one canned scripted entry,
-  `Scripted SMA 20`, and the demo executes it against the active OHLC payload
-  before attaching the output as a normal line study in a separate pane.
+- The workbench indicator catalog now exposes canned scripted entries together
+  with numeric input metadata. The current local library includes
+  `Scripted SMA 20` and `Scripted HLC3 SMA 10`, each with a bounded `Length`
+  input that stays owned by the workbench script/runtime layer.
+- The demo add-indicator flow now accepts numeric input values for scripted
+  entries before executing the script against the active OHLC payload and
+  attaching the output as a normal line study in a separate pane.
 - Script failures are isolated through status/log surfaces rather than leaking
   uncontrolled exceptions into the shell.
+- Active-indicator summaries and workbench-owned scripted layout descriptors now
+  carry `inputValues`, so save/restore/export/import can round-trip
+  parameterized scripted entries without promoting them into chart-state-native
+  studies.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

@@ -63,6 +63,8 @@ import {
 import {
   executeWorkbenchScript,
   getWorkbenchScriptDefinition,
+  type WorkbenchScriptDefinition,
+  type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
 import {
   openWorkbenchSymbol,
@@ -130,6 +132,7 @@ type DemoActiveIndicator = {
   kind: WorkbenchIndicatorCatalogEntry["engineKind"];
   placement: WorkbenchIndicatorCatalogEntry["placement"];
   scriptId?: string;
+  inputValues?: WorkbenchScriptNumericInputValueMap;
   paneIndex?: number;
 };
 
@@ -204,7 +207,7 @@ export type DemoController = {
   setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
-  addIndicatorFromCatalog?(entryId: string): boolean;
+  addIndicatorFromCatalog?(entryId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
   enterReplay?(): boolean;
   playReplay?(): boolean;
   pauseReplay?(): boolean;
@@ -1212,6 +1215,7 @@ export function mountWorkbenchDemo(
           kind: "script" as const,
           placement: indicator.placement,
           scriptId: indicator.scriptId,
+          inputValues: indicator.inputValues,
         },
       ];
     });
@@ -1225,6 +1229,7 @@ export function mountWorkbenchDemo(
       kind: "script",
       placement: indicator.placement,
       scriptId: indicator.scriptId,
+      inputValues: indicator.inputValues,
     }));
 
   const persistedScriptIndicators = (): DemoActiveIndicator[] =>
@@ -1236,6 +1241,7 @@ export function mountWorkbenchDemo(
         kind: indicator.kind,
         placement: indicator.placement,
         scriptId: indicator.scriptId,
+        inputValues: indicator.inputValues,
       }));
 
   const capturePersistedChartState = (): PhaseOneChartStateSnapshot | null => {
@@ -2709,7 +2715,7 @@ export function mountWorkbenchDemo(
 
   const addActiveIndicator = (
     entry: WorkbenchIndicatorCatalogEntry,
-    extras?: Pick<DemoActiveIndicator, "scriptId" | "paneIndex">,
+    extras?: Pick<DemoActiveIndicator, "scriptId" | "paneIndex" | "inputValues">,
   ) => {
     activeIndicators = [
       ...activeIndicators,
@@ -2719,9 +2725,23 @@ export function mountWorkbenchDemo(
         kind: entry.engineKind,
         placement: entry.placement,
         scriptId: extras?.scriptId,
+        inputValues: extras?.inputValues,
         paneIndex: extras?.paneIndex,
       },
     ];
+  };
+
+  const formatScriptInputSummary = (
+    definition: WorkbenchScriptDefinition,
+    inputValues: WorkbenchScriptNumericInputValueMap | undefined,
+  ): string | null => {
+    const inputs = definition.inputs ?? [];
+    if (inputs.length === 0) {
+      return null;
+    }
+    return inputs
+      .map((input) => `${input.label} ${String(inputValues?.[input.id] ?? input.defaultValue)}`)
+      .join(" · ");
   };
 
   const addScriptIndicatorFromCatalogEntry = (
@@ -2730,6 +2750,7 @@ export function mountWorkbenchDemo(
       logLabel?: string;
       failurePrefix?: string;
       updateStatusOnFailure?: boolean;
+      inputValues?: WorkbenchScriptNumericInputValueMap;
     },
   ): boolean => {
     if (chart === null) {
@@ -2747,6 +2768,7 @@ export function mountWorkbenchDemo(
 
     const execution = executeWorkbenchScript(definition, {
       bars: displayedBarsPayload().bars,
+      numericInputs: options?.inputValues,
     });
     if (!execution.ok) {
       if (options?.updateStatusOnFailure !== false) {
@@ -2769,10 +2791,16 @@ export function mountWorkbenchDemo(
     series.setData(execution.output);
     addActiveIndicator(entry, {
       scriptId: entry.scriptId,
+      inputValues: options?.inputValues,
       paneIndex: pane.paneIndex(),
     });
     if (options?.logLabel !== undefined) {
       pushLog(log, options.logLabel);
+    } else {
+      const inputSummary = formatScriptInputSummary(definition, options?.inputValues);
+      if (inputSummary !== null) {
+        pushLog(log, `added indicator ${entry.label} (${inputSummary})`);
+      }
     }
     refreshObjectTreeProjectionAndPublish();
     return true;
@@ -2796,6 +2824,7 @@ export function mountWorkbenchDemo(
       const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
       const restored = addScriptIndicatorFromCatalogEntry(scriptEntry, {
         failurePrefix: `${failurePrefix}: ${indicator.label}`,
+        inputValues: indicator.inputValues,
         updateStatusOnFailure: false,
       });
       restoredAll = restoredAll && restored;
@@ -3510,7 +3539,7 @@ export function mountWorkbenchDemo(
       }
       publishSnapshot();
     },
-    addIndicatorFromCatalog(entryId) {
+    addIndicatorFromCatalog(entryId, inputValues) {
       const entry = getWorkbenchIndicatorCatalogEntry(entryId);
       if (entry === null) {
         pushLog(log, `failed to add indicator ${entryId}: unknown catalog entry`);
@@ -3560,8 +3589,12 @@ export function mountWorkbenchDemo(
           return false;
         }
         const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
+        const definition = getWorkbenchScriptDefinition(scriptEntry.scriptId);
+        const inputSummary =
+          definition === null ? null : formatScriptInputSummary(definition, inputValues);
         return addScriptIndicatorFromCatalogEntry(scriptEntry, {
-          logLabel: `added indicator ${entry.label}`,
+          inputValues,
+          logLabel: inputSummary === null ? `added indicator ${entry.label}` : `added indicator ${entry.label} (${inputSummary})`,
         });
       }
 

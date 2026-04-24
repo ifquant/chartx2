@@ -2,6 +2,25 @@ import type { PhaseOneCandlestickData, PhaseOneLineData } from "./market";
 
 export type WorkbenchScriptField = "open" | "high" | "low" | "close" | "hl2" | "hlc3";
 export type WorkbenchScriptPlacement = "overlay" | "separate-pane";
+export type WorkbenchScriptNumericInputId = string;
+
+export interface WorkbenchScriptNumericInputDefinition {
+  id: WorkbenchScriptNumericInputId;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+}
+
+export type WorkbenchScriptNumericInputValueMap = Readonly<Record<WorkbenchScriptNumericInputId, number>>;
+
+type WorkbenchScriptNumericValue =
+  | number
+  | {
+      kind: "numeric-input";
+      inputId: WorkbenchScriptNumericInputId;
+    };
 
 export type WorkbenchScriptExpression =
   | {
@@ -11,7 +30,7 @@ export type WorkbenchScriptExpression =
   | {
       kind: "sma";
       input: WorkbenchScriptExpression;
-      length: number;
+      length: WorkbenchScriptNumericValue;
     }
   | {
       kind: "subtract";
@@ -26,6 +45,7 @@ export interface WorkbenchScriptDefinition {
   description: string;
   shortLabel: string;
   placement: WorkbenchScriptPlacement;
+  inputs?: readonly WorkbenchScriptNumericInputDefinition[];
   expression: WorkbenchScriptExpression;
 }
 
@@ -44,6 +64,7 @@ export type WorkbenchScriptExecutionResult =
 
 export interface WorkbenchScriptExecutionInput {
   bars: readonly PhaseOneCandlestickData[];
+  numericInputs?: WorkbenchScriptNumericInputValueMap;
   maxOperations?: number;
 }
 
@@ -57,13 +78,55 @@ export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
     shortLabel: "Script SMA",
     description: "Close-price SMA executed through the local script runtime.",
     placement: "separate-pane",
+    inputs: [
+      {
+        id: "length",
+        label: "Length",
+        min: 2,
+        max: 60,
+        step: 1,
+        defaultValue: 20,
+      },
+    ],
     expression: {
       kind: "sma",
       input: {
         kind: "input",
         field: "close",
       },
-      length: 20,
+      length: {
+        kind: "numeric-input",
+        inputId: "length",
+      },
+    },
+  },
+  {
+    id: "hlc3-sma-10-v0",
+    version: 1,
+    label: "Scripted HLC3 SMA 10",
+    shortLabel: "HLC3 SMA",
+    description: "HLC3 SMA executed through the local script runtime.",
+    placement: "separate-pane",
+    inputs: [
+      {
+        id: "length",
+        label: "Length",
+        min: 2,
+        max: 60,
+        step: 1,
+        defaultValue: 10,
+      },
+    ],
+    expression: {
+      kind: "sma",
+      input: {
+        kind: "input",
+        field: "hlc3",
+      },
+      length: {
+        kind: "numeric-input",
+        inputId: "length",
+      },
     },
   },
 ] as const;
@@ -99,6 +162,53 @@ function countOperation(state: EvaluationState): void {
   }
 }
 
+function resolveScriptNumericInputValues(
+  definition: WorkbenchScriptDefinition,
+  numericInputs: WorkbenchScriptNumericInputValueMap | undefined,
+): WorkbenchScriptNumericInputValueMap {
+  const resolved: Record<string, number> = {};
+  const definitions = definition.inputs ?? [];
+  const knownIds = new Set(definitions.map((input) => input.id));
+
+  for (const input of definitions) {
+    const value = numericInputs?.[input.id] ?? input.defaultValue;
+    if (!Number.isFinite(value)) {
+      throw new ScriptExecutionError("invalid-config", `${input.label} must be a finite number.`);
+    }
+    if (value < input.min || value > input.max) {
+      throw new ScriptExecutionError(
+        "invalid-config",
+        `${input.label} must be between ${input.min} and ${input.max}.`,
+      );
+    }
+    resolved[input.id] = value;
+  }
+
+  if (numericInputs !== undefined) {
+    for (const inputId of Object.keys(numericInputs)) {
+      if (!knownIds.has(inputId)) {
+        throw new ScriptExecutionError("invalid-config", `Unknown script input ${inputId}.`);
+      }
+    }
+  }
+
+  return resolved;
+}
+
+function resolveNumericValue(
+  value: WorkbenchScriptNumericValue,
+  inputValues: WorkbenchScriptNumericInputValueMap,
+): number {
+  if (typeof value === "number") {
+    return value;
+  }
+  const resolved = inputValues[value.inputId];
+  if (!Number.isFinite(resolved)) {
+    throw new ScriptExecutionError("invalid-config", `Missing numeric script input ${value.inputId}.`);
+  }
+  return resolved;
+}
+
 function resolveFieldValue(bar: PhaseOneCandlestickData, field: WorkbenchScriptField): number {
   switch (field) {
     case "open":
@@ -121,6 +231,7 @@ function evaluateExpression(
   expression: WorkbenchScriptExpression,
   bars: readonly PhaseOneCandlestickData[],
   state: EvaluationState,
+  inputValues: WorkbenchScriptNumericInputValueMap,
 ): Array<number | null> {
   if (expression.kind === "input") {
     return bars.map((bar) => {
@@ -130,8 +241,8 @@ function evaluateExpression(
   }
 
   if (expression.kind === "subtract") {
-    const left = evaluateExpression(expression.left, bars, state);
-    const right = evaluateExpression(expression.right, bars, state);
+    const left = evaluateExpression(expression.left, bars, state, inputValues);
+    const right = evaluateExpression(expression.right, bars, state, inputValues);
     return left.map((value, index) => {
       countOperation(state);
       const counterpart = right[index];
@@ -142,11 +253,12 @@ function evaluateExpression(
     });
   }
 
-  if (!Number.isInteger(expression.length) || expression.length < 1) {
+  const length = resolveNumericValue(expression.length, inputValues);
+  if (!Number.isInteger(length) || length < 1) {
     throw new ScriptExecutionError("invalid-config", "SMA length must be a positive integer.");
   }
 
-  const input = evaluateExpression(expression.input, bars, state);
+  const input = evaluateExpression(expression.input, bars, state, inputValues);
   const output: Array<number | null> = [];
   let rollingSum = 0;
   let rollingCount = 0;
@@ -161,11 +273,11 @@ function evaluateExpression(
     queue.push(value);
     rollingSum += value;
     rollingCount += 1;
-    if (queue.length > expression.length) {
+    if (queue.length > length) {
       rollingSum -= queue.shift() ?? 0;
       rollingCount -= 1;
     }
-    output.push(queue.length === expression.length && rollingCount === expression.length ? rollingSum / expression.length : null);
+    output.push(queue.length === length && rollingCount === length ? rollingSum / length : null);
   }
 
   return output;
@@ -195,7 +307,8 @@ export function executeWorkbenchScript(
 
   try {
     state.maxOperations = resolveMaxOperations(input.maxOperations);
-    const values = evaluateExpression(definition.expression, input.bars, state);
+    const numericInputs = resolveScriptNumericInputValues(definition, input.numericInputs);
+    const values = evaluateExpression(definition.expression, input.bars, state, numericInputs);
     return {
       ok: true,
       output: values.flatMap((value, index) => {

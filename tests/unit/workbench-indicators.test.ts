@@ -12,8 +12,10 @@ describe("workbench indicator catalog", () => {
       "compare",
       "overlay-line",
       "scripted-close-sma",
+      "scripted-hlc3-sma",
     ]);
     expect(WORKBENCH_INDICATOR_CATALOG.map((entry) => entry.enabled)).toEqual([
+      true,
       true,
       true,
       true,
@@ -81,6 +83,11 @@ describe("workbench indicator catalog", () => {
         engineKind: "script",
         placement: "separate-pane",
       },
+      {
+        id: "scripted-hlc3-sma",
+        engineKind: "script",
+        placement: "separate-pane",
+      },
     ]);
   });
 
@@ -95,6 +102,37 @@ describe("workbench indicator catalog", () => {
       engineKind: "script",
       enabled: true,
       scriptId: "close-sma-20-v0",
+      scriptInputs: [
+        {
+          id: "length",
+          label: "Length",
+          min: 2,
+          max: 60,
+          step: 1,
+          defaultValue: 20,
+        },
+      ],
+    });
+    expect(getWorkbenchIndicatorCatalogEntry("scripted-hlc3-sma")).toEqual({
+      id: "scripted-hlc3-sma",
+      label: "Scripted HLC3 SMA 10",
+      shortLabel: "HLC3 SMA",
+      description: "Execute a sandboxed HLC3 SMA script in a separate indicator pane.",
+      family: "script",
+      placement: "separate-pane",
+      engineKind: "script",
+      enabled: true,
+      scriptId: "hlc3-sma-10-v0",
+      scriptInputs: [
+        {
+          id: "length",
+          label: "Length",
+          min: 2,
+          max: 60,
+          step: 1,
+          defaultValue: 10,
+        },
+      ],
     });
   });
 });

@@ -448,8 +448,8 @@
     }
   }
 
-  function addWorkbenchIndicator(entryId: string): void {
-    const added = workbenchController?.addIndicatorFromCatalog?.(entryId);
+  function addWorkbenchIndicator(entryId: string, inputValues?: Record<string, number>): void {
+    const added = workbenchController?.addIndicatorFromCatalog?.(entryId, inputValues);
     if (added) {
       workbenchActions = workbenchController?.actions() ?? [];
     }

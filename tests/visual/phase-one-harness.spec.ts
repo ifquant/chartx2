@@ -658,6 +658,45 @@ test("script library: invalid length inputs are blocked before save or add", asy
   await expect(workbench.locator('[data-custom-script-add="custom-script-1"]')).toBeDisabled();
 });
 
+test("script library: imports expression text into the builder without clobbering on parse errors", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-custom-script-field="label"]').fill("My Imported Spread");
+  await workbench.locator('[data-custom-script-field="short-label"]').fill("Imported");
+  await workbench.locator('[data-custom-script-field="description"]').fill("Imported from expression text.");
+
+  await workbench
+    .locator("[data-custom-script-import-expression]")
+    .fill("subtract(close, sma(hlc3, length))");
+  await workbench.locator("[data-custom-script-import-apply]").click();
+
+  await expect(workbench.locator("[data-custom-script-expression-preview]")).toContainText(
+    "subtract(close, sma(hlc3, length))",
+  );
+  await expect(workbench.locator("[data-custom-script-preview]")).toContainText(
+    "subtract(close, sma(hlc3, length))",
+  );
+
+  await workbench.locator("[data-custom-script-import-expression]").fill("close - open");
+  await workbench.locator("[data-custom-script-import-apply]").click();
+  await expect(workbench.locator("[data-custom-script-import-error]")).toContainText(
+    "Expression must use the supported subset",
+  );
+  await expect(workbench.locator("[data-custom-script-expression-preview]")).toContainText(
+    "subtract(close, sma(hlc3, length))",
+  );
+
+  await workbench.locator("[data-custom-script-field=\"default-length\"]").fill("8");
+  await workbench.locator("[data-custom-script-save]").click();
+  await expect(workbench).toContainText("saved custom script My Imported Spread");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText(
+    "subtract(close, sma(hlc3, length))",
+  );
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

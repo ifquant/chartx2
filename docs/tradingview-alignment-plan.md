@@ -686,6 +686,7 @@ Progress checklist:
 - [x] Saved custom scripts launch from the script library instead of the generic indicator catalog
 - [x] Local duplicate flow for saved custom scripts
 - [x] Invalid custom-script length inputs are blocked in the Script Library before save/add
+- [x] Script Library can import supported expression text into the AST builder
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -743,6 +744,10 @@ Implementation note:
   validation now feed explicit reactive derived state in the panel, so invalid
   values surface immediately and block save/add actions before the runtime
   boundary is reached.
+- `Script Library Expression Import V0` adds a narrow bridge between copied
+  expression text and the structured AST builder: the Script Library can now
+  parse a supported expression string into the builder, but failed imports keep
+  the current builder state intact instead of clobbering it.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

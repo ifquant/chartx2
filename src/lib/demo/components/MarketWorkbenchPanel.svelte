@@ -148,6 +148,8 @@
   };
   let customScriptDefaultLengthInput = "20";
   let customScriptDraftError: string | null = null;
+  let customScriptImportExpressionInput = "";
+  let customScriptImportError: string | null = null;
   let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
   let customScriptDefaultLengthErrorMessage: string | null = null;
   let customScriptLaunchErrors: Record<string, string | null> = {};
@@ -173,6 +175,8 @@
   function resetCustomScriptDraft(): void {
     editingCustomScriptId = null;
     customScriptDraftError = null;
+    customScriptImportError = null;
+    customScriptImportExpressionInput = "";
     customScriptExpression = {
       kind: "sma",
       input: {
@@ -252,6 +256,8 @@
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
     editingCustomScriptId = entry.id;
     customScriptDraftError = null;
+    customScriptImportError = null;
+    customScriptImportExpressionInput = entry.expressionText;
     const parsed = parseWorkbenchCustomScriptExpressionText(entry.expressionText);
     customScriptExpression =
       parsed.ok
@@ -356,6 +362,17 @@
       ...customScriptDraft,
       expressionText: formatWorkbenchCustomScriptExpressionText(nextExpression),
     };
+  }
+
+  function importCustomScriptExpression(): void {
+    const parsed = parseWorkbenchCustomScriptExpressionText(customScriptImportExpressionInput);
+    if (!parsed.ok) {
+      customScriptImportError = parsed.message;
+      return;
+    }
+    customScriptImportError = null;
+    customScriptImportExpressionInput = formatWorkbenchCustomScriptExpressionText(parsed.expression);
+    syncCustomScriptExpression(parsed.expression);
   }
 
   function setCustomScriptNodeKind(path: ScriptBuilderPath, kind: WorkbenchScriptExpression["kind"]): void {
@@ -1146,6 +1163,28 @@
                 onSetField={setCustomScriptNodeField}
               />
             </div>
+            <label class="script-input-field">
+              <span>Import expression</span>
+              <input
+                type="text"
+                bind:value={customScriptImportExpressionInput}
+                data-custom-script-import-expression
+                placeholder="subtract(close, sma(close, length))"
+              />
+            </label>
+            <div class="custom-script-actions">
+              <button
+                type="button"
+                class="indicator-secondary-btn"
+                data-custom-script-import-apply
+                on:click={importCustomScriptExpression}
+              >
+                Apply expression
+              </button>
+            </div>
+            {#if customScriptImportError}
+              <p class="indicator-empty" data-custom-script-import-error>{customScriptImportError}</p>
+            {/if}
             <div class="script-input-grid dual">
               <label class="script-input-field">
                 <span>Placement</span>

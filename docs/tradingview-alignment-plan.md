@@ -693,6 +693,7 @@ Progress checklist:
 - [x] Script Library can locally sort saved scripts for management views
 - [x] Script Library empty filter states can recover in place
 - [x] Script Library delete uses an explicit confirm/cancel row state before removing a saved custom script
+- [x] Script Library fences dirty draft replacement before switching saved edit targets
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -775,11 +776,11 @@ Implementation note:
   explicit confirm/cancel step before deletion, while keeping in-use rows
   fenced and clearing the editor back to create mode if the deleted row was the
   current edit target.
-- Planned `Script Library Stale Edit Target Fence V0` should keep the
-  workbench-owned editor from holding a deleted custom-script id: if a saved
-  script is deleted while its draft is loaded for edit, the local editor target
-  should clear back to create mode instead of submitting an update for a stale
-  library entry.
+- `Script Library Dirty Draft Fence V0` closes the remaining silent-replacement
+  gap in that local editor shell: when the current custom-script draft diverges
+  from its last loaded baseline, clicking `Edit` on another saved script now
+  raises a local discard/cancel fence instead of silently replacing the dirty
+  draft, and save/reset/delete flows clear the pending replacement state.
 - Planned `Active Script Use Remove V0` should add a workbench-owned remove
   action for active scripted indicators so users can clear library `inUse`
   fences from the active indicator list without deleting the saved custom

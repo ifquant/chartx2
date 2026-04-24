@@ -780,6 +780,53 @@ test("script library: delete requires an explicit confirm step", async ({ page }
   await expect(workbench).toContainText("deleted custom script Delete Confirm Spread");
 });
 
+test("script library: switching edit targets fences unsaved draft changes", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "First Script",
+    shortLabel: "First",
+    description: "First saved script.",
+    expressionText: "sma(close, length)",
+    placement: "separate-pane",
+    defaultLength: "5",
+  });
+  await saveCustomScript(page, {
+    label: "Second Script",
+    shortLabel: "Second",
+    description: "Second saved script.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "8",
+  });
+
+  await workbench.locator('[data-custom-script-edit="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("First Script");
+
+  await workbench.locator('[data-custom-script-field="label"]').fill("Unsaved Label");
+  await workbench.locator('[data-custom-script-edit="custom-script-2"]').click();
+  await expect(workbench.locator("[data-custom-script-dirty-fence]")).toContainText(
+    "Unsaved script changes",
+  );
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("Unsaved Label");
+
+  await workbench.locator("[data-custom-script-dirty-cancel]").click();
+  await expect(workbench.locator("[data-custom-script-dirty-fence]")).toHaveCount(0);
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("Unsaved Label");
+  await expect(workbench.locator("[data-custom-script-save]")).toContainText("Update script");
+
+  await workbench.locator('[data-custom-script-edit="custom-script-2"]').click();
+  await expect(workbench.locator("[data-custom-script-dirty-fence]")).toContainText(
+    "Unsaved script changes",
+  );
+  await workbench.locator("[data-custom-script-dirty-discard]").click();
+  await expect(workbench.locator("[data-custom-script-dirty-fence]")).toHaveCount(0);
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("Second Script");
+});
+
 test("script library: deleting the edited script clears the stale update target", async ({
   page,
 }) => {

@@ -159,6 +159,13 @@
   let customScriptLaunchPayloads: Record<string, Record<string, number> | null> = {};
   let filteredCustomScripts: readonly DemoCustomScriptLibraryEntry[] = [];
   let pendingCustomScriptDeleteId: string | null = null;
+  let pendingCustomScriptLoadId: string | null = null;
+  let customScriptDraftBaseline = JSON.stringify({
+    editingCustomScriptId,
+    draft: customScriptDraft,
+    defaultLength: customScriptDefaultLengthInput,
+    expression: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
+  });
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -179,6 +186,7 @@
 
   function resetCustomScriptDraft(): void {
     pendingCustomScriptDeleteId = null;
+    pendingCustomScriptLoadId = null;
     editingCustomScriptId = null;
     customScriptDraftError = null;
     customScriptImportError = null;
@@ -203,9 +211,11 @@
       defaultLength: 20,
     };
     customScriptDefaultLengthInput = "20";
+    customScriptDraftBaseline = serializeCustomScriptDraftState();
   }
 
   function requestCustomScriptDelete(scriptId: string): void {
+    pendingCustomScriptLoadId = null;
     pendingCustomScriptDeleteId = scriptId;
   }
 
@@ -303,8 +313,26 @@
     return customScriptSequenceValue(right.id) - customScriptSequenceValue(left.id);
   }
 
+  function serializeCustomScriptDraftState(): string {
+    return JSON.stringify({
+      editingCustomScriptId,
+      draft: customScriptDraft,
+      defaultLength: customScriptDefaultLengthInput,
+      expression: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
+    });
+  }
+
+  function customScriptDraftIsDirty(): boolean {
+    return serializeCustomScriptDraftState() !== customScriptDraftBaseline;
+  }
+
+  function customScriptById(scriptId: string): DemoCustomScriptLibraryEntry | null {
+    return snapshot.customScripts?.find((entry) => entry.id === scriptId) ?? null;
+  }
+
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
     pendingCustomScriptDeleteId = null;
+    pendingCustomScriptLoadId = null;
     editingCustomScriptId = entry.id;
     customScriptDraftError = null;
     customScriptImportError = null;
@@ -333,12 +361,50 @@
       defaultLength: entry.defaultLength,
     };
     customScriptDefaultLengthInput = String(entry.defaultLength);
+    customScriptDraftBaseline = serializeCustomScriptDraftState();
+  }
+
+  function requestCustomScriptLoad(scriptId: string): void {
+    const entry = customScriptById(scriptId);
+    if (entry === null) {
+      pendingCustomScriptLoadId = null;
+      return;
+    }
+    pendingCustomScriptDeleteId = null;
+    if (scriptId === editingCustomScriptId) {
+      pendingCustomScriptLoadId = null;
+      return;
+    }
+    if (!customScriptDraftIsDirty()) {
+      loadCustomScriptDraft(entry);
+      return;
+    }
+    pendingCustomScriptLoadId = scriptId;
+  }
+
+  function cancelPendingCustomScriptLoad(): void {
+    pendingCustomScriptLoadId = null;
+  }
+
+  function discardCustomScriptDraftChanges(): void {
+    if (pendingCustomScriptLoadId === null) {
+      return;
+    }
+    const entry = customScriptById(pendingCustomScriptLoadId);
+    if (entry === null) {
+      resetCustomScriptDraft();
+      return;
+    }
+    loadCustomScriptDraft(entry);
   }
 
   function confirmCustomScriptDelete(scriptId: string): void {
     const deleted = onDeleteCustomScript(scriptId);
     if (!deleted) {
       return;
+    }
+    if (pendingCustomScriptLoadId === scriptId) {
+      pendingCustomScriptLoadId = null;
     }
     pendingCustomScriptDeleteId = null;
     if (editingCustomScriptId === scriptId) {
@@ -570,6 +636,9 @@
     !filteredCustomScripts.some((script) => script.id === pendingCustomScriptDeleteId)
   ) {
     pendingCustomScriptDeleteId = null;
+  }
+  $: if (pendingCustomScriptLoadId !== null && customScriptById(pendingCustomScriptLoadId) === null) {
+    pendingCustomScriptLoadId = null;
   }
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
@@ -1345,6 +1414,30 @@
             {#if customScriptDraftError}
               <p class="indicator-empty" data-custom-script-error>{customScriptDraftError}</p>
             {/if}
+            {#if pendingCustomScriptLoadId !== null}
+              <div class="custom-script-actions" data-custom-script-dirty-fence>
+                <p class="indicator-empty">
+                  Unsaved script changes. Discard them before loading
+                  {customScriptById(pendingCustomScriptLoadId)?.label ?? "another saved script"}.
+                </p>
+                <button
+                  type="button"
+                  class="indicator-secondary-btn danger"
+                  data-custom-script-dirty-discard
+                  on:click={discardCustomScriptDraftChanges}
+                >
+                  Discard and load
+                </button>
+                <button
+                  type="button"
+                  class="indicator-secondary-btn"
+                  data-custom-script-dirty-cancel
+                  on:click={cancelPendingCustomScriptLoad}
+                >
+                  Keep current draft
+                </button>
+              </div>
+            {/if}
             <div class="custom-script-actions">
               <button
                 type="button"
@@ -1411,7 +1504,7 @@
                     class="indicator-secondary-btn"
                     data-custom-script-edit={script.id}
                     disabled={script.inUse}
-                    on:click={() => loadCustomScriptDraft(script)}
+                    on:click={() => requestCustomScriptLoad(script.id)}
                   >
                     Edit
                   </button>

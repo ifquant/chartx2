@@ -533,6 +533,22 @@ Acceptance:
 - Screener results open symbols through the same host adapter path.
 - Screener logic does not depend on a single demo chart instance.
 
+Implementation note:
+
+- Screener V0 is now a local workbench sidebar panel instead of a standalone
+  surface. The public workbench shell carries a thin `rightSidebar.screener`
+  model, while the demo controller builds deterministic screener rows from the
+  existing watchlist/fixture symbols.
+- The current slice exposes a small local filter set only: falling-only and an
+  optional price-floor toggle. Results are ranked by absolute percentage move,
+  then rendered in the right sidebar alongside the other workbench panels.
+- Result clicks route through the same existing open-symbol path used by the
+  watchlist and active-host workbench routing. `+page.svelte` remains a thin
+  shell that only forwards screener result clicks to the controller.
+- This is intentionally still demo-local V0 behavior: no remote screener feed,
+  no query DSL, no saved screener presets, and no multi-watchlist management
+  are included yet.
+
 ### 10. Workstation UX And Command Surface
 
 Purpose:

@@ -570,6 +570,24 @@ Acceptance:
 - Common actions are command-driven and testable.
 - UI panels remain thin projections of workstation models.
 
+Implementation note:
+
+- Command Surface V0 is now real as a thin workbench command palette, not just
+  a future toolbar idea. The public workbench shell carries a small
+  `commandPalette` model, while the demo controller publishes deterministic
+  command entries for theme, layout, layout persistence, and replay entry/exit.
+- `src/routes/+page.svelte` still does not own workstation policy. It only
+  keeps the open/closed state for the palette and wires `Cmd/Ctrl+K` plus
+  `Escape` into the existing controller-backed command execution path.
+- `src/lib/demo/components/MarketWorkbenchPanel.svelte` renders the palette
+  overlay with stable selectors so browser coverage can prove that keyboard
+  open/close and command execution both work against the current workbench
+  shell.
+- This is intentionally still a V0 command surface: there is no fuzzy search,
+  no free-text command parsing, no multi-step command routing, no workspace
+  tabs, and no import/export workflow yet. The current slice only makes a
+  small, explicit command registry executable and testable.
+
 ### Layer 2 Gate
 
 Layer 2 is acceptable when:

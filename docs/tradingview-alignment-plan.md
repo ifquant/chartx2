@@ -769,6 +769,11 @@ Implementation note:
 - `Script Library Filter Recovery V0` tightens the filter UX loop: when a local
   saved-script query produces no matches, the empty state can now clear that
   query in place instead of forcing the user back to the top controls.
+- Planned `Script Library Stale Edit Target Fence V0` should keep the
+  workbench-owned editor from holding a deleted custom-script id: if a saved
+  script is deleted while its draft is loaded for edit, the local editor target
+  should clear back to create mode instead of submitting an update for a stale
+  library entry.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

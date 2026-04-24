@@ -724,6 +724,47 @@ test("script library: active custom scripts surface in-use state and fence edit/
   await expect(workbench.locator('[data-custom-script-duplicate="custom-script-1"]')).toBeEnabled();
 });
 
+test("script library: deleting the edited script clears the stale update target", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "My Editable Spread",
+    shortLabel: "Editable",
+    description: "Delete while editing demo.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "7",
+  });
+
+  await workbench.locator('[data-custom-script-edit="custom-script-1"]').click();
+  await expect(workbench.locator("[data-custom-script-save]")).toContainText("Update script");
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("My Editable Spread");
+
+  await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
+  await expect(workbench.locator("[data-custom-script-save]")).toContainText("Save script");
+  await expect(workbench.locator("[data-custom-script-cancel]")).toHaveCount(0);
+  await expect(workbench.locator('[data-custom-script-field="label"]')).toHaveValue("");
+
+  await saveCustomScript(page, {
+    label: "My Replacement Spread",
+    shortLabel: "Replacement",
+    description: "Fresh save after deletion.",
+    expressionText: "sma(close, length)",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+
+  await expect(workbench).toContainText("saved custom script My Replacement Spread");
+  await expect(workbench).not.toContainText("updated custom script My Replacement Spread");
+  await expect(workbench.locator('[data-custom-script="custom-script-2"]')).toContainText(
+    "My Replacement Spread",
+  );
+});
+
 test("script library: import field can resync to the current builder expression", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

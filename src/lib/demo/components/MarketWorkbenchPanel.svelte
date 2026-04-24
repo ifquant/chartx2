@@ -72,7 +72,7 @@
     placement: "overlay" | "separate-pane";
     defaultLength: number;
   }) => boolean;
-  export let onDeleteCustomScript: (scriptId: string) => void;
+  export let onDeleteCustomScript: (scriptId: string) => boolean;
   export let onDuplicateCustomScript: (scriptId: string) => void;
   export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
@@ -319,6 +319,13 @@
       defaultLength: entry.defaultLength,
     };
     customScriptDefaultLengthInput = String(entry.defaultLength);
+  }
+
+  function deleteCustomScriptEntry(scriptId: string): void {
+    const deleted = onDeleteCustomScript(scriptId);
+    if (deleted && editingCustomScriptId === scriptId) {
+      resetCustomScriptDraft();
+    }
   }
 
   type ScriptBuilderPath = readonly ("input" | "left" | "right")[];
@@ -1380,7 +1387,7 @@
                     class="indicator-secondary-btn danger"
                     data-custom-script-delete={script.id}
                     disabled={script.inUse}
-                    on:click={() => onDeleteCustomScript(script.id)}
+                    on:click={() => deleteCustomScriptEntry(script.id)}
                   >
                     Delete
                   </button>

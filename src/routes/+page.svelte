@@ -487,11 +487,12 @@
     return saved ?? false;
   }
 
-  function deleteWorkbenchCustomScript(scriptId: string): void {
+  function deleteWorkbenchCustomScript(scriptId: string): boolean {
     const deleted = workbenchController?.deleteCustomScript?.(scriptId);
     if (deleted) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
+    return deleted ?? false;
   }
 
   function duplicateWorkbenchCustomScript(scriptId: string): void {

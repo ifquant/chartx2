@@ -3808,6 +3808,15 @@ export function mountWorkbenchDemo(
         publishSnapshot();
         return true;
       }
+      if (!customScriptLibrary.some((entry) => entry.id === scriptId)) {
+        setStatusNotice({
+          tone: "warning",
+          message: `Reload the script library before updating ${draft.label}.`,
+        });
+        pushLog(log, `failed to update custom script ${draft.label}: stale edit target`);
+        publishSnapshot();
+        return false;
+      }
       customScriptLibrary = customScriptLibrary.map((entry) => (entry.id === scriptId ? definition : entry));
       setStatusNotice({
         tone: "success",

@@ -685,6 +685,7 @@ Progress checklist:
 - [x] Builtin scripted entries can be saved into the local custom-script library
 - [x] Saved custom scripts launch from the script library instead of the generic indicator catalog
 - [x] Local duplicate flow for saved custom scripts
+- [x] Invalid custom-script length inputs are blocked in the Script Library before save/add
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -737,6 +738,11 @@ Implementation note:
   workbench now edits the existing recursive expression subset through a
   structured builder and treats canonical `expressionText` as derived
   compatibility output instead of the live form state.
+- `Script Library Invalid Length Fence V0` closes a correctness gap in the
+  local authoring shell: Script Library default-length and launch-length
+  validation now feed explicit reactive derived state in the panel, so invalid
+  values surface immediately and block save/add actions before the runtime
+  boundary is reached.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

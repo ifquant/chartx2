@@ -23,6 +23,7 @@
     WorkbenchDrawingTool,
   } from "$lib/demo/chartx-demo";
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
+  import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -143,9 +144,14 @@
     description: "",
     expressionText: "sma(close, length)",
     placement: "separate-pane" as "overlay" | "separate-pane",
-    defaultLength: "20",
+    defaultLength: 20,
   };
+  let customScriptDefaultLengthInput = "20";
   let customScriptDraftError: string | null = null;
+  let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
+  let customScriptDefaultLengthErrorMessage: string | null = null;
+  let customScriptLaunchErrors: Record<string, string | null> = {};
+  let customScriptLaunchPayloads: Record<string, Record<string, number> | null> = {};
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -184,8 +190,9 @@
       description: "",
       expressionText: "sma(close, length)",
       placement: "separate-pane",
-      defaultLength: "20",
+      defaultLength: 20,
     };
+    customScriptDefaultLengthInput = "20";
   }
 
   function layoutPersistenceMissing(): boolean {
@@ -266,8 +273,9 @@
       description: entry.description,
       expressionText: parsed.ok ? formatWorkbenchCustomScriptExpressionText(parsed.expression) : entry.expressionText,
       placement: entry.placement,
-      defaultLength: String(entry.defaultLength),
+      defaultLength: entry.defaultLength,
     };
+    customScriptDefaultLengthInput = String(entry.defaultLength);
   }
 
   type ScriptBuilderPath = readonly ("input" | "left" | "right")[];
@@ -369,36 +377,22 @@
     );
   }
 
-  function customScriptLaunchValue(scriptId: string, defaultLength: number): string {
-    customScriptLaunchDrafts = {
-      ...customScriptLaunchDrafts,
-      [scriptId]: customScriptLaunchDrafts[scriptId] ?? String(defaultLength),
-    };
-    return customScriptLaunchDrafts[scriptId] ?? String(defaultLength);
-  }
-
-  function updateCustomScriptLaunchValue(scriptId: string, value: string): void {
-    customScriptLaunchDrafts = {
-      ...customScriptLaunchDrafts,
-      [scriptId]: value,
-    };
-  }
-
-  function customScriptLaunchPayload(script: DemoCustomScriptLibraryEntry): Record<string, number> {
-    return {
-      length: Number(customScriptLaunchDrafts[script.id] ?? script.defaultLength),
-    };
+  function parseLengthInput(value: string): number | null {
+    if (value.trim().length === 0) {
+      return null;
+    }
+    return Number(value);
   }
 
   function submitCustomScriptDraft(): void {
-    const nextLength = Number(customScriptDraft.defaultLength);
+    const nextLength = parseLengthInput(customScriptDefaultLengthInput);
     const validation = validateWorkbenchCustomScriptDraft({
       label: customScriptDraft.label.trim(),
       shortLabel: customScriptDraft.shortLabel.trim(),
       description: customScriptDraft.description.trim(),
       expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
       placement: customScriptDraft.placement,
-      defaultLength: nextLength,
+      defaultLength: nextLength ?? Number.NaN,
     });
     if (!validation.ok) {
       customScriptDraftError = validation.message;
@@ -411,21 +405,11 @@
       description: customScriptDraft.description.trim(),
       expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
       placement: customScriptDraft.placement,
-      defaultLength: nextLength,
+      defaultLength: nextLength ?? Number.NaN,
     });
     if (saved) {
       resetCustomScriptDraft();
     }
-  }
-
-  function customScriptDraftPreview(): string {
-    const parsed = parseWorkbenchCustomScriptExpressionText(customScriptDraft.expressionText.trim());
-    const lengthValue = Number(customScriptDraft.defaultLength);
-    const lengthLabel = Number.isFinite(lengthValue) ? String(lengthValue) : "--";
-    if (!parsed.ok) {
-      return `expression invalid · length ${lengthLabel} · ${customScriptDraft.placement}`;
-    }
-    return `${formatWorkbenchCustomScriptExpressionText(customScriptExpression)} · length ${lengthLabel} · ${customScriptDraft.placement}`;
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
@@ -439,6 +423,58 @@
     for (const input of entry.scriptInputs ?? []) {
       ensureScriptDraft(entry.id, input.id, input.defaultValue);
     }
+  }
+  $: {
+    let nextDrafts: Record<string, string> | null = null;
+    for (const script of snapshot.customScripts ?? []) {
+      if (customScriptLaunchDrafts[script.id] !== undefined) {
+        continue;
+      }
+      nextDrafts = {
+        ...(nextDrafts ?? customScriptLaunchDrafts),
+        [script.id]: String(script.defaultLength),
+      };
+    }
+    if (nextDrafts !== null) {
+      customScriptLaunchDrafts = nextDrafts;
+    }
+  }
+  $: {
+    const value = parseLengthInput(customScriptDefaultLengthInput);
+    customScriptDefaultLengthErrorMessage =
+      value === null || !Number.isInteger(value) || value < 2 || value > 60
+        ? "Default length must be an integer between 2 and 60."
+        : null;
+  }
+  $: {
+    const parsed = parseWorkbenchCustomScriptExpressionText(customScriptDraft.expressionText.trim());
+    const lengthValue = parseLengthInput(customScriptDefaultLengthInput);
+    const lengthLabel = Number.isFinite(lengthValue) ? String(lengthValue) : "--";
+    customScriptDraftPreviewLabel = !parsed.ok
+      ? `expression invalid · length ${lengthLabel} · ${customScriptDraft.placement}`
+      : `${formatWorkbenchCustomScriptExpressionText(customScriptExpression)} · length ${lengthLabel} · ${customScriptDraft.placement}`;
+  }
+  $: {
+    const nextErrors: Record<string, string | null> = {};
+    const nextPayloads: Record<string, Record<string, number> | null> = {};
+    for (const script of snapshot.customScripts ?? []) {
+      const value =
+        customScriptLaunchDrafts[script.id] === undefined
+          ? script.defaultLength
+          : parseLengthInput(customScriptLaunchDrafts[script.id] ?? "");
+      nextErrors[script.id] =
+        value === null
+          ? "Length is required."
+          : !Number.isInteger(value) || value < 2 || value > 60
+            ? "Length must be an integer between 2 and 60."
+            : null;
+      nextPayloads[script.id] =
+        value === null || !Number.isInteger(value) || value < 2 || value > 60
+          ? null
+          : { length: value };
+    }
+    customScriptLaunchErrors = nextErrors;
+    customScriptLaunchPayloads = nextPayloads;
   }
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
@@ -1122,25 +1158,34 @@
             <p class="custom-script-preview">Custom scripted indicators currently save as separate-pane studies only.</p>
             <label class="script-input-field">
               <span>Default length</span>
-              <input
-                type="number"
-                min="2"
-                max="60"
-                step="1"
-                bind:value={customScriptDraft.defaultLength}
+              <ScriptLengthInput
+                bind:value={customScriptDefaultLengthInput}
                 data-custom-script-field="default-length"
               />
             </label>
+            {#if customScriptDefaultLengthErrorMessage}
+              <p class="indicator-empty" data-custom-script-default-length-error>{customScriptDefaultLengthErrorMessage}</p>
+            {/if}
             <p class="custom-script-preview" data-custom-script-expression-preview>
               {formatWorkbenchCustomScriptExpressionText(customScriptExpression)}
             </p>
-            <p class="custom-script-preview" data-custom-script-preview>{customScriptDraftPreview()}</p>
+            <p class="custom-script-preview" data-custom-script-preview>{customScriptDraftPreviewLabel}</p>
             {#if customScriptDraftError}
               <p class="indicator-empty" data-custom-script-error>{customScriptDraftError}</p>
             {/if}
             <div class="custom-script-actions">
-              <button type="button" class="indicator-add-btn" data-custom-script-save on:click={submitCustomScriptDraft}>
-                {editingCustomScriptId === null ? "Save script" : "Update script"}
+              <button
+                type="button"
+                class="indicator-add-btn"
+                data-custom-script-save
+                disabled={customScriptDefaultLengthErrorMessage !== null}
+                on:click={submitCustomScriptDraft}
+              >
+                {#if customScriptDefaultLengthErrorMessage}
+                  Fix default length
+                {:else}
+                  {editingCustomScriptId === null ? "Save script" : "Update script"}
+                {/if}
               </button>
               {#if editingCustomScriptId !== null}
                 <button type="button" class="indicator-secondary-btn" data-custom-script-cancel on:click={resetCustomScriptDraft}>
@@ -1158,18 +1203,30 @@
                 </div>
                 <label class="script-input-field compact-launch-field">
                   <span>Length</span>
-                  <input
-                    type="number"
-                    min="2"
-                    max="60"
-                    step="1"
-                    value={customScriptLaunchValue(script.id, script.defaultLength)}
+                  <ScriptLengthInput
+                    bind:value={customScriptLaunchDrafts[script.id]}
                     data-custom-script-launch-length={script.id}
-                    on:input={(event) => updateCustomScriptLaunchValue(script.id, (event.currentTarget as HTMLInputElement).value)}
                   />
                 </label>
+                {#if customScriptLaunchErrors[script.id]}
+                  <p class="indicator-empty" data-custom-script-launch-error={script.id}>
+                    {customScriptLaunchErrors[script.id]}
+                  </p>
+                {/if}
                 <div class="custom-script-row-actions">
-                  <button type="button" class="indicator-add-btn" data-custom-script-add={script.id} on:click={() => onAddCustomScriptToChart(script.id, customScriptLaunchPayload(script))}>
+                  <button
+                    type="button"
+                    class="indicator-add-btn"
+                    data-custom-script-add={script.id}
+                    disabled={customScriptLaunchPayloads[script.id] === null}
+                    on:click={() => {
+                      const payload = customScriptLaunchPayloads[script.id];
+                      if (payload === null) {
+                        return;
+                      }
+                      onAddCustomScriptToChart(script.id, payload);
+                    }}
+                  >
                     Add
                   </button>
                   <button type="button" class="indicator-secondary-btn" data-custom-script-edit={script.id} on:click={() => loadCustomScriptDraft(script)}>

@@ -628,6 +628,36 @@ test("script library: overlay placement stays disabled for custom scripts", asyn
   );
 });
 
+test("script library: invalid length inputs are blocked before save or add", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-custom-script-field="label"]').fill("My Close Spread");
+  await workbench.locator('[data-custom-script-field="short-label"]').fill("Spread");
+  await workbench.locator('[data-custom-script-field="description"]').fill("Close minus close SMA.");
+  await configureCustomScriptBuilder(page, parseBuilderExpression("subtract(close, sma(close, length))"));
+  await workbench.locator('[data-custom-script-field="default-length"]').fill("");
+  await expect(workbench.locator("[data-custom-script-default-length-error]")).toContainText(
+    "Default length must be an integer between 2 and 60.",
+  );
+  await expect(workbench.locator("[data-custom-script-save]")).toBeDisabled();
+
+  await saveCustomScript(page, {
+    label: "My Close Spread",
+    shortLabel: "Spread",
+    description: "Close minus close SMA.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+
+  await workbench.locator('[data-custom-script-launch-length="custom-script-1"]').fill("");
+  await expect(workbench.locator('[data-custom-script-launch-error="custom-script-1"]')).toContainText(
+    "Length is required.",
+  );
+  await expect(workbench.locator('[data-custom-script-add="custom-script-1"]')).toBeDisabled();
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

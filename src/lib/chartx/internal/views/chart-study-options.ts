@@ -16,6 +16,10 @@ type MovingAverageStudyState = {
   data: readonly unknown[];
 };
 
+function movingAverageLength(indicator: MovingAverageIndicatorState | undefined): number | null {
+  return indicator?.kind === "moving-average" ? indicator.length : null;
+}
+
 export function applyCompareStudyOptions(
   state: CompareStudyState,
   options: PhaseOneCompareSeriesOptions,
@@ -84,7 +88,10 @@ export function applyMovingAverageStudyOptions(
 ): void {
   state.indicator = {
     kind: "moving-average",
-    length: Math.max(1, options.length ?? state.indicator?.length ?? deps.defaultMovingAverageOptions.length),
+    length: Math.max(
+      1,
+      options.length ?? movingAverageLength(state.indicator) ?? deps.defaultMovingAverageOptions.length,
+    ),
   };
 
   state.inputContext = {
@@ -110,7 +117,7 @@ export function getMovingAverageStudyOptions(
   defaultMovingAverageOptions: Required<PhaseOneMovingAverageStudyOptions>,
 ): Required<PhaseOneMovingAverageStudyOptions> {
   return {
-    length: state.indicator?.length ?? defaultMovingAverageOptions.length,
+    length: movingAverageLength(state.indicator) ?? defaultMovingAverageOptions.length,
     inputContextMode: state.inputContext.mode,
     requestedSymbol: state.inputContext.symbol,
     requestedResolution: state.inputContext.resolution,

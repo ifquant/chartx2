@@ -20,10 +20,23 @@ export type StudyInputContextState = {
   mergePolicy: "carry-forward" | "gaps" | "exact";
 };
 
-export type MovingAverageIndicatorState = {
+export type MovingAverageIndicatorDefinitionState = {
   kind: "moving-average";
   length: number;
 };
+
+export type ScriptedStudyInputValues = Readonly<Record<string, number>>;
+
+export type ScriptedStudyIndicatorState = {
+  kind: "scripted-study";
+  scriptId: string;
+  inputValues?: ScriptedStudyInputValues;
+};
+
+export type IndicatorState = MovingAverageIndicatorDefinitionState | ScriptedStudyIndicatorState;
+
+// Legacy alias retained while runtime owners still import the old name.
+export type MovingAverageIndicatorState = IndicatorState;
 
 export type SeriesRuntimeFields<
   Data,

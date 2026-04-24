@@ -46,6 +46,10 @@ type PaneLike = {
 
 type ChartStateSeriesSnapshots = PhaseOneChartStateSnapshot["series"];
 type ChartStateStudiesSnapshots = PhaseOneChartStateSnapshot["studies"];
+type RestorableChartStateStudiesSnapshots = Extract<
+  ChartStateStudiesSnapshots[number],
+  { type: "overlay" | "compare" | "moving-average" }
+>[];
 type ChartStateDrawingSnapshots = PhaseOneChartStateSnapshot["drawings"];
 
 type RestorableDataSeriesApi = {
@@ -198,7 +202,14 @@ export function createChartStateCoordinator(deps: {
     },
 
     restoreChartStudies(studies: ChartStateStudiesSnapshots): void {
-      restoreStateStudiesContentUseCase([...studies], {
+      const restorableStudies = studies.filter(
+        (study): study is RestorableChartStateStudiesSnapshots[number] =>
+          study.type === "overlay" ||
+          study.type === "compare" ||
+          study.type === "moving-average",
+      );
+
+      restoreStateStudiesContentUseCase(restorableStudies, {
         getPaneByIndex: (paneIndex) => deps.getPaneByIndex(paneIndex),
         getPaneId: (pane) => (pane as PaneLike).id,
         addOverlay: (paneId) => deps.addOverlaySeries(paneId),

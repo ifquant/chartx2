@@ -31,6 +31,34 @@ const emptyChartState: PhaseOneChartStateSnapshot = {
 };
 
 describe("chart api types module", () => {
+  it("accepts scripted study snapshots in chart state", () => {
+    const state: PhaseOneChartStateSnapshot = {
+      ...emptyChartState,
+      studies: [
+        {
+          type: "scripted-study",
+          paneIndex: 1,
+          seriesOptions: { color: "#0af", lineWidth: 2 },
+          studyOptions: {
+            scriptId: "close-sma-20-v0",
+            inputValues: { length: 20 },
+            inputContextMode: "requested-context",
+            requestedSymbol: "SPY",
+            requestedResolution: "1D",
+            requestedSession: "regular",
+            requestedTimezone: "America/New_York",
+            mergePolicy: "exact",
+          },
+        },
+      ],
+    };
+
+    expect(state.studies[0]).toMatchObject({
+      type: "scripted-study",
+      paneIndex: 1,
+    });
+  });
+
   it("owns template helpers directly", () => {
     const template = createPhaseOneChartTemplate(emptyChartState);
     const harnessTemplate = createPhaseOneChartTemplateFromHarness(emptyChartState);

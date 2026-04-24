@@ -137,6 +137,25 @@ describe("chart state snapshot builders", () => {
         },
         indicator: { kind: "moving-average", length: 9 },
       },
+      {
+        paneId: "secondary",
+        studyKind: "indicator",
+        options: { color: "#4", lineWidth: 3 },
+        inputData: [],
+        inputContext: {
+          mode: "requested-context",
+          symbol: "MSFT",
+          resolution: "4H",
+          session: "extended",
+          timezone: "America/Chicago",
+          mergePolicy: "gaps",
+        },
+        indicator: {
+          kind: "scripted-study",
+          scriptId: "close-sma-20-v0",
+          inputValues: { length: 21, offset: 2 },
+        },
+      },
     ];
 
     const snapshots = buildStudyStateSnapshots(sources, {
@@ -186,6 +205,21 @@ describe("chart state snapshot builders", () => {
           requestedSession: null,
           requestedTimezone: null,
           mergePolicy: "carry-forward",
+        },
+      },
+      {
+        type: "scripted-study",
+        paneIndex: 1,
+        seriesOptions: { color: "#4", lineWidth: 3 },
+        studyOptions: {
+          scriptId: "close-sma-20-v0",
+          inputValues: { length: 21, offset: 2 },
+          inputContextMode: "requested-context",
+          requestedSymbol: "MSFT",
+          requestedResolution: "4H",
+          requestedSession: "extended",
+          requestedTimezone: "America/Chicago",
+          mergePolicy: "gaps",
         },
       },
     ]);

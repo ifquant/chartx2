@@ -122,7 +122,9 @@ describe("chart study options use-case", () => {
         mergePolicy: "carry-forward",
       },
       resolveDisplayData: (nextState) => {
-        calls.push(`resolve:${nextState.indicator?.length}:${nextState.inputContext.symbol}`);
+        calls.push(
+          `resolve:${nextState.indicator?.kind === "moving-average" ? nextState.indicator.length : "na"}:${nextState.inputContext.symbol}`,
+        );
         return ["ma"];
       },
       render: () => calls.push("render"),

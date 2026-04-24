@@ -247,6 +247,19 @@ export type PhaseOneMovingAverageStudyOptions = {
   mergePolicy?: "carry-forward" | "gaps" | "exact";
 };
 
+export type PhaseOneScriptedStudyInputValues = Readonly<Record<string, number>>;
+
+export type PhaseOneScriptedStudyOptions = {
+  scriptId: string;
+  inputValues?: PhaseOneScriptedStudyInputValues;
+  inputContextMode?: "chart-context" | "requested-context";
+  requestedSymbol?: string | null;
+  requestedResolution?: string | null;
+  requestedSession?: string | null;
+  requestedTimezone?: string | null;
+  mergePolicy?: "carry-forward" | "gaps" | "exact";
+};
+
 export type PhaseOneAreaSeriesOptions = PhaseOneSeriesFormatterOptions & {
   lineColor?: string;
   lineWidth?: number;
@@ -516,6 +529,12 @@ export type PhaseOneChartStateSnapshot = {
         paneIndex: number;
         seriesOptions: PhaseOneLineSeriesOptions;
         studyOptions: Required<PhaseOneMovingAverageStudyOptions>;
+      }
+    | {
+        type: "scripted-study";
+        paneIndex: number;
+        seriesOptions: PhaseOneLineSeriesOptions;
+        studyOptions: Required<PhaseOneScriptedStudyOptions>;
       }
   >;
   tradeLocation:

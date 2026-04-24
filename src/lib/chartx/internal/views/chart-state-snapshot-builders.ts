@@ -2,6 +2,7 @@ import type {
   PhaseOneChartStateSnapshot,
   PhaseOneCompareSeriesOptions,
   PhaseOneMovingAverageStudyOptions,
+  PhaseOneScriptedStudyOptions,
 } from "./chart-api-types";
 
 type SnapshotInputBar = {
@@ -31,6 +32,10 @@ type SnapshotCompareOptions = Required<PhaseOneCompareSeriesOptions>;
 type SnapshotIndicator = {
   kind: "moving-average";
   length: number;
+} | {
+  kind: "scripted-study";
+  scriptId: string;
+  inputValues?: Readonly<Record<string, number>>;
 };
 
 type SnapshotDrawingMagnetOptions = {
@@ -238,6 +243,25 @@ export function buildStudyStateSnapshots<PaneId>(
           requestedTimezone: source.inputContext.timezone,
           mergePolicy: source.inputContext.mergePolicy,
         } satisfies Required<PhaseOneMovingAverageStudyOptions>,
+      });
+      continue;
+    }
+
+    if (source.studyKind === "indicator" && source.indicator?.kind === "scripted-study") {
+      snapshots.push({
+        type: "scripted-study",
+        paneIndex,
+        seriesOptions,
+        studyOptions: {
+          scriptId: source.indicator.scriptId,
+          inputValues: { ...(source.indicator.inputValues ?? {}) },
+          inputContextMode: source.inputContext.mode,
+          requestedSymbol: source.inputContext.symbol,
+          requestedResolution: source.inputContext.resolution,
+          requestedSession: source.inputContext.session,
+          requestedTimezone: source.inputContext.timezone,
+          mergePolicy: source.inputContext.mergePolicy,
+        } satisfies Required<PhaseOneScriptedStudyOptions>,
       });
     }
   }

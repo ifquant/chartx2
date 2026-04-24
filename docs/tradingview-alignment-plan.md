@@ -196,6 +196,9 @@ Acceptance:
   ownership surface.
 - Indicator state is saved/restored with enough schema information to support
   later catalog growth.
+- Engine-owned chart-state study snapshots can carry both built-in indicator
+  state and a scripted-study descriptor shape before restore/execution
+  promotion is wired.
 
 ### 7. State, Layout, Template, And Migration
 

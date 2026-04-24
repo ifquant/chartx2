@@ -320,6 +320,9 @@ test("adapter status: missing local storage providers surfaces degraded workstat
   await expect(workbench.locator('[data-workbench-status="warning"]')).toContainText(
     "Local layout save/restore is unavailable",
   );
+  await expect(workbench.locator('[data-workbench-panel="alerts"] .watch-empty')).toContainText(
+    "Local alerts persistence unavailable.",
+  );
 
   const toolbar = workbench.locator(".toolbar-strip");
   await expect(toolbar.getByRole("button", { name: "Save layout", exact: true })).toBeDisabled();

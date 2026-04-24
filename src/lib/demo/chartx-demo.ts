@@ -296,6 +296,7 @@ function buildDemoScreenerModel(input: {
   watchlist: readonly WatchlistItemModel[];
   negativeOnly: boolean;
   priceFloorEnabled: boolean;
+  emptyLabel?: string;
 }): ScreenerPanelModel {
   const results: ScreenerResultModel[] = input.watchlist
     .map((item) => ({
@@ -356,7 +357,7 @@ function buildDemoScreenerModel(input: {
       },
     ],
     results,
-    emptyLabel: "No local screener matches",
+    emptyLabel: input.emptyLabel ?? "No local screener matches",
   };
 }
 
@@ -853,6 +854,7 @@ export function mountWorkbenchDemo(
   let alertsSavePromise: Promise<unknown> = Promise.resolve();
   let alertsLoadCompleted = options.alertsProvider === undefined;
   let alertsLoadFailed = false;
+  let watchlistLoadFailed = false;
 
   const buildWorkbenchChartHostModel = (input: {
     record: DemoWorkbenchChartHostRecord;
@@ -1083,6 +1085,35 @@ export function mountWorkbenchDemo(
     },
   ];
 
+  const buildWatchlistEmptyLabel = (): string => {
+    if (watchlistLoadFailed) {
+      return hasInjectedHostAdapter ? "Watchlist feed unavailable." : "Watchlist fixtures failed to load.";
+    }
+    return hasInjectedHostAdapter ? "No host watchlist symbols available." : "No watchlist symbols loaded.";
+  };
+
+  const buildAlertsEmptyLabel = (): string => {
+    if (options.alertsProvider === undefined) {
+      return "Local alerts persistence unavailable.";
+    }
+    if (!alertsLoadCompleted) {
+      return "Loading alerts...";
+    }
+    if (alertsLoadFailed) {
+      return "Alerts provider unavailable.";
+    }
+    return "No active alerts.";
+  };
+
+  const buildScreenerEmptyLabel = (): string => {
+    if (workbenchWatchlist.length === 0) {
+      return hasInjectedHostAdapter
+        ? "Watchlist is empty, nothing to screen."
+        : "Fixture watchlist is empty, nothing to screen.";
+    }
+    return "No local screener matches";
+  };
+
   const resetReplayState = () => {
     clearReplayTimer();
     replayActive = false;
@@ -1112,41 +1143,6 @@ export function mountWorkbenchDemo(
   const refreshObjectTreeProjectionAndPublish = () => {
     refreshObjectTreeProjection();
     publishSnapshot();
-  };
-
-  const createDemoWorkbenchAlerts = (): WorkbenchAlertState[] => {
-    const basePrice = latestActiveClose() ?? 23_000;
-    const now = latestActiveTimestamp();
-    return [
-      {
-        id: "alert-demo-breakout",
-        label: `${activeSymbol} breakout`,
-        condition: {
-          kind: "price-crosses",
-          symbol: activeSymbol,
-          timeframe: activeTimeframe,
-          price: Math.round(basePrice) + 120,
-          direction: "above",
-        },
-        status: "armed",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "alert-demo-pullback",
-        label: `${activeSymbol} pullback`,
-        condition: {
-          kind: "price-crosses",
-          symbol: activeSymbol,
-          timeframe: activeTimeframe,
-          price: Math.round(basePrice) - 160,
-          direction: "below",
-        },
-        status: "armed",
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
   };
 
   const isActivePriceAlertTriggered = (alert: WorkbenchAlertState, close: number): boolean => {
@@ -1230,7 +1226,6 @@ export function mountWorkbenchDemo(
   };
 
   if (options.alertsProvider === undefined) {
-    workbenchAlerts = createDemoWorkbenchAlerts();
     evaluateActivePriceAlerts();
   }
 
@@ -1470,6 +1465,7 @@ export function mountWorkbenchDemo(
       watchlist: workbenchWatchlist,
       negativeOnly: screenerNegativeOnly,
       priceFloorEnabled: screenerPriceFloorEnabled,
+      emptyLabel: buildScreenerEmptyLabel(),
     });
     const replayState = buildReplaySnapshot();
     const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayState.active);
@@ -1491,8 +1487,10 @@ export function mountWorkbenchDemo(
       activeToolId: drawingTool,
       watchlistItems: workbenchWatchlist,
       activeWatchlistItemId,
+      watchlistEmptyLabel: buildWatchlistEmptyLabel(),
       screener,
       alertItems,
+      alertsEmptyLabel: buildAlertsEmptyLabel(),
       objectTree,
       activeRange: activeTimeframe,
       activeTab: workspaceFocus.bottomTab,
@@ -1672,6 +1670,7 @@ export function mountWorkbenchDemo(
         return;
       }
       workbenchWatchlist = items;
+      watchlistLoadFailed = false;
       publishSnapshot();
     })
     .catch((error: unknown) => {
@@ -1680,6 +1679,7 @@ export function mountWorkbenchDemo(
       }
       const message = error instanceof Error ? error.message : String(error);
       pushLog(log, `failed to load watchlist: ${message}`);
+      watchlistLoadFailed = true;
       publishSnapshot();
     });
 
@@ -1713,9 +1713,6 @@ export function mountWorkbenchDemo(
         chartHostRecords["market-main"].timeframe = activeTimeframe;
         chartHostRecords["market-main"].chartType = mainChartType;
         chartHostRecords["market-main"].chartState = null;
-        if (options.alertsProvider === undefined) {
-          workbenchAlerts = createDemoWorkbenchAlerts();
-        }
         persistEvaluatedWorkbenchAlerts();
         pushLog(log, `opened initial symbol ${activeSymbol} from host`);
         rebuild();
@@ -1786,10 +1783,6 @@ export function mountWorkbenchDemo(
     chartHostRecords[activeChartHostId].chartType = mainChartType;
     if (input.clearHostChartState === true) {
       chartHostRecords[activeChartHostId].chartState = null;
-    }
-    if (options.alertsProvider === undefined) {
-      workbenchAlerts = createDemoWorkbenchAlerts();
-      alertMutationVersion += 1;
     }
     persistEvaluatedWorkbenchAlerts();
     if (input.successLog !== undefined) {

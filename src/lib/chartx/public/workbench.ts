@@ -54,6 +54,7 @@ export interface WatchlistPanelModel {
   activeListId: string;
   activeItemId?: string;
   items: readonly WatchlistItemModel[];
+  emptyLabel: string;
 }
 
 export interface AlertSummaryModel {
@@ -66,6 +67,7 @@ export interface AlertSummaryModel {
 export interface AlertPanelModel {
   title: string;
   items: readonly AlertSummaryModel[];
+  emptyLabel: string;
 }
 
 export interface ScreenerResultModel {
@@ -296,8 +298,10 @@ export interface ChartWorkbenchModelInput {
   activeToolId?: string;
   watchlistItems?: readonly WatchlistItemModel[];
   activeWatchlistItemId?: string;
+  watchlistEmptyLabel?: string;
   screener?: ScreenerPanelModel;
   alertItems?: readonly AlertSummaryModel[];
+  alertsEmptyLabel?: string;
   objectTree?: ObjectTreePanelModel;
   activeRange?: string;
   ranges?: readonly string[];
@@ -462,6 +466,7 @@ export function createChartWorkbenchModel(
         activeListId: "default",
         activeItemId: input.activeWatchlistItemId,
         items: input.watchlistItems ?? [],
+        emptyLabel: input.watchlistEmptyLabel ?? "No watchlist symbols loaded",
       },
       screener: input.screener ?? {
         title: "Screener",
@@ -474,6 +479,7 @@ export function createChartWorkbenchModel(
       alerts: {
         title: "Alerts",
         items: input.alertItems ?? [],
+        emptyLabel: input.alertsEmptyLabel ?? "No active alerts",
       },
       objectTree: input.objectTree ?? createDefaultObjectTree(input),
       placeholders: DEFAULT_PLACEHOLDERS,

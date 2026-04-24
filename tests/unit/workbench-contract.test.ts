@@ -125,6 +125,8 @@ describe("chart workbench contract", () => {
     });
     expect(model.statusNotice).toBeNull();
     expect(model.adapterStatus).toEqual([]);
+    expect(model.rightSidebar.watchlist.emptyLabel).toBe("No watchlist symbols loaded");
+    expect(model.rightSidebar.alerts.emptyLabel).toBe("No active alerts");
   });
 
   it("allows the shell to opt into additional enabled bottom tabs", () => {
@@ -341,6 +343,21 @@ describe("chart workbench contract", () => {
         detailLabel: "No provider attached",
       },
     ]);
+  });
+
+  it("preserves watchlist and alerts empty-state labels on the public workbench contract", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "GC",
+      timeframeLabel: "1H",
+      chartTypeLabel: "Candles",
+      watchlistItems: [],
+      watchlistEmptyLabel: "Watchlist feed unavailable.",
+      alertItems: [],
+      alertsEmptyLabel: "Local alerts persistence unavailable.",
+    });
+
+    expect(model.rightSidebar.watchlist.emptyLabel).toBe("Watchlist feed unavailable.");
+    expect(model.rightSidebar.alerts.emptyLabel).toBe("Local alerts persistence unavailable.");
   });
 
   it("preserves typed watchlist numeric fields even when labels are localized presentation strings", () => {

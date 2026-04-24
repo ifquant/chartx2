@@ -534,6 +534,8 @@
               <span>{item.lastLabel}</span>
               <span>{item.changeLabel}</span>
             </button>
+          {:else}
+            <p class="watch-empty">{workbench?.rightSidebar.watchlist.emptyLabel ?? "No watchlist symbols loaded"}</p>
           {/each}
         </div>
       </section>
@@ -628,6 +630,8 @@
               <span>{item.conditionLabel}</span>
               <span>{item.status}</span>
             </article>
+          {:else}
+            <p class="watch-empty">{workbench?.rightSidebar.alerts.emptyLabel ?? "No active alerts"}</p>
           {/each}
         </div>
       </section>
@@ -1800,6 +1804,13 @@
 
   .watch-body strong {
     color: #18181b;
+  }
+
+  .watch-empty {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(24, 24, 27, 0.04);
   }
 
   .watch-row {

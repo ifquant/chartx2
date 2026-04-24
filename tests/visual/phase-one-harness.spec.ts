@@ -121,6 +121,7 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
   }
 
   await watchRows.nth(0).click();
+  await expect(layout.locator("[data-chart-host]")).toHaveCount(2);
   await expect(layout.locator(`[data-chart-host="${beforeHostId}"]`)).toHaveAttribute(
     "data-chart-host-symbol",
     firstSymbol,
@@ -137,6 +138,7 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
   expect(afterHostId).not.toBe(beforeHostId);
 
   await watchRows.nth(1).click();
+  await expect(layout.locator("[data-chart-host]")).toHaveCount(2);
   await expect(layout.locator(`[data-chart-host="${afterHostId}"]`)).toHaveAttribute(
     "data-chart-host-symbol",
     secondSymbol,

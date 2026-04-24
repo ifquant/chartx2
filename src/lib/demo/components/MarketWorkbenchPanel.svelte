@@ -1394,6 +1394,20 @@
                   No saved custom scripts match the current filter.
                 {/if}
               </p>
+              {#if (snapshot.customScripts?.length ?? 0) > 0 && customScriptFilter.trim().length > 0}
+                <div class="custom-script-actions">
+                  <button
+                    type="button"
+                    class="indicator-secondary-btn"
+                    data-custom-script-empty-clear
+                    on:click={() => {
+                      customScriptFilter = "";
+                    }}
+                  >
+                    Clear filter and show all
+                  </button>
+                </div>
+              {/if}
             {/each}
           </div>
         </div>

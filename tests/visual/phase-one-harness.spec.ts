@@ -837,6 +837,32 @@ test("script library: local sort reorders saved scripts without changing runtime
   );
 });
 
+test("script library: empty filter state can recover back to the full saved list", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "Recovery Spread",
+    shortLabel: "Recover",
+    description: "Recovery filter demo.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "8",
+  });
+
+  await workbench.locator("[data-custom-script-filter]").fill("no-match");
+  await expect(workbench.locator("[data-custom-script-empty]")).toContainText(
+    "No saved custom scripts match the current filter.",
+  );
+  await workbench.locator("[data-custom-script-empty-clear]").click();
+  await expect(workbench.locator("[data-custom-script-filter]")).toHaveValue("");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText(
+    "Recovery Spread",
+  );
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

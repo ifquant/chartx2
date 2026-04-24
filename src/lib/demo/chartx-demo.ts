@@ -60,6 +60,10 @@ import {
   type WorkbenchIndicatorCatalogEntry,
 } from "$lib/chartx/public/workbench-indicators";
 import {
+  executeWorkbenchScript,
+  getWorkbenchScriptDefinition,
+} from "$lib/chartx/public/workbench-scripts";
+import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
   type WorkbenchHostAdapter,
@@ -124,6 +128,8 @@ type DemoActiveIndicator = {
   label: string;
   kind: WorkbenchIndicatorCatalogEntry["engineKind"];
   placement: WorkbenchIndicatorCatalogEntry["placement"];
+  scriptId?: string;
+  paneIndex?: number;
 };
 
 type DemoReplayState = {
@@ -256,6 +262,7 @@ type DemoWorkspaceDocument = {
   timeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  scriptIndicators: readonly DemoActiveIndicator[];
   panels: DemoWorkspaceFocus;
 };
 type DemoScreenerCandidate = {
@@ -271,6 +278,7 @@ type DemoWorkbenchChartHostRecord = {
   timeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  scriptIndicators: readonly DemoActiveIndicator[];
 };
 
 type WorkbenchObjectTreeInput = {
@@ -279,6 +287,7 @@ type WorkbenchObjectTreeInput = {
   panes: readonly PhaseOnePaneState[];
   chartProjection: WorkbenchObjectTreeChartProjection;
   alerts: readonly WorkbenchAlertState[];
+  scriptIndicators: readonly DemoActiveIndicator[];
 };
 
 type WorkbenchObjectTreeChartProjection = {
@@ -532,6 +541,17 @@ function buildWorkbenchObjectTree(input: WorkbenchObjectTreeInput): ObjectTreePa
     });
   });
 
+  input.scriptIndicators.forEach((indicator, index) => {
+    nodes.push({
+      id: `script-study:${index}`,
+      kind: "study",
+      label: indicator.label,
+      detailLabel: `${indicator.placement} script`,
+      badgeLabel: indicator.kind,
+      depth: 1,
+    });
+  });
+
   input.chartProjection.drawings.forEach((drawing, index) => {
     nodes.push({
       id: `drawing:${index}`,
@@ -582,7 +602,7 @@ function createWorkbenchDemoLayoutState(input: {
   activeSymbol: string;
   activeTimeframe: string;
   chartType: WorkbenchMainChartType;
-  chart?: Pick<PhaseOneChartApi, "getChartState"> | null;
+  chartState: PhaseOneChartStateSnapshot | null;
   rightSidebar: WorkbenchSidebarPanelId;
   bottomTab: "time-presets" | "logs" | "replay";
   workspace?: WorkbenchLayoutState["workspace"];
@@ -591,11 +611,48 @@ function createWorkbenchDemoLayoutState(input: {
     activeSymbol: input.activeSymbol,
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
-    chartState: input.chart?.getChartState() ?? null,
+    chartState: input.chartState,
     rightSidebar: input.rightSidebar,
     bottomTab: input.bottomTab,
     workspace: input.workspace,
   });
+}
+
+function stripPaneIndexesFromChartState(
+  chartState: PhaseOneChartStateSnapshot,
+  paneIndexes: readonly number[],
+): PhaseOneChartStateSnapshot {
+  if (paneIndexes.length === 0) {
+    return chartState;
+  }
+
+  const removedPaneIndexes = [...new Set(paneIndexes)].sort((left, right) => left - right);
+  const removedPaneSet = new Set(removedPaneIndexes);
+  const remapPaneIndex = (paneIndex: number): number =>
+    paneIndex - removedPaneIndexes.filter((removedIndex) => removedIndex < paneIndex).length;
+
+  return {
+    ...chartState,
+    panes: chartState.panes.filter((_, paneIndex) => !removedPaneSet.has(paneIndex)),
+    series: chartState.series
+      .filter((series) => !removedPaneSet.has(series.paneIndex))
+      .map((series) => ({
+        ...series,
+        paneIndex: remapPaneIndex(series.paneIndex),
+      })),
+    studies: chartState.studies
+      .filter((study) => !removedPaneSet.has(study.paneIndex))
+      .map((study) => ({
+        ...study,
+        paneIndex: remapPaneIndex(study.paneIndex),
+      })),
+    drawings: chartState.drawings
+      .filter((drawing) => !removedPaneSet.has(drawing.paneIndex))
+      .map((drawing) => ({
+        ...drawing,
+        paneIndex: remapPaneIndex(drawing.paneIndex),
+      })),
+  };
 }
 
 function workspaceFocusForView(viewId: WorkbenchWorkspaceViewId, replayActive: boolean): DemoWorkspaceFocus {
@@ -843,6 +900,7 @@ export function mountWorkbenchDemo(
     timeframe: input.timeframe,
     chartType: input.chartType ?? "candlestick",
     chartState: input.chartState ?? null,
+    scriptIndicators: [],
     panels: workspaceFocusForView(input.viewId, false),
   });
   let workspaceDocuments: DemoWorkspaceDocument[] = [
@@ -882,6 +940,7 @@ export function mountWorkbenchDemo(
       timeframe: activeTimeframe,
       chartType: mainChartType,
       chartState: null,
+      scriptIndicators: [],
     },
     "market-secondary": {
       id: "market-secondary",
@@ -889,6 +948,7 @@ export function mountWorkbenchDemo(
       timeframe: activeTimeframe,
       chartType: "candlestick",
       chartState: null,
+      scriptIndicators: [],
     },
   };
   let renkoMode: WorkbenchRenkoMode = "auto";
@@ -952,14 +1012,17 @@ export function mountWorkbenchDemo(
     record.chartType = mainChartType;
     if (chart === null) {
       record.chartState = null;
+      record.scriptIndicators = [];
       return;
     }
     try {
-      record.chartState = chart.getChartState();
+      record.chartState = capturePersistedChartState();
+      record.scriptIndicators = persistedScriptIndicators();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       pushLog(log, `failed to snapshot host ${hostId}: ${message}`);
       record.chartState = null;
+      record.scriptIndicators = [];
     }
   };
 
@@ -1131,6 +1194,34 @@ export function mountWorkbenchDemo(
   const activeWorkspaceDocument = (): DemoWorkspaceDocument =>
     workspaceDocuments.find((document) => document.id === activeWorkspaceTabId) ?? workspaceDocuments[0]!;
 
+  const persistedScriptIndicators = (): DemoActiveIndicator[] =>
+    activeIndicators
+      .filter((indicator) => indicator.kind === "script" && indicator.scriptId !== undefined)
+      .map((indicator) => ({
+        id: indicator.id,
+        label: indicator.label,
+        kind: indicator.kind,
+        placement: indicator.placement,
+        scriptId: indicator.scriptId,
+      }));
+
+  const capturePersistedChartState = (): PhaseOneChartStateSnapshot | null => {
+    const chartState = chart?.getChartState() ?? null;
+    if (chartState === null) {
+      return null;
+    }
+
+    const scriptPaneIndexes = activeIndicators.flatMap((indicator) => {
+      if (indicator.kind !== "script" || indicator.paneIndex === undefined) {
+        return [];
+      }
+      const normalizedPaneIndex =
+        indicator.paneIndex >= chartState.panes.length ? indicator.paneIndex - 1 : indicator.paneIndex;
+      return normalizedPaneIndex >= 0 ? [normalizedPaneIndex] : [];
+    });
+    return stripPaneIndexesFromChartState(chartState, scriptPaneIndexes);
+  };
+
   const replaceWorkspaceDocument = (nextDocument: DemoWorkspaceDocument) => {
     workspaceDocuments = workspaceDocuments.map((document) =>
       document.id === nextDocument.id ? nextDocument : document,
@@ -1144,7 +1235,8 @@ export function mountWorkbenchDemo(
       symbol: activeSymbol,
       timeframe: activeTimeframe,
       chartType: mainChartType,
-      chartState: captureChartState ? chart?.getChartState() ?? null : currentDocument.chartState,
+      chartState: captureChartState ? capturePersistedChartState() : currentDocument.chartState,
+      scriptIndicators: persistedScriptIndicators(),
       panels: workspaceFocusForView(currentDocument.viewId, replayActive),
     });
   };
@@ -1190,6 +1282,7 @@ export function mountWorkbenchDemo(
       timeframe: tab.activeTimeframe,
       chartType: toWorkbenchMainChartType(tab.chartType) ?? "candlestick",
       chartState: tab.chartState,
+      scriptIndicators: [],
       panels: {
         sidebarPanel: tab.panels.rightSidebar,
         bottomTab: tab.panels.bottomTab === "performance-link" || tab.panels.bottomTab === "custom"
@@ -1587,6 +1680,7 @@ export function mountWorkbenchDemo(
       panes: paneSnapshot,
       chartProjection: objectTreeChartProjection,
       alerts: workbenchAlerts,
+      scriptIndicators: activeIndicators.filter((indicator) => indicator.kind === "script"),
     });
     const chartHosts =
       layoutPreset === "single"
@@ -1861,6 +1955,7 @@ export function mountWorkbenchDemo(
         chartHostRecords["market-main"].timeframe = activeTimeframe;
         chartHostRecords["market-main"].chartType = mainChartType;
         chartHostRecords["market-main"].chartState = null;
+        chartHostRecords["market-main"].scriptIndicators = [];
         persistEvaluatedWorkbenchAlerts();
         pushLog(log, `opened initial symbol ${activeSymbol} from host`);
         rebuild();
@@ -1931,6 +2026,7 @@ export function mountWorkbenchDemo(
     chartHostRecords[activeChartHostId].chartType = mainChartType;
     if (input.clearHostChartState === true) {
       chartHostRecords[activeChartHostId].chartState = null;
+      chartHostRecords[activeChartHostId].scriptIndicators = [];
     }
     persistEvaluatedWorkbenchAlerts();
     if (input.successLog !== undefined) {
@@ -2008,6 +2104,10 @@ export function mountWorkbenchDemo(
         chart?.applyChartState(targetDocument.chartState);
         refreshObjectTreeProjection();
       }
+      restorePersistedScriptIndicators(
+        targetDocument.scriptIndicators,
+        `failed to restore workspace ${targetDocument.label} scripted indicator`,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setStatusNotice({
@@ -2167,6 +2267,10 @@ export function mountWorkbenchDemo(
         pushLog(log, `restored ${targetHostId} snapshot (demo-local)`);
       }
     }
+    restorePersistedScriptIndicators(
+      targetRecord.scriptIndicators,
+      `failed to restore ${targetHostId} scripted indicator`,
+    );
 
     publishSnapshot();
     return true;
@@ -2568,7 +2672,10 @@ export function mountWorkbenchDemo(
 
   rebuild();
 
-  const addActiveIndicator = (entry: WorkbenchIndicatorCatalogEntry) => {
+  const addActiveIndicator = (
+    entry: WorkbenchIndicatorCatalogEntry,
+    extras?: Pick<DemoActiveIndicator, "scriptId" | "paneIndex">,
+  ) => {
     activeIndicators = [
       ...activeIndicators,
       {
@@ -2576,8 +2683,89 @@ export function mountWorkbenchDemo(
         label: entry.label,
         kind: entry.engineKind,
         placement: entry.placement,
+        scriptId: extras?.scriptId,
+        paneIndex: extras?.paneIndex,
       },
     ];
+  };
+
+  const addScriptIndicatorFromCatalogEntry = (
+    entry: WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string },
+    options?: {
+      logLabel?: string;
+      failurePrefix?: string;
+      updateStatusOnFailure?: boolean;
+    },
+  ): boolean => {
+    if (chart === null) {
+      pushLog(log, `${options?.failurePrefix ?? `failed to add indicator ${entry.label}`}: chart unavailable`);
+      publishSnapshot();
+      return false;
+    }
+
+    const definition = getWorkbenchScriptDefinition(entry.scriptId);
+    if (definition === null) {
+      pushLog(log, `${options?.failurePrefix ?? `failed to add indicator ${entry.label}`}: unknown script ${entry.scriptId}`);
+      publishSnapshot();
+      return false;
+    }
+
+    const execution = executeWorkbenchScript(definition, {
+      bars: displayedBarsPayload().bars,
+    });
+    if (!execution.ok) {
+      if (options?.updateStatusOnFailure !== false) {
+        setStatusNotice({
+          tone: "error",
+          message: `Scripted indicator failed: ${execution.message}`,
+        });
+      }
+      pushLog(log, `${options?.failurePrefix ?? `failed to add indicator ${entry.label}`}: ${execution.message}`);
+      publishSnapshot();
+      return false;
+    }
+
+    const pane = chart.addPane({ height: 126 });
+    const series = chart.addLineSeries({ pane });
+    series.applyOptions({
+      color: theme === "warm" ? "#0f766e" : "#22c55e",
+      lineWidth: 2,
+    });
+    series.setData(execution.output);
+    addActiveIndicator(entry, {
+      scriptId: entry.scriptId,
+      paneIndex: pane.paneIndex(),
+    });
+    if (options?.logLabel !== undefined) {
+      pushLog(log, options.logLabel);
+    }
+    refreshObjectTreeProjectionAndPublish();
+    return true;
+  };
+
+  const restorePersistedScriptIndicators = (
+    indicators: readonly DemoActiveIndicator[],
+    failurePrefix: string,
+  ): boolean => {
+    let restoredAll = true;
+    for (const indicator of indicators) {
+      if (indicator.kind !== "script" || indicator.scriptId === undefined) {
+        continue;
+      }
+      const entry = getWorkbenchIndicatorCatalogEntry(indicator.id);
+      if (entry === null || entry.engineKind !== "script" || entry.scriptId === undefined) {
+        pushLog(log, `${failurePrefix}: unknown scripted indicator ${indicator.label}`);
+        restoredAll = false;
+        continue;
+      }
+      const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
+      const restored = addScriptIndicatorFromCatalogEntry(scriptEntry, {
+        failurePrefix: `${failurePrefix}: ${indicator.label}`,
+        updateStatusOnFailure: false,
+      });
+      restoredAll = restoredAll && restored;
+    }
+    return restoredAll;
   };
 
   const advanceReplayCursor = (source: "step" | "play"): boolean => {
@@ -3330,6 +3518,18 @@ export function mountWorkbenchDemo(
         return true;
       }
 
+      if (entry.engineKind === "script") {
+        if (entry.scriptId === undefined) {
+          pushLog(log, `failed to add indicator ${entry.label}: missing script id`);
+          publishSnapshot();
+          return false;
+        }
+        const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
+        return addScriptIndicatorFromCatalogEntry(scriptEntry, {
+          logLabel: `added indicator ${entry.label}`,
+        });
+      }
+
       const overlay = chart.addOverlaySeries();
       overlay.applyOptions({
         color: theme === "warm" ? "#c2410c" : "#38bdf8",
@@ -3461,7 +3661,7 @@ export function mountWorkbenchDemo(
           activeSymbol,
           activeTimeframe,
           chartType: mainChartType,
-          chart,
+          chartState: capturePersistedChartState(),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -3589,6 +3789,7 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
+      chartHostRecords[activeChartHostId].scriptIndicators = [];
 
       try {
         if (state.chartState !== null) {
@@ -3679,7 +3880,7 @@ export function mountWorkbenchDemo(
           activeSymbol,
           activeTimeframe,
           chartType: mainChartType,
-          chart,
+          chartState: capturePersistedChartState(),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -3774,6 +3975,7 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
+      chartHostRecords[activeChartHostId].scriptIndicators = [];
       restoreWorkspaceDocumentsFromState(state);
 
       try {

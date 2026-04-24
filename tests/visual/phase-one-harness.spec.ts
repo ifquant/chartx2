@@ -256,12 +256,33 @@ test("layout import/export: export downloads a focused snapshot and import resto
 }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+  const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
 
   await workbench.locator('[data-workspace-view="inspect"]').first().locator(".workspace-tab-main").click();
   await expect(workbench.locator('[data-workspace-view="inspect"]').first()).toHaveAttribute(
     "data-workspace-active",
     "true",
   );
+
+  const baselineDownloadPromise = page.waitForEvent("download");
+  await workbench.locator("[data-layout-export-trigger]").click();
+  await baselineDownloadPromise;
+  const baselineExportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const baselineExported = JSON.parse(baselineExportedRaw) as {
+    chartState: { panes: unknown[] } | null;
+  };
+
+  const scriptedSmaButton = indicators.getByRole("button", { name: /Scripted SMA 20/ });
+  await scriptedSmaButton.scrollIntoViewIfNeeded();
+  await scriptedSmaButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("scripted sma indicator button is missing");
+    }
+    node.click();
+  });
+  await expect(workbench).toContainText("added indicator Scripted SMA 20");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 
   const downloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
@@ -270,11 +291,14 @@ test("layout import/export: export downloads a focused snapshot and import resto
   const exported = JSON.parse(exportedRaw) as {
     activeSymbol: string;
     panels: { rightSidebar: string };
+    chartState: { panes: unknown[] } | null;
   };
 
   expect(download.suggestedFilename()).toBe("ndx-layout.json");
   expect(exported.activeSymbol).toBe("NDX");
   expect(exported.panels.rightSidebar).toBe("object-tree");
+  expect(exported.chartState?.panes ?? []).toHaveLength(baselineExported.chartState?.panes.length ?? 0);
+  expect(exportedRaw).not.toContain("Scripted SMA 20");
   await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Exported layout");
 
   await workbench.locator('[data-watchlist-symbol="SPX"]').click();
@@ -309,6 +333,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
     "data-workbench-panel-active",
     "true",
   );
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(0);
 });
 
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
@@ -778,21 +803,55 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
   await expect(indicators).toContainText("Moving Average");
   await expect(indicators).toContainText("Compare");
   await expect(indicators).toContainText("Overlay Line");
+  await expect(indicators).toContainText("Scripted SMA 20");
   await expect(activeIndicatorList).toContainText("No active indicators.");
 
-  await indicators.getByRole("button", { name: /Moving Average/ }).click();
+  const movingAverageButton = indicators.getByRole("button", { name: /Moving Average/ });
+  await movingAverageButton.scrollIntoViewIfNeeded();
+  await movingAverageButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("moving average indicator button is missing");
+    }
+    node.click();
+  });
   await expect(workbench).toContainText("added indicator Moving Average");
   await expect(activeIndicatorList).toContainText("Moving Average");
   await expect(activeIndicatorList).toContainText("separate-pane");
 
-  await indicators.getByRole("button", { name: /Compare/ }).click();
+  const compareButton = indicators.getByRole("button", { name: /Compare/ });
+  await compareButton.scrollIntoViewIfNeeded();
+  await compareButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("compare indicator button is missing");
+    }
+    node.click();
+  });
   await expect(workbench).toContainText("added indicator Compare");
   await expect(activeIndicatorList).toContainText("Compare");
   await expect(activeIndicatorList).toContainText("overlay");
 
-  await indicators.getByRole("button", { name: /Overlay Line/ }).click();
+  const overlayLineButton = indicators.getByRole("button", { name: /Overlay Line/ });
+  await overlayLineButton.scrollIntoViewIfNeeded();
+  await overlayLineButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("overlay line indicator button is missing");
+    }
+    node.click();
+  });
   await expect(workbench).toContainText("added indicator Overlay Line");
   await expect(activeIndicatorList).toContainText("Overlay Line");
+
+  const scriptedSmaButton = indicators.getByRole("button", { name: /Scripted SMA 20/ });
+  await scriptedSmaButton.scrollIntoViewIfNeeded();
+  await scriptedSmaButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("scripted sma indicator button is missing");
+    }
+    node.click();
+  });
+  await expect(workbench).toContainText("added indicator Scripted SMA 20");
+  await expect(activeIndicatorList).toContainText("Scripted SMA 20");
+  await expect(activeIndicatorList).toContainText("separate-pane");
 
   await workbench.getByRole("button", { name: "Line Break", exact: true }).click();
 
@@ -800,6 +859,7 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
   await expect(activeIndicatorList).not.toContainText("Moving Average");
   await expect(activeIndicatorList).not.toContainText("Compare");
   await expect(activeIndicatorList).not.toContainText("Overlay Line");
+  await expect(activeIndicatorList).not.toContainText("Scripted SMA 20");
 });
 
 test("workbench replays the active dataset locally", async ({ page }) => {
@@ -911,9 +971,27 @@ test("workbench object tree reflects indicators and drawings", async ({ page }) 
 
   await expect(tree.locator('[data-object-tree-kind="drawing"]').filter({ hasText: "Horizontal Line" }).first()).toBeVisible();
 
-  await indicators.getByRole("button", { name: /Moving Average/ }).click();
+  const movingAverageButton = indicators.getByRole("button", { name: /Moving Average/ });
+  await movingAverageButton.scrollIntoViewIfNeeded();
+  await movingAverageButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("moving average indicator button is missing");
+    }
+    node.click();
+  });
   await expect(workbench).toContainText("added indicator Moving Average");
   await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Moving Average" })).toHaveCount(1);
+
+  const scriptedSmaButton = indicators.getByRole("button", { name: /Scripted SMA 20/ });
+  await scriptedSmaButton.scrollIntoViewIfNeeded();
+  await scriptedSmaButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("scripted sma indicator button is missing");
+    }
+    node.click();
+  });
+  await expect(workbench).toContainText("added indicator Scripted SMA 20");
+  await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 });
 
 test("workbench creates a price alert", async ({ page }) => {

@@ -11,8 +11,10 @@ describe("workbench indicator catalog", () => {
       "moving-average",
       "compare",
       "overlay-line",
+      "scripted-close-sma",
     ]);
     expect(WORKBENCH_INDICATOR_CATALOG.map((entry) => entry.enabled)).toEqual([
+      true,
       true,
       true,
       true,
@@ -44,9 +46,9 @@ describe("workbench indicator catalog", () => {
       expect(entry.shortLabel.length).toBeGreaterThan(0);
       expect(entry.description).toEqual(expect.any(String));
       expect(entry.description.length).toBeGreaterThan(0);
-      expect(entry.family).toMatch(/^(trend|comparison|overlay)$/);
+      expect(entry.family).toMatch(/^(trend|comparison|overlay|script)$/);
       expect(entry.placement).toMatch(/^(overlay|separate-pane)$/);
-      expect(entry.engineKind).toMatch(/^(moving-average|compare|overlay)$/);
+      expect(entry.engineKind).toMatch(/^(moving-average|compare|overlay|script)$/);
       expect(entry.enabled).toBe(true);
     }
   });
@@ -74,6 +76,25 @@ describe("workbench indicator catalog", () => {
         engineKind: "overlay",
         placement: "overlay",
       },
+      {
+        id: "scripted-close-sma",
+        engineKind: "script",
+        placement: "separate-pane",
+      },
     ]);
+  });
+
+  it("publishes script metadata for scripted catalog entries", () => {
+    expect(getWorkbenchIndicatorCatalogEntry("scripted-close-sma")).toEqual({
+      id: "scripted-close-sma",
+      label: "Scripted SMA 20",
+      shortLabel: "Script SMA",
+      description: "Execute a sandboxed close-price SMA script in a separate indicator pane.",
+      family: "script",
+      placement: "separate-pane",
+      engineKind: "script",
+      enabled: true,
+      scriptId: "close-sma-20-v0",
+    });
   });
 });

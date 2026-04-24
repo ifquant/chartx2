@@ -1,7 +1,8 @@
 export type WorkbenchIndicatorCatalogEntryId =
   | "moving-average"
   | "compare"
-  | "overlay-line";
+  | "overlay-line"
+  | "scripted-close-sma";
 
 export type WorkbenchIndicatorPlacement = "overlay" | "separate-pane";
 
@@ -10,11 +11,12 @@ export interface WorkbenchIndicatorCatalogEntry {
   label: string;
   shortLabel: string;
   description: string;
-  family: "trend" | "comparison" | "overlay";
+  family: "trend" | "comparison" | "overlay" | "script";
   placement: WorkbenchIndicatorPlacement;
-  engineKind: "moving-average" | "compare" | "overlay";
+  engineKind: "moving-average" | "compare" | "overlay" | "script";
   enabled: boolean;
   unavailableReason?: string;
+  scriptId?: string;
 }
 
 export const WORKBENCH_INDICATOR_CATALOG = [
@@ -47,6 +49,17 @@ export const WORKBENCH_INDICATOR_CATALOG = [
     placement: "overlay",
     engineKind: "overlay",
     enabled: true,
+  },
+  {
+    id: "scripted-close-sma",
+    label: "Scripted SMA 20",
+    shortLabel: "Script SMA",
+    description: "Execute a sandboxed close-price SMA script in a separate indicator pane.",
+    family: "script",
+    placement: "separate-pane",
+    engineKind: "script",
+    enabled: true,
+    scriptId: "close-sma-20-v0",
   },
 ] as const satisfies readonly WorkbenchIndicatorCatalogEntry[];
 

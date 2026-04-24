@@ -79,9 +79,11 @@ async function clickWorkbenchButton(page: Page, selector: string, missingMessage
 }
 
 async function readExportedLayoutRaw(page: Page): Promise<string> {
-  const exportField = page.locator("[data-layout-export-raw]");
-  await expect(exportField).not.toHaveValue("");
-  return exportField.inputValue();
+  await page.waitForFunction(() => {
+    const field = document.querySelector("[data-layout-export-raw]");
+    return field instanceof HTMLTextAreaElement && field.value.trim().length > 0;
+  });
+  return page.locator("[data-layout-export-raw]").inputValue();
 }
 
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
@@ -538,6 +540,17 @@ test("script library: save builtin presets and duplicate custom scripts", async 
   await addCustomScriptFromLibrary(page, "custom-script-2", "6");
   await expect(indicators.locator(".active-indicator-list")).toContainText("Scripted SMA 20 Preset Copy");
   await expect(indicators.locator(".active-indicator-list")).toContainText("length 6");
+});
+
+test("script library: overlay placement stays disabled for custom scripts", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(
+    workbenchPanel(page).locator('[data-custom-script-field="placement"] option[value="overlay"]'),
+  ).toHaveAttribute("disabled", "");
+  await expect(workbenchPanel(page)).toContainText(
+    "Custom scripted indicators currently save as separate-pane studies only.",
+  );
 });
 
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({

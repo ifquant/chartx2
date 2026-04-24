@@ -498,6 +498,13 @@ export function validateWorkbenchCustomScriptDraft(
     };
   }
 
+  if (draft.placement !== "separate-pane") {
+    return {
+      ok: false,
+      message: "Custom scripted indicators currently support separate-pane placement only.",
+    };
+  }
+
   return parseWorkbenchCustomScriptExpressionText(draft.expressionText);
 }
 

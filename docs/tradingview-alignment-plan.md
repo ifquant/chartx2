@@ -729,6 +729,10 @@ Implementation note:
   can now round-trip `field`, `sma(expr, length)`, and
   `subtract(left, right)` compositions through the same workbench-owned
   definition and layout persistence contract.
+- `Custom Script Placement Fence V0` keeps that boundary honest: until scripted
+  overlays can be stripped back out of engine chart state safely, custom script
+  authoring now explicitly fences placement to `separate-pane` instead of
+  advertising a false overlay mode in the workbench editor.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

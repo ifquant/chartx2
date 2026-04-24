@@ -975,10 +975,11 @@
                 <span>Placement</span>
                 <select bind:value={customScriptDraft.placement} data-custom-script-field="placement">
                   <option value="separate-pane">Separate pane</option>
-                  <option value="overlay">Overlay</option>
+                  <option value="overlay" disabled>Overlay (not yet supported)</option>
                 </select>
               </label>
             </div>
+            <p class="custom-script-preview">Custom scripted indicators currently save as separate-pane studies only.</p>
             <label class="script-input-field">
               <span>Default length</span>
               <input

@@ -150,6 +150,22 @@ describe("workbench script runtime", () => {
     });
   });
 
+  it("rejects overlay placement for custom authored scripts", () => {
+    expect(
+      validateWorkbenchCustomScriptDraft({
+        label: "Overlay spread",
+        shortLabel: "Overlay",
+        description: "Should stay workbench-owned.",
+        expressionText: "subtract(close, sma(close, length))",
+        placement: "overlay",
+        defaultLength: 5,
+      }),
+    ).toEqual({
+      ok: false,
+      message: "Custom scripted indicators currently support separate-pane placement only.",
+    });
+  });
+
   it("round-trips a broader custom script definition through the draft model", () => {
     const definition = createWorkbenchCustomScriptDefinition("custom-script-2", {
       label: "Close Spread",

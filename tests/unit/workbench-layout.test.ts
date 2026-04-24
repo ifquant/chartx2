@@ -6,6 +6,7 @@ import {
   isWorkbenchLayoutState,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptor,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
+  stripWorkbenchLayoutPaneIndexesFromChartState,
   stripWorkbenchLayoutScriptedStudiesFromChartState,
 } from "../../src/lib/chartx/public/workbench-layout";
 import { createWorkbenchCustomScriptDefinition } from "../../src/lib/chartx/public/workbench-scripts";
@@ -321,6 +322,66 @@ describe("workbench layout state", () => {
     expect(state.chartState).toEqual(minimalChartStateSnapshot);
     expect(state.scriptedIndicators).toEqual(scriptedIndicators);
     expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
+  it("strips trailing separate panes when scripted descriptors are persisted through the bridge", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: {
+        ...minimalChartStateSnapshot,
+        panes: [
+          { height: null, resizable: false },
+          { height: 126, resizable: false },
+        ],
+        series: [
+          {
+            kind: "line",
+            paneIndex: 1,
+            options: {},
+            data: [
+              { time: 1, value: 10 },
+              { time: 2, value: 12 },
+            ],
+          },
+        ],
+      },
+      scriptedIndicators,
+    });
+
+    expect(state.chartState).toEqual(minimalChartStateSnapshot);
+    expect(state.scriptedIndicators).toEqual(scriptedIndicators);
+  });
+
+  it("strips explicit workbench-owned pane indexes back out of chart state", () => {
+    const chartState: PhaseOneChartStateSnapshot = {
+      ...minimalChartStateSnapshot,
+      panes: [
+        { height: null, resizable: false },
+        { height: 126, resizable: false },
+        { height: 126, resizable: true },
+      ],
+      series: [
+        {
+          kind: "line",
+          paneIndex: 2,
+          options: {},
+          data: [
+            { time: 1, value: 10 },
+            { time: 2, value: 12 },
+          ],
+        },
+      ],
+    };
+
+    expect(stripWorkbenchLayoutPaneIndexesFromChartState(chartState, [2])).toEqual({
+      ...minimalChartStateSnapshot,
+      panes: [
+        { height: null, resizable: false },
+        { height: 126, resizable: false },
+      ],
+    });
   });
 
   it("normalizes a scripted study descriptor into the workbench-owned bridge shape", () => {

@@ -120,6 +120,25 @@ function remapChartStatePaneIndexes(
   };
 }
 
+export function stripWorkbenchLayoutPaneIndexesFromChartState(
+  chartState: PhaseOneChartStateSnapshot | null,
+  paneIndexes: readonly number[],
+): PhaseOneChartStateSnapshot | null {
+  if (chartState === null) {
+    return null;
+  }
+
+  const removablePaneIndexes = [...new Set(paneIndexes)]
+    .filter((paneIndex) => Number.isInteger(paneIndex) && paneIndex > 0)
+    .sort((left, right) => left - right);
+
+  if (removablePaneIndexes.length === 0) {
+    return chartState;
+  }
+
+  return remapChartStatePaneIndexes(chartState, removablePaneIndexes);
+}
+
 export function stripWorkbenchLayoutScriptedStudiesFromChartState(
   chartState: PhaseOneChartStateSnapshot | null,
 ): PhaseOneChartStateSnapshot | null {
@@ -160,7 +179,7 @@ export function stripWorkbenchLayoutScriptedStudiesFromChartState(
     (paneIndex) => paneIndex > 0 && !panesStillInUse.has(paneIndex) && scriptedPaneSet.has(paneIndex),
   );
 
-  return remapChartStatePaneIndexes(filteredChartState, removablePaneIndexes);
+  return stripWorkbenchLayoutPaneIndexesFromChartState(filteredChartState, removablePaneIndexes);
 }
 
 function sanitizeWorkbenchLayoutChartState(
@@ -170,7 +189,15 @@ function sanitizeWorkbenchLayoutChartState(
   if (scriptedIndicators === undefined || scriptedIndicators.length === 0) {
     return chartState;
   }
-  return stripWorkbenchLayoutScriptedStudiesFromChartState(chartState);
+  const strippedChartState = stripWorkbenchLayoutScriptedStudiesFromChartState(chartState);
+  if (strippedChartState === null) {
+    return null;
+  }
+  const trailingPaneIndexes = strippedChartState.panes
+    .map((_, paneIndex) => paneIndex)
+    .filter((paneIndex) => paneIndex > 0)
+    .slice(-scriptedIndicators.length);
+  return stripWorkbenchLayoutPaneIndexesFromChartState(strippedChartState, trailingPaneIndexes);
 }
 
 export interface WorkbenchLayoutPersistenceProvider {

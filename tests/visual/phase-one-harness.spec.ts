@@ -455,7 +455,10 @@ test("layout import/export: export downloads a focused snapshot and import resto
       label: string;
       kind: string;
       placement: string;
-      inputValues?: Record<string, number>;
+      studyOptions?: {
+        scriptId: string;
+        inputValues?: Record<string, number>;
+      };
     }[];
     panels: { rightSidebar: string };
     chartState: { panes: unknown[] } | null;
@@ -471,8 +474,11 @@ test("layout import/export: export downloads a focused snapshot and import resto
     label: "Scripted SMA 20",
     kind: "script",
     placement: "separate-pane",
-    inputValues: {
-      length: 2,
+    studyOptions: {
+      scriptId: "close-sma-20-v0",
+      inputValues: {
+        length: 2,
+      },
     },
   });
   await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Exported layout");
@@ -553,7 +559,10 @@ test("script library: custom authored scripts round-trip through layout export a
   const exportedRaw = await readExportedLayoutRaw(page);
   const exported = JSON.parse(exportedRaw) as {
     customScripts?: { id: string; label: string }[];
-    scriptedIndicators?: { label: string; scriptId: string; inputValues?: Record<string, number> }[];
+    scriptedIndicators?: {
+      label: string;
+      studyOptions?: { scriptId: string; inputValues?: Record<string, number> };
+    }[];
   };
 
   expect(exported.customScripts?.[0]).toMatchObject({
@@ -562,9 +571,11 @@ test("script library: custom authored scripts round-trip through layout export a
   });
   expect(exported.scriptedIndicators?.[0]).toMatchObject({
     label: "My Close Spread",
-    scriptId: "custom-script-1",
-    inputValues: {
-      length: 4,
+    studyOptions: {
+      scriptId: "custom-script-1",
+      inputValues: {
+        length: 4,
+      },
     },
   });
 
@@ -639,13 +650,18 @@ test("script library: scripted studies round-trip through restore and import", a
 
   const exportedRaw = await readExportedLayoutRawAfterExport(page);
   const exported = JSON.parse(exportedRaw) as {
-    scriptedIndicators?: { label: string; scriptId: string; inputValues?: Record<string, number> }[];
+    scriptedIndicators?: {
+      label: string;
+      studyOptions?: { scriptId: string; inputValues?: Record<string, number> };
+    }[];
   };
   expect(exported.scriptedIndicators?.[0]).toMatchObject({
     label: "Restore Bridge Spread",
-    scriptId: "custom-script-1",
-    inputValues: {
-      length: 6,
+    studyOptions: {
+      scriptId: "custom-script-1",
+      inputValues: {
+        length: 6,
+      },
     },
   });
 
@@ -1742,6 +1758,7 @@ test("workbench object tree reflects indicators and drawings", async ({ page }) 
   await configureAndAddScriptIndicator(page, "scripted-close-sma", "length", "2");
   await expect(workbench).toContainText("added indicator Scripted SMA 20 (Length 2)");
   await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
+  await expect(tree.locator('[data-object-tree-kind="study"]').filter({ hasText: /^Scripted Study$/ })).toHaveCount(0);
 });
 
 test("workbench creates a price alert", async ({ page }) => {

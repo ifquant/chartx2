@@ -701,6 +701,9 @@ Progress checklist:
 - [x] Persist separate-pane scripted indicators as first-class chart-state studies
 - [x] Engine chart-state restore replays separate-pane scripted-study snapshots through the shared study coordinator path
 - [x] Workbench scripted-study descriptors now reuse engine `studyOptions` as the migration seam and normalize legacy saved layouts on load/import
+- [x] Object tree scripted-study rendering now consumes a single study projection path instead of a parallel workbench-only script node path
+- [x] Layout restore/import/workspace/host scripted-study replay now shares one apply path and surfaces partial scripted-study restore warnings
+- [x] Workbench layout sanitization strips trailing separate-pane scripted panes back out of persisted chart state when the descriptor bridge is present
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -812,6 +815,20 @@ Implementation note:
   `scripted-study.studyOptions` shape directly, and load/import normalizes older
   top-level `scriptId`/`inputValues` payloads into that canonical seam before
   demo restore or script-library `inUse` checks touch them.
+- `Scripted Study Projection And Restore Seams V1` removes two remaining
+  promotion leaks above that bridge. First, the object tree no longer renders
+  scripted studies through a second workbench-only append path; it consumes one
+  study projection that can enrich engine/native or workbench-owned scripted
+  studies with display metadata. Second, layout restore/import, workspace tab
+  activation, and host activation now all reuse the same chart-state-plus-
+  scripted-descriptor apply helper and downgrade to warning state when one or
+  more scripted studies fail to remount instead of silently claiming a clean
+  restore.
+- The same seam now hardens persistence cleanup for workbench-owned scripted
+  panes: when the descriptor bridge is present, layout sanitization strips
+  trailing separate panes back out of persisted chart state so export/save
+  stops leaking duplicate script panes alongside the descriptor-owned restore
+  path.
 - `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
   descriptor bridge is still useful for surrounding layout/library flows, but
   engine chart state now owns the separate-pane scripted-study snapshot and

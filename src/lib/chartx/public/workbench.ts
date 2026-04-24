@@ -64,6 +64,26 @@ export interface AlertPanelModel {
   items: readonly AlertSummaryModel[];
 }
 
+export interface ScreenerResultModel {
+  id: string;
+  symbol: string;
+  name?: string;
+  lastLabel: string;
+  changeLabel: string;
+  rankLabel: string;
+  noteLabel?: string;
+  changeTone?: "positive" | "negative" | "neutral";
+}
+
+export interface ScreenerPanelModel {
+  title: string;
+  modeLabel: string;
+  summaryLabel: string;
+  filters: readonly WorkbenchToolDescriptor[];
+  results: readonly ScreenerResultModel[];
+  emptyLabel: string;
+}
+
 export type WorkbenchObjectTreeNodeKind =
   | "chart"
   | "pane"
@@ -93,6 +113,7 @@ export interface ObjectTreePanelModel {
 
 export interface RightSidebarModel {
   watchlist: WatchlistPanelModel;
+  screener: ScreenerPanelModel;
   alerts: AlertPanelModel;
   objectTree: ObjectTreePanelModel;
   placeholders: readonly ("news" | "object-tree" | "screener" | "symbol-detail")[];
@@ -224,6 +245,7 @@ export interface ChartWorkbenchModelInput {
   activeToolId?: string;
   watchlistItems?: readonly WatchlistItemModel[];
   activeWatchlistItemId?: string;
+  screener?: ScreenerPanelModel;
   alertItems?: readonly AlertSummaryModel[];
   objectTree?: ObjectTreePanelModel;
   activeRange?: string;
@@ -341,6 +363,14 @@ export function createChartWorkbenchModel(
         activeListId: "default",
         activeItemId: input.activeWatchlistItemId,
         items: input.watchlistItems ?? [],
+      },
+      screener: input.screener ?? {
+        title: "Screener",
+        modeLabel: "Local watchlist movers",
+        summaryLabel: "0 matches",
+        filters: [],
+        results: [],
+        emptyLabel: "No local screener matches",
       },
       alerts: {
         title: "Alerts",

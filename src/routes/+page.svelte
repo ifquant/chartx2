@@ -856,6 +856,9 @@
           onOpenWatchlistSymbol={(symbol) => {
             void openWorkbenchSymbol(symbol);
           }}
+          onOpenScreenerSymbol={(symbol) => {
+            void openWorkbenchSymbol(symbol);
+          }}
           onAddIndicator={addWorkbenchIndicator}
           onCreatePriceAlert={() => {
             void createWorkbenchPriceAlert();

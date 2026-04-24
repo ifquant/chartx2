@@ -47,6 +47,14 @@ describe("chart workbench contract", () => {
     });
     expect(model.rightSidebar.watchlist.activeItemId).toBe("ndx");
     expect(model.rightSidebar.watchlist.items).toHaveLength(1);
+    expect(model.rightSidebar.screener).toEqual({
+      title: "Screener",
+      modeLabel: "Local watchlist movers",
+      summaryLabel: "0 matches",
+      filters: [],
+      results: [],
+      emptyLabel: "No local screener matches",
+    });
     expect(model.rightSidebar.alerts.items).toHaveLength(1);
     expect(model.rightSidebar.objectTree).toMatchObject({
       title: "Object Tree",
@@ -90,6 +98,62 @@ describe("chart workbench contract", () => {
       label: "Time presets",
       enabled: true,
     });
+  });
+
+  it("keeps screener panel state inside the public right-sidebar contract", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "SPX",
+      timeframeLabel: "1D",
+      chartTypeLabel: "Candles",
+      screener: {
+        title: "Screener",
+        modeLabel: "Local watchlist movers",
+        summaryLabel: "2 matches · abs % move",
+        filters: [
+          {
+            id: "screener-negative-only",
+            label: "Falling",
+            active: true,
+            enabled: true,
+          },
+        ],
+        results: [
+          {
+            id: "screener-spx",
+            symbol: "SPX",
+            name: "S&P 500",
+            lastLabel: "6,368.86",
+            changeLabel: "-1.67%",
+            rankLabel: "Rank 1",
+            noteLabel: "1.67% below prior close",
+            changeTone: "negative",
+          },
+        ],
+        emptyLabel: "No local screener matches",
+      },
+    });
+
+    expect(model.rightSidebar.screener.modeLabel).toBe("Local watchlist movers");
+    expect(model.rightSidebar.screener.filters).toEqual([
+      {
+        id: "screener-negative-only",
+        label: "Falling",
+        active: true,
+        enabled: true,
+      },
+    ]);
+    expect(model.rightSidebar.screener.results).toEqual([
+      {
+        id: "screener-spx",
+        symbol: "SPX",
+        name: "S&P 500",
+        lastLabel: "6,368.86",
+        changeLabel: "-1.67%",
+        rankLabel: "Rank 1",
+        noteLabel: "1.67% below prior close",
+        changeTone: "negative",
+      },
+    ]);
   });
 
   it("accepts explicit multi-chart hosts without collapsing them into pane semantics", () => {

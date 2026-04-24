@@ -115,6 +115,46 @@ test("layout: watchlist routes symbol opens to the active host and follows host 
   );
 });
 
+test("screener: local movers filter rows open symbols through the active host", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const layout = workbench.locator("[data-workbench-layout]");
+  const screener = workbench.locator('[data-workbench-panel="screener"]');
+
+  await expect(screener).toBeVisible();
+  await expect(screener.locator("[data-screener-mode]")).toHaveText("Local watchlist movers");
+  await expect(screener.locator("[data-screener-result]")).toHaveCount(4);
+
+  await screener.locator('[data-screener-filter="screener-price-floor"]').click();
+  await expect(
+    screener.locator('[data-screener-filter="screener-price-floor"]'),
+  ).toHaveAttribute("data-screener-filter-active", "true");
+  await expect(screener.locator("[data-screener-result]")).toHaveCount(3);
+  await expect(screener.locator('[data-screener-symbol="VIX"]')).toHaveCount(0);
+
+  await workbenchAction(page, "layout-split").click();
+  await workbenchAction(page, "host-secondary").click();
+  await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(1);
+
+  const activeHost = layout.locator('[data-chart-host][data-chart-host-active="true"]').first();
+  const activeHostId = await activeHost.getAttribute("data-chart-host");
+  expect(activeHostId).not.toBeNull();
+  if (activeHostId === null) {
+    throw new Error("active chart host id is missing");
+  }
+
+  const targetRow = screener.locator('[data-screener-symbol="DJI"]').first();
+  await expect(targetRow).toBeVisible();
+  await targetRow.click();
+
+  await expect(layout.locator(`[data-chart-host="${activeHostId}"]`)).toHaveAttribute(
+    "data-chart-host-symbol",
+    "DJI",
+  );
+});
+
 test("workbench keeps a deterministic narrow baseline", async ({ page }) => {
   await page.setViewportSize({ width: 840, height: 1100 });
   await page.goto("/");

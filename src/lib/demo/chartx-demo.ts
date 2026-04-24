@@ -29,6 +29,8 @@ import {
   type AlertSummaryModel,
   type ChartWorkbenchModel,
   type ObjectTreePanelModel,
+  type ScreenerPanelModel,
+  type ScreenerResultModel,
   type WatchlistItemModel,
   type WorkbenchObjectTreeNodeModel,
 } from "$lib/chartx/public/workbench";
@@ -227,6 +229,11 @@ type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "tradi
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
 type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
 type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
+type DemoScreenerCandidate = {
+  item: WatchlistItemModel;
+  lastValue: number;
+  changePercent: number;
+};
 const REPLAY_INITIAL_VISIBLE_BARS = 120;
 const REPLAY_PLAY_INTERVAL_MS = 360;
 type DemoWorkbenchChartHostRecord = {
@@ -268,6 +275,80 @@ type WorkbenchObjectTreeChartProjection = {
     request: PhaseOneTradeLocationRequest;
   } | null;
 };
+
+function parseWorkbenchNumericLabel(label: string): number {
+  const normalized = label.replace(/,/g, "").trim();
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function parseWorkbenchChangePercent(label: string): number {
+  const normalized = label.replace(/,/g, "").replace(/%/g, "").trim();
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function buildDemoScreenerModel(input: {
+  watchlist: readonly WatchlistItemModel[];
+  negativeOnly: boolean;
+  priceFloorEnabled: boolean;
+}): ScreenerPanelModel {
+  const results: ScreenerResultModel[] = input.watchlist
+    .map((item) => ({
+      item,
+      lastValue: parseWorkbenchNumericLabel(item.lastLabel),
+      changePercent: parseWorkbenchChangePercent(item.changeLabel),
+    }))
+    .filter((candidate: DemoScreenerCandidate) => !input.negativeOnly || candidate.changePercent < 0)
+    .filter((candidate: DemoScreenerCandidate) => !input.priceFloorEnabled || candidate.lastValue >= 1_000)
+    .sort((left: DemoScreenerCandidate, right: DemoScreenerCandidate) => {
+      const magnitudeDelta = Math.abs(right.changePercent) - Math.abs(left.changePercent);
+      if (magnitudeDelta !== 0) {
+        return magnitudeDelta;
+      }
+      const priceDelta = right.lastValue - left.lastValue;
+      if (priceDelta !== 0) {
+        return priceDelta;
+      }
+      return left.item.symbol.localeCompare(right.item.symbol);
+    })
+    .slice(0, 4)
+    .map((candidate, index) => ({
+      id: `screener-${candidate.item.id}`,
+      symbol: candidate.item.symbol,
+      name: candidate.item.name,
+      lastLabel: candidate.item.lastLabel,
+      changeLabel: candidate.item.changeLabel,
+      rankLabel: `Rank ${index + 1}`,
+      noteLabel:
+        candidate.changePercent < 0
+          ? `${Math.abs(candidate.changePercent).toFixed(2)}% below prior close`
+          : `${candidate.changePercent.toFixed(2)}% above prior close`,
+      changeTone: candidate.item.changeTone,
+    }));
+
+  return {
+    title: "Screener",
+    modeLabel: "Local watchlist movers",
+    summaryLabel: results.length === 0 ? "0 matches" : `${results.length} matches · abs % move`,
+    filters: [
+      {
+        id: "screener-negative-only",
+        label: "Falling",
+        active: input.negativeOnly,
+        enabled: true,
+      },
+      {
+        id: "screener-price-floor",
+        label: "Price >= 1000",
+        active: input.priceFloorEnabled,
+        enabled: true,
+      },
+    ],
+    results,
+    emptyLabel: "No local screener matches",
+  };
+}
 
 function emptyWorkbenchObjectTreeChartProjection(): WorkbenchObjectTreeChartProjection {
   return {
@@ -645,6 +726,8 @@ export function mountWorkbenchDemo(
   let activeSymbol = hasInjectedHostAdapter ? activeBarsPayload.symbol : requestedInitialSymbol;
   let activeExchangeLabel = activeBarsPayload.exchangeLabel ?? "NASDAQ";
   let workbenchWatchlist: readonly WatchlistItemModel[] = [];
+  let screenerNegativeOnly = true;
+  let screenerPriceFloorEnabled = false;
   let destroyed = false;
   let symbolOpenSequence = 0;
   let layoutOperationSequence = 0;
@@ -1182,6 +1265,11 @@ export function mountWorkbenchDemo(
               active: activeChartHostId === "market-secondary",
             }),
           ];
+    const screener = buildDemoScreenerModel({
+      watchlist: workbenchWatchlist,
+      negativeOnly: screenerNegativeOnly,
+      priceFloorEnabled: screenerPriceFloorEnabled,
+    });
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -1192,6 +1280,7 @@ export function mountWorkbenchDemo(
       activeToolId: drawingTool,
       watchlistItems: workbenchWatchlist,
       activeWatchlistItemId,
+      screener,
       alertItems,
       objectTree,
       activeRange: activeTimeframe,
@@ -2308,6 +2397,14 @@ export function mountWorkbenchDemo(
     },
     runAction(actionId) {
       switch (actionId) {
+        case "screener-negative-only":
+          screenerNegativeOnly = !screenerNegativeOnly;
+          publishSnapshot();
+          return;
+        case "screener-price-floor":
+          screenerPriceFloorEnabled = !screenerPriceFloorEnabled;
+          publishSnapshot();
+          return;
         case "layout-single":
           setDemoLayoutPreset("single");
           return;

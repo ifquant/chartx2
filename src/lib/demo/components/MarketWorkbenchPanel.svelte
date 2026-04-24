@@ -38,6 +38,7 @@
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
+  export let onOpenScreenerSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string) => void;
   export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
@@ -394,6 +395,56 @@
               <span>{item.lastLabel}</span>
               <span>{item.changeLabel}</span>
             </button>
+          {/each}
+        </div>
+      </section>
+
+      <section class="mini-card watch-card screener-card" data-workbench-panel="screener">
+        <div class="sidebar-head">
+          <h4>{workbench?.rightSidebar.screener.title ?? "Screener"}</h4>
+          <span data-screener-summary>{workbench?.rightSidebar.screener.summaryLabel ?? "0 matches"}</span>
+        </div>
+        <div class="screener-head">
+          <strong data-screener-mode>{workbench?.rightSidebar.screener.modeLabel ?? "Local watchlist movers"}</strong>
+          <div class="screener-filters">
+            {#each workbench?.rightSidebar.screener.filters ?? [] as filter}
+              <button
+                type="button"
+                class:active={filter.active}
+                data-screener-filter={filter.id}
+                data-screener-filter-active={filter.active ? "true" : "false"}
+                on:click={() => onRunAction(filter.id)}
+              >
+                {filter.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+        <div class="watch-head screener-columns">
+          <span>Symbol</span>
+          <span>Last</span>
+          <span>Move</span>
+        </div>
+        <div class="watch-body">
+          {#each workbench?.rightSidebar.screener.results ?? [] as result}
+            <button
+              class="watch-row screener-row"
+              type="button"
+              data-screener-result={result.id}
+              data-screener-symbol={result.symbol}
+              on:click={() => onOpenScreenerSymbol(result.symbol)}
+            >
+              <span class="screener-symbol-block">
+                <strong>{result.symbol}</strong>
+                <small>{result.rankLabel}</small>
+              </span>
+              <span>{result.lastLabel}</span>
+              <span class={`screener-change screener-change-${result.changeTone ?? "neutral"}`}>
+                {result.changeLabel}
+              </span>
+            </button>
+          {:else}
+            <p class="screener-empty">{workbench?.rightSidebar.screener.emptyLabel ?? "No local screener matches"}</p>
           {/each}
         </div>
       </section>
@@ -1437,6 +1488,65 @@
 
   .watch-row.active strong {
     color: #18181b;
+  }
+
+  .screener-head {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .screener-head strong {
+    color: #18181b;
+    font-size: 0.84rem;
+  }
+
+  .screener-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .screener-filters button {
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.05);
+    color: rgba(24, 24, 27, 0.72);
+    font: inherit;
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+
+  .screener-filters button.active {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .screener-columns {
+    margin-top: 10px;
+  }
+
+  .screener-row {
+    align-items: start;
+  }
+
+  .screener-symbol-block {
+    display: grid;
+    gap: 2px;
+  }
+
+  .screener-symbol-block small,
+  .screener-empty {
+    color: rgba(24, 24, 27, 0.56);
+  }
+
+  .screener-change-positive {
+    color: #15803d;
+  }
+
+  .screener-change-negative {
+    color: #b91c1c;
   }
 
   .indicator-list,

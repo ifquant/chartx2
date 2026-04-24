@@ -483,9 +483,23 @@
     }
   }
 
-  function setWorkbenchWorkspaceTab(tabId: "trade" | "scan" | "alerts" | "inspect"): void {
-    const changed = workbenchController?.setWorkspaceTab?.(tabId);
+  async function setWorkbenchWorkspaceTab(tabId: string): Promise<void> {
+    const changed = await workbenchController?.setWorkspaceTab?.(tabId);
     if (changed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function createWorkbenchWorkspaceTab(): Promise<void> {
+    const created = await workbenchController?.createWorkspaceTab?.();
+    if (created) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function closeWorkbenchWorkspaceTab(tabId: string): Promise<void> {
+    const closed = await workbenchController?.closeWorkspaceTab?.(tabId);
+    if (closed) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
   }
@@ -954,6 +968,8 @@
           onRunAction={runWorkbenchAction}
           onSetDrawingTool={setWorkbenchDrawingTool}
           onSetWorkspaceTab={setWorkbenchWorkspaceTab}
+          onCreateWorkspaceTab={createWorkbenchWorkspaceTab}
+          onCloseWorkspaceTab={closeWorkbenchWorkspaceTab}
           onToggleCommandPalette={toggleWorkbenchCommandPalette}
           onCloseCommandPalette={closeWorkbenchCommandPalette}
           onExecuteCommand={(commandId) => {

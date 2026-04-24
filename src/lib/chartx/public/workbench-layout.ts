@@ -1,5 +1,5 @@
 import type { PhaseOneChartStateSnapshot, PhaseOneMainChartType } from "./market";
-import type { BottomPanelTabId } from "./workbench";
+import type { BottomPanelTabId, WorkbenchWorkspaceViewId } from "./workbench";
 
 export type WorkbenchLayoutRightSidebarPanel =
   | "watchlist"
@@ -18,6 +18,22 @@ export interface WorkbenchLayoutStateV1 {
     rightSidebar: WorkbenchLayoutRightSidebarPanel;
     bottomTab: BottomPanelTabId;
   };
+  workspace?: {
+    activeTabId: string;
+    tabs: readonly {
+      id: string;
+      label: string;
+      viewId: WorkbenchWorkspaceViewId;
+      activeSymbol: string;
+      activeTimeframe: string;
+      chartType: PhaseOneMainChartType;
+      chartState: PhaseOneChartStateSnapshot | null;
+      panels: {
+        rightSidebar: WorkbenchLayoutRightSidebarPanel;
+        bottomTab: BottomPanelTabId;
+      };
+    }[];
+  };
 }
 
 export type WorkbenchLayoutState = WorkbenchLayoutStateV1;
@@ -29,6 +45,7 @@ export interface WorkbenchLayoutStateInput {
   chartState: PhaseOneChartStateSnapshot | null;
   rightSidebar?: WorkbenchLayoutRightSidebarPanel;
   bottomTab?: BottomPanelTabId;
+  workspace?: WorkbenchLayoutStateV1["workspace"];
 }
 
 export interface WorkbenchLayoutPersistenceProvider {
@@ -228,6 +245,42 @@ function isBottomPanelTabId(value: unknown): value is BottomPanelTabId {
   );
 }
 
+function isWorkbenchWorkspaceViewId(value: unknown): value is WorkbenchWorkspaceViewId {
+  return value === "trade" || value === "scan" || value === "alerts" || value === "inspect";
+}
+
+function isWorkbenchLayoutWorkspaceState(value: unknown): value is NonNullable<WorkbenchLayoutStateV1["workspace"]> {
+  if (!isRecord(value) || typeof value.activeTabId !== "string" || !Array.isArray(value.tabs)) {
+    return false;
+  }
+  if (
+    value.tabs.some((tab) => {
+      if (
+        !isRecord(tab) ||
+        typeof tab.id !== "string" ||
+        typeof tab.label !== "string" ||
+        !isWorkbenchWorkspaceViewId(tab.viewId) ||
+        typeof tab.activeSymbol !== "string" ||
+        tab.activeSymbol.trim().length === 0 ||
+        typeof tab.activeTimeframe !== "string" ||
+        tab.activeTimeframe.trim().length === 0 ||
+        typeof tab.chartType !== "string" ||
+        !PHASE_ONE_MAIN_CHART_TYPES.includes(tab.chartType as PhaseOneMainChartType) ||
+        !(tab.chartState === null || isPhaseOneChartStateSnapshot(tab.chartState)) ||
+        !isRecord(tab.panels) ||
+        !isWorkbenchLayoutRightSidebarPanel(tab.panels.rightSidebar) ||
+        !isBottomPanelTabId(tab.panels.bottomTab)
+      ) {
+        return true;
+      }
+      return false;
+    })
+  ) {
+    return false;
+  }
+  return value.tabs.some((tab) => isRecord(tab) && tab.id === value.activeTabId);
+}
+
 function isPhaseOneChartStateSnapshot(value: unknown): value is PhaseOneChartStateSnapshot {
   if (!isRecord(value)) {
     return false;
@@ -304,6 +357,7 @@ export function createWorkbenchLayoutState(
       rightSidebar: input.rightSidebar ?? "watchlist",
       bottomTab: input.bottomTab ?? "time-presets",
     },
+    workspace: input.workspace,
   };
 }
 
@@ -336,6 +390,9 @@ export function isWorkbenchLayoutState(value: unknown): value is WorkbenchLayout
     !isWorkbenchLayoutRightSidebarPanel(value.panels.rightSidebar) ||
     !isBottomPanelTabId(value.panels.bottomTab)
   ) {
+    return false;
+  }
+  if (!(value.workspace === undefined || isWorkbenchLayoutWorkspaceState(value.workspace))) {
     return false;
   }
   return true;

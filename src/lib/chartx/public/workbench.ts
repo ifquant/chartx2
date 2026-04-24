@@ -12,7 +12,8 @@ export type BottomPanelTabId =
   | "performance-link"
   | "custom";
 export type WorkbenchSidebarPanelId = "watchlist" | "alerts" | "object-tree" | "screener";
-export type WorkbenchWorkspaceTabId = "trade" | "scan" | "alerts" | "inspect";
+export type WorkbenchWorkspaceViewId = "trade" | "scan" | "alerts" | "inspect";
+export type WorkbenchWorkspaceTabId = string;
 
 export interface WorkbenchToolbarModel {
   activeSymbol: string;
@@ -180,10 +181,14 @@ export interface WorkbenchCommandPaletteModel {
 export interface WorkbenchWorkspaceTabModel {
   id: WorkbenchWorkspaceTabId;
   label: string;
+  viewId: WorkbenchWorkspaceViewId;
   active: boolean;
   enabled: boolean;
+  closeable?: boolean;
   sidebarPanel: WorkbenchSidebarPanelId;
   bottomTab: BottomPanelTabId;
+  symbolLabel?: string;
+  timeframeLabel?: string;
 }
 
 export interface WorkbenchLayoutTransferModel {
@@ -330,6 +335,7 @@ const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active"
   {
     id: "trade",
     label: "Trade",
+    viewId: "trade",
     enabled: true,
     sidebarPanel: "watchlist",
     bottomTab: "time-presets",
@@ -337,6 +343,7 @@ const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active"
   {
     id: "scan",
     label: "Scan",
+    viewId: "scan",
     enabled: true,
     sidebarPanel: "screener",
     bottomTab: "time-presets",
@@ -344,6 +351,7 @@ const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active"
   {
     id: "alerts",
     label: "Alerts",
+    viewId: "alerts",
     enabled: true,
     sidebarPanel: "alerts",
     bottomTab: "logs",
@@ -351,6 +359,7 @@ const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active"
   {
     id: "inspect",
     label: "Inspect",
+    viewId: "inspect",
     enabled: true,
     sidebarPanel: "object-tree",
     bottomTab: "logs",

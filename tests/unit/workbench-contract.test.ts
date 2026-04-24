@@ -86,6 +86,7 @@ describe("chart workbench contract", () => {
       {
         id: "trade",
         label: "Trade",
+        viewId: "trade",
         active: true,
         enabled: true,
         sidebarPanel: "watchlist",
@@ -94,6 +95,7 @@ describe("chart workbench contract", () => {
       {
         id: "scan",
         label: "Scan",
+        viewId: "scan",
         active: false,
         enabled: true,
         sidebarPanel: "screener",
@@ -102,6 +104,7 @@ describe("chart workbench contract", () => {
       {
         id: "alerts",
         label: "Alerts",
+        viewId: "alerts",
         active: false,
         enabled: true,
         sidebarPanel: "alerts",
@@ -110,6 +113,7 @@ describe("chart workbench contract", () => {
       {
         id: "inspect",
         label: "Inspect",
+        viewId: "inspect",
         active: false,
         enabled: true,
         sidebarPanel: "object-tree",
@@ -270,20 +274,25 @@ describe("chart workbench contract", () => {
       activeRightSidebarPanel: "object-tree",
       workspaceTabs: [
         {
-          id: "trade",
+          id: "workspace-1",
           label: "Trade",
+          viewId: "trade",
           active: false,
           enabled: true,
           sidebarPanel: "watchlist",
           bottomTab: "time-presets",
         },
         {
-          id: "inspect",
+          id: "workspace-2",
           label: "Inspect",
+          viewId: "inspect",
           active: true,
           enabled: true,
+          closeable: true,
           sidebarPanel: "object-tree",
           bottomTab: "logs",
+          symbolLabel: "BTCUSD",
+          timeframeLabel: "4H",
         },
       ],
       layoutTransfer: {
@@ -309,20 +318,25 @@ describe("chart workbench contract", () => {
     expect(model.activeRightSidebarPanel).toBe("object-tree");
     expect(model.workspaceTabs).toEqual([
       {
-        id: "trade",
+        id: "workspace-1",
         label: "Trade",
+        viewId: "trade",
         active: false,
         enabled: true,
         sidebarPanel: "watchlist",
         bottomTab: "time-presets",
       },
       {
-        id: "inspect",
+        id: "workspace-2",
         label: "Inspect",
+        viewId: "inspect",
         active: true,
         enabled: true,
+        closeable: true,
         sidebarPanel: "object-tree",
         bottomTab: "logs",
+        symbolLabel: "BTCUSD",
+        timeframeLabel: "4H",
       },
     ]);
     expect(model.layoutTransfer).toEqual({

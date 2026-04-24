@@ -83,15 +83,16 @@ test("command palette: Cmd/Ctrl+K toggles the palette and runs layout commands",
   await expect(workbenchCommandPalette(page)).toHaveCount(0);
 });
 
-test("workspace tabs: command and tab clicks move sidebar focus", async ({ page }) => {
+test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);
   const palette = workbenchCommandPalette(page);
+  const tradeTab = workbench.locator('[data-workspace-view="trade"]').first();
+  const inspectTab = workbench.locator('[data-workspace-view="inspect"]').first();
+  const scanTab = workbench.locator('[data-workspace-view="scan"]').first();
 
-  await expect(workbench.locator('[data-workspace-tab="trade"]')).toHaveAttribute(
-    "data-workspace-active",
-    "true",
-  );
+  await expect(tradeTab).toHaveAttribute("data-workspace-active", "true");
+  await expect(tradeTab).toContainText("NDX · 1D");
   await expect(workbench.locator('[data-workbench-panel="watchlist"]')).toHaveAttribute(
     "data-workbench-panel-active",
     "true",
@@ -100,10 +101,8 @@ test("workspace tabs: command and tab clicks move sidebar focus", async ({ page 
   await page.keyboard.press("Control+K");
   await palette.locator('[data-command-entry="workspace-inspect"]').click();
 
-  await expect(workbench.locator('[data-workspace-tab="inspect"]')).toHaveAttribute(
-    "data-workspace-active",
-    "true",
-  );
+  await expect(inspectTab).toHaveAttribute("data-workspace-active", "true");
+  await expect(inspectTab).toContainText("NDX · 1D");
   await expect(workbench.locator('[data-workbench-panel="object-tree"]')).toHaveAttribute(
     "data-workbench-panel-active",
     "true",
@@ -113,7 +112,9 @@ test("workspace tabs: command and tab clicks move sidebar focus", async ({ page 
     "true",
   );
 
-  await workbench.locator('[data-workspace-tab="scan"]').click();
+  await scanTab.locator(".workspace-tab-main").click();
+  await expect(scanTab).toHaveAttribute("data-workspace-active", "true");
+  await expect(scanTab).toContainText("SPX · 4H");
   await expect(workbench.locator('[data-workbench-panel="screener"]')).toHaveAttribute(
     "data-workbench-panel-active",
     "true",
@@ -122,6 +123,22 @@ test("workspace tabs: command and tab clicks move sidebar focus", async ({ page 
     "data-bottom-tab-active",
     "true",
   );
+});
+
+test("workspace tabs: create and close document tabs in the shell", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await expect(workbench.locator("[data-workspace-tabs] [data-workspace-tab]")).toHaveCount(4);
+  await workbench.locator("[data-workspace-tab-create]").click();
+  await expect(workbench.locator("[data-workspace-tabs] [data-workspace-tab]")).toHaveCount(5);
+
+  const newestTab = workbench.locator("[data-workspace-tabs] [data-workspace-tab]").last();
+  await expect(newestTab).toHaveAttribute("data-workspace-active", "true");
+  await expect(newestTab).toContainText("Trade 2");
+
+  await newestTab.locator("[data-workspace-tab-close]").click();
+  await expect(workbench.locator("[data-workspace-tabs] [data-workspace-tab]")).toHaveCount(4);
 });
 
 test("layout: watchlist routes symbol opens to the active host and follows host activation", async ({
@@ -240,7 +257,11 @@ test("layout import/export: export downloads a focused snapshot and import resto
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-workspace-tab="inspect"]').click();
+  await workbench.locator('[data-workspace-view="inspect"]').first().locator(".workspace-tab-main").click();
+  await expect(workbench.locator('[data-workspace-view="inspect"]').first()).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
 
   const downloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
@@ -257,7 +278,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
   await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Exported layout");
 
   await workbench.locator('[data-watchlist-symbol="SPX"]').click();
-  await workbench.locator('[data-workspace-tab="scan"]').click();
+  await workbench.locator('[data-workspace-view="scan"]').first().locator(".workspace-tab-main").click();
   await expect(workbench.locator('[data-workbench-panel="screener"]')).toHaveAttribute(
     "data-workbench-panel-active",
     "true",
@@ -280,7 +301,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
   }, exportedRaw);
 
   await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Imported layout");
-  await expect(workbench.locator('[data-workspace-tab="inspect"]')).toHaveAttribute(
+  await expect(workbench.locator('[data-workspace-view="inspect"]').first()).toHaveAttribute(
     "data-workspace-active",
     "true",
   );

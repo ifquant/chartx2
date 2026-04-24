@@ -43,7 +43,9 @@
   export let trendPreviewY2: number | null = null;
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
-  export let onSetWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void;
+  export let onSetWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void | Promise<void>;
+  export let onCreateWorkspaceTab: () => void | Promise<void>;
+  export let onCloseWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void | Promise<void>;
   export let onToggleCommandPalette: () => void;
   export let onCloseCommandPalette: () => void;
   export let onExecuteCommand: (commandId: string) => void | Promise<void>;
@@ -218,24 +220,51 @@
     {/if}
     <div class="workspace-tab-strip" data-workspace-tabs>
       {#each workbench?.workspaceTabs ?? [] as tab (tab.id)}
-        <button
-          type="button"
+        <div
+          class="workspace-tab-chip"
           class:active={tab.active}
           data-workspace-tab={tab.id}
           data-workspace-active={tab.active ? "true" : "false"}
           data-workspace-panel={tab.sidebarPanel}
-          disabled={!tab.enabled}
-          aria-disabled={!tab.enabled}
-          on:click={() => {
-            if (!tab.enabled) {
-              return;
-            }
-            onSetWorkspaceTab(tab.id);
-          }}
+          data-workspace-view={tab.viewId}
         >
-          {tab.label}
-        </button>
+          <button
+            type="button"
+            class="workspace-tab-main"
+            disabled={!tab.enabled}
+            aria-disabled={!tab.enabled}
+            on:click={() => {
+              if (!tab.enabled) {
+                return;
+              }
+              void onSetWorkspaceTab(tab.id);
+            }}
+          >
+            <strong>{tab.label}</strong>
+            <span>{tab.symbolLabel ?? "--"} · {tab.timeframeLabel ?? "--"}</span>
+          </button>
+          {#if tab.closeable}
+            <button
+              type="button"
+              class="workspace-tab-close"
+              aria-label={`Close ${tab.label}`}
+              data-workspace-tab-close={tab.id}
+              on:click={(event) => {
+                event.stopPropagation();
+                void onCloseWorkspaceTab(tab.id);
+              }}
+            >×</button>
+          {/if}
+        </div>
       {/each}
+      <button
+        type="button"
+        class="workspace-tab-create"
+        data-workspace-tab-create
+        on:click={() => {
+          void onCreateWorkspaceTab();
+        }}
+      >＋</button>
     </div>
   </div>
 
@@ -1386,10 +1415,55 @@
     scrollbar-width: none;
   }
 
-  .workspace-tab-strip button.active,
+  .workspace-tab-chip.active,
   .bottom-tab-strip button.active {
     background: #18181b;
     color: #fffdf8;
+  }
+
+  .workspace-tab-chip {
+    display: inline-flex;
+    align-items: stretch;
+    min-width: 0;
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.06);
+  }
+
+  .workspace-tab-main {
+    display: grid;
+    gap: 2px;
+    min-width: 112px;
+    padding: 8px 10px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .workspace-tab-main strong {
+    font-size: 0.82rem;
+  }
+
+  .workspace-tab-main span {
+    font-size: 0.72rem;
+    opacity: 0.72;
+  }
+
+  .workspace-tab-close,
+  .workspace-tab-create {
+    width: 30px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .workspace-tab-create {
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.06);
   }
 
   .workbench-shell {

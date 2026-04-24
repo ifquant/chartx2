@@ -40,6 +40,7 @@ import {
   type WorkbenchStatusNoticeModel,
   type WorkbenchWorkspaceTabId,
   type WorkbenchWorkspaceTabModel,
+  type WorkbenchWorkspaceViewId,
 } from "$lib/chartx/public/workbench";
 import {
   createWorkbenchLayoutState,
@@ -193,7 +194,9 @@ export type DemoController = {
   resetLayout?(): Promise<boolean>;
   exportLayout?(): Promise<string | null>;
   importLayout?(raw: string): Promise<boolean>;
-  setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): boolean;
+  setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
+  createWorkspaceTab?(): Promise<boolean> | boolean;
+  closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   addIndicatorFromCatalog?(entryId: string): boolean;
   enterReplay?(): boolean;
   playReplay?(): boolean;
@@ -244,6 +247,16 @@ type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
 type DemoWorkspaceFocus = {
   sidebarPanel: WorkbenchSidebarPanelId;
   bottomTab: "time-presets" | "logs" | "replay";
+};
+type DemoWorkspaceDocument = {
+  id: WorkbenchWorkspaceTabId;
+  label: string;
+  viewId: WorkbenchWorkspaceViewId;
+  symbol: string;
+  timeframe: string;
+  chartType: WorkbenchMainChartType;
+  chartState: PhaseOneChartStateSnapshot | null;
+  panels: DemoWorkspaceFocus;
 };
 type DemoScreenerCandidate = {
   item: WatchlistItemModel;
@@ -572,6 +585,7 @@ function createWorkbenchDemoLayoutState(input: {
   chart?: Pick<PhaseOneChartApi, "getChartState"> | null;
   rightSidebar: WorkbenchSidebarPanelId;
   bottomTab: "time-presets" | "logs" | "replay";
+  workspace?: WorkbenchLayoutState["workspace"];
 }): WorkbenchLayoutState {
   return createWorkbenchLayoutState({
     activeSymbol: input.activeSymbol,
@@ -580,11 +594,12 @@ function createWorkbenchDemoLayoutState(input: {
     chartState: input.chart?.getChartState() ?? null,
     rightSidebar: input.rightSidebar,
     bottomTab: input.bottomTab,
+    workspace: input.workspace,
   });
 }
 
-function workspaceFocusForTab(tabId: WorkbenchWorkspaceTabId, replayActive: boolean): DemoWorkspaceFocus {
-  switch (tabId) {
+function workspaceFocusForView(viewId: WorkbenchWorkspaceViewId, replayActive: boolean): DemoWorkspaceFocus {
+  switch (viewId) {
     case "scan":
       return {
         sidebarPanel: "screener",
@@ -609,7 +624,7 @@ function workspaceFocusForTab(tabId: WorkbenchWorkspaceTabId, replayActive: bool
   }
 }
 
-function workspaceTabForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspaceTabId {
+function workspaceViewForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspaceViewId {
   switch (panel) {
     case "screener":
       return "scan";
@@ -620,6 +635,20 @@ function workspaceTabForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspac
     case "watchlist":
     default:
       return "trade";
+  }
+}
+
+function workspaceLabelForView(viewId: WorkbenchWorkspaceViewId): string {
+  switch (viewId) {
+    case "scan":
+      return "Scan";
+    case "alerts":
+      return "Alerts";
+    case "inspect":
+      return "Inspect";
+    case "trade":
+    default:
+      return "Trade";
   }
 }
 
@@ -792,15 +821,60 @@ export function mountWorkbenchDemo(
   let mainChartType: WorkbenchMainChartType = "candlestick";
   let layoutPreset: DemoWorkbenchLayoutPreset = "single";
   let activeChartHostId: DemoWorkbenchChartHostId = "market-main";
-  let activeWorkspaceTabId: WorkbenchWorkspaceTabId = "trade";
-  let hostActivationSequence = 0;
-  let suppressDefaultDrawingsNextRebuild = false;
   const defaultSecondarySymbol =
     requestedInitialSymbol === "NDX"
       ? "SPX"
       : requestedInitialSymbol === "SPX"
         ? "NDX"
         : "SPX";
+  let workspaceTabSequence = 0;
+  const createWorkspaceDocument = (input: {
+    label: string;
+    viewId: WorkbenchWorkspaceViewId;
+    symbol: string;
+    timeframe: string;
+    chartType?: WorkbenchMainChartType;
+    chartState?: PhaseOneChartStateSnapshot | null;
+  }): DemoWorkspaceDocument => ({
+    id: `workspace-${++workspaceTabSequence}`,
+    label: input.label,
+    viewId: input.viewId,
+    symbol: input.symbol,
+    timeframe: input.timeframe,
+    chartType: input.chartType ?? "candlestick",
+    chartState: input.chartState ?? null,
+    panels: workspaceFocusForView(input.viewId, false),
+  });
+  let workspaceDocuments: DemoWorkspaceDocument[] = [
+    createWorkspaceDocument({
+      label: "Trade",
+      viewId: "trade",
+      symbol: activeSymbol,
+      timeframe: activeTimeframe,
+      chartType: mainChartType,
+    }),
+    createWorkspaceDocument({
+      label: "Scan",
+      viewId: "scan",
+      symbol: defaultSecondarySymbol,
+      timeframe: "4H",
+    }),
+    createWorkspaceDocument({
+      label: "Alerts",
+      viewId: "alerts",
+      symbol: "DJI",
+      timeframe: "1H",
+    }),
+    createWorkspaceDocument({
+      label: "Inspect",
+      viewId: "inspect",
+      symbol: activeSymbol,
+      timeframe: "1D",
+    }),
+  ];
+  let activeWorkspaceTabId: WorkbenchWorkspaceTabId = workspaceDocuments[0]!.id;
+  let hostActivationSequence = 0;
+  let suppressDefaultDrawingsNextRebuild = false;
   const chartHostRecords: Record<DemoWorkbenchChartHostId, DemoWorkbenchChartHostRecord> = {
     "market-main": {
       id: "market-main",
@@ -964,27 +1038,37 @@ export function mountWorkbenchDemo(
       },
       {
         id: "workspace-trade",
-        label: "Focus trade workspace",
+        label: "Open trade workspace",
         enabled: true,
-        active: activeWorkspaceTabId === "trade",
+        active: activeWorkspaceDocument().viewId === "trade",
       },
       {
         id: "workspace-scan",
-        label: "Focus scan workspace",
+        label: "Open scan workspace",
         enabled: true,
-        active: activeWorkspaceTabId === "scan",
+        active: activeWorkspaceDocument().viewId === "scan",
       },
       {
         id: "workspace-alerts",
-        label: "Focus alerts workspace",
+        label: "Open alerts workspace",
         enabled: true,
-        active: activeWorkspaceTabId === "alerts",
+        active: activeWorkspaceDocument().viewId === "alerts",
       },
       {
         id: "workspace-inspect",
-        label: "Focus inspect workspace",
+        label: "Open inspect workspace",
         enabled: true,
-        active: activeWorkspaceTabId === "inspect",
+        active: activeWorkspaceDocument().viewId === "inspect",
+      },
+      {
+        id: "workspace-new",
+        label: "Duplicate current workspace",
+        enabled: !replayState.active,
+      },
+      {
+        id: "workspace-close",
+        label: "Close current workspace",
+        enabled: !replayState.active && workspaceDocuments.length > 1,
       },
       {
         id: "save-layout",
@@ -1020,40 +1104,22 @@ export function mountWorkbenchDemo(
     statusNotice = notice;
   };
 
-  const buildWorkspaceTabs = (replayState: DemoReplayState): readonly WorkbenchWorkspaceTabModel[] => [
-    {
-      id: "trade",
-      label: "Trade",
-      enabled: true,
-      active: activeWorkspaceTabId === "trade",
-      sidebarPanel: "watchlist",
-      bottomTab: replayState.active && activeWorkspaceTabId === "trade" ? "replay" : "time-presets",
-    },
-    {
-      id: "scan",
-      label: "Scan",
-      enabled: true,
-      active: activeWorkspaceTabId === "scan",
-      sidebarPanel: "screener",
-      bottomTab: "time-presets",
-    },
-    {
-      id: "alerts",
-      label: "Alerts",
-      enabled: true,
-      active: activeWorkspaceTabId === "alerts",
-      sidebarPanel: "alerts",
-      bottomTab: "logs",
-    },
-    {
-      id: "inspect",
-      label: "Inspect",
-      enabled: true,
-      active: activeWorkspaceTabId === "inspect",
-      sidebarPanel: "object-tree",
-      bottomTab: "logs",
-    },
-  ];
+  const buildWorkspaceTabs = (replayState: DemoReplayState): readonly WorkbenchWorkspaceTabModel[] =>
+    workspaceDocuments.map((document) => {
+      const focus = workspaceFocusForView(document.viewId, replayState.active && document.id === activeWorkspaceTabId);
+      return {
+        id: document.id,
+        label: document.label,
+        viewId: document.viewId,
+        enabled: true,
+        active: activeWorkspaceTabId === document.id,
+        closeable: workspaceDocuments.length > 1,
+        sidebarPanel: focus.sidebarPanel,
+        bottomTab: focus.bottomTab,
+        symbolLabel: document.symbol,
+        timeframeLabel: document.timeframe,
+      } satisfies WorkbenchWorkspaceTabModel;
+    });
 
   const buildLayoutTransferModel = (replayState: DemoReplayState): WorkbenchLayoutTransferModel => ({
     importLabel: "Import layout",
@@ -1061,6 +1127,87 @@ export function mountWorkbenchDemo(
     importEnabled: !replayState.active,
     exportEnabled: !replayState.active,
   });
+
+  const activeWorkspaceDocument = (): DemoWorkspaceDocument =>
+    workspaceDocuments.find((document) => document.id === activeWorkspaceTabId) ?? workspaceDocuments[0]!;
+
+  const replaceWorkspaceDocument = (nextDocument: DemoWorkspaceDocument) => {
+    workspaceDocuments = workspaceDocuments.map((document) =>
+      document.id === nextDocument.id ? nextDocument : document,
+    );
+  };
+
+  const captureActiveWorkspaceDocument = (captureChartState: boolean) => {
+    const currentDocument = activeWorkspaceDocument();
+    replaceWorkspaceDocument({
+      ...currentDocument,
+      symbol: activeSymbol,
+      timeframe: activeTimeframe,
+      chartType: mainChartType,
+      chartState: captureChartState ? chart?.getChartState() ?? null : currentDocument.chartState,
+      panels: workspaceFocusForView(currentDocument.viewId, replayActive),
+    });
+  };
+
+  const buildPersistedWorkspaceState = (): NonNullable<WorkbenchLayoutState["workspace"]> => ({
+    activeTabId: activeWorkspaceTabId,
+    tabs: workspaceDocuments.map((document) => ({
+      id: document.id,
+      label: document.label,
+      viewId: document.viewId,
+      activeSymbol: document.symbol,
+      activeTimeframe: document.timeframe,
+      chartType: document.chartType,
+      chartState: document.chartState,
+      panels: {
+        rightSidebar: document.panels.sidebarPanel,
+        bottomTab: document.panels.bottomTab,
+      },
+    })),
+  });
+
+  const restoreWorkspaceDocumentsFromState = (state: WorkbenchLayoutState) => {
+    if (state.workspace === undefined) {
+      workspaceDocuments = [
+        createWorkspaceDocument({
+          label: workspaceLabelForView(workspaceViewForPanel(state.panels.rightSidebar)),
+          viewId: workspaceViewForPanel(state.panels.rightSidebar),
+          symbol: state.activeSymbol,
+          timeframe: state.activeTimeframe,
+          chartType: toWorkbenchMainChartType(state.chartType) ?? "candlestick",
+          chartState: state.chartState,
+        }),
+      ];
+      activeWorkspaceTabId = workspaceDocuments[0]!.id;
+      workspaceTabSequence = Math.max(workspaceTabSequence, 1);
+      return;
+    }
+    workspaceDocuments = state.workspace.tabs.map((tab) => ({
+      id: tab.id,
+      label: tab.label,
+      viewId: tab.viewId,
+      symbol: tab.activeSymbol,
+      timeframe: tab.activeTimeframe,
+      chartType: toWorkbenchMainChartType(tab.chartType) ?? "candlestick",
+      chartState: tab.chartState,
+      panels: {
+        sidebarPanel: tab.panels.rightSidebar,
+        bottomTab: tab.panels.bottomTab === "performance-link" || tab.panels.bottomTab === "custom"
+          ? "logs"
+          : tab.panels.bottomTab,
+      },
+    }));
+    workspaceTabSequence = Math.max(
+      workspaceTabSequence,
+      ...workspaceDocuments.map((document) => {
+        const suffix = Number(document.id.replace("workspace-", ""));
+        return Number.isFinite(suffix) ? suffix : 0;
+      }),
+    );
+    activeWorkspaceTabId =
+      workspaceDocuments.find((document) => document.id === state.workspace?.activeTabId)?.id ??
+      workspaceDocuments[0]!.id;
+  };
 
   const buildAdapterStatus = (): readonly WorkbenchAdapterStatusModel[] => [
     {
@@ -1431,6 +1578,7 @@ export function mountWorkbenchDemo(
         ? null
         : Math.max(0, Math.round(visibleLogical.to - visibleLogical.from));
 
+    captureActiveWorkspaceDocument(false);
     const activeWatchlistItemId = workbenchWatchlist.find((item) => item.symbol === activeSymbol)?.id;
     const alertItems: AlertSummaryModel[] = workbenchAlerts.map(toAlertSummaryModel);
     const objectTree = buildWorkbenchObjectTree({
@@ -1468,7 +1616,7 @@ export function mountWorkbenchDemo(
       emptyLabel: buildScreenerEmptyLabel(),
     });
     const replayState = buildReplaySnapshot();
-    const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayState.active);
+    const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayState.active);
     const effectiveStatusNotice =
       statusNotice ??
       (options.persistenceProvider === undefined
@@ -1820,14 +1968,159 @@ export function mountWorkbenchDemo(
     publishSnapshot();
   };
 
-  const setWorkspaceTab = (tabId: WorkbenchWorkspaceTabId): boolean => {
+  const activateWorkspaceDocument = async (tabId: WorkbenchWorkspaceTabId): Promise<boolean> => {
+    const targetDocument = workspaceDocuments.find((document) => document.id === tabId);
+    if (targetDocument === undefined) {
+      publishSnapshot();
+      return false;
+    }
     if (activeWorkspaceTabId === tabId) {
       publishSnapshot();
       return true;
     }
-    activeWorkspaceTabId = tabId;
+
+    if (workspaceDocuments.some((document) => document.id === activeWorkspaceTabId)) {
+      captureActiveWorkspaceDocument(true);
+    }
+    const layoutOperation = ++layoutOperationSequence;
+    if (targetDocument.chartState !== null) {
+      suppressDefaultDrawingsNextRebuild = true;
+    }
+    const opened = await openWorkbenchDemoSymbol({
+      targetHostId: activeChartHostId,
+      symbol: targetDocument.symbol,
+      timeframe: targetDocument.timeframe,
+      source: "host",
+      chartType: targetDocument.chartType,
+      failureLogPrefix: `failed to open workspace ${targetDocument.label}`,
+    });
+    if (!opened) {
+      suppressDefaultDrawingsNextRebuild = false;
+      return false;
+    }
+    if (destroyed || layoutOperation !== layoutOperationSequence) {
+      return false;
+    }
+
+    activeWorkspaceTabId = targetDocument.id;
+    try {
+      if (targetDocument.chartState !== null) {
+        chart?.applyChartState(targetDocument.chartState);
+        refreshObjectTreeProjection();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStatusNotice({
+        tone: "error",
+        message: `Workspace switch failed: ${message}`,
+      });
+      pushLog(log, `failed to switch workspace ${targetDocument.label}: ${message}`);
+      publishSnapshot();
+      return false;
+    }
     setStatusNotice(null);
-    pushLog(log, `workspace ${tabId}`);
+    pushLog(log, `workspace ${targetDocument.label}`);
+    publishSnapshot();
+    return true;
+  };
+
+  const createWorkspaceTab = (): boolean => {
+    if (replayActive) {
+      setStatusNotice({
+        tone: "warning",
+        message: "Exit replay before duplicating a workspace.",
+      });
+      pushLog(log, "failed to duplicate workspace: exit replay first");
+      publishSnapshot();
+      return false;
+    }
+    captureActiveWorkspaceDocument(true);
+    const currentDocument = activeWorkspaceDocument();
+    const siblingCount =
+      workspaceDocuments.filter((document) => document.viewId === currentDocument.viewId).length + 1;
+    const nextDocument: DemoWorkspaceDocument = {
+      ...currentDocument,
+      id: `workspace-${++workspaceTabSequence}`,
+      label: `${workspaceLabelForView(currentDocument.viewId)} ${siblingCount}`,
+    };
+    workspaceDocuments = [...workspaceDocuments, nextDocument];
+    activeWorkspaceTabId = nextDocument.id;
+    setStatusNotice({
+      tone: "success",
+      message: `Created workspace ${nextDocument.label}.`,
+    });
+    pushLog(log, `created workspace ${nextDocument.label}`);
+    publishSnapshot();
+    return true;
+  };
+
+  const closeWorkspaceTab = async (tabId: WorkbenchWorkspaceTabId): Promise<boolean> => {
+    if (workspaceDocuments.length <= 1) {
+      setStatusNotice({
+        tone: "warning",
+        message: "At least one workspace tab must remain open.",
+      });
+      publishSnapshot();
+      return false;
+    }
+    const targetIndex = workspaceDocuments.findIndex((document) => document.id === tabId);
+    if (targetIndex < 0) {
+      publishSnapshot();
+      return false;
+    }
+    const targetDocument = workspaceDocuments[targetIndex]!;
+    if (tabId !== activeWorkspaceTabId) {
+      workspaceDocuments = workspaceDocuments.filter((document) => document.id !== tabId);
+      setStatusNotice({
+        tone: "success",
+        message: `Closed workspace ${targetDocument.label}.`,
+      });
+      pushLog(log, `closed workspace ${targetDocument.label}`);
+      publishSnapshot();
+      return true;
+    }
+
+    captureActiveWorkspaceDocument(true);
+    const fallbackDocument =
+      workspaceDocuments[targetIndex - 1] ??
+      workspaceDocuments[targetIndex + 1];
+    workspaceDocuments = workspaceDocuments.filter((document) => document.id !== tabId);
+    if (fallbackDocument === undefined) {
+      publishSnapshot();
+      return false;
+    }
+    const activated = await activateWorkspaceDocument(fallbackDocument.id);
+    if (!activated) {
+      return false;
+    }
+    setStatusNotice({
+      tone: "success",
+      message: `Closed workspace ${targetDocument.label}.`,
+    });
+    pushLog(log, `closed workspace ${targetDocument.label}`);
+    publishSnapshot();
+    return true;
+  };
+
+  const setWorkspaceTab = async (tabId: WorkbenchWorkspaceTabId): Promise<boolean> =>
+    activateWorkspaceDocument(tabId);
+
+  const activateWorkspaceView = async (viewId: WorkbenchWorkspaceViewId): Promise<boolean> => {
+    const existingDocument = workspaceDocuments.find((document) => document.viewId === viewId);
+    if (existingDocument !== undefined) {
+      return activateWorkspaceDocument(existingDocument.id);
+    }
+    const created = createWorkspaceTab();
+    if (!created) {
+      return false;
+    }
+    const currentDocument = activeWorkspaceDocument();
+    replaceWorkspaceDocument({
+      ...currentDocument,
+      label: workspaceLabelForView(viewId),
+      viewId,
+      panels: workspaceFocusForView(viewId, replayActive),
+    });
     publishSnapshot();
     return true;
   };
@@ -2883,13 +3176,17 @@ export function mountWorkbenchDemo(
         case "reset-layout":
           return controller.resetLayout?.() ?? false;
         case "workspace-trade":
-          return controller.setWorkspaceTab?.("trade") ?? false;
+          return activateWorkspaceView("trade");
         case "workspace-scan":
-          return controller.setWorkspaceTab?.("scan") ?? false;
+          return activateWorkspaceView("scan");
         case "workspace-alerts":
-          return controller.setWorkspaceTab?.("alerts") ?? false;
+          return activateWorkspaceView("alerts");
         case "workspace-inspect":
-          return controller.setWorkspaceTab?.("inspect") ?? false;
+          return activateWorkspaceView("inspect");
+        case "workspace-new":
+          return controller.createWorkspaceTab?.() ?? false;
+        case "workspace-close":
+          return controller.closeWorkspaceTab?.(activeWorkspaceTabId) ?? false;
         case "replay-enter":
           return controller.enterReplay?.() ?? false;
         case "replay-exit":
@@ -3158,7 +3455,8 @@ export function mountWorkbenchDemo(
       }
 
       try {
-        const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayActive);
+        captureActiveWorkspaceDocument(true);
+        const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
           activeTimeframe,
@@ -3166,6 +3464,7 @@ export function mountWorkbenchDemo(
           chart,
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
+          workspace: buildPersistedWorkspaceState(),
         });
         const saved = await provider.saveWorkbenchLayout(state);
         if (destroyed) {
@@ -3313,7 +3612,7 @@ export function mountWorkbenchDemo(
       if (destroyed || layoutOperation !== layoutOperationSequence) {
         return false;
       }
-      activeWorkspaceTabId = workspaceTabForPanel(state.panels.rightSidebar);
+      restoreWorkspaceDocumentsFromState(state);
       const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
       setStatusNotice({
         tone: "success",
@@ -3350,7 +3649,10 @@ export function mountWorkbenchDemo(
       if (destroyed) {
         return false;
       }
-      activeWorkspaceTabId = "trade";
+      const tradeWorkspace = workspaceDocuments.find((document) => document.viewId === "trade");
+      if (tradeWorkspace !== undefined) {
+        activeWorkspaceTabId = tradeWorkspace.id;
+      }
       const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
       setStatusNotice({
         tone: "success",
@@ -3371,7 +3673,8 @@ export function mountWorkbenchDemo(
         return null;
       }
       try {
-        const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayActive);
+        captureActiveWorkspaceDocument(true);
+        const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
           activeTimeframe,
@@ -3379,6 +3682,7 @@ export function mountWorkbenchDemo(
           chart,
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
+          workspace: buildPersistedWorkspaceState(),
         });
         const raw = JSON.stringify(state, null, 2);
         setStatusNotice({
@@ -3470,7 +3774,7 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
-      activeWorkspaceTabId = workspaceTabForPanel(state.panels.rightSidebar);
+      restoreWorkspaceDocumentsFromState(state);
 
       try {
         if (state.chartState !== null) {
@@ -3497,6 +3801,8 @@ export function mountWorkbenchDemo(
       return true;
     },
     setWorkspaceTab,
+    createWorkspaceTab,
+    closeWorkspaceTab,
     enterReplay,
     playReplay,
     pauseReplay,

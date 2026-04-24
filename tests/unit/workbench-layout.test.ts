@@ -165,6 +165,48 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("accepts a layout snapshot with persisted workspace documents", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: minimalChartStateSnapshot,
+      workspace: {
+        activeTabId: "workspace-2",
+        tabs: [
+          {
+            id: "workspace-1",
+            label: "Trade",
+            viewId: "trade",
+            activeSymbol: "NDX",
+            activeTimeframe: "1D",
+            chartType: "candlestick",
+            chartState: null,
+            panels: {
+              rightSidebar: "watchlist",
+              bottomTab: "time-presets",
+            },
+          },
+          {
+            id: "workspace-2",
+            label: "Inspect",
+            viewId: "inspect",
+            activeSymbol: "SPX",
+            activeTimeframe: "1D",
+            chartType: "candlestick",
+            chartState: minimalChartStateSnapshot,
+            panels: {
+              rightSidebar: "object-tree",
+              bottomTab: "logs",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
   it("rejects persisted series and study data arrays with invalid rows", () => {
     const invalidSeriesState = {
       kind: "workbench-layout",

@@ -583,10 +583,23 @@ Implementation note:
   overlay with stable selectors so browser coverage can prove that keyboard
   open/close and command execution both work against the current workbench
   shell.
-- This is intentionally still a V0 command surface: there is no fuzzy search,
-  no free-text command parsing, no multi-step command routing, no workspace
-  tabs, and no import/export workflow yet. The current slice only makes a
-  small, explicit command registry executable and testable.
+- The next executable workstation slice is also now live in the same boundary:
+  the public workbench shell carries focused `workspaceTabs`, active sidebar
+  focus, import/export button state, and a thin status notice surface. The
+  demo controller owns workspace focus, layout JSON import/export, and
+  controller-backed success/error reporting, while `+page.svelte` stays a thin
+  browser I/O shell for file download/upload only.
+- In the current demo, workspace tabs are focus tabs rather than a full
+  multi-document workspace system. They switch the emphasized sidebar panel and
+  associated bottom-tab focus, and those selections now round-trip through
+  saved/exported layout snapshots.
+- Layout import/export is local JSON only. Export downloads the current focused
+  layout snapshot, and import validates the same `WorkbenchLayoutState`
+  contract before applying it back through the existing symbol-open and chart
+  restore path.
+- This is intentionally still a V0 workstation shell: there is no fuzzy search,
+  no free-text command parsing, no multi-step command routing, no cloud
+  workspace sync, and no full multi-document tab model yet.
 
 ### Layer 2 Gate
 

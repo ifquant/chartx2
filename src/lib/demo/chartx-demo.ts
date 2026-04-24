@@ -145,6 +145,7 @@ type DemoActiveIndicator = {
   inputValues?: WorkbenchScriptNumericInputValueMap;
   paneIndex?: number;
   removable?: boolean;
+  source?: "runtime" | "chart-state-fallback";
 };
 
 export type DemoCustomScriptLibraryEntry = {
@@ -1300,6 +1301,7 @@ export function mountWorkbenchDemo(
         inputValues: study.studyOptions.inputValues,
         paneIndex: study.paneIndex,
         removable: activeScriptSeriesByPaneIndex.has(study.paneIndex),
+        source: "chart-state-fallback",
       });
     }
     return mergedIndicators;
@@ -2979,6 +2981,7 @@ export function mountWorkbenchDemo(
         inputValues: extras?.inputValues,
         paneIndex: extras?.paneIndex,
         removable: entry.engineKind === "script" && extras?.paneIndex !== undefined,
+        source: "runtime",
       },
     ];
   };

@@ -706,6 +706,7 @@ Progress checklist:
 - [x] Workbench layout sanitization strips trailing separate-pane scripted panes back out of persisted chart state when the descriptor bridge is present
 - [x] Workbench scripted-indicator descriptor serialization now uses a shared bridge creator instead of hand-built `studyOptions` defaults in the demo shell
 - [x] Active indicator and custom-script in-use surfaces now fall back to engine-native scripted-study chart-state snapshots when descriptor replay is absent
+- [x] Engine-native fallback scripted-study rows now render an explicit `engine-restored` read-only hint instead of a silent missing remove affordance
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -843,6 +844,11 @@ Implementation note:
   entries from live chart state instead of pretending no scripted study is
   mounted. Those fallback rows intentionally do not expose a remove action
   unless the demo runtime has an actual local remove handle for that pane.
+- `Scripted Study Fallback Readonly Hint V1` makes that limitation explicit in
+  the shell: fallback-only active scripted rows now render an `engine-restored`
+  marker so the missing remove action reads as intentional read-only behavior
+  rather than a broken button gap. Export/save policy for native-only scripted
+  studies remains a separate follow-up.
 - `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
   descriptor bridge is still useful for surrounding layout/library flows, but
   engine chart state now owns the separate-pane scripted-study snapshot and

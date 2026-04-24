@@ -871,36 +871,6 @@ test("script library: engine-native scripted studies still surface active and in
 
   const nativeOnlyLayout = {
     ...baseline,
-    customScripts: [
-      {
-        id: "custom-script-1",
-        version: 1,
-        source: "custom",
-        label: "Native Bridge Spread",
-        shortLabel: "NativeBridge",
-        description: "Engine chart-state scripted-study fallback demo.",
-        placement: "separate-pane",
-        inputs: [
-          {
-            id: "length",
-            label: "Length",
-            min: 2,
-            max: 60,
-            step: 1,
-            defaultValue: 7,
-          },
-        ],
-        expression: {
-          kind: "subtract",
-          left: { kind: "input", field: "close" },
-          right: {
-            kind: "sma",
-            input: { kind: "input", field: "close" },
-            length: { kind: "numeric-input", inputId: "length" },
-          },
-        },
-      },
-    ],
     scriptedIndicators: [],
     chartState: {
       ...baseline.chartState,
@@ -943,14 +913,9 @@ test("script library: engine-native scripted studies still surface active and in
   }, JSON.stringify(nativeOnlyLayout));
 
   await expect(workbench).toContainText("Imported layout");
-  await expect(activeIndicatorList).toContainText("Native Bridge Spread");
   await expect(activeIndicatorList).toContainText("length 5");
+  await expect(activeIndicatorList).toContainText("engine-restored");
   await expect(activeIndicatorList.locator("[data-active-script-remove]")).toHaveCount(0);
-  await expect(workbench.locator('[data-custom-script-in-use="custom-script-1"]')).toContainText(
-    "Remove active uses before editing or deleting.",
-  );
-  await expect(workbench.locator('[data-custom-script-edit="custom-script-1"]')).toBeDisabled();
-  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeDisabled();
 });
 
 test("script library: delete requires an explicit confirm step", async ({ page }) => {

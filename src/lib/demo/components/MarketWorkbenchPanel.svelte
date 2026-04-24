@@ -1262,6 +1262,9 @@
                   {" · "}
                   {formatIndicatorInputValues(indicator.inputValues)}
                 {/if}
+                {#if indicator.kind === "script" && indicator.source === "chart-state-fallback"}
+                  {" · "}engine-restored
+                {/if}
               </span>
               {#if indicator.kind === "script" && indicator.paneIndex !== undefined && indicator.removable === true}
                 <button

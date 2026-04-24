@@ -704,6 +704,7 @@ Progress checklist:
 - [x] Object tree scripted-study rendering now consumes a single study projection path instead of a parallel workbench-only script node path
 - [x] Layout restore/import/workspace/host scripted-study replay now shares one apply path and surfaces partial scripted-study restore warnings
 - [x] Workbench layout sanitization strips trailing separate-pane scripted panes back out of persisted chart state when the descriptor bridge is present
+- [x] Workbench scripted-indicator descriptor serialization now uses a shared bridge creator instead of hand-built `studyOptions` defaults in the demo shell
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -829,6 +830,11 @@ Implementation note:
   trailing separate panes back out of persisted chart state so export/save
   stops leaking duplicate script panes alongside the descriptor-owned restore
   path.
+- `Scripted Study Descriptor Creator Seam V1` closes a smaller but still real
+  drift point inside the remaining bridge: demo/workbench scripted-indicator
+  serialization no longer hand-builds `studyOptions` defaults locally and now
+  routes through a shared layout helper, so future engine/default-field changes
+  do not need a second manual update in `chartx-demo.ts`.
 - `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
   descriptor bridge is still useful for surrounding layout/library flows, but
   engine chart state now owns the separate-pane scripted-study snapshot and

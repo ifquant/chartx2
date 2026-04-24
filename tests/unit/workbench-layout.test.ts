@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createWorkbenchLayoutScriptedIndicatorDescriptor,
   createLocalStorageWorkbenchLayoutProvider,
   createWorkbenchLayoutState,
   isWorkbenchLayoutState,
@@ -407,6 +408,37 @@ describe("workbench layout state", () => {
       placement: "separate-pane",
       studyOptions: {
         scriptId: "custom-script-1",
+        inputValues: {
+          length: 8,
+        },
+        inputContextMode: "chart-context",
+        requestedSymbol: null,
+        requestedResolution: null,
+        requestedSession: null,
+        requestedTimezone: null,
+        mergePolicy: "carry-forward",
+      },
+    });
+  });
+
+  it("creates a scripted study descriptor through the shared bridge helper", () => {
+    expect(
+      createWorkbenchLayoutScriptedIndicatorDescriptor({
+        id: " scripted-close-sma ",
+        label: " Scripted SMA 20 ",
+        placement: "separate-pane",
+        scriptId: " close-sma-20-v0 ",
+        inputValues: {
+          length: 8,
+        },
+      }),
+    ).toEqual({
+      id: "scripted-close-sma",
+      label: "Scripted SMA 20",
+      kind: "script",
+      placement: "separate-pane",
+      studyOptions: {
+        scriptId: "close-sma-20-v0",
         inputValues: {
           length: 8,
         },

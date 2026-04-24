@@ -470,6 +470,25 @@ export function normalizeWorkbenchLayoutScriptedIndicatorDescriptor(
   };
 }
 
+export function createWorkbenchLayoutScriptedIndicatorDescriptor(input: {
+  id: string;
+  label: string;
+  placement: WorkbenchLayoutScriptedIndicatorPlacement;
+  scriptId: string;
+  inputValues?: Record<string, number>;
+}): WorkbenchLayoutScriptedIndicatorDescriptor | null {
+  return normalizeWorkbenchLayoutScriptedIndicatorDescriptor({
+    id: input.id,
+    label: input.label,
+    kind: "script",
+    placement: input.placement,
+    studyOptions: {
+      scriptId: input.scriptId,
+      inputValues: input.inputValues,
+    },
+  });
+}
+
 export function normalizeWorkbenchLayoutScriptedIndicatorDescriptors(
   input: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
 ): readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined {

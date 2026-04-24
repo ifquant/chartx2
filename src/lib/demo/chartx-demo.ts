@@ -44,6 +44,7 @@ import {
   type WorkbenchWorkspaceViewId,
 } from "$lib/chartx/public/workbench";
 import {
+  createWorkbenchLayoutScriptedIndicatorDescriptor,
   createWorkbenchLayoutState,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
   normalizeWorkbenchLayoutState,
@@ -1364,24 +1365,14 @@ export function mountWorkbenchDemo(
         if (indicator.kind !== "script" || indicator.scriptId === undefined) {
           return [];
         }
-        return [
-          {
-            id: indicator.id,
-            label: indicator.label,
-            kind: "script" as const,
-            placement: indicator.placement,
-            studyOptions: {
-              scriptId: indicator.scriptId,
-              inputValues: { ...(indicator.inputValues ?? {}) },
-              inputContextMode: "chart-context",
-              requestedSymbol: null,
-              requestedResolution: null,
-              requestedSession: null,
-              requestedTimezone: null,
-              mergePolicy: "carry-forward",
-            },
-          },
-        ];
+        const descriptor = createWorkbenchLayoutScriptedIndicatorDescriptor({
+          id: indicator.id,
+          label: indicator.label,
+          placement: indicator.placement,
+          scriptId: indicator.scriptId,
+          inputValues: indicator.inputValues === undefined ? undefined : { ...indicator.inputValues },
+        });
+        return descriptor === null ? [] : [descriptor];
       }),
     ) ?? [];
 

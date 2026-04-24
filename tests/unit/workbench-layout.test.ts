@@ -6,6 +6,7 @@ import {
   isWorkbenchLayoutState,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptor,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
+  stripWorkbenchLayoutScriptedStudiesFromChartState,
 } from "../../src/lib/chartx/public/workbench-layout";
 import { createWorkbenchCustomScriptDefinition } from "../../src/lib/chartx/public/workbench-scripts";
 import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-api-types";
@@ -82,9 +83,17 @@ const scriptedIndicators = [
     label: "Scripted SMA 20",
     kind: "script" as const,
     placement: "separate-pane" as const,
-    scriptId: "close-sma-20-v0",
-    inputValues: {
-      length: 8,
+    studyOptions: {
+      scriptId: "close-sma-20-v0",
+      inputValues: {
+        length: 8,
+      },
+      inputContextMode: "chart-context" as const,
+      requestedSymbol: null,
+      requestedResolution: null,
+      requestedSession: null,
+      requestedTimezone: null,
+      mergePolicy: "carry-forward" as const,
     },
   },
 ] as const;
@@ -275,6 +284,45 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("strips engine scripted-study snapshots back out of chart state when the descriptor bridge is present", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: {
+        ...minimalChartStateSnapshot,
+        panes: [
+          { height: null, resizable: false },
+          { height: 126, resizable: false },
+        ],
+        studies: [
+          {
+            type: "scripted-study",
+            paneIndex: 1,
+            seriesOptions: {},
+            studyOptions: {
+              scriptId: "close-sma-20-v0",
+              inputValues: {
+                length: 8,
+              },
+              inputContextMode: "chart-context",
+              requestedSymbol: null,
+              requestedResolution: null,
+              requestedSession: null,
+              requestedTimezone: null,
+              mergePolicy: "carry-forward",
+            },
+          },
+        ],
+      },
+      scriptedIndicators,
+    });
+
+    expect(state.chartState).toEqual(minimalChartStateSnapshot);
+    expect(state.scriptedIndicators).toEqual(scriptedIndicators);
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
   it("normalizes a scripted study descriptor into the workbench-owned bridge shape", () => {
     expect(
       normalizeWorkbenchLayoutScriptedIndicatorDescriptor({
@@ -282,11 +330,13 @@ describe("workbench layout state", () => {
         label: " Scripted SMA 20 ",
         kind: "script",
         placement: "separate-pane",
-        scriptId: " custom-script-1 ",
-        inputValues: {
-          length: 8,
-          bad: Number.NaN,
-          " ": 5,
+        studyOptions: {
+          scriptId: " custom-script-1 ",
+          inputValues: {
+            length: 8,
+            bad: Number.NaN,
+            " ": 5,
+          },
         },
       }),
     ).toEqual({
@@ -294,9 +344,17 @@ describe("workbench layout state", () => {
       label: "Scripted SMA 20",
       kind: "script",
       placement: "separate-pane",
-      scriptId: "custom-script-1",
-      inputValues: {
-        length: 8,
+      studyOptions: {
+        scriptId: "custom-script-1",
+        inputValues: {
+          length: 8,
+        },
+        inputContextMode: "chart-context",
+        requestedSymbol: null,
+        requestedResolution: null,
+        requestedSession: null,
+        requestedTimezone: null,
+        mergePolicy: "carry-forward",
       },
     });
   });
@@ -309,9 +367,11 @@ describe("workbench layout state", () => {
           label: " Scripted SMA 20 ",
           kind: "script",
           placement: "separate-pane",
-          scriptId: " custom-script-1 ",
-          inputValues: {
-            length: 8,
+          studyOptions: {
+            scriptId: " custom-script-1 ",
+            inputValues: {
+              length: 8,
+            },
           },
         },
         {
@@ -319,14 +379,18 @@ describe("workbench layout state", () => {
           label: "Broken",
           kind: "overlay",
           placement: "separate-pane",
-          scriptId: "custom-script-2",
+          studyOptions: {
+            scriptId: "custom-script-2",
+          },
         },
         {
           id: "bad-placement",
           label: "Broken placement",
           kind: "script",
           placement: "floating-pane",
-          scriptId: "custom-script-3",
+          studyOptions: {
+            scriptId: "custom-script-3",
+          },
         },
       ] as unknown as typeof scriptedIndicators),
     ).toEqual([
@@ -335,9 +399,17 @@ describe("workbench layout state", () => {
         label: "Scripted SMA 20",
         kind: "script",
         placement: "separate-pane",
-        scriptId: "custom-script-1",
-        inputValues: {
-          length: 8,
+        studyOptions: {
+          scriptId: "custom-script-1",
+          inputValues: {
+            length: 8,
+          },
+          inputContextMode: "chart-context",
+          requestedSymbol: null,
+          requestedResolution: null,
+          requestedSession: null,
+          requestedTimezone: null,
+          mergePolicy: "carry-forward",
         },
       },
     ]);
@@ -355,10 +427,12 @@ describe("workbench layout state", () => {
           label: " Scripted SMA 20 ",
           kind: "script",
           placement: "separate-pane",
-          scriptId: " custom-script-1 ",
-          inputValues: {
-            length: 8,
-            bad: Number.NaN,
+          studyOptions: {
+            scriptId: " custom-script-1 ",
+            inputValues: {
+              length: 8,
+              bad: Number.NaN,
+            },
           },
         },
         {
@@ -366,7 +440,9 @@ describe("workbench layout state", () => {
           label: "Broken placement",
           kind: "script",
           placement: "floating-pane",
-          scriptId: "custom-script-2",
+          studyOptions: {
+            scriptId: "custom-script-2",
+          },
         },
       ] as unknown as readonly typeof scriptedIndicators[number][],
       workspace: {
@@ -386,10 +462,12 @@ describe("workbench layout state", () => {
                 label: " Workspace Script ",
                 kind: "script",
                 placement: "separate-pane",
-                scriptId: " custom-script-3 ",
-                inputValues: {
-                  length: 5,
-                  invalid: Number.POSITIVE_INFINITY,
+                studyOptions: {
+                  scriptId: " custom-script-3 ",
+                  inputValues: {
+                    length: 5,
+                    invalid: Number.POSITIVE_INFINITY,
+                  },
                 },
               },
             ] as unknown as readonly typeof scriptedIndicators[number][],
@@ -408,9 +486,17 @@ describe("workbench layout state", () => {
         label: "Scripted SMA 20",
         kind: "script",
         placement: "separate-pane",
-        scriptId: "custom-script-1",
-        inputValues: {
-          length: 8,
+        studyOptions: {
+          scriptId: "custom-script-1",
+          inputValues: {
+            length: 8,
+          },
+          inputContextMode: "chart-context",
+          requestedSymbol: null,
+          requestedResolution: null,
+          requestedSession: null,
+          requestedTimezone: null,
+          mergePolicy: "carry-forward",
         },
       },
     ]);
@@ -420,13 +506,53 @@ describe("workbench layout state", () => {
         label: "Workspace Script",
         kind: "script",
         placement: "separate-pane",
-        scriptId: "custom-script-3",
-        inputValues: {
-          length: 5,
+        studyOptions: {
+          scriptId: "custom-script-3",
+          inputValues: {
+            length: 5,
+          },
+          inputContextMode: "chart-context",
+          requestedSymbol: null,
+          requestedResolution: null,
+          requestedSession: null,
+          requestedTimezone: null,
+          mergePolicy: "carry-forward",
         },
       },
     ]);
     expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
+  it("migrates legacy scripted study descriptors into engine-owned study options", () => {
+    expect(
+      normalizeWorkbenchLayoutScriptedIndicatorDescriptor({
+        id: " legacy-scripted-close-sma ",
+        label: " Legacy Scripted SMA ",
+        kind: "script",
+        placement: "separate-pane",
+        scriptId: " custom-script-7 ",
+        inputValues: {
+          length: 13,
+        },
+      }),
+    ).toEqual({
+      id: "legacy-scripted-close-sma",
+      label: "Legacy Scripted SMA",
+      kind: "script",
+      placement: "separate-pane",
+      studyOptions: {
+        scriptId: "custom-script-7",
+        inputValues: {
+          length: 13,
+        },
+        inputContextMode: "chart-context",
+        requestedSymbol: null,
+        requestedResolution: null,
+        requestedSession: null,
+        requestedTimezone: null,
+        mergePolicy: "carry-forward",
+      },
+    });
   });
 
   it("rejects persisted series and study data arrays with invalid rows", () => {
@@ -574,7 +700,15 @@ describe("workbench layout state", () => {
     expect(
       isWorkbenchLayoutState({
         ...baseState,
-        scriptedIndicators: [{ ...scriptedIndicators[0], scriptId: "" }],
+        scriptedIndicators: [
+          {
+            ...scriptedIndicators[0],
+            studyOptions: {
+              ...scriptedIndicators[0].studyOptions,
+              scriptId: "",
+            },
+          },
+        ],
       }),
     ).toBe(false);
     expect(
@@ -604,7 +738,15 @@ describe("workbench layout state", () => {
     expect(
       isWorkbenchLayoutState({
         ...baseState,
-        scriptedIndicators: [{ ...scriptedIndicators[0], inputValues: { length: Number.NaN } }],
+        scriptedIndicators: [
+          {
+            ...scriptedIndicators[0],
+            studyOptions: {
+              ...scriptedIndicators[0].studyOptions,
+              inputValues: { length: Number.NaN },
+            },
+          },
+        ],
       }),
     ).toBe(false);
     expect(
@@ -674,6 +816,67 @@ describe("workbench layout state", () => {
     const provider = createLocalStorageWorkbenchLayoutProvider(storage, "chartx2:test-layout");
 
     await expect(provider.loadWorkbenchLayout()).resolves.toBeNull();
+  });
+
+  it("loads legacy persisted scripted descriptors through the canonical study-options bridge", async () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "chartx2:test-layout",
+      JSON.stringify({
+        kind: "workbench-layout",
+        version: 1,
+        activeSymbol: "NDX",
+        activeTimeframe: "1D",
+        chartType: "renko",
+        chartState: null,
+        scriptedIndicators: [
+          {
+            id: "legacy-scripted-close-sma",
+            label: "Legacy Scripted SMA",
+            kind: "script",
+            placement: "separate-pane",
+            scriptId: "custom-script-8",
+            inputValues: {
+              length: 21,
+            },
+          },
+        ],
+        panels: {
+          rightSidebar: "watchlist",
+          bottomTab: "time-presets",
+        },
+      }),
+    );
+    const provider = createLocalStorageWorkbenchLayoutProvider(storage, "chartx2:test-layout");
+
+    await expect(provider.loadWorkbenchLayout()).resolves.toEqual(
+      createWorkbenchLayoutState({
+        activeSymbol: "NDX",
+        activeTimeframe: "1D",
+        chartType: "renko",
+        chartState: null,
+        scriptedIndicators: [
+          {
+            id: "legacy-scripted-close-sma",
+            label: "Legacy Scripted SMA",
+            kind: "script",
+            placement: "separate-pane",
+            studyOptions: {
+              scriptId: "custom-script-8",
+              inputValues: {
+                length: 21,
+              },
+              inputContextMode: "chart-context",
+              requestedSymbol: null,
+              requestedResolution: null,
+              requestedSession: null,
+              requestedTimezone: null,
+              mergePolicy: "carry-forward",
+            },
+          },
+        ],
+      }),
+    );
   });
 
   it("treats storage access failures as empty layout state", async () => {

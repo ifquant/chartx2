@@ -45,8 +45,9 @@ import {
 } from "$lib/chartx/public/workbench";
 import {
   createWorkbenchLayoutState,
-  isWorkbenchLayoutState,
   normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
+  normalizeWorkbenchLayoutState,
+  stripWorkbenchLayoutScriptedStudiesFromChartState,
   type WorkbenchLayoutPersistenceProvider,
   type WorkbenchLayoutScriptedIndicatorDescriptor,
   type WorkbenchLayoutScriptedStudyDescriptor,
@@ -649,43 +650,6 @@ function createWorkbenchDemoLayoutState(input: {
     bottomTab: input.bottomTab,
     workspace: input.workspace,
   });
-}
-
-function stripPaneIndexesFromChartState(
-  chartState: PhaseOneChartStateSnapshot,
-  paneIndexes: readonly number[],
-): PhaseOneChartStateSnapshot {
-  if (paneIndexes.length === 0) {
-    return chartState;
-  }
-
-  const removedPaneIndexes = [...new Set(paneIndexes)].sort((left, right) => left - right);
-  const removedPaneSet = new Set(removedPaneIndexes);
-  const remapPaneIndex = (paneIndex: number): number =>
-    paneIndex - removedPaneIndexes.filter((removedIndex) => removedIndex < paneIndex).length;
-
-  return {
-    ...chartState,
-    panes: chartState.panes.filter((_, paneIndex) => !removedPaneSet.has(paneIndex)),
-    series: chartState.series
-      .filter((series) => !removedPaneSet.has(series.paneIndex))
-      .map((series) => ({
-        ...series,
-        paneIndex: remapPaneIndex(series.paneIndex),
-      })),
-    studies: chartState.studies
-      .filter((study) => !removedPaneSet.has(study.paneIndex))
-      .map((study) => ({
-        ...study,
-        paneIndex: remapPaneIndex(study.paneIndex),
-      })),
-    drawings: chartState.drawings
-      .filter((drawing) => !removedPaneSet.has(drawing.paneIndex))
-      .map((drawing) => ({
-        ...drawing,
-        paneIndex: remapPaneIndex(drawing.paneIndex),
-      })),
-  };
 }
 
 function workspaceFocusForView(viewId: WorkbenchWorkspaceViewId, replayActive: boolean): DemoWorkspaceFocus {
@@ -1310,10 +1274,10 @@ export function mountWorkbenchDemo(
   const isCustomScriptInUse = (scriptId: string): boolean =>
     activeIndicators.some((indicator) => indicator.scriptId === scriptId) ||
     Object.values(chartHostRecords).some((record) =>
-      record.scriptIndicators.some((indicator) => indicator.scriptId === scriptId),
+      record.scriptIndicators.some((indicator) => indicator.studyOptions.scriptId === scriptId),
     ) ||
     workspaceDocuments.some((document) =>
-      document.scriptIndicators.some((indicator) => indicator.scriptId === scriptId),
+      document.scriptIndicators.some((indicator) => indicator.studyOptions.scriptId === scriptId),
     );
 
   const syncCustomScriptSequence = () => {
@@ -1343,8 +1307,16 @@ export function mountWorkbenchDemo(
             label: indicator.label,
             kind: "script" as const,
             placement: indicator.placement,
-            scriptId: indicator.scriptId,
-            inputValues: indicator.inputValues,
+            studyOptions: {
+              scriptId: indicator.scriptId,
+              inputValues: { ...(indicator.inputValues ?? {}) },
+              inputContextMode: "chart-context",
+              requestedSymbol: null,
+              requestedResolution: null,
+              requestedSession: null,
+              requestedTimezone: null,
+              mergePolicy: "carry-forward",
+            },
           },
         ];
       }),
@@ -1376,16 +1348,7 @@ export function mountWorkbenchDemo(
     if (chartState === null) {
       return null;
     }
-
-    const scriptPaneIndexes = activeIndicators.flatMap((indicator) => {
-      if (indicator.kind !== "script" || indicator.paneIndex === undefined) {
-        return [];
-      }
-      const normalizedPaneIndex =
-        indicator.paneIndex >= chartState.panes.length ? indicator.paneIndex - 1 : indicator.paneIndex;
-      return normalizedPaneIndex >= 0 ? [normalizedPaneIndex] : [];
-    });
-    return stripPaneIndexesFromChartState(chartState, scriptPaneIndexes);
+    return stripWorkbenchLayoutScriptedStudiesFromChartState(chartState);
   };
 
   const replaceWorkspaceDocument = (nextDocument: DemoWorkspaceDocument) => {
@@ -2960,7 +2923,9 @@ export function mountWorkbenchDemo(
   ): boolean => {
     let restoredAll = true;
     for (const indicator of normalizePersistedScriptedStudyDescriptors(descriptors)) {
-      const customDefinition = customScriptLibrary.find((entry) => entry.id === indicator.scriptId) ?? null;
+      const customDefinition = customScriptLibrary.find(
+        (entry) => entry.id === indicator.studyOptions.scriptId,
+      ) ?? null;
       const entry =
         customDefinition === null
           ? getIndicatorCatalogEntryForRuntime(indicator.id)
@@ -2973,7 +2938,7 @@ export function mountWorkbenchDemo(
       const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
       const restored = addScriptIndicatorFromCatalogEntry(scriptEntry, {
         failurePrefix: `${failurePrefix}: ${indicator.label}`,
-        inputValues: indicator.inputValues,
+        inputValues: indicator.studyOptions.inputValues,
         updateStatusOnFailure: false,
       });
       restoredAll = restoredAll && restored;
@@ -4329,7 +4294,8 @@ export function mountWorkbenchDemo(
         return false;
       }
 
-      if (!isWorkbenchLayoutState(parsed)) {
+      const state = normalizeWorkbenchLayoutState(parsed);
+      if (state === null) {
         setStatusNotice({
           tone: "error",
           message: "Layout import failed: unsupported snapshot schema.",
@@ -4338,8 +4304,6 @@ export function mountWorkbenchDemo(
         publishSnapshot();
         return false;
       }
-
-      const state = parsed;
       customScriptLibrary = materializeCustomScripts(state.customScripts);
       syncCustomScriptSequence();
       const chartType = toWorkbenchMainChartType(state.chartType);

@@ -700,6 +700,7 @@ Progress checklist:
 - [x] Workbench layout exposes a normalized scripted-study descriptor bridge ahead of chart-state-native promotion
 - [x] Persist separate-pane scripted indicators as first-class chart-state studies
 - [x] Engine chart-state restore replays separate-pane scripted-study snapshots through the shared study coordinator path
+- [x] Workbench scripted-study descriptors now reuse engine `studyOptions` as the migration seam and normalize legacy saved layouts on load/import
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -805,6 +806,12 @@ Implementation note:
   `scripted-study` snapshots through the same coordinator/restore chain used by
   other restorable studies, so `chart.getChartState(); chart.applyChartState(saved);`
   no longer drops separate-pane scripted studies.
+- `Scripted Study Layout Bridge Seam V1` tightens the migration contract between
+  those engine snapshots and the remaining workbench-owned descriptor bridge:
+  layout/workspace scripted descriptors now carry the engine
+  `scripted-study.studyOptions` shape directly, and load/import normalizes older
+  top-level `scriptId`/`inputValues` payloads into that canonical seam before
+  demo restore or script-library `inUse` checks touch them.
 - `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
   descriptor bridge is still useful for surrounding layout/library flows, but
   engine chart state now owns the separate-pane scripted-study snapshot and

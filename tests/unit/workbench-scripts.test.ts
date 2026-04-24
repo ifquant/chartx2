@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildWorkbenchScriptLibrary,
+  createWorkbenchCustomScriptDefinition,
   executeWorkbenchScript,
   getWorkbenchScriptDefinition,
+  getWorkbenchScriptDefinitionFromLibrary,
   WORKBENCH_SCRIPT_LIBRARY,
 } from "../../src/lib/chartx/public/workbench-scripts";
 
@@ -21,6 +24,25 @@ describe("workbench script runtime", () => {
     ]);
     expect(getWorkbenchScriptDefinition("close-sma-20-v0")?.label).toBe("Scripted SMA 20");
     expect(getWorkbenchScriptDefinition("hlc3-sma-10-v0")?.label).toBe("Scripted HLC3 SMA 10");
+  });
+
+  it("builds custom script definitions into the runtime library", () => {
+    const custom = createWorkbenchCustomScriptDefinition("custom-script-1", {
+      label: "My Close SMA",
+      shortLabel: "My SMA",
+      description: "Saved close-price SMA.",
+      field: "close",
+      placement: "separate-pane",
+      defaultLength: 9,
+    });
+    const library = buildWorkbenchScriptLibrary([custom]);
+
+    expect(library.map((definition) => definition.id)).toEqual([
+      "close-sma-20-v0",
+      "hlc3-sma-10-v0",
+      "custom-script-1",
+    ]);
+    expect(getWorkbenchScriptDefinitionFromLibrary(library, "custom-script-1")).toEqual(custom);
   });
 
   it("executes bounded arithmetic expressions over bar inputs", () => {

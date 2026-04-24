@@ -5,6 +5,7 @@ import {
   createWorkbenchLayoutState,
   isWorkbenchLayoutState,
 } from "../../src/lib/chartx/public/workbench-layout";
+import { createWorkbenchCustomScriptDefinition } from "../../src/lib/chartx/public/workbench-scripts";
 import type { PhaseOneChartStateSnapshot } from "../../src/lib/chartx/internal/views/chart-api-types";
 
 function createMemoryStorage(): Storage {
@@ -84,6 +85,17 @@ const scriptedIndicators = [
       length: 8,
     },
   },
+] as const;
+
+const customScripts = [
+  createWorkbenchCustomScriptDefinition("custom-script-1", {
+    label: "My Close SMA",
+    shortLabel: "My SMA",
+    description: "Saved close-price SMA.",
+    field: "close",
+    placement: "separate-pane",
+    defaultLength: 9,
+  }),
 ] as const;
 
 describe("workbench layout state", () => {
@@ -184,6 +196,7 @@ describe("workbench layout state", () => {
       activeTimeframe: "1D",
       chartType: "candlestick",
       chartState: minimalChartStateSnapshot,
+      customScripts,
       scriptedIndicators,
       workspace: {
         activeTabId: "workspace-2",
@@ -229,6 +242,7 @@ describe("workbench layout state", () => {
       activeTimeframe: "1D",
       chartType: "candlestick",
       chartState: minimalChartStateSnapshot,
+      customScripts,
       scriptedIndicators,
       workspace: {
         activeTabId: "workspace-1",
@@ -252,6 +266,7 @@ describe("workbench layout state", () => {
     });
 
     expect(state.scriptedIndicators).toEqual(scriptedIndicators);
+    expect(state.customScripts).toEqual(customScripts);
     expect(state.workspace?.tabs[0]?.scriptedIndicators).toEqual(scriptedIndicators);
     expect(state.chartState).toEqual(minimalChartStateSnapshot);
     expect(state.chartState).not.toHaveProperty("scriptedIndicators");
@@ -434,6 +449,12 @@ describe("workbench layout state", () => {
       isWorkbenchLayoutState({
         ...baseState,
         scriptedIndicators: [{ ...scriptedIndicators[0], inputValues: { length: Number.NaN } }],
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        ...baseState,
+        customScripts: [{ ...customScripts[0], label: "" }],
       }),
     ).toBe(false);
   });

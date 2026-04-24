@@ -56,14 +56,17 @@ import {
   type WorkbenchAlertStateV1,
 } from "$lib/chartx/public/workbench-alerts";
 import {
-  getWorkbenchIndicatorCatalogEntry,
-  WORKBENCH_INDICATOR_CATALOG,
+  createWorkbenchIndicatorCatalog,
   type WorkbenchIndicatorCatalogEntry,
 } from "$lib/chartx/public/workbench-indicators";
 import {
+  buildWorkbenchScriptLibrary,
+  createWorkbenchCustomScriptDefinition,
   executeWorkbenchScript,
-  getWorkbenchScriptDefinition,
+  getWorkbenchScriptDefinitionFromLibrary,
+  type WorkbenchCustomScriptDraft,
   type WorkbenchScriptDefinition,
+  type WorkbenchScriptField,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
 import {
@@ -136,6 +139,16 @@ type DemoActiveIndicator = {
   paneIndex?: number;
 };
 
+export type DemoCustomScriptLibraryEntry = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+  field: WorkbenchScriptField;
+  placement: WorkbenchIndicatorCatalogEntry["placement"];
+  defaultLength: number;
+};
+
 type DemoReplayState = {
   available: boolean;
   active: boolean;
@@ -155,6 +168,7 @@ export type DemoSnapshot = {
   workbench?: ChartWorkbenchModel | null;
   indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
   activeIndicators?: readonly DemoActiveIndicator[];
+  customScripts?: readonly DemoCustomScriptLibraryEntry[];
   replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
@@ -208,6 +222,8 @@ export type DemoController = {
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   addIndicatorFromCatalog?(entryId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
+  saveCustomScript?(scriptId: string | null, draft: WorkbenchCustomScriptDraft): boolean;
+  deleteCustomScript?(scriptId: string): boolean;
   enterReplay?(): boolean;
   playReplay?(): boolean;
   pauseReplay?(): boolean;
@@ -607,6 +623,7 @@ function createWorkbenchDemoLayoutState(input: {
   activeTimeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  customScripts?: readonly WorkbenchScriptDefinition[];
   scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   rightSidebar: WorkbenchSidebarPanelId;
   bottomTab: "time-presets" | "logs" | "replay";
@@ -617,6 +634,7 @@ function createWorkbenchDemoLayoutState(input: {
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
     chartState: input.chartState,
+    customScripts: input.customScripts,
     scriptedIndicators: input.scriptedIndicators,
     rightSidebar: input.rightSidebar,
     bottomTab: input.bottomTab,
@@ -983,6 +1001,8 @@ export function mountWorkbenchDemo(
   let objectTreeChartProjection = emptyWorkbenchObjectTreeChartProjection();
   let teardownChartTypeSubscription: (() => void) | null = null;
   let activeTradeLocationIntent: TradeLocationIntent | null = null;
+  let customScriptSequence = 0;
+  let customScriptLibrary: WorkbenchScriptDefinition[] = [];
   let activeIndicators: DemoActiveIndicator[] = [];
   let replayActive = false;
   let replayPlaying = false;
@@ -1198,6 +1218,70 @@ export function mountWorkbenchDemo(
     exportEnabled: !replayState.active,
   });
 
+  const workbenchScriptLibrary = (): readonly WorkbenchScriptDefinition[] =>
+    buildWorkbenchScriptLibrary(customScriptLibrary);
+
+  const currentIndicatorCatalog = (): readonly WorkbenchIndicatorCatalogEntry[] =>
+    createWorkbenchIndicatorCatalog(customScriptLibrary);
+
+  const getScriptDefinitionForRuntime = (scriptId: string): WorkbenchScriptDefinition | null =>
+    getWorkbenchScriptDefinitionFromLibrary(workbenchScriptLibrary(), scriptId);
+
+  const getIndicatorCatalogEntryForRuntime = (entryId: string): WorkbenchIndicatorCatalogEntry | null =>
+    currentIndicatorCatalog().find((entry) => entry.id === entryId) ?? null;
+
+  const extractCustomScriptField = (definition: WorkbenchScriptDefinition): WorkbenchScriptField | null => {
+    const expression = definition.expression;
+    if (expression.kind !== "sma" || expression.input.kind !== "input") {
+      return null;
+    }
+    return expression.input.field;
+  };
+
+  const extractCustomScriptDefaultLength = (definition: WorkbenchScriptDefinition): number | null => {
+    const lengthInput = definition.inputs?.find((input) => input.id === "length");
+    return typeof lengthInput?.defaultValue === "number" ? lengthInput.defaultValue : null;
+  };
+
+  const summarizeCustomScripts = (): readonly DemoCustomScriptLibraryEntry[] =>
+    customScriptLibrary.flatMap((definition) => {
+      const field = extractCustomScriptField(definition);
+      const defaultLength = extractCustomScriptDefaultLength(definition);
+      if (field === null || defaultLength === null) {
+        return [];
+      }
+      return [
+        {
+          id: definition.id,
+          label: definition.label,
+          shortLabel: definition.shortLabel,
+          description: definition.description,
+          field,
+          placement: definition.placement,
+          defaultLength,
+        } satisfies DemoCustomScriptLibraryEntry,
+      ];
+    });
+
+  const isCustomScriptInUse = (scriptId: string): boolean =>
+    activeIndicators.some((indicator) => indicator.scriptId === scriptId) ||
+    Object.values(chartHostRecords).some((record) =>
+      record.scriptIndicators.some((indicator) => indicator.scriptId === scriptId),
+    ) ||
+    workspaceDocuments.some((document) =>
+      document.scriptIndicators.some((indicator) => indicator.scriptId === scriptId),
+    );
+
+  const syncCustomScriptSequence = () => {
+    customScriptSequence = Math.max(
+      customScriptSequence,
+      ...customScriptLibrary.map((definition) => {
+        const suffix = Number(definition.id.replace("custom-script-", ""));
+        return Number.isFinite(suffix) ? suffix : 0;
+      }),
+    );
+  };
+
   const activeWorkspaceDocument = (): DemoWorkspaceDocument =>
     workspaceDocuments.find((document) => document.id === activeWorkspaceTabId) ?? workspaceDocuments[0]!;
 
@@ -1219,6 +1303,9 @@ export function mountWorkbenchDemo(
         },
       ];
     });
+
+  const serializeCustomScripts = (): readonly WorkbenchScriptDefinition[] =>
+    customScriptLibrary.map((definition) => ({ ...definition }));
 
   const materializeScriptIndicators = (
     indicators: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
@@ -1243,6 +1330,11 @@ export function mountWorkbenchDemo(
         scriptId: indicator.scriptId,
         inputValues: indicator.inputValues,
       }));
+
+  const materializeCustomScripts = (
+    definitions: readonly WorkbenchScriptDefinition[] | undefined,
+  ): WorkbenchScriptDefinition[] =>
+    (definitions ?? []).filter((definition) => definition.source === "custom").map((definition) => ({ ...definition }));
 
   const capturePersistedChartState = (): PhaseOneChartStateSnapshot | null => {
     const chartState = chart?.getChartState() ?? null;
@@ -1299,6 +1391,8 @@ export function mountWorkbenchDemo(
   });
 
   const restoreWorkspaceDocumentsFromState = (state: WorkbenchLayoutState) => {
+    customScriptLibrary = materializeCustomScripts(state.customScripts);
+    syncCustomScriptSequence();
     if (state.workspace === undefined) {
       workspaceDocuments = [
         createWorkspaceDocument({
@@ -1793,8 +1887,9 @@ export function mountWorkbenchDemo(
       summary:
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       workbench: workbenchModel,
-      indicatorCatalog: WORKBENCH_INDICATOR_CATALOG,
+      indicatorCatalog: currentIndicatorCatalog(),
       activeIndicators: [...activeIndicators],
+      customScripts: summarizeCustomScripts(),
       replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
@@ -2759,7 +2854,7 @@ export function mountWorkbenchDemo(
       return false;
     }
 
-    const definition = getWorkbenchScriptDefinition(entry.scriptId);
+    const definition = getScriptDefinitionForRuntime(entry.scriptId);
     if (definition === null) {
       pushLog(log, `${options?.failurePrefix ?? `failed to add indicator ${entry.label}`}: unknown script ${entry.scriptId}`);
       publishSnapshot();
@@ -2815,7 +2910,7 @@ export function mountWorkbenchDemo(
       if (indicator.kind !== "script" || indicator.scriptId === undefined) {
         continue;
       }
-      const entry = getWorkbenchIndicatorCatalogEntry(indicator.id);
+      const entry = getIndicatorCatalogEntryForRuntime(indicator.id);
       if (entry === null || entry.engineKind !== "script" || entry.scriptId === undefined) {
         pushLog(log, `${failurePrefix}: unknown scripted indicator ${indicator.label}`);
         restoredAll = false;
@@ -3540,7 +3635,7 @@ export function mountWorkbenchDemo(
       publishSnapshot();
     },
     addIndicatorFromCatalog(entryId, inputValues) {
-      const entry = getWorkbenchIndicatorCatalogEntry(entryId);
+      const entry = getIndicatorCatalogEntryForRuntime(entryId);
       if (entry === null) {
         pushLog(log, `failed to add indicator ${entryId}: unknown catalog entry`);
         publishSnapshot();
@@ -3589,7 +3684,7 @@ export function mountWorkbenchDemo(
           return false;
         }
         const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
-        const definition = getWorkbenchScriptDefinition(scriptEntry.scriptId);
+        const definition = getScriptDefinitionForRuntime(scriptEntry.scriptId);
         const inputSummary =
           definition === null ? null : formatScriptInputSummary(definition, inputValues);
         return addScriptIndicatorFromCatalogEntry(scriptEntry, {
@@ -3607,6 +3702,94 @@ export function mountWorkbenchDemo(
       addActiveIndicator(entry);
       pushLog(log, "added indicator Overlay Line");
       refreshObjectTreeProjectionAndPublish();
+      return true;
+    },
+    saveCustomScript(scriptId, draft) {
+      if (
+        draft.label.trim().length === 0 ||
+        draft.shortLabel.trim().length === 0 ||
+        draft.description.trim().length === 0
+      ) {
+        setStatusNotice({
+          tone: "error",
+          message: "Custom scripts require label, short label, and description.",
+        });
+        pushLog(log, "failed to save custom script: missing required fields");
+        publishSnapshot();
+        return false;
+      }
+      if (!Number.isInteger(draft.defaultLength) || draft.defaultLength < 2 || draft.defaultLength > 60) {
+        setStatusNotice({
+          tone: "error",
+          message: "Custom scripts require a default length between 2 and 60.",
+        });
+        pushLog(log, "failed to save custom script: invalid default length");
+        publishSnapshot();
+        return false;
+      }
+      const nextId = scriptId ?? `custom-script-${customScriptSequence + 1}`;
+      if (scriptId !== null && isCustomScriptInUse(scriptId)) {
+        setStatusNotice({
+          tone: "warning",
+          message: `Remove active uses of ${draft.label} before editing the saved script.`,
+        });
+        pushLog(log, `failed to update custom script ${draft.label}: script is in use`);
+        publishSnapshot();
+        return false;
+      }
+      if (customScriptLibrary.some((definition) => definition.id === nextId && definition.id !== scriptId)) {
+        setStatusNotice({
+          tone: "error",
+          message: `Custom script id collision for ${draft.label}.`,
+        });
+        pushLog(log, `failed to save custom script ${draft.label}: id collision`);
+        publishSnapshot();
+        return false;
+      }
+      const definition = createWorkbenchCustomScriptDefinition(nextId, draft);
+      if (scriptId === null) {
+        customScriptSequence += 1;
+        customScriptLibrary = [...customScriptLibrary, definition];
+        setStatusNotice({
+          tone: "success",
+          message: `Saved custom script ${definition.label}.`,
+        });
+        pushLog(log, `saved custom script ${definition.label}`);
+        publishSnapshot();
+        return true;
+      }
+      customScriptLibrary = customScriptLibrary.map((entry) => (entry.id === scriptId ? definition : entry));
+      setStatusNotice({
+        tone: "success",
+        message: `Updated custom script ${definition.label}.`,
+      });
+      pushLog(log, `updated custom script ${definition.label}`);
+      publishSnapshot();
+      return true;
+    },
+    deleteCustomScript(scriptId) {
+      const definition = customScriptLibrary.find((entry) => entry.id === scriptId) ?? null;
+      if (definition === null) {
+        pushLog(log, `failed to delete custom script ${scriptId}: unknown script`);
+        publishSnapshot();
+        return false;
+      }
+      if (isCustomScriptInUse(scriptId)) {
+        setStatusNotice({
+          tone: "warning",
+          message: `Remove active uses of ${definition.label} before deleting the saved script.`,
+        });
+        pushLog(log, `failed to delete custom script ${definition.label}: script is in use`);
+        publishSnapshot();
+        return false;
+      }
+      customScriptLibrary = customScriptLibrary.filter((entry) => entry.id !== scriptId);
+      setStatusNotice({
+        tone: "success",
+        message: `Deleted custom script ${definition.label}.`,
+      });
+      pushLog(log, `deleted custom script ${definition.label}`);
+      publishSnapshot();
       return true;
     },
     async openSymbol(symbol) {
@@ -3730,6 +3913,7 @@ export function mountWorkbenchDemo(
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
+          customScripts: serializeCustomScripts(),
           scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
@@ -3833,6 +4017,9 @@ export function mountWorkbenchDemo(
         return false;
       }
 
+      customScriptLibrary = materializeCustomScripts(state.customScripts);
+      syncCustomScriptSequence();
+
       const shouldSuppressDefaultDrawings = state.chartState !== null;
       if (shouldSuppressDefaultDrawings) {
         suppressDefaultDrawingsNextRebuild = true;
@@ -3925,6 +4112,7 @@ export function mountWorkbenchDemo(
       if (destroyed) {
         return false;
       }
+      customScriptLibrary = [];
       const tradeWorkspace = workspaceDocuments.find((document) => document.viewId === "trade");
       if (tradeWorkspace !== undefined) {
         activeWorkspaceTabId = tradeWorkspace.id;
@@ -3956,6 +4144,7 @@ export function mountWorkbenchDemo(
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
+          customScripts: serializeCustomScripts(),
           scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
@@ -4016,6 +4205,8 @@ export function mountWorkbenchDemo(
       }
 
       const state = parsed;
+      customScriptLibrary = materializeCustomScripts(state.customScripts);
+      syncCustomScriptSequence();
       const chartType = toWorkbenchMainChartType(state.chartType);
       if (chartType === null) {
         setStatusNotice({

@@ -40,6 +40,27 @@ async function configureAndAddScriptIndicator(
   });
 }
 
+async function saveCustomScript(
+  page: Page,
+  input: {
+    label: string;
+    shortLabel: string;
+    description: string;
+    field: "open" | "high" | "low" | "close" | "hl2" | "hlc3";
+    placement: "overlay" | "separate-pane";
+    defaultLength: string;
+  },
+) {
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-custom-script-field="label"]').fill(input.label);
+  await workbench.locator('[data-custom-script-field="short-label"]').fill(input.shortLabel);
+  await workbench.locator('[data-custom-script-field="description"]').fill(input.description);
+  await workbench.locator('[data-custom-script-field="field"]').selectOption(input.field);
+  await workbench.locator('[data-custom-script-field="placement"]').selectOption(input.placement);
+  await workbench.locator('[data-custom-script-field="default-length"]').fill(input.defaultLength);
+  await workbench.locator("[data-custom-script-save]").click();
+}
+
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) {
     return false;
@@ -384,6 +405,84 @@ test("layout import/export: export downloads a focused snapshot and import resto
   );
   await expect(activeIndicatorList).toContainText("Scripted SMA 20");
   await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
+});
+
+test("script library: custom authored scripts round-trip through layout export and import", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
+  const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
+
+  await saveCustomScript(page, {
+    label: "My Close SMA",
+    shortLabel: "My SMA",
+    description: "Saved close-price SMA.",
+    field: "close",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+
+  await expect(workbench).toContainText("saved custom script My Close SMA");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(indicators).toContainText("My Close SMA");
+
+  await configureAndAddScriptIndicator(page, "script-library:custom-script-1", "length", "4");
+  await expect(workbench).toContainText("added indicator My Close SMA (Length 4)");
+  await expect(activeIndicatorList).toContainText("My Close SMA");
+  await expect(activeIndicatorList).toContainText("length 4");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close SMA" })).toHaveCount(1);
+
+  const downloadPromise = page.waitForEvent("download");
+  await workbench.locator("[data-layout-export-trigger]").click();
+  await downloadPromise;
+  const exportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const exported = JSON.parse(exportedRaw) as {
+    customScripts?: { id: string; label: string }[];
+    scriptedIndicators?: { label: string; scriptId: string; inputValues?: Record<string, number> }[];
+  };
+
+  expect(exported.customScripts?.[0]).toMatchObject({
+    id: "custom-script-1",
+    label: "My Close SMA",
+  });
+  expect(exported.scriptedIndicators?.[0]).toMatchObject({
+    label: "My Close SMA",
+    scriptId: "custom-script-1",
+    inputValues: {
+      length: 4,
+    },
+  });
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
+  await expect(activeIndicatorList).not.toContainText("My Close SMA");
+
+  await page.evaluate(async (raw) => {
+    const input = document.querySelector(
+      'input[type="file"][accept*="json"]',
+    ) as HTMLInputElement | null;
+    if (input === null) {
+      throw new Error("layout import input is missing");
+    }
+    const file = new File([raw], "custom-script-layout.json", {
+      type: "application/json",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, exportedRaw);
+
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(activeIndicatorList).toContainText("My Close SMA");
+  await expect(activeIndicatorList).toContainText("length 4");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close SMA" })).toHaveCount(1);
 });
 
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({

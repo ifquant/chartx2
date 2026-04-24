@@ -1,5 +1,11 @@
 import type { PhaseOneChartStateSnapshot, PhaseOneMainChartType } from "./market";
 import type { BottomPanelTabId, WorkbenchWorkspaceViewId } from "./workbench";
+import type {
+  WorkbenchScriptDefinition,
+  WorkbenchScriptExpression,
+  WorkbenchScriptField,
+  WorkbenchScriptPlacement,
+} from "./workbench-scripts";
 
 export type WorkbenchLayoutRightSidebarPanel =
   | "watchlist"
@@ -40,6 +46,7 @@ export interface WorkbenchLayoutStateV1 {
   activeTimeframe: string;
   chartType: PhaseOneMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  customScripts?: readonly WorkbenchScriptDefinition[];
   scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   panels: {
     rightSidebar: WorkbenchLayoutRightSidebarPanel;
@@ -58,6 +65,7 @@ export interface WorkbenchLayoutStateInput {
   activeTimeframe: string;
   chartType: PhaseOneMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  customScripts?: readonly WorkbenchScriptDefinition[];
   scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   rightSidebar?: WorkbenchLayoutRightSidebarPanel;
   bottomTab?: BottomPanelTabId;
@@ -154,6 +162,71 @@ function isWorkbenchLayoutScriptedIndicatorDescriptorList(
   value: unknown,
 ): value is readonly WorkbenchLayoutScriptedIndicatorDescriptor[] {
   return Array.isArray(value) && value.every((indicator) => isWorkbenchLayoutScriptedIndicatorDescriptor(indicator));
+}
+
+function isWorkbenchScriptField(value: unknown): value is WorkbenchScriptField {
+  return (
+    value === "open" ||
+    value === "high" ||
+    value === "low" ||
+    value === "close" ||
+    value === "hl2" ||
+    value === "hlc3"
+  );
+}
+
+function isWorkbenchScriptPlacement(value: unknown): value is WorkbenchScriptPlacement {
+  return value === "overlay" || value === "separate-pane";
+}
+
+function isWorkbenchScriptNumericValue(value: unknown): boolean {
+  return isNumber(value) || (isRecord(value) && value.kind === "numeric-input" && isNonEmptyString(value.inputId));
+}
+
+function isWorkbenchScriptExpressionNode(value: unknown): value is WorkbenchScriptExpression {
+  if (!isRecord(value) || typeof value.kind !== "string") {
+    return false;
+  }
+  if (value.kind === "input") {
+    return isWorkbenchScriptField(value.field);
+  }
+  if (value.kind === "sma") {
+    return isWorkbenchScriptExpressionNode(value.input) && isWorkbenchScriptNumericValue(value.length);
+  }
+  if (value.kind === "subtract") {
+    return isWorkbenchScriptExpressionNode(value.left) && isWorkbenchScriptExpressionNode(value.right);
+  }
+  return false;
+}
+
+function isWorkbenchScriptDefinitionValue(value: unknown): value is WorkbenchScriptDefinition {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    value.version === 1 &&
+    (value.source === undefined || value.source === "builtin" || value.source === "custom") &&
+    isNonEmptyString(value.label) &&
+    isNonEmptyString(value.description) &&
+    isNonEmptyString(value.shortLabel) &&
+    isWorkbenchScriptPlacement(value.placement) &&
+    (value.inputs === undefined ||
+      (Array.isArray(value.inputs) &&
+        value.inputs.every(
+          (input) =>
+            isRecord(input) &&
+            isNonEmptyString(input.id) &&
+            isNonEmptyString(input.label) &&
+            isNumber(input.min) &&
+            isNumber(input.max) &&
+            isNumber(input.step) &&
+            isNumber(input.defaultValue),
+        ))) &&
+    isWorkbenchScriptExpressionNode(value.expression)
+  );
+}
+
+function isWorkbenchScriptDefinitionList(value: unknown): value is readonly WorkbenchScriptDefinition[] {
+  return Array.isArray(value) && value.every((definition) => isWorkbenchScriptDefinitionValue(definition));
 }
 
 function isOhlcDataRow(value: unknown): boolean {
@@ -403,6 +476,7 @@ export function createWorkbenchLayoutState(
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
     chartState: input.chartState,
+    customScripts: input.customScripts,
     scriptedIndicators: input.scriptedIndicators,
     panels: {
       rightSidebar: input.rightSidebar ?? "watchlist",
@@ -432,6 +506,9 @@ export function isWorkbenchLayoutState(value: unknown): value is WorkbenchLayout
     return false;
   }
   if (!(value.chartState === null || isPhaseOneChartStateSnapshot(value.chartState))) {
+    return false;
+  }
+  if (!(value.customScripts === undefined || isWorkbenchScriptDefinitionList(value.customScripts))) {
     return false;
   }
   if (

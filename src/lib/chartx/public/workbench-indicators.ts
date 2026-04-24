@@ -1,14 +1,12 @@
 import {
+  buildWorkbenchScriptLibrary,
   getWorkbenchScriptDefinition,
+  getWorkbenchScriptDefinitionFromLibrary,
+  type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputDefinition,
 } from "./workbench-scripts";
 
-export type WorkbenchIndicatorCatalogEntryId =
-  | "moving-average"
-  | "compare"
-  | "overlay-line"
-  | "scripted-close-sma"
-  | "scripted-hlc3-sma";
+export type WorkbenchIndicatorCatalogEntryId = string;
 
 export type WorkbenchIndicatorPlacement = "overlay" | "separate-pane";
 
@@ -24,14 +22,20 @@ export interface WorkbenchIndicatorCatalogEntry {
   unavailableReason?: string;
   scriptId?: string;
   scriptInputs?: readonly WorkbenchScriptNumericInputDefinition[];
+  source?: "builtin" | "custom";
 }
 
 function createScriptIndicatorCatalogEntry(input: {
-  id: Extract<WorkbenchIndicatorCatalogEntryId, `scripted-${string}`>;
+  id: string;
   scriptId: string;
   description: string;
+  source?: "builtin" | "custom";
+  library?: readonly WorkbenchScriptDefinition[];
 }): WorkbenchIndicatorCatalogEntry {
-  const definition = getWorkbenchScriptDefinition(input.scriptId);
+  const definition =
+    input.library === undefined
+      ? getWorkbenchScriptDefinition(input.scriptId)
+      : getWorkbenchScriptDefinitionFromLibrary(input.library, input.scriptId);
   if (definition === null) {
     throw new Error(`Unknown scripted indicator definition ${input.scriptId}`);
   }
@@ -47,10 +51,11 @@ function createScriptIndicatorCatalogEntry(input: {
     enabled: true,
     scriptId: definition.id,
     scriptInputs: definition.inputs ?? [],
+    source: input.source ?? (definition.source === "custom" ? "custom" : "builtin"),
   };
 }
 
-export const WORKBENCH_INDICATOR_CATALOG = [
+export const WORKBENCH_BUILTIN_INDICATOR_CATALOG = [
   {
     id: "moving-average",
     label: "Moving Average",
@@ -85,16 +90,43 @@ export const WORKBENCH_INDICATOR_CATALOG = [
     id: "scripted-close-sma",
     scriptId: "close-sma-20-v0",
     description: "Execute a sandboxed close-price SMA script in a separate indicator pane.",
+    source: "builtin",
   }),
   createScriptIndicatorCatalogEntry({
     id: "scripted-hlc3-sma",
     scriptId: "hlc3-sma-10-v0",
     description: "Execute a sandboxed HLC3 SMA script in a separate indicator pane.",
+    source: "builtin",
   }),
 ] as const satisfies readonly WorkbenchIndicatorCatalogEntry[];
 
+export const WORKBENCH_INDICATOR_CATALOG = WORKBENCH_BUILTIN_INDICATOR_CATALOG;
+
+export function createWorkbenchIndicatorCatalog(
+  customScripts: readonly WorkbenchScriptDefinition[] = [],
+): readonly WorkbenchIndicatorCatalogEntry[] {
+  if (customScripts.length === 0) {
+    return WORKBENCH_BUILTIN_INDICATOR_CATALOG;
+  }
+
+  const customEntries = buildWorkbenchScriptLibrary(customScripts)
+    .filter((definition) => definition.source === "custom")
+    .map((definition) =>
+      createScriptIndicatorCatalogEntry({
+        id: `script-library:${definition.id}`,
+        scriptId: definition.id,
+        description: definition.description,
+        source: "custom",
+        library: customScripts,
+      }),
+    );
+
+  return [...WORKBENCH_BUILTIN_INDICATOR_CATALOG, ...customEntries];
+}
+
 export function getWorkbenchIndicatorCatalogEntry(
   id: string,
+  customScripts: readonly WorkbenchScriptDefinition[] = [],
 ): WorkbenchIndicatorCatalogEntry | null {
-  return WORKBENCH_INDICATOR_CATALOG.find((entry) => entry.id === id) ?? null;
+  return createWorkbenchIndicatorCatalog(customScripts).find((entry) => entry.id === id) ?? null;
 }

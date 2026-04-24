@@ -680,8 +680,10 @@ Progress checklist:
 - [x] Active-indicator summaries surface scripted input values
 - [x] Workbench-owned scripted layout/workspace persistence through save, restore, export, and import
 - [x] Scripted input values persist through workbench save, restore, export, and import
+- [x] Workbench-owned custom script library persisted through save, restore, export, and import
+- [x] Local create/edit/delete flow for user-authored structured SMA presets
 - [ ] Persist scripted indicators as first-class chart-state studies
-- [ ] User-authored scripts and editable script library
+- [ ] Richer text editor and broader script-library management
 - [ ] Pine-compatible subset evaluation
 
 Implementation note:
@@ -703,13 +705,20 @@ Implementation note:
   carry `inputValues`, so save/restore/export/import can round-trip
   parameterized scripted entries without promoting them into chart-state-native
   studies.
+- `User-Authored Script Library V0` keeps the same boundary and adds a local
+  custom-script library on top: the Indicators panel can create, edit, and
+  delete structured SMA presets, the catalog is rebuilt from the saved custom
+  library, and layout save/restore/export/import now carries those custom
+  script definitions before replaying mounted scripted indicators.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can
   reapply them without pretending they are chart-state-native studies.
 - This does not yet mean scripts are chart-state-native. V0 does not persist
   scripted indicators as distinct study definitions through `getChartState()`
-  or `applyChartState()`, and it does not yet expose end-user script authoring.
+  or `applyChartState()`. The current authoring path is still a structured
+  workbench form for saved SMA presets, not a general text editor, parser, or
+  Pine-compatible authoring surface.
 
 ### 2. Strategy Tester
 

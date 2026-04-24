@@ -455,6 +455,30 @@
     }
   }
 
+  function saveWorkbenchCustomScript(
+    scriptId: string | null,
+    draft: {
+      label: string;
+      shortLabel: string;
+      description: string;
+      field: "open" | "high" | "low" | "close" | "hl2" | "hlc3";
+      placement: "overlay" | "separate-pane";
+      defaultLength: number;
+    },
+  ): void {
+    const saved = workbenchController?.saveCustomScript?.(scriptId, draft);
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function deleteWorkbenchCustomScript(scriptId: string): void {
+    const deleted = workbenchController?.deleteCustomScript?.(scriptId);
+    if (deleted) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   async function createWorkbenchPriceAlert(): Promise<void> {
     const created = await workbenchController?.createPriceAlert?.();
     if (created) {
@@ -982,6 +1006,8 @@
             void openWorkbenchSymbol(symbol);
           }}
           onAddIndicator={addWorkbenchIndicator}
+          onSaveCustomScript={saveWorkbenchCustomScript}
+          onDeleteCustomScript={deleteWorkbenchCustomScript}
           onCreatePriceAlert={() => {
             void createWorkbenchPriceAlert();
           }}

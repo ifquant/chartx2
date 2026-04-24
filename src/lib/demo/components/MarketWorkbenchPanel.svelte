@@ -11,6 +11,7 @@
   } from "$lib/chartx/public/workbench";
   import type {
     DemoAction,
+    DemoCustomScriptLibraryEntry,
     DemoSnapshot,
     WorkbenchDrawingTool,
   } from "$lib/demo/chartx-demo";
@@ -52,6 +53,15 @@
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onOpenScreenerSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void;
+  export let onSaveCustomScript: (scriptId: string | null, draft: {
+    label: string;
+    shortLabel: string;
+    description: string;
+    field: "open" | "high" | "low" | "close" | "hl2" | "hlc3";
+    placement: "overlay" | "separate-pane";
+    defaultLength: number;
+  }) => void;
+  export let onDeleteCustomScript: (scriptId: string) => void;
   export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
@@ -103,6 +113,15 @@
   let replayState = snapshot.replay;
   let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
   let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
+  let editingCustomScriptId: string | null = null;
+  let customScriptDraft = {
+    label: "",
+    shortLabel: "",
+    description: "",
+    field: "close" as "open" | "high" | "low" | "close" | "hl2" | "hlc3",
+    placement: "separate-pane" as "overlay" | "separate-pane",
+    defaultLength: "20",
+  };
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -119,6 +138,18 @@
       return "action-btn danger";
     }
     return "action-btn";
+  }
+
+  function resetCustomScriptDraft(): void {
+    editingCustomScriptId = null;
+    customScriptDraft = {
+      label: "",
+      shortLabel: "",
+      description: "",
+      field: "close",
+      placement: "separate-pane",
+      defaultLength: "20",
+    };
   }
 
   function layoutPersistenceMissing(): boolean {
@@ -173,6 +204,41 @@
       return null;
     }
     return entries.map(([key, value]) => `${key} ${String(value)}`).join(" · ");
+  }
+
+  function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
+    editingCustomScriptId = entry.id;
+    customScriptDraft = {
+      label: entry.label,
+      shortLabel: entry.shortLabel,
+      description: entry.description,
+      field: entry.field,
+      placement: entry.placement,
+      defaultLength: String(entry.defaultLength),
+    };
+  }
+
+  function submitCustomScriptDraft(): void {
+    const nextLength = Number(customScriptDraft.defaultLength);
+    if (
+      customScriptDraft.label.trim().length === 0 ||
+      customScriptDraft.shortLabel.trim().length === 0 ||
+      customScriptDraft.description.trim().length === 0 ||
+      !Number.isInteger(nextLength) ||
+      nextLength < 2 ||
+      nextLength > 60
+    ) {
+      return;
+    }
+    onSaveCustomScript(editingCustomScriptId, {
+      label: customScriptDraft.label.trim(),
+      shortLabel: customScriptDraft.shortLabel.trim(),
+      description: customScriptDraft.description.trim(),
+      field: customScriptDraft.field,
+      placement: customScriptDraft.placement,
+      defaultLength: nextLength,
+    });
+    resetCustomScriptDraft();
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
@@ -802,6 +868,102 @@
           {:else}
             <p class="indicator-empty">No active indicators.</p>
           {/each}
+        </div>
+        <div class="custom-script-library" data-custom-script-library>
+          <div class="sidebar-head compact-subhead">
+            <h4>Script Library</h4>
+            <span>{snapshot.customScripts?.length ?? 0} saved</span>
+          </div>
+          <div class="custom-script-form" data-custom-script-form>
+            <label class="script-input-field">
+              <span>Label</span>
+              <input
+                type="text"
+                bind:value={customScriptDraft.label}
+                data-custom-script-field="label"
+                placeholder="My Close SMA"
+              />
+            </label>
+            <label class="script-input-field">
+              <span>Short label</span>
+              <input
+                type="text"
+                bind:value={customScriptDraft.shortLabel}
+                data-custom-script-field="short-label"
+                placeholder="Close SMA"
+              />
+            </label>
+            <label class="script-input-field">
+              <span>Description</span>
+              <input
+                type="text"
+                bind:value={customScriptDraft.description}
+                data-custom-script-field="description"
+                placeholder="Close-price SMA saved in the local workbench library."
+              />
+            </label>
+            <div class="script-input-grid dual">
+              <label class="script-input-field">
+                <span>Field</span>
+                <select bind:value={customScriptDraft.field} data-custom-script-field="field">
+                  <option value="close">Close</option>
+                  <option value="hlc3">HLC3</option>
+                  <option value="hl2">HL2</option>
+                  <option value="open">Open</option>
+                  <option value="high">High</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label class="script-input-field">
+                <span>Placement</span>
+                <select bind:value={customScriptDraft.placement} data-custom-script-field="placement">
+                  <option value="separate-pane">Separate pane</option>
+                  <option value="overlay">Overlay</option>
+                </select>
+              </label>
+            </div>
+            <label class="script-input-field">
+              <span>Default length</span>
+              <input
+                type="number"
+                min="2"
+                max="60"
+                step="1"
+                bind:value={customScriptDraft.defaultLength}
+                data-custom-script-field="default-length"
+              />
+            </label>
+            <div class="custom-script-actions">
+              <button type="button" class="indicator-add-btn" data-custom-script-save on:click={submitCustomScriptDraft}>
+                {editingCustomScriptId === null ? "Save script" : "Update script"}
+              </button>
+              {#if editingCustomScriptId !== null}
+                <button type="button" class="indicator-secondary-btn" data-custom-script-cancel on:click={resetCustomScriptDraft}>
+                  Cancel
+                </button>
+              {/if}
+            </div>
+          </div>
+          <div class="custom-script-list">
+            {#each snapshot.customScripts ?? [] as script}
+              <article class="custom-script-entry" data-custom-script={script.id}>
+                <div class="custom-script-copy">
+                  <strong>{script.label}</strong>
+                  <span>{script.field} · {script.placement} · length {script.defaultLength}</span>
+                </div>
+                <div class="custom-script-row-actions">
+                  <button type="button" class="indicator-secondary-btn" data-custom-script-edit={script.id} on:click={() => loadCustomScriptDraft(script)}>
+                    Edit
+                  </button>
+                  <button type="button" class="indicator-secondary-btn danger" data-custom-script-delete={script.id} on:click={() => onDeleteCustomScript(script.id)}>
+                    Delete
+                  </button>
+                </div>
+              </article>
+            {:else}
+              <p class="indicator-empty">No saved custom scripts.</p>
+            {/each}
+          </div>
         </div>
       </section>
 
@@ -2128,6 +2290,10 @@
     gap: 6px;
   }
 
+  .script-input-grid.dual {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .script-input-field {
     display: grid;
     gap: 4px;
@@ -2139,7 +2305,8 @@
     color: rgba(24, 24, 27, 0.58);
   }
 
-  .script-input-field input {
+  .script-input-field input,
+  .script-input-field select {
     width: 100%;
     border: 1px solid rgba(24, 24, 27, 0.12);
     border-radius: 7px;
@@ -2165,6 +2332,21 @@
     cursor: not-allowed;
   }
 
+  .indicator-secondary-btn {
+    justify-self: start;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 7px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.86);
+    color: #18181b;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .indicator-secondary-btn.danger {
+    color: #b91c1c;
+  }
+
   .indicator-entry:disabled {
     opacity: 0.46;
     cursor: not-allowed;
@@ -2182,6 +2364,46 @@
     align-items: center;
     color: rgba(24, 24, 27, 0.62);
     font-size: 0.78rem;
+  }
+
+  .custom-script-library {
+    display: grid;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .compact-subhead {
+    margin-top: 0;
+  }
+
+  .custom-script-form,
+  .custom-script-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .custom-script-actions,
+  .custom-script-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .custom-script-entry {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .custom-script-copy {
+    display: grid;
+    gap: 4px;
+    color: rgba(24, 24, 27, 0.66);
   }
 
   .adapter-list {

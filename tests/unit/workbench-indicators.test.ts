@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createWorkbenchIndicatorCatalog,
   getWorkbenchIndicatorCatalogEntry,
   WORKBENCH_INDICATOR_CATALOG,
 } from "../../src/lib/chartx/public/workbench-indicators";
+import { createWorkbenchCustomScriptDefinition } from "../../src/lib/chartx/public/workbench-scripts";
 
 describe("workbench indicator catalog", () => {
   it("exposes the default catalog in deterministic order", () => {
@@ -112,6 +114,7 @@ describe("workbench indicator catalog", () => {
           defaultValue: 20,
         },
       ],
+      source: "builtin",
     });
     expect(getWorkbenchIndicatorCatalogEntry("scripted-hlc3-sma")).toEqual({
       id: "scripted-hlc3-sma",
@@ -133,6 +136,43 @@ describe("workbench indicator catalog", () => {
           defaultValue: 10,
         },
       ],
+      source: "builtin",
+    });
+  });
+
+  it("derives custom scripted catalog entries from the saved script library", () => {
+    const catalog = createWorkbenchIndicatorCatalog([
+      createWorkbenchCustomScriptDefinition("custom-script-1", {
+        label: "My Close SMA",
+        shortLabel: "My SMA",
+        description: "Saved close-price SMA.",
+        field: "close",
+        placement: "separate-pane",
+        defaultLength: 9,
+      }),
+    ]);
+
+    expect(catalog.at(-1)).toEqual({
+      id: "script-library:custom-script-1",
+      label: "My Close SMA",
+      shortLabel: "My SMA",
+      description: "Saved close-price SMA.",
+      family: "script",
+      placement: "separate-pane",
+      engineKind: "script",
+      enabled: true,
+      scriptId: "custom-script-1",
+      scriptInputs: [
+        {
+          id: "length",
+          label: "Length",
+          min: 2,
+          max: 60,
+          step: 1,
+          defaultValue: 9,
+        },
+      ],
+      source: "custom",
     });
   });
 });

@@ -3,6 +3,7 @@ import type { PhaseOneCandlestickData, PhaseOneLineData } from "./market";
 export type WorkbenchScriptField = "open" | "high" | "low" | "close" | "hl2" | "hlc3";
 export type WorkbenchScriptPlacement = "overlay" | "separate-pane";
 export type WorkbenchScriptNumericInputId = string;
+export type WorkbenchScriptSource = "builtin" | "custom";
 
 export interface WorkbenchScriptNumericInputDefinition {
   id: WorkbenchScriptNumericInputId;
@@ -41,12 +42,22 @@ export type WorkbenchScriptExpression =
 export interface WorkbenchScriptDefinition {
   id: string;
   version: 1;
+  source?: WorkbenchScriptSource;
   label: string;
   description: string;
   shortLabel: string;
   placement: WorkbenchScriptPlacement;
   inputs?: readonly WorkbenchScriptNumericInputDefinition[];
   expression: WorkbenchScriptExpression;
+}
+
+export interface WorkbenchCustomScriptDraft {
+  label: string;
+  shortLabel: string;
+  description: string;
+  field: WorkbenchScriptField;
+  placement: WorkbenchScriptPlacement;
+  defaultLength: number;
 }
 
 export type WorkbenchScriptExecutionResult =
@@ -74,6 +85,7 @@ export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
   {
     id: "close-sma-20-v0",
     version: 1,
+    source: "builtin",
     label: "Scripted SMA 20",
     shortLabel: "Script SMA",
     description: "Close-price SMA executed through the local script runtime.",
@@ -103,6 +115,7 @@ export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
   {
     id: "hlc3-sma-10-v0",
     version: 1,
+    source: "builtin",
     label: "Scripted HLC3 SMA 10",
     shortLabel: "HLC3 SMA",
     description: "HLC3 SMA executed through the local script runtime.",
@@ -285,6 +298,55 @@ function evaluateExpression(
 
 export function getWorkbenchScriptDefinition(id: string): WorkbenchScriptDefinition | null {
   return WORKBENCH_SCRIPT_LIBRARY.find((definition) => definition.id === id) ?? null;
+}
+
+export function buildWorkbenchScriptLibrary(
+  customDefinitions: readonly WorkbenchScriptDefinition[] = [],
+): readonly WorkbenchScriptDefinition[] {
+  return [...WORKBENCH_SCRIPT_LIBRARY, ...customDefinitions];
+}
+
+export function getWorkbenchScriptDefinitionFromLibrary(
+  definitions: readonly WorkbenchScriptDefinition[],
+  id: string,
+): WorkbenchScriptDefinition | null {
+  return definitions.find((definition) => definition.id === id) ?? null;
+}
+
+export function createWorkbenchCustomScriptDefinition(
+  id: string,
+  draft: WorkbenchCustomScriptDraft,
+): WorkbenchScriptDefinition {
+  return {
+    id,
+    version: 1,
+    source: "custom",
+    label: draft.label,
+    shortLabel: draft.shortLabel,
+    description: draft.description,
+    placement: draft.placement,
+    inputs: [
+      {
+        id: "length",
+        label: "Length",
+        min: 2,
+        max: 60,
+        step: 1,
+        defaultValue: draft.defaultLength,
+      },
+    ],
+    expression: {
+      kind: "sma",
+      input: {
+        kind: "input",
+        field: draft.field,
+      },
+      length: {
+        kind: "numeric-input",
+        inputId: "length",
+      },
+    },
+  };
 }
 
 export function executeWorkbenchScript(

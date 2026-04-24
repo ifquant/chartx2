@@ -733,6 +733,10 @@ Implementation note:
   overlays can be stripped back out of engine chart state safely, custom script
   authoring now explicitly fences placement to `separate-pane` instead of
   advertising a false overlay mode in the workbench editor.
+- `AST Builder V0` moves the custom-script editor off raw text entry: the
+  workbench now edits the existing recursive expression subset through a
+  structured builder and treats canonical `expressionText` as derived
+  compatibility output instead of the live form state.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

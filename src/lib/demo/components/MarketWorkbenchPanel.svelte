@@ -10,8 +10,11 @@
     WorkbenchWorkspaceTabId,
   } from "$lib/chartx/public/workbench";
   import {
+    formatWorkbenchCustomScriptExpressionText,
     parseWorkbenchCustomScriptExpressionText,
     validateWorkbenchCustomScriptDraft,
+    type WorkbenchScriptExpression,
+    type WorkbenchScriptField,
   } from "$lib/chartx/public/workbench-scripts";
   import type {
     DemoAction,
@@ -19,6 +22,7 @@
     DemoSnapshot,
     WorkbenchDrawingTool,
   } from "$lib/demo/chartx-demo";
+  import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -122,6 +126,17 @@
   let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
   let customScriptLaunchDrafts: Record<string, string> = {};
   let editingCustomScriptId: string | null = null;
+  let customScriptExpression: WorkbenchScriptExpression = {
+    kind: "sma",
+    input: {
+      kind: "input",
+      field: "close",
+    },
+    length: {
+      kind: "numeric-input",
+      inputId: "length",
+    },
+  };
   let customScriptDraft = {
     label: "",
     shortLabel: "",
@@ -152,6 +167,17 @@
   function resetCustomScriptDraft(): void {
     editingCustomScriptId = null;
     customScriptDraftError = null;
+    customScriptExpression = {
+      kind: "sma",
+      input: {
+        kind: "input",
+        field: "close",
+      },
+      length: {
+        kind: "numeric-input",
+        inputId: "length",
+      },
+    };
     customScriptDraft = {
       label: "",
       shortLabel: "",
@@ -219,14 +245,128 @@
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
     editingCustomScriptId = entry.id;
     customScriptDraftError = null;
+    const parsed = parseWorkbenchCustomScriptExpressionText(entry.expressionText);
+    customScriptExpression =
+      parsed.ok
+        ? parsed.expression
+        : {
+            kind: "sma",
+            input: {
+              kind: "input",
+              field: "close",
+            },
+            length: {
+              kind: "numeric-input",
+              inputId: "length",
+            },
+          };
     customScriptDraft = {
       label: entry.label,
       shortLabel: entry.shortLabel,
       description: entry.description,
-      expressionText: entry.expressionText,
+      expressionText: parsed.ok ? formatWorkbenchCustomScriptExpressionText(parsed.expression) : entry.expressionText,
       placement: entry.placement,
       defaultLength: String(entry.defaultLength),
     };
+  }
+
+  type ScriptBuilderPath = readonly ("input" | "left" | "right")[];
+
+  function createBuilderExpression(kind: WorkbenchScriptExpression["kind"]): WorkbenchScriptExpression {
+    if (kind === "input") {
+      return {
+        kind: "input",
+        field: "close",
+      };
+    }
+    if (kind === "sma") {
+      return {
+        kind: "sma",
+        input: {
+          kind: "input",
+          field: "close",
+        },
+        length: {
+          kind: "numeric-input",
+          inputId: "length",
+        },
+      };
+    }
+    return {
+      kind: "subtract",
+      left: {
+        kind: "input",
+        field: "close",
+      },
+      right: {
+        kind: "sma",
+        input: {
+          kind: "input",
+          field: "close",
+        },
+        length: {
+          kind: "numeric-input",
+          inputId: "length",
+        },
+      },
+    };
+  }
+
+  function updateBuilderExpression(
+    expression: WorkbenchScriptExpression,
+    path: ScriptBuilderPath,
+    updater: (expression: WorkbenchScriptExpression) => WorkbenchScriptExpression,
+  ): WorkbenchScriptExpression {
+    if (path.length === 0) {
+      return updater(expression);
+    }
+    const [segment, ...rest] = path;
+    if (segment === "input" && expression.kind === "sma") {
+      return {
+        ...expression,
+        input: updateBuilderExpression(expression.input, rest, updater),
+      };
+    }
+    if (segment === "left" && expression.kind === "subtract") {
+      return {
+        ...expression,
+        left: updateBuilderExpression(expression.left, rest, updater),
+      };
+    }
+    if (segment === "right" && expression.kind === "subtract") {
+      return {
+        ...expression,
+        right: updateBuilderExpression(expression.right, rest, updater),
+      };
+    }
+    return expression;
+  }
+
+  function syncCustomScriptExpression(nextExpression: WorkbenchScriptExpression): void {
+    customScriptExpression = nextExpression;
+    customScriptDraft = {
+      ...customScriptDraft,
+      expressionText: formatWorkbenchCustomScriptExpressionText(nextExpression),
+    };
+  }
+
+  function setCustomScriptNodeKind(path: ScriptBuilderPath, kind: WorkbenchScriptExpression["kind"]): void {
+    syncCustomScriptExpression(
+      updateBuilderExpression(customScriptExpression, path, () => createBuilderExpression(kind)),
+    );
+  }
+
+  function setCustomScriptNodeField(path: ScriptBuilderPath, field: WorkbenchScriptField): void {
+    syncCustomScriptExpression(
+      updateBuilderExpression(customScriptExpression, path, (expression) =>
+        expression.kind === "input"
+          ? {
+              ...expression,
+              field,
+            }
+          : expression,
+      ),
+    );
   }
 
   function customScriptLaunchValue(scriptId: string, defaultLength: number): string {
@@ -256,7 +396,7 @@
       label: customScriptDraft.label.trim(),
       shortLabel: customScriptDraft.shortLabel.trim(),
       description: customScriptDraft.description.trim(),
-      expressionText: customScriptDraft.expressionText.trim(),
+      expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
       placement: customScriptDraft.placement,
       defaultLength: nextLength,
     });
@@ -269,7 +409,7 @@
       label: customScriptDraft.label.trim(),
       shortLabel: customScriptDraft.shortLabel.trim(),
       description: customScriptDraft.description.trim(),
-      expressionText: customScriptDraft.expressionText.trim(),
+      expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
       placement: customScriptDraft.placement,
       defaultLength: nextLength,
     });
@@ -285,7 +425,7 @@
     if (!parsed.ok) {
       return `expression invalid · length ${lengthLabel} · ${customScriptDraft.placement}`;
     }
-    return `${customScriptDraft.expressionText.trim() || "--"} · length ${lengthLabel} · ${customScriptDraft.placement}`;
+    return `${formatWorkbenchCustomScriptExpressionText(customScriptExpression)} · length ${lengthLabel} · ${customScriptDraft.placement}`;
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
@@ -961,15 +1101,15 @@
                 placeholder="Close-price SMA saved in the local workbench library."
               />
             </label>
-            <label class="script-input-field">
-              <span>Expression</span>
-              <textarea
-                bind:value={customScriptDraft.expressionText}
-                data-custom-script-field="expression"
-                rows="2"
-                placeholder="sma(close, length)"
-              ></textarea>
-            </label>
+            <div class="script-input-field">
+              <span>Expression builder</span>
+              <ScriptExpressionBuilder
+                expression={customScriptExpression}
+                path={[]}
+                onSetKind={setCustomScriptNodeKind}
+                onSetField={setCustomScriptNodeField}
+              />
+            </div>
             <div class="script-input-grid dual">
               <label class="script-input-field">
                 <span>Placement</span>
@@ -991,6 +1131,9 @@
                 data-custom-script-field="default-length"
               />
             </label>
+            <p class="custom-script-preview" data-custom-script-expression-preview>
+              {formatWorkbenchCustomScriptExpressionText(customScriptExpression)}
+            </p>
             <p class="custom-script-preview" data-custom-script-preview>{customScriptDraftPreview()}</p>
             {#if customScriptDraftError}
               <p class="indicator-empty" data-custom-script-error>{customScriptDraftError}</p>
@@ -2386,8 +2529,7 @@
   }
 
   .script-input-field input,
-  .script-input-field select,
-  .script-input-field textarea {
+  .script-input-field select {
     width: 100%;
     border: 1px solid rgba(24, 24, 27, 0.12);
     border-radius: 7px;
@@ -2395,11 +2537,6 @@
     background: rgba(255, 255, 255, 0.92);
     color: #18181b;
     font: inherit;
-  }
-
-  .script-input-field textarea {
-    resize: vertical;
-    min-height: 56px;
   }
 
   .indicator-add-btn {
@@ -2473,6 +2610,25 @@
     margin: 0;
     font-size: 0.72rem;
     color: rgba(24, 24, 27, 0.62);
+  }
+
+  :global(.script-builder-node) {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  :global(.compact-builder-field) {
+    gap: 2px;
+  }
+
+  :global(.script-builder-branch) {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .custom-script-actions,

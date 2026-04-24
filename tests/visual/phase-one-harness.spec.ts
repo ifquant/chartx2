@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
+type BuilderExpression =
+  | { kind: "input"; field: "open" | "high" | "low" | "close" | "hl2" | "hlc3" }
+  | { kind: "sma"; input: BuilderExpression }
+  | { kind: "subtract"; left: BuilderExpression; right: BuilderExpression };
+
+type BuilderField = BuilderExpression extends { kind: "input"; field: infer Field } ? Field : never;
+
 function featureTab(page: Page, name: string) {
   return page.locator(".top-tabs").getByRole("button", { name, exact: true });
 }
@@ -55,10 +62,78 @@ async function saveCustomScript(
   await workbench.locator('[data-custom-script-field="label"]').fill(input.label);
   await workbench.locator('[data-custom-script-field="short-label"]').fill(input.shortLabel);
   await workbench.locator('[data-custom-script-field="description"]').fill(input.description);
-  await workbench.locator('[data-custom-script-field="expression"]').fill(input.expressionText);
+  await configureCustomScriptBuilder(page, parseBuilderExpression(input.expressionText));
   await workbench.locator('[data-custom-script-field="placement"]').selectOption(input.placement);
   await workbench.locator('[data-custom-script-field="default-length"]').fill(input.defaultLength);
   await workbench.locator("[data-custom-script-save]").click();
+}
+
+function splitBuilderArgs(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of value) {
+    if (char === "," && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    current += char;
+  }
+  if (current.trim().length > 0) {
+    parts.push(current.trim());
+  }
+  return parts;
+}
+
+function parseBuilderExpression(expressionText: string): BuilderExpression {
+  const text = expressionText.trim();
+  if (["open", "high", "low", "close", "hl2", "hlc3"].includes(text)) {
+    return { kind: "input", field: text as BuilderField };
+  }
+  const firstParen = text.indexOf("(");
+  if (firstParen === -1 || !text.endsWith(")")) {
+    throw new Error(`Unsupported builder expression ${expressionText}`);
+  }
+  const name = text.slice(0, firstParen).trim();
+  const args = splitBuilderArgs(text.slice(firstParen + 1, -1));
+  if (name === "sma" && args.length === 2 && args[1] === "length") {
+    return { kind: "sma", input: parseBuilderExpression(args[0]) };
+  }
+  if (name === "subtract" && args.length === 2) {
+    return {
+      kind: "subtract",
+      left: parseBuilderExpression(args[0]),
+      right: parseBuilderExpression(args[1]),
+    };
+  }
+  throw new Error(`Unsupported builder expression ${expressionText}`);
+}
+
+async function configureCustomScriptBuilder(
+  page: Page,
+  expression: BuilderExpression,
+  path = "",
+): Promise<void> {
+  const workbench = workbenchPanel(page);
+  const pathKey = path.length === 0 ? "root" : path;
+  const kindSelect = workbench.locator(`[data-custom-script-node-kind="${pathKey}"]`);
+  await expect(kindSelect).toBeVisible();
+  await kindSelect.selectOption(expression.kind);
+  if (expression.kind === "input") {
+    const fieldSelect = workbench.locator(`[data-custom-script-node-field="${pathKey}"]`);
+    await expect(fieldSelect).toBeVisible();
+    await fieldSelect.selectOption(expression.field);
+    return;
+  }
+  if (expression.kind === "sma") {
+    await configureCustomScriptBuilder(page, expression.input, path.length === 0 ? "input" : `${path}.input`);
+    return;
+  }
+  await configureCustomScriptBuilder(page, expression.left, path.length === 0 ? "left" : `${path}.left`);
+  await configureCustomScriptBuilder(page, expression.right, path.length === 0 ? "right" : `${path}.right`);
 }
 
 async function addCustomScriptFromLibrary(page: Page, scriptId: string, length: string) {

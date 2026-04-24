@@ -570,6 +570,18 @@ Acceptance:
 - Common actions are command-driven and testable.
 - UI panels remain thin projections of workstation models.
 
+Progress checklist:
+
+- [x] Toolbar command registry
+- [x] Keyboard shortcuts
+- [x] Command palette
+- [x] Theme presets
+- [x] Workspace focus tabs
+- [x] Layout import/export buttons
+- [x] Missing adapter status surface for local persistence/providers
+- [ ] Broader missing-data empty/error states across workstation panels
+- [ ] Full multi-document workspace tabs
+
 Implementation note:
 
 - Command Surface V0 is now real as a thin workbench command palette, not just
@@ -597,6 +609,10 @@ Implementation note:
   layout snapshot, and import validates the same `WorkbenchLayoutState`
   contract before applying it back through the existing symbol-open and chart
   restore path.
+- The shell now also exposes persistent adapter-status rows for market data,
+  layout persistence, and alerts persistence. When storage-backed providers are
+  missing, the workbench shows explicit `missing` adapter state and disables
+  save/restore actions instead of failing only through activity-log messages.
 - This is intentionally still a V0 workstation shell: there is no fuzzy search,
   no free-text command parsing, no multi-step command routing, no cloud
   workspace sync, and no full multi-document tab model yet.

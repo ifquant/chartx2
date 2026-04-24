@@ -32,6 +32,7 @@ import {
   type ScreenerPanelModel,
   type ScreenerResultModel,
   type WatchlistItemModel,
+  type WorkbenchCommandPaletteModel,
   type WorkbenchObjectTreeNodeModel,
 } from "$lib/chartx/public/workbench";
 import {
@@ -177,6 +178,7 @@ export type DemoSnapshot = {
 export type DemoController = {
   actions(): readonly DemoAction[];
   runAction(actionId: string): void;
+  executeCommand?(commandId: string): Promise<boolean> | boolean;
   openSymbol?(symbol: string): Promise<boolean>;
   createPriceAlert?(): Promise<boolean>;
   saveLayout?(): Promise<boolean>;
@@ -876,6 +878,58 @@ export function mountWorkbenchDemo(
     };
   };
 
+  const buildWorkbenchCommandPalette = (
+    replayState: DemoReplayState,
+  ): WorkbenchCommandPaletteModel => ({
+    title: "Workbench Commands",
+    entries: [
+      {
+        id: "theme",
+        label: theme === "warm" ? "Switch theme to ink" : "Switch theme to warm",
+        enabled: true,
+      },
+      {
+        id: "layout-single",
+        label: "Use single-chart layout",
+        enabled: true,
+        active: layoutPreset === "single",
+      },
+      {
+        id: "layout-split",
+        label: "Use split layout",
+        enabled: true,
+        active: layoutPreset === "main-plus-secondary",
+      },
+      {
+        id: "save-layout",
+        label: "Save active layout",
+        enabled: !replayState.active && options.persistenceProvider !== undefined,
+      },
+      {
+        id: "restore-layout",
+        label: "Restore saved layout",
+        enabled: !replayState.active && options.persistenceProvider !== undefined,
+      },
+      {
+        id: "reset-layout",
+        label: "Reset active layout",
+        enabled: !replayState.active,
+      },
+      replayState.active
+        ? {
+            id: "replay-exit",
+            label: "Exit replay",
+            enabled: true,
+            active: true,
+          }
+        : {
+            id: "replay-enter",
+            label: "Enter replay",
+            enabled: replayState.available,
+          },
+    ],
+  });
+
   const resetReplayState = () => {
     clearReplayTimer();
     replayActive = false;
@@ -1264,6 +1318,7 @@ export function mountWorkbenchDemo(
       negativeOnly: screenerNegativeOnly,
       priceFloorEnabled: screenerPriceFloorEnabled,
     });
+    const replayState = buildReplaySnapshot();
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -1282,6 +1337,7 @@ export function mountWorkbenchDemo(
       enabledBottomTabs: ["replay"],
       layoutPreset,
       chartHosts,
+      commandPalette: buildWorkbenchCommandPalette(replayState),
     });
 
     publish({
@@ -1291,7 +1347,7 @@ export function mountWorkbenchDemo(
       workbench: workbenchModel,
       indicatorCatalog: WORKBENCH_INDICATOR_CATALOG,
       activeIndicators: [...activeIndicators],
-      replay: buildReplaySnapshot(),
+      replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
         { label: "Main type", value: formatWorkbenchChartType(mainChartType) },
@@ -2148,7 +2204,7 @@ export function mountWorkbenchDemo(
     return true;
   };
 
-  return {
+  const controller: DemoController = {
     actions() {
       return [
         {
@@ -2638,6 +2694,31 @@ export function mountWorkbenchDemo(
           return;
       }
     },
+    async executeCommand(commandId) {
+      const entry = buildWorkbenchCommandPalette(buildReplaySnapshot()).entries.find(
+        (candidate) => candidate.id === commandId,
+      );
+      if (entry === undefined || !entry.enabled) {
+        publishSnapshot();
+        return false;
+      }
+
+      switch (commandId) {
+        case "save-layout":
+          return controller.saveLayout?.() ?? false;
+        case "restore-layout":
+          return controller.restoreLayout?.() ?? false;
+        case "reset-layout":
+          return controller.resetLayout?.() ?? false;
+        case "replay-enter":
+          return controller.enterReplay?.() ?? false;
+        case "replay-exit":
+          return controller.exitReplay?.() ?? false;
+        default:
+          controller.runAction(commandId);
+          return true;
+      }
+    },
     applySelectedDrawingOptions(options) {
       if (chart === null) {
         return;
@@ -3037,6 +3118,8 @@ export function mountWorkbenchDemo(
       chart = null;
     },
   };
+
+  return controller;
 }
 
 export function mountFeatureDemo(

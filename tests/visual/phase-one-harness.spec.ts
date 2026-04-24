@@ -12,6 +12,10 @@ function workbenchAction(page: Page, actionId: string) {
   return workbenchPanel(page).locator(`[data-demo-action="${actionId}"]`);
 }
 
+function workbenchCommandPalette(page: Page) {
+  return workbenchPanel(page).locator("[data-command-palette]");
+}
+
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) {
     return false;
@@ -49,6 +53,34 @@ test("layout: switching to split renders both slots and hosts", async ({ page })
   await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(
     1,
   );
+});
+
+test("command palette: Cmd/Ctrl+K toggles the palette and runs layout commands", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const layout = workbench.locator("[data-workbench-layout]");
+  const palette = workbenchCommandPalette(page);
+  const shortcut = "Control+K";
+
+  await expect(layout).toHaveAttribute("data-workbench-layout-preset", "single");
+
+  await page.keyboard.press(shortcut);
+  await expect(palette).toBeVisible();
+  await expect(palette.locator('[data-command-entry="layout-split"]')).toHaveAttribute(
+    "data-command-active",
+    "false",
+  );
+
+  await page.keyboard.press(shortcut);
+  await expect(palette).toHaveCount(0);
+
+  await page.keyboard.press(shortcut);
+  await palette.locator('[data-command-entry="layout-split"]').click();
+
+  await expect(layout).toHaveAttribute("data-workbench-layout-preset", "main-plus-secondary");
+  await expect(workbenchCommandPalette(page)).toHaveCount(0);
 });
 
 test("layout: watchlist routes symbol opens to the active host and follows host activation", async ({

@@ -78,6 +78,10 @@ describe("chart workbench contract", () => {
       label: "Replay",
       enabled: false,
     });
+    expect(model.commandPalette).toEqual({
+      title: "Workbench Commands",
+      entries: [],
+    });
   });
 
   it("allows the shell to opt into additional enabled bottom tabs", () => {
@@ -168,6 +172,49 @@ describe("chart workbench contract", () => {
         changeTone: "negative",
       },
     ]);
+  });
+
+  it("keeps public command palette metadata on the workbench contract", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "NQ",
+      timeframeLabel: "15m",
+      chartTypeLabel: "Candles",
+      commandPalette: {
+        title: "Workbench Commands",
+        entries: [
+          {
+            id: "theme",
+            label: "Switch theme to ink",
+            enabled: true,
+          },
+          {
+            id: "layout-split",
+            label: "Use split layout",
+            enabled: true,
+            active: true,
+            shortcutLabel: "Cmd/Ctrl+K",
+          },
+        ],
+      },
+    });
+
+    expect(model.commandPalette).toEqual({
+      title: "Workbench Commands",
+      entries: [
+        {
+          id: "theme",
+          label: "Switch theme to ink",
+          enabled: true,
+        },
+        {
+          id: "layout-split",
+          label: "Use split layout",
+          enabled: true,
+          active: true,
+          shortcutLabel: "Cmd/Ctrl+K",
+        },
+      ],
+    });
   });
 
   it("preserves typed watchlist numeric fields even when labels are localized presentation strings", () => {

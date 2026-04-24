@@ -160,6 +160,19 @@ export interface MultiChartLayoutModel {
   slots: readonly ChartSlotModel[];
 }
 
+export interface WorkbenchCommandEntryModel {
+  id: string;
+  label: string;
+  shortcutLabel?: string;
+  enabled: boolean;
+  active?: boolean;
+}
+
+export interface WorkbenchCommandPaletteModel {
+  title: string;
+  entries: readonly WorkbenchCommandEntryModel[];
+}
+
 export interface ChartWorkbenchModel {
   title: string;
   toolbar: WorkbenchToolbarModel;
@@ -168,6 +181,7 @@ export interface ChartWorkbenchModel {
   bottomPanel: BottomPanelModel;
   layout: MultiChartLayoutModel;
   chartHosts: readonly ChartHostModel[];
+  commandPalette: WorkbenchCommandPaletteModel;
 }
 
 export interface MarketDataSearchResult {
@@ -257,6 +271,7 @@ export interface ChartWorkbenchModelInput {
   layoutPreset?: MultiChartLayoutPreset;
   symbolMode?: WorkbenchSymbolMode;
   chartHosts?: readonly ChartHostModel[];
+  commandPalette?: WorkbenchCommandPaletteModel;
 }
 
 const DEFAULT_RANGES = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as const;
@@ -397,5 +412,9 @@ export function createChartWorkbenchModel(
       slots,
     },
     chartHosts,
+    commandPalette: input.commandPalette ?? {
+      title: "Workbench Commands",
+      entries: [],
+    },
   };
 }

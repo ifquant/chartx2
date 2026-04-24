@@ -4,7 +4,10 @@
     PhaseOneDrawingPropertyFieldSchema,
     PhaseOneReadoutDetail,
   } from "$lib/chartx/public/market";
-  import type { ChartWorkbenchModel } from "$lib/chartx/public/workbench";
+  import type {
+    ChartWorkbenchModel,
+    WorkbenchCommandPaletteModel,
+  } from "$lib/chartx/public/workbench";
   import type {
     DemoAction,
     DemoSnapshot,
@@ -25,6 +28,8 @@
   export let readout: PhaseOneReadoutDetail;
   export let snapshot: DemoSnapshot;
   export let workbench: ChartWorkbenchModel | null = null;
+  export let commandPalette: WorkbenchCommandPaletteModel | null = null;
+  export let commandPaletteOpen = false;
   export let canvasElement: HTMLCanvasElement | undefined = undefined;
   export let error = "";
   export let inspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
@@ -37,6 +42,9 @@
   export let trendPreviewY2: number | null = null;
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
+  export let onToggleCommandPalette: () => void;
+  export let onCloseCommandPalette: () => void;
+  export let onExecuteCommand: (commandId: string) => void | Promise<void>;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onOpenScreenerSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string) => void;
@@ -164,11 +172,69 @@
         }}
       >{workbench?.toolbar.replayLabel ?? "Replay"}</button>
       <button>{workbench?.toolbar.layoutLabel ?? "Layout single"}</button>
+      <button
+        type="button"
+        data-command-palette-trigger
+        aria-expanded={commandPaletteOpen ? "true" : "false"}
+        aria-controls="workbench-command-palette"
+        on:click={onToggleCommandPalette}
+      >Commands</button>
       <button on:click={onSaveLayout} disabled={replayState?.active}>Save layout</button>
       <button on:click={onRestoreLayout} disabled={replayState?.active}>Restore layout</button>
       <button on:click={onResetLayout} disabled={replayState?.active}>Reset layout</button>
     </div>
   </div>
+
+  {#if commandPaletteOpen}
+    <button
+      type="button"
+      class="command-palette-backdrop"
+      data-command-palette-backdrop
+      aria-label="Close workbench commands"
+      on:click={onCloseCommandPalette}
+    ></button>
+    <div
+      id="workbench-command-palette"
+      class="command-palette"
+      data-command-palette
+      role="dialog"
+      aria-modal="true"
+      aria-label={commandPalette?.title ?? "Workbench Commands"}
+    >
+      <div class="command-palette-head">
+        <strong>{commandPalette?.title ?? "Workbench Commands"}</strong>
+        <span>Cmd/Ctrl+K</span>
+      </div>
+      <div class="command-palette-list">
+        {#each commandPalette?.entries ?? [] as entry (entry.id)}
+          <button
+            type="button"
+            class:active={entry.active}
+            data-command-entry={entry.id}
+            data-command-active={entry.active ? "true" : "false"}
+            disabled={!entry.enabled}
+            aria-disabled={!entry.enabled}
+            on:click={() => {
+              if (!entry.enabled) {
+                return;
+              }
+              void onExecuteCommand(entry.id);
+            }}
+          >
+            <span>{entry.label}</span>
+            <span class="command-palette-meta">
+              {#if entry.shortcutLabel}
+                <kbd>{entry.shortcutLabel}</kbd>
+              {/if}
+              {#if entry.active}
+                <em>Active</em>
+              {/if}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div class="workbench-shell">
     <aside class="tool-rail">
@@ -975,7 +1041,106 @@
   }
 
   .workbench-card {
+    position: relative;
     grid-template-rows: var(--card-head-height, 38px) minmax(0, 1fr);
+  }
+
+  .command-palette-backdrop {
+    position: absolute;
+    inset: 38px 0 0 0;
+    z-index: 11;
+    border: 0;
+    background: rgba(24, 24, 27, 0.14);
+    cursor: default;
+  }
+
+  .command-palette {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    z-index: 12;
+    display: grid;
+    gap: 10px;
+    width: min(460px, calc(100% - 24px));
+    padding: 12px;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 252, 244, 0.98);
+    box-shadow: 0 24px 48px rgba(24, 24, 27, 0.18);
+    transform: translateX(-50%);
+  }
+
+  .command-palette-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: rgba(24, 24, 27, 0.68);
+    font-size: 0.8rem;
+  }
+
+  .command-palette-head strong {
+    color: #18181b;
+    font-size: 0.96rem;
+  }
+
+  .command-palette-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .command-palette-list button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.04);
+    color: #18181b;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .command-palette-list button.active {
+    background: rgba(24, 24, 27, 0.92);
+    color: #fffdf8;
+  }
+
+  .command-palette-list button:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+
+  .command-palette-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(24, 24, 27, 0.6);
+    font-size: 0.75rem;
+  }
+
+  .command-palette-list button.active .command-palette-meta {
+    color: rgba(255, 253, 248, 0.78);
+  }
+
+  .command-palette-meta kbd,
+  .command-palette-meta em {
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.08);
+    font: inherit;
+    font-size: 0.72rem;
+    font-style: normal;
+  }
+
+  .command-palette-list button.active .command-palette-meta kbd,
+  .command-palette-list button.active .command-palette-meta em {
+    background: rgba(255, 253, 248, 0.14);
   }
 
   .card-head,

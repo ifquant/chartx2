@@ -151,6 +151,7 @@
 
   let workbenchActions: readonly DemoAction[] = [];
   let featureActions: readonly DemoAction[] = [];
+  let workbenchCommandPaletteOpen = false;
 
   let workbenchError = "";
   let featureError = "";
@@ -191,6 +192,8 @@
     if (activeTopTab === tabId) {
       return;
     }
+
+    workbenchCommandPaletteOpen = false;
 
     if (tabId === "workbench") {
       teardownPerformance();
@@ -276,6 +279,7 @@
     workbenchController?.destroy();
     workbenchController = null;
     workbenchTradeIntentBridge.disconnect();
+    workbenchCommandPaletteOpen = false;
   }
 
   function teardownPerformance(): void {
@@ -398,6 +402,25 @@
   function runWorkbenchAction(actionId: string): void {
     workbenchController?.runAction(actionId);
     workbenchActions = workbenchController?.actions() ?? [];
+  }
+
+  function toggleWorkbenchCommandPalette(): void {
+    if (activeTopTab !== "workbench") {
+      return;
+    }
+    workbenchCommandPaletteOpen = !workbenchCommandPaletteOpen;
+  }
+
+  function closeWorkbenchCommandPalette(): void {
+    workbenchCommandPaletteOpen = false;
+  }
+
+  async function executeWorkbenchCommand(commandId: string): Promise<void> {
+    const executed = await workbenchController?.executeCommand?.(commandId);
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (executed) {
+      workbenchCommandPaletteOpen = false;
+    }
   }
 
   function runFeatureAction(actionId: string): void {
@@ -543,7 +566,17 @@
     if (activeTopTab !== "workbench") {
       return;
     }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      toggleWorkbenchCommandPalette();
+      event.preventDefault();
+      return;
+    }
     if (event.key !== "Escape") {
+      return;
+    }
+    if (workbenchCommandPaletteOpen) {
+      closeWorkbenchCommandPalette();
+      event.preventDefault();
       return;
     }
     if ((workbenchSnapshot.drawingTool?.activeTool ?? "none") === "none") {
@@ -842,6 +875,8 @@
           readout={workbenchReadout}
           snapshot={workbenchSnapshot}
           workbench={workbenchSnapshot.workbench ?? null}
+          commandPalette={workbenchSnapshot.workbench?.commandPalette ?? null}
+          commandPaletteOpen={workbenchCommandPaletteOpen}
           error={workbenchError}
           inspectorErrors={workbenchInspectorErrors}
           showHorizontalPreview={showWorkbenchHorizontalLinePreview}
@@ -853,6 +888,11 @@
           trendPreviewY2={workbenchTrendPreviewY2}
           onRunAction={runWorkbenchAction}
           onSetDrawingTool={setWorkbenchDrawingTool}
+          onToggleCommandPalette={toggleWorkbenchCommandPalette}
+          onCloseCommandPalette={closeWorkbenchCommandPalette}
+          onExecuteCommand={(commandId) => {
+            void executeWorkbenchCommand(commandId);
+          }}
           onOpenWatchlistSymbol={(symbol) => {
             void openWorkbenchSymbol(symbol);
           }}

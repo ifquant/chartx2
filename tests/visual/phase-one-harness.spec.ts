@@ -442,23 +442,26 @@ test("script library: custom authored scripts round-trip through layout export a
   const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
 
   await saveCustomScript(page, {
-    label: "My Close SMA",
-    shortLabel: "My SMA",
-    description: "Saved close-price SMA.",
-    expressionText: "sma(close, length)",
+    label: "My Close Spread",
+    shortLabel: "My Spread",
+    description: "Close minus close SMA.",
+    expressionText: "subtract(close, sma(close, length))",
     placement: "separate-pane",
     defaultLength: "9",
   });
 
-  await expect(workbench).toContainText("saved custom script My Close SMA");
+  await expect(workbench).toContainText("saved custom script My Close Spread");
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
-  await expect(indicators.locator(".indicator-list")).not.toContainText("My Close SMA");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText(
+    "subtract(close, sma(close, length))",
+  );
+  await expect(indicators.locator(".indicator-list")).not.toContainText("My Close Spread");
 
   await addCustomScriptFromLibrary(page, "custom-script-1", "4");
-  await expect(workbench).toContainText("added indicator My Close SMA (Length 4)");
-  await expect(activeIndicatorList).toContainText("My Close SMA");
+  await expect(workbench).toContainText("added indicator My Close Spread (Length 4)");
+  await expect(activeIndicatorList).toContainText("My Close Spread");
   await expect(activeIndicatorList).toContainText("length 4");
-  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close SMA" })).toHaveCount(1);
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close Spread" })).toHaveCount(1);
 
   const downloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
@@ -471,10 +474,10 @@ test("script library: custom authored scripts round-trip through layout export a
 
   expect(exported.customScripts?.[0]).toMatchObject({
     id: "custom-script-1",
-    label: "My Close SMA",
+    label: "My Close Spread",
   });
   expect(exported.scriptedIndicators?.[0]).toMatchObject({
-    label: "My Close SMA",
+    label: "My Close Spread",
     scriptId: "custom-script-1",
     inputValues: {
       length: 4,
@@ -483,7 +486,7 @@ test("script library: custom authored scripts round-trip through layout export a
 
   await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
-  await expect(activeIndicatorList).not.toContainText("My Close SMA");
+  await expect(activeIndicatorList).not.toContainText("My Close Spread");
 
   await page.evaluate(async (raw) => {
     const input = document.querySelector(
@@ -502,9 +505,12 @@ test("script library: custom authored scripts round-trip through layout export a
   }, exportedRaw);
 
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
-  await expect(activeIndicatorList).toContainText("My Close SMA");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText(
+    "subtract(close, sma(close, length))",
+  );
+  await expect(activeIndicatorList).toContainText("My Close Spread");
   await expect(activeIndicatorList).toContainText("length 4");
-  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close SMA" })).toHaveCount(1);
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close Spread" })).toHaveCount(1);
 });
 
 test("script library: save builtin presets and duplicate custom scripts", async ({ page }) => {

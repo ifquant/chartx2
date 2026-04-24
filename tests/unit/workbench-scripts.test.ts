@@ -63,10 +63,73 @@ describe("workbench script runtime", () => {
   });
 
   it("formats and parses the constrained custom script expression text", () => {
-    expect(formatWorkbenchCustomScriptExpressionText("hlc3")).toBe("sma(hlc3, length)");
+    expect(
+      formatWorkbenchCustomScriptExpressionText({
+        kind: "sma",
+        input: {
+          kind: "input",
+          field: "hlc3",
+        },
+        length: {
+          kind: "numeric-input",
+          inputId: "length",
+        },
+      }),
+    ).toBe("sma(hlc3, length)");
     expect(parseWorkbenchCustomScriptExpressionText(" sma(close, length) ")).toEqual({
       ok: true,
-      field: "close",
+      expression: {
+        kind: "sma",
+        input: {
+          kind: "input",
+          field: "close",
+        },
+        length: {
+          kind: "numeric-input",
+          inputId: "length",
+        },
+      },
+    });
+  });
+
+  it("parses the broader V0 custom script subset", () => {
+    expect(
+      parseWorkbenchCustomScriptExpressionText("subtract(close, sma(hlc3, length))"),
+    ).toEqual({
+      ok: true,
+      expression: {
+        kind: "subtract",
+        left: {
+          kind: "input",
+          field: "close",
+        },
+        right: {
+          kind: "sma",
+          input: {
+            kind: "input",
+            field: "hlc3",
+          },
+          length: {
+            kind: "numeric-input",
+            inputId: "length",
+          },
+        },
+      },
+    });
+  });
+
+  it("accepts broader V0 custom script expressions during draft validation", () => {
+    expect(
+      validateWorkbenchCustomScriptDraft({
+        label: "Spread",
+        shortLabel: "Spread",
+        description: "Close minus HLC3 SMA.",
+        expressionText: "subtract(close, sma(hlc3, length))",
+        placement: "separate-pane",
+        defaultLength: 5,
+      }),
+    ).toMatchObject({
+      ok: true,
     });
   });
 
@@ -83,7 +146,27 @@ describe("workbench script runtime", () => {
     ).toEqual({
       ok: false,
       message:
-        "Expression must match sma(<field>, length), where <field> is one of open, high, low, close, hl2, hlc3.",
+        "Expression must use the supported subset: field, sma(expr, length), or subtract(left, right).",
+    });
+  });
+
+  it("round-trips a broader custom script definition through the draft model", () => {
+    const definition = createWorkbenchCustomScriptDefinition("custom-script-2", {
+      label: "Close Spread",
+      shortLabel: "Spread",
+      description: "Close minus close SMA.",
+      expressionText: "subtract(close, sma(close, length))",
+      placement: "separate-pane",
+      defaultLength: 7,
+    });
+
+    expect(createWorkbenchCustomScriptDraftFromDefinition(definition)).toEqual({
+      label: "Close Spread",
+      shortLabel: "Spread",
+      description: "Close minus close SMA.",
+      expressionText: "subtract(close, sma(close, length))",
+      placement: "separate-pane",
+      defaultLength: 7,
     });
   });
 

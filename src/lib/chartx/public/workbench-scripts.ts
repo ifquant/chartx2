@@ -63,7 +63,7 @@ export interface WorkbenchCustomScriptDraft {
 export type WorkbenchCustomScriptExpressionParseResult =
   | {
       ok: true;
-      field: WorkbenchScriptField;
+      expression: WorkbenchScriptExpression;
     }
   | {
       ok: false;
@@ -73,7 +73,7 @@ export type WorkbenchCustomScriptExpressionParseResult =
 export type WorkbenchCustomScriptDraftValidationResult =
   | {
       ok: true;
-      field: WorkbenchScriptField;
+      expression: WorkbenchScriptExpression;
     }
   | {
       ok: false;
@@ -108,8 +108,6 @@ const WORKBENCH_SCRIPT_FIELDS: readonly WorkbenchScriptField[] = [
   "hl2",
   "hlc3",
 ] as const;
-const CUSTOM_SCRIPT_EXPRESSION_PATTERN =
-  /^\s*sma\s*\(\s*(open|high|low|close|hl2|hlc3)\s*,\s*length\s*\)\s*$/;
 
 export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
   {
@@ -343,33 +341,144 @@ export function getWorkbenchScriptDefinitionFromLibrary(
   return definitions.find((definition) => definition.id === id) ?? null;
 }
 
-export function formatWorkbenchCustomScriptExpressionText(field: WorkbenchScriptField): string {
-  return `sma(${field}, length)`;
+function isWorkbenchScriptFieldToken(value: string): value is WorkbenchScriptField {
+  return WORKBENCH_SCRIPT_FIELDS.includes(value as WorkbenchScriptField);
 }
 
-export function parseWorkbenchCustomScriptExpressionText(
+function splitWorkbenchFunctionArguments(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of value) {
+    if (char === "," && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+    }
+    current += char;
+  }
+  if (current.trim().length > 0) {
+    parts.push(current.trim());
+  }
+  return parts;
+}
+
+function parseWorkbenchCustomScriptExpressionNode(
   expressionText: string,
 ): WorkbenchCustomScriptExpressionParseResult {
-  const match = CUSTOM_SCRIPT_EXPRESSION_PATTERN.exec(expressionText);
-  if (match === null) {
+  const text = expressionText.trim();
+  if (text.length === 0) {
     return {
       ok: false,
-      message: `Expression must match sma(<field>, length), where <field> is one of ${WORKBENCH_SCRIPT_FIELDS.join(", ")}.`,
+      message: "Expression is required.",
     };
   }
 
-  const field = match[1];
-  if (!WORKBENCH_SCRIPT_FIELDS.includes(field as WorkbenchScriptField)) {
+  if (isWorkbenchScriptFieldToken(text)) {
+    return {
+      ok: true,
+      expression: {
+        kind: "input",
+        field: text,
+      },
+    };
+  }
+
+  const firstParenIndex = text.indexOf("(");
+  if (firstParenIndex === -1 || !text.endsWith(")")) {
     return {
       ok: false,
-      message: `Unknown field ${field}.`,
+      message:
+        "Expression must use the supported subset: field, sma(expr, length), or subtract(left, right).",
+    };
+  }
+
+  const fnName = text.slice(0, firstParenIndex).trim();
+  const inner = text.slice(firstParenIndex + 1, -1);
+  const args = splitWorkbenchFunctionArguments(inner);
+
+  if (fnName === "sma") {
+    if (args.length !== 2) {
+      return {
+        ok: false,
+        message: "sma(...) requires exactly two arguments.",
+      };
+    }
+    if (args[1] !== "length") {
+      return {
+        ok: false,
+        message: "sma(...) currently only supports the shared length input.",
+      };
+    }
+    const input = parseWorkbenchCustomScriptExpressionNode(args[0]);
+    if (!input.ok) {
+      return input;
+    }
+    return {
+      ok: true,
+      expression: {
+        kind: "sma",
+        input: input.expression,
+        length: {
+          kind: "numeric-input",
+          inputId: "length",
+        },
+      },
+    };
+  }
+
+  if (fnName === "subtract") {
+    if (args.length !== 2) {
+      return {
+        ok: false,
+        message: "subtract(...) requires exactly two arguments.",
+      };
+    }
+    const left = parseWorkbenchCustomScriptExpressionNode(args[0]);
+    if (!left.ok) {
+      return left;
+    }
+    const right = parseWorkbenchCustomScriptExpressionNode(args[1]);
+    if (!right.ok) {
+      return right;
+    }
+    return {
+      ok: true,
+      expression: {
+        kind: "subtract",
+        left: left.expression,
+        right: right.expression,
+      },
     };
   }
 
   return {
-    ok: true,
-    field: field as WorkbenchScriptField,
+    ok: false,
+    message: `Unsupported function ${fnName}.`,
   };
+}
+
+export function formatWorkbenchCustomScriptExpressionText(expression: WorkbenchScriptExpression): string {
+  if (expression.kind === "input") {
+    return expression.field;
+  }
+  if (expression.kind === "sma") {
+    return `sma(${formatWorkbenchCustomScriptExpressionText(expression.input)}, length)`;
+  }
+  return `subtract(${formatWorkbenchCustomScriptExpressionText(expression.left)}, ${formatWorkbenchCustomScriptExpressionText(expression.right)})`;
+}
+
+export function parseWorkbenchCustomScriptExpressionText(expressionText: string): WorkbenchCustomScriptExpressionParseResult {
+  const parsed = parseWorkbenchCustomScriptExpressionNode(expressionText);
+  if (!parsed.ok) {
+    return parsed;
+  }
+  return parsed;
 }
 
 export function validateWorkbenchCustomScriptDraft(
@@ -420,15 +529,7 @@ export function createWorkbenchCustomScriptDefinition(
       },
     ],
     expression: {
-      kind: "sma",
-      input: {
-        kind: "input",
-        field: parsed.field,
-      },
-      length: {
-        kind: "numeric-input",
-        inputId: "length",
-      },
+      ...parsed.expression,
     },
   };
 }
@@ -436,9 +537,6 @@ export function createWorkbenchCustomScriptDefinition(
 export function createWorkbenchCustomScriptDraftFromDefinition(
   definition: WorkbenchScriptDefinition,
 ): WorkbenchCustomScriptDraft | null {
-  if (definition.expression.kind !== "sma" || definition.expression.input.kind !== "input") {
-    return null;
-  }
   const lengthInput = definition.inputs?.find((input) => input.id === "length");
   if (lengthInput === undefined) {
     return null;
@@ -451,7 +549,7 @@ export function createWorkbenchCustomScriptDraftFromDefinition(
     label: definition.label,
     shortLabel: definition.shortLabel,
     description: definition.description,
-    expressionText: formatWorkbenchCustomScriptExpressionText(definition.expression.input.field),
+    expressionText: formatWorkbenchCustomScriptExpressionText(definition.expression),
     placement: definition.placement,
     defaultLength,
   };

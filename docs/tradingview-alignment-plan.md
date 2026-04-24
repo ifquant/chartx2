@@ -724,6 +724,11 @@ Implementation note:
   in the shared workbench-script helpers, and the Script Library only clears
   the local draft after a confirmed save instead of resetting on a no-op
   callback.
+- `Script Authoring AST V1` widens that authoring subset to the recursive
+  runtime shape the engine already understands: custom-script library entries
+  can now round-trip `field`, `sma(expr, length)`, and
+  `subtract(left, right)` compositions through the same workbench-owned
+  definition and layout persistence contract.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

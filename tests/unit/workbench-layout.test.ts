@@ -89,10 +89,10 @@ const scriptedIndicators = [
 
 const customScripts = [
   createWorkbenchCustomScriptDefinition("custom-script-1", {
-    label: "My Close SMA",
-    shortLabel: "My SMA",
-    description: "Saved close-price SMA.",
-    expressionText: "sma(close, length)",
+    label: "My Close Spread",
+    shortLabel: "My Spread",
+    description: "Close minus close SMA.",
+    expressionText: "subtract(close, sma(close, length))",
     placement: "separate-pane",
     defaultLength: 9,
   }),

@@ -285,7 +285,7 @@
     if (!parsed.ok) {
       return `expression invalid · length ${lengthLabel} · ${customScriptDraft.placement}`;
     }
-    return `field ${parsed.field} · length ${lengthLabel} · ${customScriptDraft.placement}`;
+    return `${customScriptDraft.expressionText.trim() || "--"} · length ${lengthLabel} · ${customScriptDraft.placement}`;
   }
 
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];

@@ -53,6 +53,8 @@
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onOpenScreenerSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void;
+  export let onAddCustomScriptToChart: (scriptId: string, inputValues?: Record<string, number>) => void;
+  export let onSaveCatalogScriptAsCustom: (entryId: string) => void;
   export let onSaveCustomScript: (scriptId: string | null, draft: {
     label: string;
     shortLabel: string;
@@ -62,6 +64,7 @@
     defaultLength: number;
   }) => void;
   export let onDeleteCustomScript: (scriptId: string) => void;
+  export let onDuplicateCustomScript: (scriptId: string) => void;
   export let onCreatePriceAlert: () => void | Promise<void>;
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
@@ -113,6 +116,7 @@
   let replayState = snapshot.replay;
   let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
   let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
+  let customScriptLaunchDrafts: Record<string, string> = {};
   let editingCustomScriptId: string | null = null;
   let customScriptDraft = {
     label: "",
@@ -215,6 +219,27 @@
       field: entry.field,
       placement: entry.placement,
       defaultLength: String(entry.defaultLength),
+    };
+  }
+
+  function customScriptLaunchValue(scriptId: string, defaultLength: number): string {
+    customScriptLaunchDrafts = {
+      ...customScriptLaunchDrafts,
+      [scriptId]: customScriptLaunchDrafts[scriptId] ?? String(defaultLength),
+    };
+    return customScriptLaunchDrafts[scriptId] ?? String(defaultLength);
+  }
+
+  function updateCustomScriptLaunchValue(scriptId: string, value: string): void {
+    customScriptLaunchDrafts = {
+      ...customScriptLaunchDrafts,
+      [scriptId]: value,
+    };
+  }
+
+  function customScriptLaunchPayload(script: DemoCustomScriptLibraryEntry): Record<string, number> {
+    return {
+      length: Number(customScriptLaunchDrafts[script.id] ?? script.defaultLength),
     };
   }
 
@@ -800,7 +825,7 @@
                 title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
               >
                 <strong>{entry.label}</strong>
-                <span>{entry.shortLabel} · {entry.family}</span>
+                <span>{entry.shortLabel} · {entry.family} · builtin</span>
                 <div class="script-input-grid">
                   {#each entry.scriptInputs ?? [] as input}
                     <label class="script-input-field">
@@ -819,16 +844,28 @@
                     </label>
                   {/each}
                 </div>
-                <button
-                  class="indicator-add-btn"
-                  type="button"
-                  disabled={!entry.enabled}
-                  aria-disabled={!entry.enabled}
-                  data-script-add-entry={entry.id}
-                  on:click={() => onAddIndicator(entry.id, scriptInputPayload(entry))}
-                >
-                  Add
-                </button>
+                <div class="custom-script-row-actions">
+                  <button
+                    class="indicator-add-btn"
+                    type="button"
+                    disabled={!entry.enabled}
+                    aria-disabled={!entry.enabled}
+                    data-script-add-entry={entry.id}
+                    on:click={() => onAddIndicator(entry.id, scriptInputPayload(entry))}
+                  >
+                    Add
+                  </button>
+                  {#if entry.source !== "custom"}
+                    <button
+                      type="button"
+                      class="indicator-secondary-btn"
+                      data-script-save-catalog-entry={entry.id}
+                      on:click={() => onSaveCatalogScriptAsCustom(entry.id)}
+                    >
+                      Save preset
+                    </button>
+                  {/if}
+                </div>
                 {#if !entry.enabled && entry.unavailableReason}
                   <small>{entry.unavailableReason}</small>
                 {/if}
@@ -951,9 +988,27 @@
                   <strong>{script.label}</strong>
                   <span>{script.field} · {script.placement} · length {script.defaultLength}</span>
                 </div>
+                <label class="script-input-field compact-launch-field">
+                  <span>Length</span>
+                  <input
+                    type="number"
+                    min="2"
+                    max="60"
+                    step="1"
+                    value={customScriptLaunchValue(script.id, script.defaultLength)}
+                    data-custom-script-launch-length={script.id}
+                    on:input={(event) => updateCustomScriptLaunchValue(script.id, (event.currentTarget as HTMLInputElement).value)}
+                  />
+                </label>
                 <div class="custom-script-row-actions">
+                  <button type="button" class="indicator-add-btn" data-custom-script-add={script.id} on:click={() => onAddCustomScriptToChart(script.id, customScriptLaunchPayload(script))}>
+                    Add
+                  </button>
                   <button type="button" class="indicator-secondary-btn" data-custom-script-edit={script.id} on:click={() => loadCustomScriptDraft(script)}>
                     Edit
+                  </button>
+                  <button type="button" class="indicator-secondary-btn" data-custom-script-duplicate={script.id} on:click={() => onDuplicateCustomScript(script.id)}>
+                    Duplicate
                   </button>
                   <button type="button" class="indicator-secondary-btn danger" data-custom-script-delete={script.id} on:click={() => onDeleteCustomScript(script.id)}>
                     Delete
@@ -2404,6 +2459,10 @@
     display: grid;
     gap: 4px;
     color: rgba(24, 24, 27, 0.66);
+  }
+
+  .compact-launch-field {
+    min-width: 92px;
   }
 
   .adapter-list {

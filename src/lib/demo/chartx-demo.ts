@@ -62,6 +62,7 @@ import {
 import {
   buildWorkbenchScriptLibrary,
   createWorkbenchCustomScriptDefinition,
+  createWorkbenchCustomScriptDraftFromDefinition,
   executeWorkbenchScript,
   getWorkbenchScriptDefinitionFromLibrary,
   type WorkbenchCustomScriptDraft,
@@ -222,8 +223,11 @@ export type DemoController = {
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   addIndicatorFromCatalog?(entryId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
+  addCustomScriptToChart?(scriptId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
   saveCustomScript?(scriptId: string | null, draft: WorkbenchCustomScriptDraft): boolean;
   deleteCustomScript?(scriptId: string): boolean;
+  duplicateCustomScript?(scriptId: string): boolean;
+  saveCatalogScriptAsCustom?(entryId: string): boolean;
   enterReplay?(): boolean;
   playReplay?(): boolean;
   pauseReplay?(): boolean;
@@ -1222,13 +1226,29 @@ export function mountWorkbenchDemo(
     buildWorkbenchScriptLibrary(customScriptLibrary);
 
   const currentIndicatorCatalog = (): readonly WorkbenchIndicatorCatalogEntry[] =>
-    createWorkbenchIndicatorCatalog(customScriptLibrary);
+    createWorkbenchIndicatorCatalog();
 
   const getScriptDefinitionForRuntime = (scriptId: string): WorkbenchScriptDefinition | null =>
     getWorkbenchScriptDefinitionFromLibrary(workbenchScriptLibrary(), scriptId);
 
   const getIndicatorCatalogEntryForRuntime = (entryId: string): WorkbenchIndicatorCatalogEntry | null =>
     currentIndicatorCatalog().find((entry) => entry.id === entryId) ?? null;
+
+  const createRuntimeCustomScriptIndicatorEntry = (
+    definition: WorkbenchScriptDefinition,
+  ): WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string } => ({
+    id: `script-library:${definition.id}`,
+    label: definition.label,
+    shortLabel: definition.shortLabel,
+    description: definition.description,
+    family: "script",
+    placement: definition.placement,
+    engineKind: "script",
+    enabled: true,
+    scriptId: definition.id,
+    scriptInputs: definition.inputs ?? [],
+    source: "custom",
+  });
 
   const extractCustomScriptField = (definition: WorkbenchScriptDefinition): WorkbenchScriptField | null => {
     const expression = definition.expression;
@@ -1262,6 +1282,37 @@ export function mountWorkbenchDemo(
         } satisfies DemoCustomScriptLibraryEntry,
       ];
     });
+
+  const saveDefinitionAsCustom = (
+    definition: WorkbenchScriptDefinition,
+    labelSuffix = " Copy",
+  ): boolean => {
+    const draft = createWorkbenchCustomScriptDraftFromDefinition(definition);
+    if (draft === null) {
+      setStatusNotice({
+        tone: "error",
+        message: `Cannot clone ${definition.label}: unsupported script shape.`,
+      });
+      pushLog(log, `failed to clone script ${definition.label}: unsupported script shape`);
+      publishSnapshot();
+      return false;
+    }
+    customScriptSequence += 1;
+    const nextDefinition = createWorkbenchCustomScriptDefinition(`custom-script-${customScriptSequence}`, {
+      ...draft,
+      label: `${draft.label}${labelSuffix}`,
+      shortLabel: `${draft.shortLabel} Copy`,
+      description: `${draft.description} Saved copy.`,
+    });
+    customScriptLibrary = [...customScriptLibrary, nextDefinition];
+    setStatusNotice({
+      tone: "success",
+      message: `Saved custom script ${nextDefinition.label}.`,
+    });
+    pushLog(log, `saved custom script ${nextDefinition.label}`);
+    publishSnapshot();
+    return true;
+  };
 
   const isCustomScriptInUse = (scriptId: string): boolean =>
     activeIndicators.some((indicator) => indicator.scriptId === scriptId) ||
@@ -2901,6 +2952,22 @@ export function mountWorkbenchDemo(
     return true;
   };
 
+  const runCustomScriptFromLibrary = (
+    scriptId: string,
+    inputValues?: WorkbenchScriptNumericInputValueMap,
+  ): boolean => {
+    const definition = customScriptLibrary.find((entry) => entry.id === scriptId) ?? null;
+    if (definition === null) {
+      pushLog(log, `failed to add custom script ${scriptId}: unknown saved script`);
+      publishSnapshot();
+      return false;
+    }
+    return addScriptIndicatorFromCatalogEntry(createRuntimeCustomScriptIndicatorEntry(definition), {
+      inputValues,
+      logLabel: `added indicator ${definition.label}${formatScriptInputSummary(definition, inputValues) === null ? "" : ` (${formatScriptInputSummary(definition, inputValues)})`}`,
+    });
+  };
+
   const restorePersistedScriptIndicators = (
     indicators: readonly DemoActiveIndicator[],
     failurePrefix: string,
@@ -2910,7 +2977,11 @@ export function mountWorkbenchDemo(
       if (indicator.kind !== "script" || indicator.scriptId === undefined) {
         continue;
       }
-      const entry = getIndicatorCatalogEntryForRuntime(indicator.id);
+      const customDefinition = customScriptLibrary.find((entry) => entry.id === indicator.scriptId) ?? null;
+      const entry =
+        customDefinition === null
+          ? getIndicatorCatalogEntryForRuntime(indicator.id)
+          : createRuntimeCustomScriptIndicatorEntry(customDefinition);
       if (entry === null || entry.engineKind !== "script" || entry.scriptId === undefined) {
         pushLog(log, `${failurePrefix}: unknown scripted indicator ${indicator.label}`);
         restoredAll = false;
@@ -3704,6 +3775,9 @@ export function mountWorkbenchDemo(
       refreshObjectTreeProjectionAndPublish();
       return true;
     },
+    addCustomScriptToChart(scriptId, inputValues) {
+      return runCustomScriptFromLibrary(scriptId, inputValues);
+    },
     saveCustomScript(scriptId, draft) {
       if (
         draft.label.trim().length === 0 ||
@@ -3791,6 +3865,30 @@ export function mountWorkbenchDemo(
       pushLog(log, `deleted custom script ${definition.label}`);
       publishSnapshot();
       return true;
+    },
+    duplicateCustomScript(scriptId) {
+      const definition = customScriptLibrary.find((entry) => entry.id === scriptId) ?? null;
+      if (definition === null) {
+        pushLog(log, `failed to duplicate custom script ${scriptId}: unknown script`);
+        publishSnapshot();
+        return false;
+      }
+      return saveDefinitionAsCustom(definition);
+    },
+    saveCatalogScriptAsCustom(entryId) {
+      const entry = getIndicatorCatalogEntryForRuntime(entryId);
+      if (entry === null || entry.engineKind !== "script" || entry.scriptId === undefined) {
+        pushLog(log, `failed to save catalog script ${entryId}: unknown scripted entry`);
+        publishSnapshot();
+        return false;
+      }
+      const definition = getScriptDefinitionForRuntime(entry.scriptId);
+      if (definition === null) {
+        pushLog(log, `failed to save catalog script ${entry.label}: missing script definition`);
+        publishSnapshot();
+        return false;
+      }
+      return saveDefinitionAsCustom(definition, " Preset");
     },
     async openSymbol(symbol) {
       layoutOperationSequence += 1;

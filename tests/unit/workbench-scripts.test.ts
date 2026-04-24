@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildWorkbenchScriptLibrary,
   createWorkbenchCustomScriptDefinition,
+  createWorkbenchCustomScriptDraftFromDefinition,
   executeWorkbenchScript,
   getWorkbenchScriptDefinition,
   getWorkbenchScriptDefinitionFromLibrary,
@@ -43,6 +44,19 @@ describe("workbench script runtime", () => {
       "custom-script-1",
     ]);
     expect(getWorkbenchScriptDefinitionFromLibrary(library, "custom-script-1")).toEqual(custom);
+  });
+
+  it("derives a custom-script draft from a supported scripted definition", () => {
+    const definition = getWorkbenchScriptDefinition("close-sma-20-v0");
+
+    expect(createWorkbenchCustomScriptDraftFromDefinition(definition!)).toEqual({
+      label: "Scripted SMA 20",
+      shortLabel: "Script SMA",
+      description: "Close-price SMA executed through the local script runtime.",
+      field: "close",
+      placement: "separate-pane",
+      defaultLength: 20,
+    });
   });
 
   it("executes bounded arithmetic expressions over bar inputs", () => {

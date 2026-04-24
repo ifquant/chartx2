@@ -455,6 +455,20 @@
     }
   }
 
+  function addWorkbenchCustomScript(scriptId: string, inputValues?: Record<string, number>): void {
+    const added = workbenchController?.addCustomScriptToChart?.(scriptId, inputValues);
+    if (added) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function saveWorkbenchCatalogScriptAsCustom(entryId: string): void {
+    const saved = workbenchController?.saveCatalogScriptAsCustom?.(entryId);
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   function saveWorkbenchCustomScript(
     scriptId: string | null,
     draft: {
@@ -475,6 +489,13 @@
   function deleteWorkbenchCustomScript(scriptId: string): void {
     const deleted = workbenchController?.deleteCustomScript?.(scriptId);
     if (deleted) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function duplicateWorkbenchCustomScript(scriptId: string): void {
+    const duplicated = workbenchController?.duplicateCustomScript?.(scriptId);
+    if (duplicated) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
   }
@@ -1006,8 +1027,11 @@
             void openWorkbenchSymbol(symbol);
           }}
           onAddIndicator={addWorkbenchIndicator}
+          onAddCustomScriptToChart={addWorkbenchCustomScript}
+          onSaveCatalogScriptAsCustom={saveWorkbenchCatalogScriptAsCustom}
           onSaveCustomScript={saveWorkbenchCustomScript}
           onDeleteCustomScript={deleteWorkbenchCustomScript}
+          onDuplicateCustomScript={duplicateWorkbenchCustomScript}
           onCreatePriceAlert={() => {
             void createWorkbenchPriceAlert();
           }}

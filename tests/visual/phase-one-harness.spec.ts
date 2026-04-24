@@ -61,6 +61,23 @@ async function saveCustomScript(
   await workbench.locator("[data-custom-script-save]").click();
 }
 
+async function addCustomScriptFromLibrary(page: Page, scriptId: string, length: string) {
+  const workbench = workbenchPanel(page);
+  await workbench.locator(`[data-custom-script-launch-length="${scriptId}"]`).fill(length);
+  await workbench.locator(`[data-custom-script-add="${scriptId}"]`).click();
+}
+
+async function clickWorkbenchButton(page: Page, selector: string, missingMessage: string) {
+  const button = workbenchPanel(page).locator(selector);
+  await button.scrollIntoViewIfNeeded();
+  await button.evaluate((node, message) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error(String(message));
+    }
+    node.click();
+  }, missingMessage);
+}
+
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) {
     return false;
@@ -311,7 +328,6 @@ test("layout import/export: export downloads a focused snapshot and import resto
     .locator('[data-workspace-view="inspect"]')
     .first()
     .locator(".workspace-tab-main");
-  await inspectWorkspaceButton.scrollIntoViewIfNeeded();
   await inspectWorkspaceButton.evaluate((node) => {
     if (!(node instanceof HTMLButtonElement)) {
       throw new Error("inspect workspace tab button is missing");
@@ -430,9 +446,9 @@ test("script library: custom authored scripts round-trip through layout export a
 
   await expect(workbench).toContainText("saved custom script My Close SMA");
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
-  await expect(indicators).toContainText("My Close SMA");
+  await expect(indicators.locator(".indicator-list")).not.toContainText("My Close SMA");
 
-  await configureAndAddScriptIndicator(page, "script-library:custom-script-1", "length", "4");
+  await addCustomScriptFromLibrary(page, "custom-script-1", "4");
   await expect(workbench).toContainText("added indicator My Close SMA (Length 4)");
   await expect(activeIndicatorList).toContainText("My Close SMA");
   await expect(activeIndicatorList).toContainText("length 4");
@@ -483,6 +499,33 @@ test("script library: custom authored scripts round-trip through layout export a
   await expect(activeIndicatorList).toContainText("My Close SMA");
   await expect(activeIndicatorList).toContainText("length 4");
   await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close SMA" })).toHaveCount(1);
+});
+
+test("script library: save builtin presets and duplicate custom scripts", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+
+  await clickWorkbenchButton(
+    page,
+    '[data-script-save-catalog-entry="scripted-close-sma"]',
+    "save preset button is missing",
+  );
+  await expect(workbench).toContainText("saved custom script Scripted SMA 20 Preset");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText("Scripted SMA 20 Preset");
+
+  await clickWorkbenchButton(
+    page,
+    '[data-custom-script-duplicate="custom-script-1"]',
+    "duplicate custom script button is missing",
+  );
+  await expect(workbench).toContainText("saved custom script Scripted SMA 20 Preset Copy");
+  await expect(workbench.locator('[data-custom-script="custom-script-2"]')).toContainText("Scripted SMA 20 Preset Copy");
+
+  await addCustomScriptFromLibrary(page, "custom-script-2", "6");
+  await expect(indicators.locator(".active-indicator-list")).toContainText("Scripted SMA 20 Preset Copy");
+  await expect(indicators.locator(".active-indicator-list")).toContainText("length 6");
 });
 
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({

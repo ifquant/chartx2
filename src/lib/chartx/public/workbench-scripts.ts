@@ -349,6 +349,30 @@ export function createWorkbenchCustomScriptDefinition(
   };
 }
 
+export function createWorkbenchCustomScriptDraftFromDefinition(
+  definition: WorkbenchScriptDefinition,
+): WorkbenchCustomScriptDraft | null {
+  if (definition.expression.kind !== "sma" || definition.expression.input.kind !== "input") {
+    return null;
+  }
+  const lengthInput = definition.inputs?.find((input) => input.id === "length");
+  if (lengthInput === undefined) {
+    return null;
+  }
+  const defaultLength = lengthInput.defaultValue;
+  if (!Number.isInteger(defaultLength) || defaultLength < 2 || defaultLength > 60) {
+    return null;
+  }
+  return {
+    label: definition.label,
+    shortLabel: definition.shortLabel,
+    description: definition.description,
+    field: definition.expression.input.field,
+    placement: definition.placement,
+    defaultLength,
+  };
+}
+
 export function executeWorkbenchScript(
   definition: WorkbenchScriptDefinition,
   input: WorkbenchScriptExecutionInput,

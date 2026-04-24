@@ -682,8 +682,11 @@ Progress checklist:
 - [x] Scripted input values persist through workbench save, restore, export, and import
 - [x] Workbench-owned custom script library persisted through save, restore, export, and import
 - [x] Local create/edit/delete flow for user-authored structured SMA presets
+- [x] Builtin scripted entries can be saved into the local custom-script library
+- [x] Saved custom scripts launch from the script library instead of the generic indicator catalog
+- [x] Local duplicate flow for saved custom scripts
 - [ ] Persist scripted indicators as first-class chart-state studies
-- [ ] Richer text editor and broader script-library management
+- [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
 Implementation note:
@@ -710,6 +713,11 @@ Implementation note:
   delete structured SMA presets, the catalog is rebuilt from the saved custom
   library, and layout save/restore/export/import now carries those custom
   script definitions before replaying mounted scripted indicators.
+- `Library-Owned Custom Script Launch V1` tightens that ownership boundary:
+  builtin scripted catalog entries can now be saved into the local library as
+  presets, saved custom scripts launch directly from the Script Library itself,
+  and restore/import now reattach custom scripted indicators by `scriptId`
+  instead of depending on synthetic catalog entries.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

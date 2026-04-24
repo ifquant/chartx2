@@ -19,7 +19,9 @@ describe("chart workbench contract", () => {
           id: "ndx",
           symbol: "NDX",
           lastLabel: "23,132.77",
+          lastValue: 23132.77,
           changeLabel: "-1.93%",
+          changePercent: -1.93,
           changeTone: "negative",
         },
       ],
@@ -116,6 +118,12 @@ describe("chart workbench contract", () => {
             active: true,
             enabled: true,
           },
+          {
+            id: "screener-upside-only",
+            label: "Upside only",
+            active: false,
+            enabled: false,
+          },
         ],
         results: [
           {
@@ -141,6 +149,12 @@ describe("chart workbench contract", () => {
         active: true,
         enabled: true,
       },
+      {
+        id: "screener-upside-only",
+        label: "Upside only",
+        active: false,
+        enabled: false,
+      },
     ]);
     expect(model.rightSidebar.screener.results).toEqual([
       {
@@ -151,6 +165,39 @@ describe("chart workbench contract", () => {
         changeLabel: "-1.67%",
         rankLabel: "Rank 1",
         noteLabel: "1.67% below prior close",
+        changeTone: "negative",
+      },
+    ]);
+  });
+
+  it("preserves typed watchlist numeric fields even when labels are localized presentation strings", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "ES",
+      timeframeLabel: "5m",
+      chartTypeLabel: "Candles",
+      watchlistItems: [
+        {
+          id: "es",
+          symbol: "ES",
+          name: "E-mini S&P 500",
+          lastLabel: "$5.284,25 localized",
+          lastValue: 5284.25,
+          changeLabel: "−0,42 percent",
+          changePercent: -0.42,
+          changeTone: "negative",
+        },
+      ],
+    });
+
+    expect(model.rightSidebar.watchlist.items).toEqual([
+      {
+        id: "es",
+        symbol: "ES",
+        name: "E-mini S&P 500",
+        lastLabel: "$5.284,25 localized",
+        lastValue: 5284.25,
+        changeLabel: "−0,42 percent",
+        changePercent: -0.42,
         changeTone: "negative",
       },
     ]);

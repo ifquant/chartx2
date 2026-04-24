@@ -413,7 +413,14 @@
                 class:active={filter.active}
                 data-screener-filter={filter.id}
                 data-screener-filter-active={filter.active ? "true" : "false"}
-                on:click={() => onRunAction(filter.id)}
+                disabled={filter.enabled === false}
+                aria-disabled={filter.enabled === false}
+                on:click={() => {
+                  if (filter.enabled === false) {
+                    return;
+                  }
+                  onRunAction(filter.id);
+                }}
               >
                 {filter.label}
               </button>

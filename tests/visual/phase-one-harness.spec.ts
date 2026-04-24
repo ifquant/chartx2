@@ -134,6 +134,10 @@ test("screener: local movers filter rows open symbols through the active host", 
   await expect(screener.locator("[data-screener-result]")).toHaveCount(3);
   await expect(screener.locator('[data-screener-symbol="VIX"]')).toHaveCount(0);
 
+  const disabledFilter = screener.locator('[data-screener-filter="screener-upside-only"]');
+  await expect(disabledFilter).toBeDisabled();
+  await expect(disabledFilter).toHaveAttribute("data-screener-filter-active", "false");
+
   await workbenchAction(page, "layout-split").click();
   await workbenchAction(page, "host-secondary").click();
   await expect(layout.locator('[data-chart-host][data-chart-host-active="true"]')).toHaveCount(1);

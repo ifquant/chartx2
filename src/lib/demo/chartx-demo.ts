@@ -276,18 +276,6 @@ type WorkbenchObjectTreeChartProjection = {
   } | null;
 };
 
-function parseWorkbenchNumericLabel(label: string): number {
-  const normalized = label.replace(/,/g, "").trim();
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : 0;
-}
-
-function parseWorkbenchChangePercent(label: string): number {
-  const normalized = label.replace(/,/g, "").replace(/%/g, "").trim();
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : 0;
-}
-
 function buildDemoScreenerModel(input: {
   watchlist: readonly WatchlistItemModel[];
   negativeOnly: boolean;
@@ -296,8 +284,8 @@ function buildDemoScreenerModel(input: {
   const results: ScreenerResultModel[] = input.watchlist
     .map((item) => ({
       item,
-      lastValue: parseWorkbenchNumericLabel(item.lastLabel),
-      changePercent: parseWorkbenchChangePercent(item.changeLabel),
+      lastValue: item.lastValue ?? 0,
+      changePercent: item.changePercent ?? 0,
     }))
     .filter((candidate: DemoScreenerCandidate) => !input.negativeOnly || candidate.changePercent < 0)
     .filter((candidate: DemoScreenerCandidate) => !input.priceFloorEnabled || candidate.lastValue >= 1_000)
@@ -343,6 +331,12 @@ function buildDemoScreenerModel(input: {
         label: "Price >= 1000",
         active: input.priceFloorEnabled,
         enabled: true,
+      },
+      {
+        id: "screener-upside-only",
+        label: "Upside only",
+        active: false,
+        enabled: false,
       },
     ],
     results,

@@ -26,6 +26,7 @@ type FixtureSymbol = {
   changeLabel: string;
   changeTone: "negative";
   lastValue: number;
+  changePercent: number;
   offset: number;
 };
 
@@ -51,6 +52,7 @@ const FIXTURE_SYMBOLS: readonly FixtureSymbol[] = [
     changeLabel: "-1.93%",
     changeTone: "negative",
     lastValue: 23_132.77,
+    changePercent: -1.93,
     offset: 0,
   },
   {
@@ -63,6 +65,7 @@ const FIXTURE_SYMBOLS: readonly FixtureSymbol[] = [
     changeLabel: "-1.67%",
     changeTone: "negative",
     lastValue: 6_368.86,
+    changePercent: -1.67,
     offset: 420,
   },
   {
@@ -75,6 +78,7 @@ const FIXTURE_SYMBOLS: readonly FixtureSymbol[] = [
     changeLabel: "-1.73%",
     changeTone: "negative",
     lastValue: 45_166.64,
+    changePercent: -1.73,
     offset: 860,
   },
   {
@@ -83,10 +87,11 @@ const FIXTURE_SYMBOLS: readonly FixtureSymbol[] = [
     name: "Volatility Index",
     exchange: "CBOE",
     defaultTimeframe: "1D",
-    lastLabel: "30.73",
-    changeLabel: "-1.03%",
+    lastLabel: "$30,73 local",
+    changeLabel: "−1,03 percent",
     changeTone: "negative",
     lastValue: 30.73,
+    changePercent: -1.03,
     offset: -320,
   },
 ];
@@ -127,7 +132,9 @@ export function createWorkbenchFixtureWatchlist(): WatchlistItemModel[] {
     symbol: fixture.symbol,
     name: fixture.name,
     lastLabel: fixture.lastLabel,
+    lastValue: fixture.lastValue,
     changeLabel: fixture.changeLabel,
+    changePercent: fixture.changePercent,
     changeTone: fixture.changeTone,
   }));
 }

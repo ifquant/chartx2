@@ -41,7 +41,9 @@ export interface WatchlistItemModel {
   symbol: string;
   name?: string;
   lastLabel: string;
+  lastValue?: number;
   changeLabel: string;
+  changePercent?: number;
   changeTone?: "positive" | "negative" | "neutral";
 }
 

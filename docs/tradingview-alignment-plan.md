@@ -774,6 +774,10 @@ Implementation note:
   script is deleted while its draft is loaded for edit, the local editor target
   should clear back to create mode instead of submitting an update for a stale
   library entry.
+- Planned `Active Script Use Remove V0` should add a workbench-owned remove
+  action for active scripted indicators so users can clear library `inUse`
+  fences from the active indicator list without deleting the saved custom
+  script definition or changing chart-state persistence.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

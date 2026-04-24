@@ -722,6 +722,19 @@ test("script library: active custom scripts surface in-use state and fence edit/
   await expect(workbench.locator('[data-custom-script-edit="custom-script-1"]')).toBeDisabled();
   await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeDisabled();
   await expect(workbench.locator('[data-custom-script-duplicate="custom-script-1"]')).toBeEnabled();
+  await activeIndicatorList
+    .locator("[data-active-script-remove]")
+    .first()
+    .evaluate((node) => {
+      if (!(node instanceof HTMLButtonElement)) {
+        throw new Error("active script remove button is missing");
+      }
+      node.click();
+    });
+  await expect(activeIndicatorList).toContainText("No active indicators.");
+  await expect(workbench.locator('[data-custom-script-in-use="custom-script-1"]')).toHaveCount(0);
+  await expect(workbench.locator('[data-custom-script-edit="custom-script-1"]')).toBeEnabled();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeEnabled();
 });
 
 test("script library: deleting the edited script clears the stale update target", async ({

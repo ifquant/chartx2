@@ -63,6 +63,7 @@
   export let onOpenScreenerSymbol: (symbol: string) => void;
   export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void;
   export let onAddCustomScriptToChart: (scriptId: string, inputValues?: Record<string, number>) => void;
+  export let onRemoveActiveScriptIndicator: (paneIndex: number) => void;
   export let onSaveCatalogScriptAsCustom: (entryId: string) => void;
   export let onSaveCustomScript: (scriptId: string | null, draft: {
     label: string;
@@ -1168,6 +1169,16 @@
                   {formatIndicatorInputValues(indicator.inputValues)}
                 {/if}
               </span>
+              {#if indicator.kind === "script" && indicator.paneIndex !== undefined}
+                <button
+                  type="button"
+                  class="indicator-secondary-btn"
+                  data-active-script-remove={String(indicator.paneIndex)}
+                  on:click={() => onRemoveActiveScriptIndicator(indicator.paneIndex!)}
+                >
+                  Remove
+                </button>
+              {/if}
             </article>
           {:else}
             <p class="indicator-empty">No active indicators.</p>

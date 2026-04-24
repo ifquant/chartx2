@@ -462,6 +462,13 @@
     }
   }
 
+  function removeWorkbenchActiveScriptIndicator(paneIndex: number): void {
+    const removed = workbenchController?.removeActiveScriptIndicator?.(paneIndex);
+    if (removed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   function saveWorkbenchCatalogScriptAsCustom(entryId: string): void {
     const saved = workbenchController?.saveCatalogScriptAsCustom?.(entryId);
     if (saved) {
@@ -1030,6 +1037,7 @@
           }}
           onAddIndicator={addWorkbenchIndicator}
           onAddCustomScriptToChart={addWorkbenchCustomScript}
+          onRemoveActiveScriptIndicator={removeWorkbenchActiveScriptIndicator}
           onSaveCatalogScriptAsCustom={saveWorkbenchCatalogScriptAsCustom}
           onSaveCustomScript={saveWorkbenchCustomScript}
           onDeleteCustomScript={deleteWorkbenchCustomScript}

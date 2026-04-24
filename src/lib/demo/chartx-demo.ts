@@ -16,6 +16,7 @@ import {
   type PhaseOneDrawingStateSnapshot,
   type PhaseOneHorizontalLineDrawingOptions,
   type PhaseOneHistogramData,
+  type PhaseOneLineSeriesApi,
   type PhaseOneMainChartType,
   type PhaseOneMainSeriesRenderer,
   type PhaseOnePaneApi,
@@ -225,6 +226,7 @@ export type DemoController = {
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   addIndicatorFromCatalog?(entryId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
   addCustomScriptToChart?(scriptId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
+  removeActiveScriptIndicator?(paneIndex: number): boolean;
   saveCustomScript?(scriptId: string | null, draft: WorkbenchCustomScriptDraft): boolean;
   deleteCustomScript?(scriptId: string): boolean;
   duplicateCustomScript?(scriptId: string): boolean;
@@ -1009,6 +1011,7 @@ export function mountWorkbenchDemo(
   let customScriptSequence = 0;
   let customScriptLibrary: WorkbenchScriptDefinition[] = [];
   let activeIndicators: DemoActiveIndicator[] = [];
+  let activeScriptSeriesByPaneIndex = new Map<number, PhaseOneLineSeriesApi>();
   let replayActive = false;
   let replayPlaying = false;
   let replayCursor = -1;
@@ -2453,6 +2456,7 @@ export function mountWorkbenchDemo(
 
   const rebuild = () => {
     activeIndicators = [];
+    activeScriptSeriesByPaneIndex = new Map<number, PhaseOneLineSeriesApi>();
     if (replayActive) {
       replayCursor = Math.min(replayCursor, activeBarsPayload.bars.length - 1);
       if (replayCursor < 0) {
@@ -2928,6 +2932,7 @@ export function mountWorkbenchDemo(
       inputValues: options?.inputValues,
       paneIndex: pane.paneIndex(),
     });
+    activeScriptSeriesByPaneIndex.set(pane.paneIndex(), series);
     if (options?.logLabel !== undefined) {
       pushLog(log, options.logLabel);
     } else {
@@ -3765,6 +3770,61 @@ export function mountWorkbenchDemo(
     },
     addCustomScriptToChart(scriptId, inputValues) {
       return runCustomScriptFromLibrary(scriptId, inputValues);
+    },
+    removeActiveScriptIndicator(paneIndex) {
+      if (chart === null) {
+        pushLog(log, `failed to remove script indicator from pane ${String(paneIndex)}: chart unavailable`);
+        publishSnapshot();
+        return false;
+      }
+      const indicator = activeIndicators.find(
+        (entry) => entry.kind === "script" && entry.paneIndex === paneIndex,
+      );
+      if (indicator === undefined) {
+        pushLog(log, `failed to remove script indicator from pane ${String(paneIndex)}: unknown indicator`);
+        publishSnapshot();
+        return false;
+      }
+      const pane = chart
+        .panes()
+        .find((entry) => !entry.isPrimary() && entry.paneIndex() === paneIndex);
+      if (pane === undefined) {
+        pushLog(log, `failed to remove script indicator ${indicator.label}: missing pane ${String(paneIndex)}`);
+        publishSnapshot();
+        return false;
+      }
+      const series = activeScriptSeriesByPaneIndex.get(paneIndex) ?? null;
+      if (series === null) {
+        pushLog(log, `failed to remove script indicator ${indicator.label}: missing series for pane ${String(paneIndex)}`);
+        publishSnapshot();
+        return false;
+      }
+      chart.removeSeries(series);
+      chart.removePane(pane);
+      activeScriptSeriesByPaneIndex.delete(paneIndex);
+      activeIndicators = activeIndicators.flatMap((entry) => {
+        if (entry.kind !== "script" || entry.paneIndex === undefined) {
+          return [entry];
+        }
+        if (entry.paneIndex === paneIndex) {
+          return [];
+        }
+        return [
+          {
+            ...entry,
+            paneIndex: entry.paneIndex > paneIndex ? entry.paneIndex - 1 : entry.paneIndex,
+          },
+        ];
+      });
+      activeScriptSeriesByPaneIndex = new Map(
+        [...activeScriptSeriesByPaneIndex.entries()].map(([entryPaneIndex, entrySeries]) => [
+          entryPaneIndex > paneIndex ? entryPaneIndex - 1 : entryPaneIndex,
+          entrySeries,
+        ]),
+      );
+      pushLog(log, `removed indicator ${indicator.label}`);
+      refreshObjectTreeProjectionAndPublish();
+      return true;
     },
     saveCustomScript(scriptId, draft) {
       const validation = validateWorkbenchCustomScriptDraft(draft);

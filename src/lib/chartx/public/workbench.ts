@@ -11,6 +11,8 @@ export type BottomPanelTabId =
   | "replay"
   | "performance-link"
   | "custom";
+export type WorkbenchSidebarPanelId = "watchlist" | "alerts" | "object-tree" | "screener";
+export type WorkbenchWorkspaceTabId = "trade" | "scan" | "alerts" | "inspect";
 
 export interface WorkbenchToolbarModel {
   activeSymbol: string;
@@ -173,6 +175,27 @@ export interface WorkbenchCommandPaletteModel {
   entries: readonly WorkbenchCommandEntryModel[];
 }
 
+export interface WorkbenchWorkspaceTabModel {
+  id: WorkbenchWorkspaceTabId;
+  label: string;
+  active: boolean;
+  enabled: boolean;
+  sidebarPanel: WorkbenchSidebarPanelId;
+  bottomTab: BottomPanelTabId;
+}
+
+export interface WorkbenchLayoutTransferModel {
+  importLabel: string;
+  exportLabel: string;
+  importEnabled: boolean;
+  exportEnabled: boolean;
+}
+
+export interface WorkbenchStatusNoticeModel {
+  tone: "info" | "warning" | "error" | "success";
+  message: string;
+}
+
 export interface ChartWorkbenchModel {
   title: string;
   toolbar: WorkbenchToolbarModel;
@@ -182,6 +205,10 @@ export interface ChartWorkbenchModel {
   layout: MultiChartLayoutModel;
   chartHosts: readonly ChartHostModel[];
   commandPalette: WorkbenchCommandPaletteModel;
+  workspaceTabs: readonly WorkbenchWorkspaceTabModel[];
+  activeRightSidebarPanel: WorkbenchSidebarPanelId;
+  layoutTransfer: WorkbenchLayoutTransferModel;
+  statusNotice: WorkbenchStatusNoticeModel | null;
 }
 
 export interface MarketDataSearchResult {
@@ -272,6 +299,10 @@ export interface ChartWorkbenchModelInput {
   symbolMode?: WorkbenchSymbolMode;
   chartHosts?: readonly ChartHostModel[];
   commandPalette?: WorkbenchCommandPaletteModel;
+  workspaceTabs?: readonly WorkbenchWorkspaceTabModel[];
+  activeRightSidebarPanel?: WorkbenchSidebarPanelId;
+  layoutTransfer?: WorkbenchLayoutTransferModel;
+  statusNotice?: WorkbenchStatusNoticeModel | null;
 }
 
 const DEFAULT_RANGES = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as const;
@@ -282,6 +313,36 @@ const DEFAULT_BOTTOM_TABS: readonly BottomPanelTabModel[] = [
   { id: "replay", label: "Replay", enabled: false },
   { id: "performance-link", label: "Performance", enabled: false },
 ];
+const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active">[] = [
+  {
+    id: "trade",
+    label: "Trade",
+    enabled: true,
+    sidebarPanel: "watchlist",
+    bottomTab: "time-presets",
+  },
+  {
+    id: "scan",
+    label: "Scan",
+    enabled: true,
+    sidebarPanel: "screener",
+    bottomTab: "time-presets",
+  },
+  {
+    id: "alerts",
+    label: "Alerts",
+    enabled: true,
+    sidebarPanel: "alerts",
+    bottomTab: "logs",
+  },
+  {
+    id: "inspect",
+    label: "Inspect",
+    enabled: true,
+    sidebarPanel: "object-tree",
+    bottomTab: "logs",
+  },
+] as const;
 
 function createDefaultObjectTree(input: ChartWorkbenchModelInput): ObjectTreePanelModel {
   return {
@@ -318,6 +379,17 @@ function defaultSlotsForPreset(preset: MultiChartLayoutPreset): ChartSlotModel[]
   return [{ id: "slot-main", title: "Primary chart", role: "primary", chartHostId: null }];
 }
 
+function defaultWorkspaceTabsForPanel(
+  activeRightSidebarPanel: WorkbenchSidebarPanelId,
+): WorkbenchWorkspaceTabModel[] {
+  const activeTabId =
+    DEFAULT_WORKSPACE_TABS.find((tab) => tab.sidebarPanel === activeRightSidebarPanel)?.id ?? "trade";
+  return DEFAULT_WORKSPACE_TABS.map((tab) => ({
+    ...tab,
+    active: tab.id === activeTabId,
+  }));
+}
+
 export function createChartWorkbenchModel(
   input: ChartWorkbenchModelInput,
 ): ChartWorkbenchModel {
@@ -342,6 +414,7 @@ export function createChartWorkbenchModel(
   }));
   const layoutPreset = input.layoutPreset ?? "single";
   const enabledBottomTabs = new Set(input.enabledBottomTabs ?? []);
+  const activeRightSidebarPanel = input.activeRightSidebarPanel ?? "watchlist";
   const defaultSlots = defaultSlotsForPreset(layoutPreset);
   const hostBySlotId = new Map(chartHosts.map((host) => [host.slotId, host]));
   const slots = defaultSlots.map((slot) => {
@@ -416,5 +489,15 @@ export function createChartWorkbenchModel(
       title: "Workbench Commands",
       entries: [],
     },
+    workspaceTabs:
+      input.workspaceTabs ?? defaultWorkspaceTabsForPanel(activeRightSidebarPanel),
+    activeRightSidebarPanel,
+    layoutTransfer: input.layoutTransfer ?? {
+      importLabel: "Import layout",
+      exportLabel: "Export layout",
+      importEnabled: false,
+      exportEnabled: false,
+    },
+    statusNotice: input.statusNotice ?? null,
   };
 }

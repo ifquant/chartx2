@@ -83,6 +83,47 @@ test("command palette: Cmd/Ctrl+K toggles the palette and runs layout commands",
   await expect(workbenchCommandPalette(page)).toHaveCount(0);
 });
 
+test("workspace tabs: command and tab clicks move sidebar focus", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const palette = workbenchCommandPalette(page);
+
+  await expect(workbench.locator('[data-workspace-tab="trade"]')).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-workbench-panel="watchlist"]')).toHaveAttribute(
+    "data-workbench-panel-active",
+    "true",
+  );
+
+  await page.keyboard.press("Control+K");
+  await palette.locator('[data-command-entry="workspace-inspect"]').click();
+
+  await expect(workbench.locator('[data-workspace-tab="inspect"]')).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-workbench-panel="object-tree"]')).toHaveAttribute(
+    "data-workbench-panel-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
+  await workbench.locator('[data-workspace-tab="scan"]').click();
+  await expect(workbench.locator('[data-workbench-panel="screener"]')).toHaveAttribute(
+    "data-workbench-panel-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+});
+
 test("layout: watchlist routes symbol opens to the active host and follows host activation", async ({
   page,
 }) => {
@@ -190,6 +231,62 @@ test("screener: local movers filter rows open symbols through the active host", 
   await expect(layout.locator(`[data-chart-host="${activeHostId}"]`)).toHaveAttribute(
     "data-chart-host-symbol",
     "DJI",
+  );
+});
+
+test("layout import/export: export downloads a focused snapshot and import restores it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-workspace-tab="inspect"]').click();
+
+  const downloadPromise = page.waitForEvent("download");
+  await workbench.locator("[data-layout-export-trigger]").click();
+  const download = await downloadPromise;
+  const exportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const exported = JSON.parse(exportedRaw) as {
+    activeSymbol: string;
+    panels: { rightSidebar: string };
+  };
+
+  expect(download.suggestedFilename()).toBe("ndx-layout.json");
+  expect(exported.activeSymbol).toBe("NDX");
+  expect(exported.panels.rightSidebar).toBe("object-tree");
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Exported layout");
+
+  await workbench.locator('[data-watchlist-symbol="SPX"]').click();
+  await workbench.locator('[data-workspace-tab="scan"]').click();
+  await expect(workbench.locator('[data-workbench-panel="screener"]')).toHaveAttribute(
+    "data-workbench-panel-active",
+    "true",
+  );
+
+  await page.evaluate(async (raw) => {
+    const input = document.querySelector(
+      'input[type="file"][accept*="json"]',
+    ) as HTMLInputElement | null;
+    if (input === null) {
+      throw new Error("layout import input is missing");
+    }
+    const file = new File([raw], "restored-layout.json", {
+      type: "application/json",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, exportedRaw);
+
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Imported layout");
+  await expect(workbench.locator('[data-workspace-tab="inspect"]')).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-workbench-panel="object-tree"]')).toHaveAttribute(
+    "data-workbench-panel-active",
+    "true",
   );
 });
 
@@ -654,7 +751,7 @@ test("workbench replays the active dataset locally", async ({ page }) => {
   await expect(replay).toContainText("Replay");
   await expect(summary).toHaveAttribute("data-replay-active", "false");
 
-  await workbench.getByRole("button", { name: "Replay", exact: true }).click();
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Replay", exact: true }).click();
   await expect(summary).toHaveAttribute("data-replay-active", "true");
 
   const enteredStep = Number((await summary.getAttribute("data-replay-current-step")) ?? "0");
@@ -794,13 +891,13 @@ test("workbench saves and restores the active layout locally", async ({ page }) 
   await watchlist.getByRole("button", { name: /SPX/ }).click();
   await expect(workbench).toContainText("SPX Workbench");
 
-  await workbench.getByRole("button", { name: "Save layout", exact: true }).click();
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Save layout", exact: true }).click();
   await expect(workbench).toContainText("saved layout SPX");
 
-  await workbench.getByRole("button", { name: "Reset layout", exact: true }).click();
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
   await expect(workbench).toContainText("NDX Workbench");
 
-  await workbench.getByRole("button", { name: "Restore layout", exact: true }).click();
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Restore layout", exact: true }).click();
   await expect(workbench).toContainText("SPX Workbench");
   await expect(workbench).toContainText("restored layout SPX");
 });

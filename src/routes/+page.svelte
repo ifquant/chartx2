@@ -152,6 +152,8 @@
   let workbenchActions: readonly DemoAction[] = [];
   let featureActions: readonly DemoAction[] = [];
   let workbenchCommandPaletteOpen = false;
+  let workbenchLayoutImportInput: HTMLInputElement | null = null;
+  let lastWorkbenchLayoutExportRaw = "";
 
   let workbenchError = "";
   let featureError = "";
@@ -473,6 +475,53 @@
     if (reset) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
+  }
+
+  function setWorkbenchWorkspaceTab(tabId: "trade" | "scan" | "alerts" | "inspect"): void {
+    const changed = workbenchController?.setWorkspaceTab?.(tabId);
+    if (changed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function requestWorkbenchLayoutImport(): void {
+    workbenchLayoutImportInput?.click();
+  }
+
+  async function handleWorkbenchLayoutImport(event: Event): Promise<void> {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    if (file === null) {
+      return;
+    }
+    const raw = await file.text();
+    const imported = await workbenchController?.importLayout?.(raw);
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (input !== null) {
+      input.value = "";
+    }
+    if (imported) {
+      workbenchCommandPaletteOpen = false;
+    }
+  }
+
+  async function exportWorkbenchLayout(): Promise<void> {
+    const raw = await workbenchController?.exportLayout?.();
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (raw === null || raw === undefined) {
+      return;
+    }
+    lastWorkbenchLayoutExportRaw = raw;
+    const blob = new Blob([raw], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const symbol = workbenchSnapshot.workbench?.toolbar.activeSymbol ?? "layout";
+    link.href = url;
+    link.download = `${symbol.toLowerCase()}-layout.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   function enterWorkbenchReplay(): void {
@@ -864,6 +913,16 @@
   <section class="layout-grid">
     <section class="main-column">
       {#if activeTopTab === "workbench"}
+        <input
+          bind:this={workbenchLayoutImportInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          on:change={(event) => {
+            void handleWorkbenchLayoutImport(event);
+          }}
+        />
+        <textarea data-layout-export-raw hidden readonly value={lastWorkbenchLayoutExportRaw}></textarea>
         <MarketWorkbenchPanel
           bind:canvasElement={workbenchCanvas}
           chartTypeActions={workbenchChartTypeActions}
@@ -888,6 +947,7 @@
           trendPreviewY2={workbenchTrendPreviewY2}
           onRunAction={runWorkbenchAction}
           onSetDrawingTool={setWorkbenchDrawingTool}
+          onSetWorkspaceTab={setWorkbenchWorkspaceTab}
           onToggleCommandPalette={toggleWorkbenchCommandPalette}
           onCloseCommandPalette={closeWorkbenchCommandPalette}
           onExecuteCommand={(commandId) => {
@@ -911,6 +971,10 @@
           }}
           onResetLayout={() => {
             void resetWorkbenchLayout();
+          }}
+          onImportLayout={requestWorkbenchLayoutImport}
+          onExportLayout={() => {
+            void exportWorkbenchLayout();
           }}
           onEnterReplay={enterWorkbenchReplay}
           onPlayReplay={playWorkbenchReplay}

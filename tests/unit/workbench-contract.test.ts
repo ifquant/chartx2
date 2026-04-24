@@ -82,6 +82,48 @@ describe("chart workbench contract", () => {
       title: "Workbench Commands",
       entries: [],
     });
+    expect(model.workspaceTabs).toEqual([
+      {
+        id: "trade",
+        label: "Trade",
+        active: true,
+        enabled: true,
+        sidebarPanel: "watchlist",
+        bottomTab: "time-presets",
+      },
+      {
+        id: "scan",
+        label: "Scan",
+        active: false,
+        enabled: true,
+        sidebarPanel: "screener",
+        bottomTab: "time-presets",
+      },
+      {
+        id: "alerts",
+        label: "Alerts",
+        active: false,
+        enabled: true,
+        sidebarPanel: "alerts",
+        bottomTab: "logs",
+      },
+      {
+        id: "inspect",
+        label: "Inspect",
+        active: false,
+        enabled: true,
+        sidebarPanel: "object-tree",
+        bottomTab: "logs",
+      },
+    ]);
+    expect(model.activeRightSidebarPanel).toBe("watchlist");
+    expect(model.layoutTransfer).toEqual({
+      importLabel: "Import layout",
+      exportLabel: "Export layout",
+      importEnabled: false,
+      exportEnabled: false,
+    });
+    expect(model.statusNotice).toBeNull();
   });
 
   it("allows the shell to opt into additional enabled bottom tabs", () => {
@@ -214,6 +256,73 @@ describe("chart workbench contract", () => {
           shortcutLabel: "Cmd/Ctrl+K",
         },
       ],
+    });
+  });
+
+  it("keeps workspace focus, layout transfer, and status models on the public workbench contract", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "BTCUSD",
+      timeframeLabel: "4H",
+      chartTypeLabel: "Candles",
+      activeRightSidebarPanel: "object-tree",
+      workspaceTabs: [
+        {
+          id: "trade",
+          label: "Trade",
+          active: false,
+          enabled: true,
+          sidebarPanel: "watchlist",
+          bottomTab: "time-presets",
+        },
+        {
+          id: "inspect",
+          label: "Inspect",
+          active: true,
+          enabled: true,
+          sidebarPanel: "object-tree",
+          bottomTab: "logs",
+        },
+      ],
+      layoutTransfer: {
+        importLabel: "Import layout",
+        exportLabel: "Export layout",
+        importEnabled: true,
+        exportEnabled: true,
+      },
+      statusNotice: {
+        tone: "warning",
+        message: "Local layout save is unavailable.",
+      },
+    });
+
+    expect(model.activeRightSidebarPanel).toBe("object-tree");
+    expect(model.workspaceTabs).toEqual([
+      {
+        id: "trade",
+        label: "Trade",
+        active: false,
+        enabled: true,
+        sidebarPanel: "watchlist",
+        bottomTab: "time-presets",
+      },
+      {
+        id: "inspect",
+        label: "Inspect",
+        active: true,
+        enabled: true,
+        sidebarPanel: "object-tree",
+        bottomTab: "logs",
+      },
+    ]);
+    expect(model.layoutTransfer).toEqual({
+      importLabel: "Import layout",
+      exportLabel: "Export layout",
+      importEnabled: true,
+      exportEnabled: true,
+    });
+    expect(model.statusNotice).toEqual({
+      tone: "warning",
+      message: "Local layout save is unavailable.",
     });
   });
 

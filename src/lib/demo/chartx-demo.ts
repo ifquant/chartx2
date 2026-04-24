@@ -33,10 +33,16 @@ import {
   type ScreenerResultModel,
   type WatchlistItemModel,
   type WorkbenchCommandPaletteModel,
+  type WorkbenchLayoutTransferModel,
   type WorkbenchObjectTreeNodeModel,
+  type WorkbenchSidebarPanelId,
+  type WorkbenchStatusNoticeModel,
+  type WorkbenchWorkspaceTabId,
+  type WorkbenchWorkspaceTabModel,
 } from "$lib/chartx/public/workbench";
 import {
   createWorkbenchLayoutState,
+  isWorkbenchLayoutState,
   type WorkbenchLayoutPersistenceProvider,
   type WorkbenchLayoutState,
 } from "$lib/chartx/public/workbench-layout";
@@ -184,6 +190,9 @@ export type DemoController = {
   saveLayout?(): Promise<boolean>;
   restoreLayout?(): Promise<boolean>;
   resetLayout?(): Promise<boolean>;
+  exportLayout?(): Promise<string | null>;
+  importLayout?(raw: string): Promise<boolean>;
+  setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): boolean;
   addIndicatorFromCatalog?(entryId: string): boolean;
   enterReplay?(): boolean;
   playReplay?(): boolean;
@@ -231,6 +240,10 @@ type WorkbenchPointFigureMode = "auto" | "fixed" | "atr" | "percentage" | "tradi
 type WorkbenchKagiMode = "auto" | "fixed" | "atr" | "percentage";
 type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
 type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
+type DemoWorkspaceFocus = {
+  sidebarPanel: WorkbenchSidebarPanelId;
+  bottomTab: "time-presets" | "logs" | "replay";
+};
 type DemoScreenerCandidate = {
   item: WatchlistItemModel;
   lastValue: number;
@@ -555,13 +568,57 @@ function createWorkbenchDemoLayoutState(input: {
   activeTimeframe: string;
   chartType: WorkbenchMainChartType;
   chart?: Pick<PhaseOneChartApi, "getChartState"> | null;
+  rightSidebar: WorkbenchSidebarPanelId;
+  bottomTab: "time-presets" | "logs" | "replay";
 }): WorkbenchLayoutState {
   return createWorkbenchLayoutState({
     activeSymbol: input.activeSymbol,
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
     chartState: input.chart?.getChartState() ?? null,
+    rightSidebar: input.rightSidebar,
+    bottomTab: input.bottomTab,
   });
+}
+
+function workspaceFocusForTab(tabId: WorkbenchWorkspaceTabId, replayActive: boolean): DemoWorkspaceFocus {
+  switch (tabId) {
+    case "scan":
+      return {
+        sidebarPanel: "screener",
+        bottomTab: "time-presets",
+      };
+    case "alerts":
+      return {
+        sidebarPanel: "alerts",
+        bottomTab: "logs",
+      };
+    case "inspect":
+      return {
+        sidebarPanel: "object-tree",
+        bottomTab: "logs",
+      };
+    case "trade":
+    default:
+      return {
+        sidebarPanel: "watchlist",
+        bottomTab: replayActive ? "replay" : "time-presets",
+      };
+  }
+}
+
+function workspaceTabForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspaceTabId {
+  switch (panel) {
+    case "screener":
+      return "scan";
+    case "alerts":
+      return "alerts";
+    case "object-tree":
+      return "inspect";
+    case "watchlist":
+    default:
+      return "trade";
+  }
 }
 
 function drawingToolsForSnapshot(
@@ -733,6 +790,7 @@ export function mountWorkbenchDemo(
   let mainChartType: WorkbenchMainChartType = "candlestick";
   let layoutPreset: DemoWorkbenchLayoutPreset = "single";
   let activeChartHostId: DemoWorkbenchChartHostId = "market-main";
+  let activeWorkspaceTabId: WorkbenchWorkspaceTabId = "trade";
   let hostActivationSequence = 0;
   let suppressDefaultDrawingsNextRebuild = false;
   const defaultSecondarySymbol =
@@ -787,6 +845,7 @@ export function mountWorkbenchDemo(
   let replayPlaying = false;
   let replayCursor = -1;
   let replayTimer: ReturnType<typeof setInterval> | null = null;
+  let statusNotice: WorkbenchStatusNoticeModel | null = null;
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
   let alertsLoadPromise: Promise<boolean> | null = null;
@@ -901,6 +960,30 @@ export function mountWorkbenchDemo(
         active: layoutPreset === "main-plus-secondary",
       },
       {
+        id: "workspace-trade",
+        label: "Focus trade workspace",
+        enabled: true,
+        active: activeWorkspaceTabId === "trade",
+      },
+      {
+        id: "workspace-scan",
+        label: "Focus scan workspace",
+        enabled: true,
+        active: activeWorkspaceTabId === "scan",
+      },
+      {
+        id: "workspace-alerts",
+        label: "Focus alerts workspace",
+        enabled: true,
+        active: activeWorkspaceTabId === "alerts",
+      },
+      {
+        id: "workspace-inspect",
+        label: "Focus inspect workspace",
+        enabled: true,
+        active: activeWorkspaceTabId === "inspect",
+      },
+      {
         id: "save-layout",
         label: "Save active layout",
         enabled: !replayState.active && options.persistenceProvider !== undefined,
@@ -928,6 +1011,52 @@ export function mountWorkbenchDemo(
             enabled: replayState.available,
           },
     ],
+  });
+
+  const setStatusNotice = (notice: WorkbenchStatusNoticeModel | null) => {
+    statusNotice = notice;
+  };
+
+  const buildWorkspaceTabs = (replayState: DemoReplayState): readonly WorkbenchWorkspaceTabModel[] => [
+    {
+      id: "trade",
+      label: "Trade",
+      enabled: true,
+      active: activeWorkspaceTabId === "trade",
+      sidebarPanel: "watchlist",
+      bottomTab: replayState.active && activeWorkspaceTabId === "trade" ? "replay" : "time-presets",
+    },
+    {
+      id: "scan",
+      label: "Scan",
+      enabled: true,
+      active: activeWorkspaceTabId === "scan",
+      sidebarPanel: "screener",
+      bottomTab: "time-presets",
+    },
+    {
+      id: "alerts",
+      label: "Alerts",
+      enabled: true,
+      active: activeWorkspaceTabId === "alerts",
+      sidebarPanel: "alerts",
+      bottomTab: "logs",
+    },
+    {
+      id: "inspect",
+      label: "Inspect",
+      enabled: true,
+      active: activeWorkspaceTabId === "inspect",
+      sidebarPanel: "object-tree",
+      bottomTab: "logs",
+    },
+  ];
+
+  const buildLayoutTransferModel = (replayState: DemoReplayState): WorkbenchLayoutTransferModel => ({
+    importLabel: "Import layout",
+    exportLabel: "Export layout",
+    importEnabled: !replayState.active,
+    exportEnabled: !replayState.active,
   });
 
   const resetReplayState = () => {
@@ -1319,6 +1448,15 @@ export function mountWorkbenchDemo(
       priceFloorEnabled: screenerPriceFloorEnabled,
     });
     const replayState = buildReplaySnapshot();
+    const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayState.active);
+    const effectiveStatusNotice =
+      statusNotice ??
+      (options.persistenceProvider === undefined
+        ? {
+            tone: "warning" as const,
+            message: "Local layout save/restore is unavailable until a persistence provider is attached.",
+          }
+        : null);
     const workbenchModel = createChartWorkbenchModel({
       title: "Market Workbench",
       symbol: activeSymbol,
@@ -1333,11 +1471,15 @@ export function mountWorkbenchDemo(
       alertItems,
       objectTree,
       activeRange: activeTimeframe,
-      activeTab: replayActive ? "replay" : "time-presets",
-      enabledBottomTabs: ["replay"],
+      activeTab: workspaceFocus.bottomTab,
+      enabledBottomTabs: ["logs", "replay"],
       layoutPreset,
       chartHosts,
       commandPalette: buildWorkbenchCommandPalette(replayState),
+      workspaceTabs: buildWorkspaceTabs(replayState),
+      activeRightSidebarPanel: workspaceFocus.sidebarPanel,
+      layoutTransfer: buildLayoutTransferModel(replayState),
+      statusNotice: effectiveStatusNotice,
     });
 
     publish({
@@ -1658,6 +1800,18 @@ export function mountWorkbenchDemo(
     layoutPreset = preset;
     pushLog(log, preset === "single" ? "layout preset single" : "layout preset main-plus-secondary");
     publishSnapshot();
+  };
+
+  const setWorkspaceTab = (tabId: WorkbenchWorkspaceTabId): boolean => {
+    if (activeWorkspaceTabId === tabId) {
+      publishSnapshot();
+      return true;
+    }
+    activeWorkspaceTabId = tabId;
+    setStatusNotice(null);
+    pushLog(log, `workspace ${tabId}`);
+    publishSnapshot();
+    return true;
   };
 
   const activateDemoChartHost = async (targetHostId: DemoWorkbenchChartHostId): Promise<boolean> => {
@@ -2710,6 +2864,14 @@ export function mountWorkbenchDemo(
           return controller.restoreLayout?.() ?? false;
         case "reset-layout":
           return controller.resetLayout?.() ?? false;
+        case "workspace-trade":
+          return controller.setWorkspaceTab?.("trade") ?? false;
+        case "workspace-scan":
+          return controller.setWorkspaceTab?.("scan") ?? false;
+        case "workspace-alerts":
+          return controller.setWorkspaceTab?.("alerts") ?? false;
+        case "workspace-inspect":
+          return controller.setWorkspaceTab?.("inspect") ?? false;
         case "replay-enter":
           return controller.enterReplay?.() ?? false;
         case "replay-exit":
@@ -2866,6 +3028,7 @@ export function mountWorkbenchDemo(
     },
     async openSymbol(symbol) {
       layoutOperationSequence += 1;
+      setStatusNotice(null);
       const targetHostId = activeChartHostId;
       return openWorkbenchDemoSymbol({
         targetHostId,
@@ -2885,6 +3048,10 @@ export function mountWorkbenchDemo(
 
       const latestClose = latestActiveClose();
       if (latestClose === null) {
+        setStatusNotice({
+          tone: "error",
+          message: `Cannot create alert for ${activeSymbol}: no active close.`,
+        });
         pushLog(log, `failed to create alert ${activeSymbol}: no active close`);
         publishSnapshot();
         return false;
@@ -2918,6 +3085,10 @@ export function mountWorkbenchDemo(
         }
         if (!saved) {
           workbenchAlerts = previousAlerts;
+          setStatusNotice({
+            tone: "error",
+            message: "Alert provider rejected the new alert.",
+          });
           pushLog(log, `failed to create alert ${activeSymbol}: alerts provider rejected the alert`);
           publishSnapshot();
           return false;
@@ -2928,11 +3099,19 @@ export function mountWorkbenchDemo(
         }
         workbenchAlerts = previousAlerts;
         const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Alert save failed: ${message}`,
+        });
         pushLog(log, `failed to create alert ${activeSymbol}: ${message}`);
         publishSnapshot();
         return false;
       }
 
+      setStatusNotice({
+        tone: "success",
+        message: `Created alert for ${activeSymbol}.`,
+      });
       pushLog(log, `created alert ${activeSymbol} price crosses ${targetPrice.toFixed(2)}`);
       publishSnapshot();
       return true;
@@ -2941,34 +3120,53 @@ export function mountWorkbenchDemo(
     async saveLayout() {
       layoutOperationSequence += 1;
       if (replayActive) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Exit replay before saving a layout snapshot.",
+        });
         pushLog(log, "failed to save layout: exit replay first");
         publishSnapshot();
         return false;
       }
       const provider = options.persistenceProvider;
       if (provider === undefined) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Layout save is unavailable without a persistence provider.",
+        });
         pushLog(log, "failed to save layout: persistence provider unavailable");
         publishSnapshot();
         return false;
       }
 
       try {
+        const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayActive);
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
           activeTimeframe,
           chartType: mainChartType,
           chart,
+          rightSidebar: workspaceFocus.sidebarPanel,
+          bottomTab: workspaceFocus.bottomTab,
         });
         const saved = await provider.saveWorkbenchLayout(state);
         if (destroyed) {
           return false;
         }
         if (!saved) {
+          setStatusNotice({
+            tone: "error",
+            message: "Persistence provider rejected the layout snapshot.",
+          });
           pushLog(log, "failed to save layout: persistence provider rejected the layout");
           publishSnapshot();
           return false;
         }
         const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+        setStatusNotice({
+          tone: "success",
+          message: `Saved layout for ${state.activeSymbol}${scopeSuffix}.`,
+        });
         pushLog(log, `saved layout ${state.activeSymbol}${scopeSuffix}`);
         publishSnapshot();
         return true;
@@ -2977,6 +3175,10 @@ export function mountWorkbenchDemo(
           return false;
         }
         const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout save failed: ${message}`,
+        });
         pushLog(log, `failed to save layout: ${message}`);
         publishSnapshot();
         return false;
@@ -2984,12 +3186,20 @@ export function mountWorkbenchDemo(
     },
     async restoreLayout() {
       if (replayActive) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Exit replay before restoring a layout snapshot.",
+        });
         pushLog(log, "failed to restore layout: exit replay first");
         publishSnapshot();
         return false;
       }
       const provider = options.persistenceProvider;
       if (provider === undefined) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Layout restore is unavailable without a persistence provider.",
+        });
         pushLog(log, "failed to restore layout: persistence provider unavailable");
         publishSnapshot();
         return false;
@@ -3004,6 +3214,10 @@ export function mountWorkbenchDemo(
           return false;
         }
         const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout restore failed: ${message}`,
+        });
         pushLog(log, `failed to restore layout: ${message}`);
         publishSnapshot();
         return false;
@@ -3013,6 +3227,10 @@ export function mountWorkbenchDemo(
         return false;
       }
       if (state === null) {
+        setStatusNotice({
+          tone: "warning",
+          message: "No saved layout is available to restore.",
+        });
         pushLog(log, "failed to restore layout: no saved layout");
         publishSnapshot();
         return false;
@@ -3020,6 +3238,10 @@ export function mountWorkbenchDemo(
 
       const chartType = toWorkbenchMainChartType(state.chartType);
       if (chartType === null) {
+        setStatusNotice({
+          tone: "error",
+          message: `Unsupported chart type in saved layout: ${state.chartType}.`,
+        });
         pushLog(log, `failed to restore layout ${state.activeSymbol}: unsupported chart type ${state.chartType}`);
         publishSnapshot();
         return false;
@@ -3061,6 +3283,10 @@ export function mountWorkbenchDemo(
           return false;
         }
         const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout restore failed: ${message}`,
+        });
         pushLog(log, `failed to restore layout ${state.activeSymbol}: ${message}`);
         publishSnapshot();
         return false;
@@ -3069,13 +3295,22 @@ export function mountWorkbenchDemo(
       if (destroyed || layoutOperation !== layoutOperationSequence) {
         return false;
       }
+      activeWorkspaceTabId = workspaceTabForPanel(state.panels.rightSidebar);
       const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+      setStatusNotice({
+        tone: "success",
+        message: `Restored layout for ${state.activeSymbol}${scopeSuffix}.`,
+      });
       pushLog(log, `restored layout ${state.activeSymbol}${scopeSuffix}`);
       publishSnapshot();
       return true;
     },
     async resetLayout() {
       if (replayActive) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Exit replay before resetting the layout.",
+        });
         pushLog(log, "failed to reset layout: exit replay first");
         publishSnapshot();
         return false;
@@ -3097,11 +3332,153 @@ export function mountWorkbenchDemo(
       if (destroyed) {
         return false;
       }
+      activeWorkspaceTabId = "trade";
       const scopeSuffix = layoutPreset === "main-plus-secondary" ? " (active host only)" : "";
+      setStatusNotice({
+        tone: "success",
+        message: `Reset layout${scopeSuffix}.`,
+      });
       pushLog(log, `reset layout${scopeSuffix}`);
       publishSnapshot();
       return true;
     },
+    async exportLayout() {
+      if (replayActive) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Exit replay before exporting a layout snapshot.",
+        });
+        pushLog(log, "failed to export layout: exit replay first");
+        publishSnapshot();
+        return null;
+      }
+      try {
+        const workspaceFocus = workspaceFocusForTab(activeWorkspaceTabId, replayActive);
+        const state = createWorkbenchDemoLayoutState({
+          activeSymbol,
+          activeTimeframe,
+          chartType: mainChartType,
+          chart,
+          rightSidebar: workspaceFocus.sidebarPanel,
+          bottomTab: workspaceFocus.bottomTab,
+        });
+        const raw = JSON.stringify(state, null, 2);
+        setStatusNotice({
+          tone: "success",
+          message: `Exported layout for ${state.activeSymbol}.`,
+        });
+        pushLog(log, `exported layout ${state.activeSymbol}`);
+        publishSnapshot();
+        return raw;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout export failed: ${message}`,
+        });
+        pushLog(log, `failed to export layout: ${message}`);
+        publishSnapshot();
+        return null;
+      }
+    },
+    async importLayout(raw) {
+      if (replayActive) {
+        setStatusNotice({
+          tone: "warning",
+          message: "Exit replay before importing a layout snapshot.",
+        });
+        pushLog(log, "failed to import layout: exit replay first");
+        publishSnapshot();
+        return false;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout import failed: ${message}`,
+        });
+        pushLog(log, `failed to import layout: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+
+      if (!isWorkbenchLayoutState(parsed)) {
+        setStatusNotice({
+          tone: "error",
+          message: "Layout import failed: unsupported snapshot schema.",
+        });
+        pushLog(log, "failed to import layout: unsupported snapshot schema");
+        publishSnapshot();
+        return false;
+      }
+
+      const state = parsed;
+      const chartType = toWorkbenchMainChartType(state.chartType);
+      if (chartType === null) {
+        setStatusNotice({
+          tone: "error",
+          message: `Layout import failed: unsupported chart type ${state.chartType}.`,
+        });
+        pushLog(log, `failed to import layout ${state.activeSymbol}: unsupported chart type ${state.chartType}`);
+        publishSnapshot();
+        return false;
+      }
+
+      const layoutOperation = ++layoutOperationSequence;
+      if (state.chartState !== null) {
+        suppressDefaultDrawingsNextRebuild = true;
+      }
+      const opened = await openWorkbenchDemoSymbol({
+        targetHostId: activeChartHostId,
+        symbol: state.activeSymbol,
+        timeframe: state.activeTimeframe,
+        source: "host",
+        chartType,
+        failureLogPrefix: `failed to import layout ${state.activeSymbol}`,
+      });
+      if (!opened) {
+        suppressDefaultDrawingsNextRebuild = false;
+        return false;
+      }
+      if (destroyed || layoutOperation !== layoutOperationSequence) {
+        return false;
+      }
+
+      chartHostRecords[activeChartHostId].symbol = state.activeSymbol;
+      chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
+      chartHostRecords[activeChartHostId].chartType = chartType;
+      chartHostRecords[activeChartHostId].chartState = state.chartState;
+      activeWorkspaceTabId = workspaceTabForPanel(state.panels.rightSidebar);
+
+      try {
+        if (state.chartState !== null) {
+          chart?.applyChartState(state.chartState);
+          refreshObjectTreeProjection();
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setStatusNotice({
+          tone: "error",
+          message: `Layout import failed: ${message}`,
+        });
+        pushLog(log, `failed to import layout ${state.activeSymbol}: ${message}`);
+        publishSnapshot();
+        return false;
+      }
+
+      setStatusNotice({
+        tone: "success",
+        message: `Imported layout for ${state.activeSymbol}.`,
+      });
+      pushLog(log, `imported layout ${state.activeSymbol}`);
+      publishSnapshot();
+      return true;
+    },
+    setWorkspaceTab,
     enterReplay,
     playReplay,
     pauseReplay,

@@ -7,6 +7,7 @@
   import type {
     ChartWorkbenchModel,
     WorkbenchCommandPaletteModel,
+    WorkbenchWorkspaceTabId,
   } from "$lib/chartx/public/workbench";
   import type {
     DemoAction,
@@ -42,6 +43,7 @@
   export let trendPreviewY2: number | null = null;
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
+  export let onSetWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void;
   export let onToggleCommandPalette: () => void;
   export let onCloseCommandPalette: () => void;
   export let onExecuteCommand: (commandId: string) => void | Promise<void>;
@@ -52,6 +54,8 @@
   export let onSaveLayout: () => void;
   export let onRestoreLayout: () => void;
   export let onResetLayout: () => void;
+  export let onImportLayout: () => void;
+  export let onExportLayout: () => void;
   export let onEnterReplay: () => void;
   export let onPlayReplay: () => void;
   export let onPauseReplay: () => void;
@@ -95,6 +99,7 @@
   let activeSlotView: SlotView | null = null;
   let activeGrid: SlotGridPosition = { col: 1, row: 1 };
   let replayState = snapshot.replay;
+  let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -116,6 +121,7 @@
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
   $: replayState = snapshot.replay;
   $: layoutPreset = workbench?.layout.preset ?? "single";
+  $: activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
       const host = slot.chartHostId
@@ -182,6 +188,47 @@
       <button on:click={onSaveLayout} disabled={replayState?.active}>Save layout</button>
       <button on:click={onRestoreLayout} disabled={replayState?.active}>Restore layout</button>
       <button on:click={onResetLayout} disabled={replayState?.active}>Reset layout</button>
+      <button
+        type="button"
+        data-layout-import-trigger
+        on:click={onImportLayout}
+        disabled={workbench?.layoutTransfer.importEnabled === false}
+      >{workbench?.layoutTransfer.importLabel ?? "Import layout"}</button>
+      <button
+        type="button"
+        data-layout-export-trigger
+        on:click={onExportLayout}
+        disabled={workbench?.layoutTransfer.exportEnabled === false}
+      >{workbench?.layoutTransfer.exportLabel ?? "Export layout"}</button>
+    </div>
+    {#if workbench?.statusNotice}
+      <div
+        class={`status-notice tone-${workbench.statusNotice.tone}`}
+        data-workbench-status={workbench.statusNotice.tone}
+      >
+        {workbench.statusNotice.message}
+      </div>
+    {/if}
+    <div class="workspace-tab-strip" data-workspace-tabs>
+      {#each workbench?.workspaceTabs ?? [] as tab (tab.id)}
+        <button
+          type="button"
+          class:active={tab.active}
+          data-workspace-tab={tab.id}
+          data-workspace-active={tab.active ? "true" : "false"}
+          data-workspace-panel={tab.sidebarPanel}
+          disabled={!tab.enabled}
+          aria-disabled={!tab.enabled}
+          on:click={() => {
+            if (!tab.enabled) {
+              return;
+            }
+            onSetWorkspaceTab(tab.id);
+          }}
+        >
+          {tab.label}
+        </button>
+      {/each}
     </div>
   </div>
 
@@ -393,6 +440,20 @@
       </div>
 
       <div class="workbench-footer">
+        <div class="bottom-tab-strip" data-workbench-bottom-tabs>
+          {#each workbench?.bottomPanel.tabs ?? [] as tab}
+            <button
+              type="button"
+              class:active={tab.id === workbench?.bottomPanel.activeTab}
+              data-bottom-tab={tab.id}
+              data-bottom-tab-active={tab.id === workbench?.bottomPanel.activeTab ? "true" : "false"}
+              disabled={!tab.enabled}
+              aria-disabled={!tab.enabled}
+            >
+              {tab.label}
+            </button>
+          {/each}
+        </div>
         <div class="time-strip">
           {#each workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as range}
             <button class:active={range === (workbench?.bottomPanel.activeRange ?? "1D")}>{range}</button>
@@ -437,7 +498,12 @@
     </div>
 
     <aside class="workbench-sidebar">
-      <section class="mini-card watch-card">
+      <section
+        class="mini-card watch-card"
+        class:active-focus={activeSidebarPanel === "watchlist"}
+        data-workbench-panel="watchlist"
+        data-workbench-panel-active={activeSidebarPanel === "watchlist" ? "true" : "false"}
+      >
         <div class="sidebar-head">
           <h4>{workbench?.rightSidebar.watchlist.title ?? "Watchlist"}</h4>
           <button>＋</button>
@@ -465,7 +531,12 @@
         </div>
       </section>
 
-      <section class="mini-card watch-card screener-card" data-workbench-panel="screener">
+      <section
+        class="mini-card watch-card screener-card"
+        class:active-focus={activeSidebarPanel === "screener"}
+        data-workbench-panel="screener"
+        data-workbench-panel-active={activeSidebarPanel === "screener" ? "true" : "false"}
+      >
         <div class="sidebar-head">
           <h4>{workbench?.rightSidebar.screener.title ?? "Screener"}</h4>
           <span data-screener-summary>{workbench?.rightSidebar.screener.summaryLabel ?? "0 matches"}</span>
@@ -522,7 +593,12 @@
         </div>
       </section>
 
-      <section class="mini-card watch-card alert-card">
+      <section
+        class="mini-card watch-card alert-card"
+        class:active-focus={activeSidebarPanel === "alerts"}
+        data-workbench-panel="alerts"
+        data-workbench-panel-active={activeSidebarPanel === "alerts" ? "true" : "false"}
+      >
         <div class="sidebar-head">
           <h4>{workbench?.rightSidebar.alerts.title ?? "Alerts"}</h4>
           <button
@@ -872,7 +948,12 @@
           </section>
         {/if}
 
-        <section class="mini-card object-tree-card" data-workbench-panel="object-tree">
+        <section
+          class="mini-card object-tree-card"
+          class:active-focus={activeSidebarPanel === "object-tree"}
+          data-workbench-panel="object-tree"
+          data-workbench-panel-active={activeSidebarPanel === "object-tree" ? "true" : "false"}
+        >
           <div class="sidebar-head">
             <h4>{workbench?.rightSidebar.objectTree.title ?? "Object Tree"}</h4>
             <span>{workbench?.rightSidebar.objectTree.summaryLabel ?? ""}</span>
@@ -1042,12 +1123,12 @@
 
   .workbench-card {
     position: relative;
-    grid-template-rows: var(--card-head-height, 38px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .command-palette-backdrop {
     position: absolute;
-    inset: 38px 0 0 0;
+    inset: 0;
     z-index: 11;
     border: 0;
     background: rgba(24, 24, 27, 0.14);
@@ -1162,12 +1243,13 @@
   }
 
   .compact-head {
-    height: var(--card-head-height, 38px);
-    align-items: center;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 8px;
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    padding: 0 10px;
+    padding: 10px;
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: rgba(248, 245, 237, 0.92);
   }
@@ -1187,12 +1269,16 @@
   .readout-bar::-webkit-scrollbar,
   .action-strip::-webkit-scrollbar,
   .mode-strip::-webkit-scrollbar,
-  .time-strip::-webkit-scrollbar {
+  .time-strip::-webkit-scrollbar,
+  .workspace-tab-strip::-webkit-scrollbar,
+  .bottom-tab-strip::-webkit-scrollbar {
     display: none;
   }
 
   .toolbar-strip button,
   .time-strip button,
+  .workspace-tab-strip button,
+  .bottom-tab-strip button,
   .sidebar-head button {
     flex: 0 0 auto;
     white-space: nowrap;
@@ -1229,6 +1315,49 @@
 
   .type-picker button.active,
   .action-btn.active {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .status-notice {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .status-notice.tone-success {
+    background: rgba(22, 163, 74, 0.12);
+    color: #166534;
+  }
+
+  .status-notice.tone-warning {
+    background: rgba(217, 119, 6, 0.14);
+    color: #92400e;
+  }
+
+  .status-notice.tone-error {
+    background: rgba(220, 38, 38, 0.12);
+    color: #991b1b;
+  }
+
+  .status-notice.tone-info {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+  }
+
+  .workspace-tab-strip,
+  .bottom-tab-strip {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .workspace-tab-strip button.active,
+  .bottom-tab-strip button.active {
     background: #18181b;
     color: #fffdf8;
   }
@@ -1511,12 +1640,13 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 28px auto var(--action-strip-height, 40px);
+    grid-template-rows: 28px 28px auto var(--action-strip-height, 40px);
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
   }
 
+  .bottom-tab-strip,
   .time-strip,
   .mode-strip,
   .action-strip {
@@ -1528,6 +1658,10 @@
     overflow-y: hidden;
     scrollbar-width: none;
     padding: 0 10px;
+  }
+
+  .bottom-tab-strip {
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
   }
 
   .time-strip {
@@ -1617,6 +1751,11 @@
     border-bottom: 1px solid rgba(24, 24, 27, 0.08);
     background: transparent;
     box-shadow: none;
+  }
+
+  .mini-card.active-focus {
+    background: rgba(255, 255, 255, 0.58);
+    box-shadow: inset 3px 0 0 #18181b;
   }
 
   .watch-head,

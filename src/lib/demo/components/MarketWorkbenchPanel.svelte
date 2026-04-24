@@ -364,6 +364,11 @@
     };
   }
 
+  function syncImportExpressionToBuilder(): void {
+    customScriptImportError = null;
+    customScriptImportExpressionInput = formatWorkbenchCustomScriptExpressionText(customScriptExpression);
+  }
+
   function importCustomScriptExpression(): void {
     const parsed = parseWorkbenchCustomScriptExpressionText(customScriptImportExpressionInput);
     if (!parsed.ok) {
@@ -1180,6 +1185,15 @@
                 on:click={importCustomScriptExpression}
               >
                 Apply expression
+              </button>
+              <button
+                type="button"
+                class="indicator-secondary-btn"
+                data-custom-script-import-reset
+                disabled={customScriptImportExpressionInput === formatWorkbenchCustomScriptExpressionText(customScriptExpression)}
+                on:click={syncImportExpressionToBuilder}
+              >
+                Use builder expression
               </button>
             </div>
             {#if customScriptImportError}

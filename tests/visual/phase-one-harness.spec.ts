@@ -724,6 +724,31 @@ test("script library: active custom scripts surface in-use state and fence edit/
   await expect(workbench.locator('[data-custom-script-duplicate="custom-script-1"]')).toBeEnabled();
 });
 
+test("script library: import field can resync to the current builder expression", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator("[data-custom-script-import-expression]").fill("close - open");
+  await expect(workbench.locator("[data-custom-script-import-reset]")).toBeEnabled();
+
+  await workbench.locator("[data-custom-script-import-reset]").click();
+  await expect(workbench.locator("[data-custom-script-import-expression]")).toHaveValue(
+    "sma(close, length)",
+  );
+  await expect(workbench.locator("[data-custom-script-import-reset]")).toBeDisabled();
+
+  await workbench.locator('[data-custom-script-node-kind="root"]').selectOption("subtract");
+  await expect(workbench.locator("[data-custom-script-expression-preview]")).toContainText(
+    "subtract(close, sma(close, length))",
+  );
+  await expect(workbench.locator("[data-custom-script-import-reset]")).toBeEnabled();
+
+  await workbench.locator("[data-custom-script-import-reset]").click();
+  await expect(workbench.locator("[data-custom-script-import-expression]")).toHaveValue(
+    "subtract(close, sma(close, length))",
+  );
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

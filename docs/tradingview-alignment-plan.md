@@ -688,6 +688,7 @@ Progress checklist:
 - [x] Invalid custom-script length inputs are blocked in the Script Library before save/add
 - [x] Script Library can import supported expression text into the AST builder
 - [x] Saved custom-script rows surface in-use state and fence edit/delete affordances
+- [x] Script Library import text can resync to the current builder expression
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -752,6 +753,9 @@ Implementation note:
 - `Script Library In-Use Fence V0` brings the shell back in line with the
   existing runtime guard: saved custom-script rows now publish `inUse` state
   and disable edit/delete affordances while that script is active on a chart.
+- `Script Library Import Reset V0` closes a smaller authoring drift gap: the
+  one-shot import field can now be pulled back to the current canonical builder
+  expression without overwriting the builder itself.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

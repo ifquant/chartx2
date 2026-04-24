@@ -5,8 +5,11 @@ import {
   createWorkbenchCustomScriptDefinition,
   createWorkbenchCustomScriptDraftFromDefinition,
   executeWorkbenchScript,
+  formatWorkbenchCustomScriptExpressionText,
   getWorkbenchScriptDefinition,
   getWorkbenchScriptDefinitionFromLibrary,
+  parseWorkbenchCustomScriptExpressionText,
+  validateWorkbenchCustomScriptDraft,
   WORKBENCH_SCRIPT_LIBRARY,
 } from "../../src/lib/chartx/public/workbench-scripts";
 
@@ -32,7 +35,7 @@ describe("workbench script runtime", () => {
       label: "My Close SMA",
       shortLabel: "My SMA",
       description: "Saved close-price SMA.",
-      field: "close",
+      expressionText: "sma(close, length)",
       placement: "separate-pane",
       defaultLength: 9,
     });
@@ -53,9 +56,34 @@ describe("workbench script runtime", () => {
       label: "Scripted SMA 20",
       shortLabel: "Script SMA",
       description: "Close-price SMA executed through the local script runtime.",
-      field: "close",
+      expressionText: "sma(close, length)",
       placement: "separate-pane",
       defaultLength: 20,
+    });
+  });
+
+  it("formats and parses the constrained custom script expression text", () => {
+    expect(formatWorkbenchCustomScriptExpressionText("hlc3")).toBe("sma(hlc3, length)");
+    expect(parseWorkbenchCustomScriptExpressionText(" sma(close, length) ")).toEqual({
+      ok: true,
+      field: "close",
+    });
+  });
+
+  it("rejects unsupported custom script expressions during draft validation", () => {
+    expect(
+      validateWorkbenchCustomScriptDraft({
+        label: "Spread",
+        shortLabel: "Spread",
+        description: "Unsupported subtraction expression.",
+        expressionText: "close - open",
+        placement: "separate-pane",
+        defaultLength: 5,
+      }),
+    ).toEqual({
+      ok: false,
+      message:
+        "Expression must match sma(<field>, length), where <field> is one of open, high, low, close, hl2, hlc3.",
     });
   });
 

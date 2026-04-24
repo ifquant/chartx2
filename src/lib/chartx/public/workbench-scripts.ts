@@ -55,10 +55,30 @@ export interface WorkbenchCustomScriptDraft {
   label: string;
   shortLabel: string;
   description: string;
-  field: WorkbenchScriptField;
+  expressionText: string;
   placement: WorkbenchScriptPlacement;
   defaultLength: number;
 }
+
+export type WorkbenchCustomScriptExpressionParseResult =
+  | {
+      ok: true;
+      field: WorkbenchScriptField;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export type WorkbenchCustomScriptDraftValidationResult =
+  | {
+      ok: true;
+      field: WorkbenchScriptField;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
 
 export type WorkbenchScriptExecutionResult =
   | {
@@ -80,6 +100,16 @@ export interface WorkbenchScriptExecutionInput {
 }
 
 const DEFAULT_MAX_OPERATIONS = 100_000;
+const WORKBENCH_SCRIPT_FIELDS: readonly WorkbenchScriptField[] = [
+  "open",
+  "high",
+  "low",
+  "close",
+  "hl2",
+  "hlc3",
+] as const;
+const CUSTOM_SCRIPT_EXPRESSION_PATTERN =
+  /^\s*sma\s*\(\s*(open|high|low|close|hl2|hlc3)\s*,\s*length\s*\)\s*$/;
 
 export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
   {
@@ -313,10 +343,64 @@ export function getWorkbenchScriptDefinitionFromLibrary(
   return definitions.find((definition) => definition.id === id) ?? null;
 }
 
+export function formatWorkbenchCustomScriptExpressionText(field: WorkbenchScriptField): string {
+  return `sma(${field}, length)`;
+}
+
+export function parseWorkbenchCustomScriptExpressionText(
+  expressionText: string,
+): WorkbenchCustomScriptExpressionParseResult {
+  const match = CUSTOM_SCRIPT_EXPRESSION_PATTERN.exec(expressionText);
+  if (match === null) {
+    return {
+      ok: false,
+      message: `Expression must match sma(<field>, length), where <field> is one of ${WORKBENCH_SCRIPT_FIELDS.join(", ")}.`,
+    };
+  }
+
+  const field = match[1];
+  if (!WORKBENCH_SCRIPT_FIELDS.includes(field as WorkbenchScriptField)) {
+    return {
+      ok: false,
+      message: `Unknown field ${field}.`,
+    };
+  }
+
+  return {
+    ok: true,
+    field: field as WorkbenchScriptField,
+  };
+}
+
+export function validateWorkbenchCustomScriptDraft(
+  draft: WorkbenchCustomScriptDraft,
+): WorkbenchCustomScriptDraftValidationResult {
+  if (draft.label.trim().length === 0 || draft.shortLabel.trim().length === 0 || draft.description.trim().length === 0) {
+    return {
+      ok: false,
+      message: "Custom scripts require label, short label, and description.",
+    };
+  }
+
+  if (!Number.isInteger(draft.defaultLength) || draft.defaultLength < 2 || draft.defaultLength > 60) {
+    return {
+      ok: false,
+      message: "Custom scripts require a default length between 2 and 60.",
+    };
+  }
+
+  return parseWorkbenchCustomScriptExpressionText(draft.expressionText);
+}
+
 export function createWorkbenchCustomScriptDefinition(
   id: string,
   draft: WorkbenchCustomScriptDraft,
 ): WorkbenchScriptDefinition {
+  const parsed = parseWorkbenchCustomScriptExpressionText(draft.expressionText);
+  if (!parsed.ok) {
+    throw new Error(parsed.message);
+  }
+
   return {
     id,
     version: 1,
@@ -339,7 +423,7 @@ export function createWorkbenchCustomScriptDefinition(
       kind: "sma",
       input: {
         kind: "input",
-        field: draft.field,
+        field: parsed.field,
       },
       length: {
         kind: "numeric-input",
@@ -367,7 +451,7 @@ export function createWorkbenchCustomScriptDraftFromDefinition(
     label: definition.label,
     shortLabel: definition.shortLabel,
     description: definition.description,
-    field: definition.expression.input.field,
+    expressionText: formatWorkbenchCustomScriptExpressionText(definition.expression.input.field),
     placement: definition.placement,
     defaultLength,
   };

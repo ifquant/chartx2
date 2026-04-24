@@ -92,7 +92,7 @@ const customScripts = [
     label: "My Close SMA",
     shortLabel: "My SMA",
     description: "Saved close-price SMA.",
-    field: "close",
+    expressionText: "sma(close, length)",
     placement: "separate-pane",
     defaultLength: 9,
   }),

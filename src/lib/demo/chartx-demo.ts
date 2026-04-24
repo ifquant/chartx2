@@ -65,9 +65,9 @@ import {
   createWorkbenchCustomScriptDraftFromDefinition,
   executeWorkbenchScript,
   getWorkbenchScriptDefinitionFromLibrary,
+  validateWorkbenchCustomScriptDraft,
   type WorkbenchCustomScriptDraft,
   type WorkbenchScriptDefinition,
-  type WorkbenchScriptField,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
 import {
@@ -145,7 +145,7 @@ export type DemoCustomScriptLibraryEntry = {
   label: string;
   shortLabel: string;
   description: string;
-  field: WorkbenchScriptField;
+  expressionText: string;
   placement: WorkbenchIndicatorCatalogEntry["placement"];
   defaultLength: number;
 };
@@ -1250,24 +1250,10 @@ export function mountWorkbenchDemo(
     source: "custom",
   });
 
-  const extractCustomScriptField = (definition: WorkbenchScriptDefinition): WorkbenchScriptField | null => {
-    const expression = definition.expression;
-    if (expression.kind !== "sma" || expression.input.kind !== "input") {
-      return null;
-    }
-    return expression.input.field;
-  };
-
-  const extractCustomScriptDefaultLength = (definition: WorkbenchScriptDefinition): number | null => {
-    const lengthInput = definition.inputs?.find((input) => input.id === "length");
-    return typeof lengthInput?.defaultValue === "number" ? lengthInput.defaultValue : null;
-  };
-
   const summarizeCustomScripts = (): readonly DemoCustomScriptLibraryEntry[] =>
     customScriptLibrary.flatMap((definition) => {
-      const field = extractCustomScriptField(definition);
-      const defaultLength = extractCustomScriptDefaultLength(definition);
-      if (field === null || defaultLength === null) {
+      const draft = createWorkbenchCustomScriptDraftFromDefinition(definition);
+      if (draft === null) {
         return [];
       }
       return [
@@ -1276,9 +1262,9 @@ export function mountWorkbenchDemo(
           label: definition.label,
           shortLabel: definition.shortLabel,
           description: definition.description,
-          field,
+          expressionText: draft.expressionText,
           placement: definition.placement,
-          defaultLength,
+          defaultLength: draft.defaultLength,
         } satisfies DemoCustomScriptLibraryEntry,
       ];
     });
@@ -3779,25 +3765,13 @@ export function mountWorkbenchDemo(
       return runCustomScriptFromLibrary(scriptId, inputValues);
     },
     saveCustomScript(scriptId, draft) {
-      if (
-        draft.label.trim().length === 0 ||
-        draft.shortLabel.trim().length === 0 ||
-        draft.description.trim().length === 0
-      ) {
+      const validation = validateWorkbenchCustomScriptDraft(draft);
+      if (!validation.ok) {
         setStatusNotice({
           tone: "error",
-          message: "Custom scripts require label, short label, and description.",
+          message: validation.message,
         });
-        pushLog(log, "failed to save custom script: missing required fields");
-        publishSnapshot();
-        return false;
-      }
-      if (!Number.isInteger(draft.defaultLength) || draft.defaultLength < 2 || draft.defaultLength > 60) {
-        setStatusNotice({
-          tone: "error",
-          message: "Custom scripts require a default length between 2 and 60.",
-        });
-        pushLog(log, "failed to save custom script: invalid default length");
+        pushLog(log, `failed to save custom script: ${validation.message}`);
         publishSnapshot();
         return false;
       }

@@ -475,15 +475,16 @@
       label: string;
       shortLabel: string;
       description: string;
-      field: "open" | "high" | "low" | "close" | "hl2" | "hlc3";
+      expressionText: string;
       placement: "overlay" | "separate-pane";
       defaultLength: number;
     },
-  ): void {
+  ): boolean {
     const saved = workbenchController?.saveCustomScript?.(scriptId, draft);
     if (saved) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
+    return saved ?? false;
   }
 
   function deleteWorkbenchCustomScript(scriptId: string): void {

@@ -718,6 +718,12 @@ Implementation note:
   presets, saved custom scripts launch directly from the Script Library itself,
   and restore/import now reattach custom scripted indicators by `scriptId`
   instead of depending on synthetic catalog entries.
+- `Script Expression Editor V0` starts the deferred editor line without
+  widening the runtime boundary: saved custom scripts are now authored through
+  a constrained `Expression` editor (`sma(<field>, length)`), validation lives
+  in the shared workbench-script helpers, and the Script Library only clears
+  the local draft after a confirmed save instead of resetting on a no-op
+  callback.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
   exported layout/chart state, but the workbench layout schema now carries
   scripted indicator descriptors separately so save/restore/export/import can

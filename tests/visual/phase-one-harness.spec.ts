@@ -46,7 +46,7 @@ async function saveCustomScript(
     label: string;
     shortLabel: string;
     description: string;
-    field: "open" | "high" | "low" | "close" | "hl2" | "hlc3";
+    expressionText: string;
     placement: "overlay" | "separate-pane";
     defaultLength: string;
   },
@@ -55,7 +55,7 @@ async function saveCustomScript(
   await workbench.locator('[data-custom-script-field="label"]').fill(input.label);
   await workbench.locator('[data-custom-script-field="short-label"]').fill(input.shortLabel);
   await workbench.locator('[data-custom-script-field="description"]').fill(input.description);
-  await workbench.locator('[data-custom-script-field="field"]').selectOption(input.field);
+  await workbench.locator('[data-custom-script-field="expression"]').fill(input.expressionText);
   await workbench.locator('[data-custom-script-field="placement"]').selectOption(input.placement);
   await workbench.locator('[data-custom-script-field="default-length"]').fill(input.defaultLength);
   await workbench.locator("[data-custom-script-save]").click();
@@ -76,6 +76,12 @@ async function clickWorkbenchButton(page: Page, selector: string, missingMessage
     }
     node.click();
   }, missingMessage);
+}
+
+async function readExportedLayoutRaw(page: Page): Promise<string> {
+  const exportField = page.locator("[data-layout-export-raw]");
+  await expect(exportField).not.toHaveValue("");
+  return exportField.inputValue();
 }
 
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
@@ -342,7 +348,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
   const baselineDownloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
   await baselineDownloadPromise;
-  const baselineExportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const baselineExportedRaw = await readExportedLayoutRaw(page);
   const baselineExported = JSON.parse(baselineExportedRaw) as {
     chartState: { panes: unknown[] } | null;
   };
@@ -358,7 +364,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
   const downloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
   const download = await downloadPromise;
-  const exportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const exportedRaw = await readExportedLayoutRaw(page);
   const exported = JSON.parse(exportedRaw) as {
     activeSymbol: string;
     scriptedIndicators?: {
@@ -439,7 +445,7 @@ test("script library: custom authored scripts round-trip through layout export a
     label: "My Close SMA",
     shortLabel: "My SMA",
     description: "Saved close-price SMA.",
-    field: "close",
+    expressionText: "sma(close, length)",
     placement: "separate-pane",
     defaultLength: "9",
   });
@@ -457,7 +463,7 @@ test("script library: custom authored scripts round-trip through layout export a
   const downloadPromise = page.waitForEvent("download");
   await workbench.locator("[data-layout-export-trigger]").click();
   await downloadPromise;
-  const exportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
+  const exportedRaw = await readExportedLayoutRaw(page);
   const exported = JSON.parse(exportedRaw) as {
     customScripts?: { id: string; label: string }[];
     scriptedIndicators?: { label: string; scriptId: string; inputValues?: Record<string, number> }[];

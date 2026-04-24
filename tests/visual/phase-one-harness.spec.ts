@@ -290,6 +290,43 @@ test("layout import/export: export downloads a focused snapshot and import resto
   );
 });
 
+test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("storage disabled for test");
+      },
+    });
+  });
+
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await expect(workbench.locator('[data-adapter-status="layout-persistence"]')).toHaveAttribute(
+    "data-adapter-state",
+    "missing",
+  );
+  await expect(workbench.locator('[data-adapter-status="alerts-persistence"]')).toHaveAttribute(
+    "data-adapter-state",
+    "missing",
+  );
+  await expect(workbench.locator('[data-adapter-status="market-data"]')).toHaveAttribute(
+    "data-adapter-state",
+    "local",
+  );
+  await expect(workbench.locator('[data-workbench-status="warning"]')).toContainText(
+    "Local layout save/restore is unavailable",
+  );
+
+  const toolbar = workbench.locator(".toolbar-strip");
+  await expect(toolbar.getByRole("button", { name: "Save layout", exact: true })).toBeDisabled();
+  await expect(toolbar.getByRole("button", { name: "Restore layout", exact: true })).toBeDisabled();
+  await expect(toolbar.getByRole("button", { name: "Reset layout", exact: true })).toBeEnabled();
+});
+
 test("workbench keeps a deterministic narrow baseline", async ({ page }) => {
   await page.setViewportSize({ width: 840, height: 1100 });
   await page.goto("/");

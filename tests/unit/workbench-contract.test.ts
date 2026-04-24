@@ -124,6 +124,7 @@ describe("chart workbench contract", () => {
       exportEnabled: false,
     });
     expect(model.statusNotice).toBeNull();
+    expect(model.adapterStatus).toEqual([]);
   });
 
   it("allows the shell to opt into additional enabled bottom tabs", () => {
@@ -293,6 +294,14 @@ describe("chart workbench contract", () => {
         tone: "warning",
         message: "Local layout save is unavailable.",
       },
+      adapterStatus: [
+        {
+          id: "layout-persistence",
+          label: "Layout persistence",
+          state: "missing",
+          detailLabel: "No provider attached",
+        },
+      ],
     });
 
     expect(model.activeRightSidebarPanel).toBe("object-tree");
@@ -324,6 +333,14 @@ describe("chart workbench contract", () => {
       tone: "warning",
       message: "Local layout save is unavailable.",
     });
+    expect(model.adapterStatus).toEqual([
+      {
+        id: "layout-persistence",
+        label: "Layout persistence",
+        state: "missing",
+        detailLabel: "No provider attached",
+      },
+    ]);
   });
 
   it("preserves typed watchlist numeric fields even when labels are localized presentation strings", () => {

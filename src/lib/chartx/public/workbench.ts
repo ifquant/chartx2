@@ -196,6 +196,13 @@ export interface WorkbenchStatusNoticeModel {
   message: string;
 }
 
+export interface WorkbenchAdapterStatusModel {
+  id: string;
+  label: string;
+  state: "live" | "local" | "missing" | "degraded";
+  detailLabel: string;
+}
+
 export interface ChartWorkbenchModel {
   title: string;
   toolbar: WorkbenchToolbarModel;
@@ -209,6 +216,7 @@ export interface ChartWorkbenchModel {
   activeRightSidebarPanel: WorkbenchSidebarPanelId;
   layoutTransfer: WorkbenchLayoutTransferModel;
   statusNotice: WorkbenchStatusNoticeModel | null;
+  adapterStatus: readonly WorkbenchAdapterStatusModel[];
 }
 
 export interface MarketDataSearchResult {
@@ -303,6 +311,7 @@ export interface ChartWorkbenchModelInput {
   activeRightSidebarPanel?: WorkbenchSidebarPanelId;
   layoutTransfer?: WorkbenchLayoutTransferModel;
   statusNotice?: WorkbenchStatusNoticeModel | null;
+  adapterStatus?: readonly WorkbenchAdapterStatusModel[];
 }
 
 const DEFAULT_RANGES = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as const;
@@ -499,5 +508,6 @@ export function createChartWorkbenchModel(
       exportEnabled: false,
     },
     statusNotice: input.statusNotice ?? null,
+    adapterStatus: input.adapterStatus ?? [],
   };
 }

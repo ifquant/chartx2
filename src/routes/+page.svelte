@@ -163,8 +163,14 @@
   let workbenchToolPointer: { x: number; y: number } | null = null;
 
   onMount(() => {
-    workbenchAlertsProvider = createLocalStorageWorkbenchAlertsProvider(window.localStorage);
-    workbenchPersistenceProvider = createLocalStorageWorkbenchLayoutProvider(window.localStorage);
+    try {
+      const storage = window.localStorage;
+      workbenchAlertsProvider = createLocalStorageWorkbenchAlertsProvider(storage);
+      workbenchPersistenceProvider = createLocalStorageWorkbenchLayoutProvider(storage);
+    } catch {
+      workbenchAlertsProvider = undefined;
+      workbenchPersistenceProvider = undefined;
+    }
     void mountWorkbenchWhenReady();
 
     return () => {

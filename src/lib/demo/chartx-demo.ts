@@ -27,6 +27,7 @@ import {
 import {
   createChartWorkbenchModel,
   type AlertSummaryModel,
+  type WorkbenchAdapterStatusModel,
   type ChartWorkbenchModel,
   type ObjectTreePanelModel,
   type ScreenerPanelModel,
@@ -1059,6 +1060,29 @@ export function mountWorkbenchDemo(
     exportEnabled: !replayState.active,
   });
 
+  const buildAdapterStatus = (): readonly WorkbenchAdapterStatusModel[] => [
+    {
+      id: "market-data",
+      label: "Market data",
+      state: hasInjectedHostAdapter ? "live" : "local",
+      detailLabel: hasInjectedHostAdapter ? "Host adapter attached" : "Fixture adapter",
+    },
+    {
+      id: "layout-persistence",
+      label: "Layout persistence",
+      state: options.persistenceProvider === undefined ? "missing" : "local",
+      detailLabel:
+        options.persistenceProvider === undefined ? "No provider attached" : "Local storage provider",
+    },
+    {
+      id: "alerts-persistence",
+      label: "Alerts persistence",
+      state: options.alertsProvider === undefined ? "missing" : "local",
+      detailLabel:
+        options.alertsProvider === undefined ? "No provider attached" : "Local storage provider",
+    },
+  ];
+
   const resetReplayState = () => {
     clearReplayTimer();
     replayActive = false;
@@ -1480,6 +1504,7 @@ export function mountWorkbenchDemo(
       activeRightSidebarPanel: workspaceFocus.sidebarPanel,
       layoutTransfer: buildLayoutTransferModel(replayState),
       statusNotice: effectiveStatusNotice,
+      adapterStatus: buildAdapterStatus(),
     });
 
     publish({

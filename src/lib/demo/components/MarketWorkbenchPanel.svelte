@@ -118,6 +118,13 @@
     return "action-btn";
   }
 
+  function layoutPersistenceMissing(): boolean {
+    return (
+      workbench?.adapterStatus.find((adapter) => adapter.id === "layout-persistence")?.state ===
+      "missing"
+    );
+  }
+
   $: objectTreeNodes = workbench?.rightSidebar.objectTree.nodes ?? [];
   $: replayState = snapshot.replay;
   $: layoutPreset = workbench?.layout.preset ?? "single";
@@ -185,8 +192,8 @@
         aria-controls="workbench-command-palette"
         on:click={onToggleCommandPalette}
       >Commands</button>
-      <button on:click={onSaveLayout} disabled={replayState?.active}>Save layout</button>
-      <button on:click={onRestoreLayout} disabled={replayState?.active}>Restore layout</button>
+      <button on:click={onSaveLayout} disabled={replayState?.active || layoutPersistenceMissing()}>Save layout</button>
+      <button on:click={onRestoreLayout} disabled={replayState?.active || layoutPersistenceMissing()}>Restore layout</button>
       <button on:click={onResetLayout} disabled={replayState?.active}>Reset layout</button>
       <button
         type="button"
@@ -718,6 +725,25 @@
             <article>
               <small>{metric.label}</small>
               <strong>{metric.value}</strong>
+            </article>
+          {/each}
+        </div>
+      </section>
+
+      <section class="mini-card adapter-card" data-workbench-panel="adapters">
+        <div class="sidebar-head">
+          <h4>Adapters</h4>
+          <span>{workbench?.adapterStatus.length ?? 0} tracked</span>
+        </div>
+        <div class="adapter-list">
+          {#each workbench?.adapterStatus ?? [] as adapter}
+            <article
+              class={`adapter-row state-${adapter.state}`}
+              data-adapter-status={adapter.id}
+              data-adapter-state={adapter.state}
+            >
+              <strong>{adapter.label}</strong>
+              <span>{adapter.detailLabel}</span>
             </article>
           {/each}
         </div>
@@ -1922,6 +1948,37 @@
     align-items: center;
     color: rgba(24, 24, 27, 0.62);
     font-size: 0.78rem;
+  }
+
+  .adapter-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .adapter-row {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .adapter-row strong {
+    color: #18181b;
+  }
+
+  .adapter-row span {
+    color: rgba(24, 24, 27, 0.62);
+    font-size: 0.8rem;
+  }
+
+  .adapter-row.state-missing {
+    background: rgba(217, 119, 6, 0.12);
+  }
+
+  .adapter-row.state-live {
+    background: rgba(37, 99, 235, 0.1);
   }
 
   .replay-summary {

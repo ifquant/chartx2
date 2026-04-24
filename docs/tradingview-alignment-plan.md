@@ -579,7 +579,7 @@ Progress checklist:
 - [x] Workspace focus tabs
 - [x] Layout import/export buttons
 - [x] Missing adapter status surface for local persistence/providers
-- [ ] Broader missing-data empty/error states across workstation panels
+- [x] Broader missing-data empty/error states across workstation panels
 - [ ] Full multi-document workspace tabs
 
 Implementation note:
@@ -613,6 +613,11 @@ Implementation note:
   layout persistence, and alerts persistence. When storage-backed providers are
   missing, the workbench shows explicit `missing` adapter state and disables
   save/restore actions instead of failing only through activity-log messages.
+- Watchlist, screener, alerts, and object-tree panels now all carry explicit
+  empty-state copy instead of silently rendering blank lists. The demo runtime
+  publishes provider-aware labels such as `Local alerts persistence
+  unavailable.` and stops seeding fake demo alerts when no alerts provider is
+  attached, so the shell reflects real workstation capability.
 - This is intentionally still a V0 workstation shell: there is no fuzzy search,
   no free-text command parsing, no multi-step command routing, no cloud
   workspace sync, and no full multi-document tab model yet.

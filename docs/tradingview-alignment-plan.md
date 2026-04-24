@@ -580,7 +580,7 @@ Progress checklist:
 - [x] Layout import/export buttons
 - [x] Missing adapter status surface for local persistence/providers
 - [x] Broader missing-data empty/error states across workstation panels
-- [ ] Full multi-document workspace tabs
+- [x] Full multi-document workspace tabs
 
 Implementation note:
 
@@ -601,14 +601,17 @@ Implementation note:
   demo controller owns workspace focus, layout JSON import/export, and
   controller-backed success/error reporting, while `+page.svelte` stays a thin
   browser I/O shell for file download/upload only.
-- In the current demo, workspace tabs are focus tabs rather than a full
-  multi-document workspace system. They switch the emphasized sidebar panel and
-  associated bottom-tab focus, and those selections now round-trip through
-  saved/exported layout snapshots.
+- The shell now also carries a real multi-document workspace-tab model instead
+  of only four fixed focus toggles. Each tab has its own id, label, view kind,
+  symbol/timeframe labels, closeability, and persisted layout snapshot. Tab
+  switches re-open the corresponding chart document, and create/close actions
+  stay inside the existing thin shell boundary.
 - Layout import/export is local JSON only. Export downloads the current focused
   layout snapshot, and import validates the same `WorkbenchLayoutState`
   contract before applying it back through the existing symbol-open and chart
-  restore path.
+  restore path. The same contract now optionally carries a workspace-documents
+  block, so local save/restore/import/export round-trips the entire workspace
+  tab set instead of only the active tab.
 - The shell now also exposes persistent adapter-status rows for market data,
   layout persistence, and alerts persistence. When storage-backed providers are
   missing, the workbench shows explicit `missing` adapter state and disables
@@ -620,7 +623,7 @@ Implementation note:
   attached, so the shell reflects real workstation capability.
 - This is intentionally still a V0 workstation shell: there is no fuzzy search,
   no free-text command parsing, no multi-step command routing, no cloud
-  workspace sync, and no full multi-document tab model yet.
+  workspace sync, and no cloud/shared workspace document model yet.
 
 ### Layer 2 Gate
 

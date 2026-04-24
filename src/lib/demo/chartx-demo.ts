@@ -49,6 +49,7 @@ import {
   normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
   type WorkbenchLayoutPersistenceProvider,
   type WorkbenchLayoutScriptedIndicatorDescriptor,
+  type WorkbenchLayoutScriptedStudyDescriptor,
   type WorkbenchLayoutState,
 } from "$lib/chartx/public/workbench-layout";
 import {
@@ -290,7 +291,7 @@ type DemoWorkspaceDocument = {
   timeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
-  scriptIndicators: readonly DemoActiveIndicator[];
+  scriptIndicators: readonly WorkbenchLayoutScriptedStudyDescriptor[];
   panels: DemoWorkspaceFocus;
 };
 type DemoScreenerCandidate = {
@@ -306,7 +307,7 @@ type DemoWorkbenchChartHostRecord = {
   timeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
-  scriptIndicators: readonly DemoActiveIndicator[];
+  scriptIndicators: readonly WorkbenchLayoutScriptedStudyDescriptor[];
 };
 
 type WorkbenchObjectTreeInput = {
@@ -924,7 +925,7 @@ export function mountWorkbenchDemo(
     timeframe: string;
     chartType?: WorkbenchMainChartType;
     chartState?: PhaseOneChartStateSnapshot | null;
-    scriptIndicators?: readonly DemoActiveIndicator[];
+    scriptIndicators?: readonly WorkbenchLayoutScriptedStudyDescriptor[];
   }): DemoWorkspaceDocument => ({
     id: `workspace-${++workspaceTabSequence}`,
     label: input.label,
@@ -1053,7 +1054,7 @@ export function mountWorkbenchDemo(
     }
     try {
       record.chartState = capturePersistedChartState();
-      record.scriptIndicators = persistedScriptIndicators();
+      record.scriptIndicators = persistedScriptedStudyDescriptors();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       pushLog(log, `failed to snapshot host ${hostId}: ${message}`);
@@ -1352,29 +1353,18 @@ export function mountWorkbenchDemo(
   const serializeCustomScripts = (): readonly WorkbenchScriptDefinition[] =>
     customScriptLibrary.map((definition) => ({ ...definition }));
 
-  const materializeScriptIndicators = (
-    indicators: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
-  ): DemoActiveIndicator[] =>
-    (normalizeWorkbenchLayoutScriptedIndicatorDescriptors(indicators) ?? []).map((indicator) => ({
-      id: indicator.id,
-      label: indicator.label,
-      kind: "script",
-      placement: indicator.placement,
-      scriptId: indicator.scriptId,
-      inputValues: indicator.inputValues,
-    }));
+  const normalizePersistedScriptedStudyDescriptors = (
+    indicators: readonly WorkbenchLayoutScriptedStudyDescriptor[] | undefined,
+  ): readonly WorkbenchLayoutScriptedStudyDescriptor[] =>
+    normalizeWorkbenchLayoutScriptedIndicatorDescriptors(indicators) ?? [];
 
-  const persistedScriptIndicators = (): DemoActiveIndicator[] =>
-    activeIndicators
-      .filter((indicator) => indicator.kind === "script" && indicator.scriptId !== undefined)
-      .map((indicator) => ({
-        id: indicator.id,
-        label: indicator.label,
-        kind: indicator.kind,
-        placement: indicator.placement,
-        scriptId: indicator.scriptId,
-        inputValues: indicator.inputValues,
-      }));
+  const persistedScriptedStudyDescriptors = (): readonly WorkbenchLayoutScriptedStudyDescriptor[] =>
+    serializeScriptIndicators(
+      activeIndicators.filter(
+        (indicator): indicator is DemoActiveIndicator & { kind: "script"; scriptId: string } =>
+          indicator.kind === "script" && indicator.scriptId !== undefined,
+      ),
+    );
 
   const materializeCustomScripts = (
     definitions: readonly WorkbenchScriptDefinition[] | undefined,
@@ -1412,7 +1402,7 @@ export function mountWorkbenchDemo(
       timeframe: activeTimeframe,
       chartType: mainChartType,
       chartState: captureChartState ? capturePersistedChartState() : currentDocument.chartState,
-      scriptIndicators: persistedScriptIndicators(),
+      scriptIndicators: persistedScriptedStudyDescriptors(),
       panels: workspaceFocusForView(currentDocument.viewId, replayActive),
     });
   };
@@ -1427,7 +1417,7 @@ export function mountWorkbenchDemo(
       activeTimeframe: document.timeframe,
       chartType: document.chartType,
       chartState: document.chartState,
-      scriptedIndicators: serializeScriptIndicators(document.scriptIndicators),
+      scriptedIndicators: normalizePersistedScriptedStudyDescriptors(document.scriptIndicators),
       panels: {
         rightSidebar: document.panels.sidebarPanel,
         bottomTab: document.panels.bottomTab,
@@ -1447,7 +1437,7 @@ export function mountWorkbenchDemo(
           timeframe: state.activeTimeframe,
           chartType: toWorkbenchMainChartType(state.chartType) ?? "candlestick",
           chartState: state.chartState,
-          scriptIndicators: materializeScriptIndicators(state.scriptedIndicators),
+          scriptIndicators: normalizePersistedScriptedStudyDescriptors(state.scriptedIndicators),
         }),
       ];
       activeWorkspaceTabId = workspaceDocuments[0]!.id;
@@ -1462,7 +1452,7 @@ export function mountWorkbenchDemo(
       timeframe: tab.activeTimeframe,
       chartType: toWorkbenchMainChartType(tab.chartType) ?? "candlestick",
       chartState: tab.chartState,
-      scriptIndicators: materializeScriptIndicators(tab.scriptedIndicators),
+      scriptIndicators: normalizePersistedScriptedStudyDescriptors(tab.scriptedIndicators),
       panels: {
         sidebarPanel: tab.panels.rightSidebar,
         bottomTab: tab.panels.bottomTab === "performance-link" || tab.panels.bottomTab === "custom"
@@ -2285,7 +2275,7 @@ export function mountWorkbenchDemo(
         chart?.applyChartState(targetDocument.chartState);
         refreshObjectTreeProjection();
       }
-      restorePersistedScriptIndicators(
+      restoreScriptedStudyDescriptors(
         targetDocument.scriptIndicators,
         `failed to restore workspace ${targetDocument.label} scripted indicator`,
       );
@@ -2448,7 +2438,7 @@ export function mountWorkbenchDemo(
         pushLog(log, `restored ${targetHostId} snapshot (demo-local)`);
       }
     }
-    restorePersistedScriptIndicators(
+    restoreScriptedStudyDescriptors(
       targetRecord.scriptIndicators,
       `failed to restore ${targetHostId} scripted indicator`,
     );
@@ -2964,15 +2954,12 @@ export function mountWorkbenchDemo(
     });
   };
 
-  const restorePersistedScriptIndicators = (
-    indicators: readonly DemoActiveIndicator[],
+  const restoreScriptedStudyDescriptors = (
+    descriptors: readonly WorkbenchLayoutScriptedStudyDescriptor[] | undefined,
     failurePrefix: string,
   ): boolean => {
     let restoredAll = true;
-    for (const indicator of indicators) {
-      if (indicator.kind !== "script" || indicator.scriptId === undefined) {
-        continue;
-      }
+    for (const indicator of normalizePersistedScriptedStudyDescriptors(descriptors)) {
       const customDefinition = customScriptLibrary.find((entry) => entry.id === indicator.scriptId) ?? null;
       const entry =
         customDefinition === null
@@ -4054,13 +4041,14 @@ export function mountWorkbenchDemo(
       try {
         captureActiveWorkspaceDocument(true);
         const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
+        const scriptedIndicators = persistedScriptedStudyDescriptors();
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
           customScripts: serializeCustomScripts(),
-          scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
+          scriptedIndicators,
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -4191,7 +4179,7 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
-      chartHostRecords[activeChartHostId].scriptIndicators = materializeScriptIndicators(
+      chartHostRecords[activeChartHostId].scriptIndicators = normalizePersistedScriptedStudyDescriptors(
         state.scriptedIndicators,
       );
 
@@ -4200,7 +4188,7 @@ export function mountWorkbenchDemo(
           chart?.applyChartState(state.chartState);
           refreshObjectTreeProjection();
         }
-        restorePersistedScriptIndicators(
+        restoreScriptedStudyDescriptors(
           chartHostRecords[activeChartHostId].scriptIndicators,
           `failed to restore layout ${state.activeSymbol} scripted indicator`,
         );
@@ -4285,13 +4273,14 @@ export function mountWorkbenchDemo(
       try {
         captureActiveWorkspaceDocument(true);
         const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
+        const scriptedIndicators = persistedScriptedStudyDescriptors();
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
           customScripts: serializeCustomScripts(),
-          scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
+          scriptedIndicators,
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -4388,7 +4377,7 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
-      chartHostRecords[activeChartHostId].scriptIndicators = materializeScriptIndicators(
+      chartHostRecords[activeChartHostId].scriptIndicators = normalizePersistedScriptedStudyDescriptors(
         state.scriptedIndicators,
       );
       restoreWorkspaceDocumentsFromState(state);
@@ -4398,7 +4387,7 @@ export function mountWorkbenchDemo(
           chart?.applyChartState(state.chartState);
           refreshObjectTreeProjection();
         }
-        restorePersistedScriptIndicators(
+        restoreScriptedStudyDescriptors(
           chartHostRecords[activeChartHostId].scriptIndicators,
           `failed to import layout ${state.activeSymbol} scripted indicator`,
         );

@@ -161,6 +161,13 @@ async function readExportedLayoutRaw(page: Page): Promise<string> {
   return page.locator("[data-layout-export-raw]").inputValue();
 }
 
+async function readExportedLayoutRawAfterExport(page: Page): Promise<string> {
+  const downloadPromise = page.waitForEvent("download");
+  await workbenchPanel(page).locator("[data-layout-export-trigger]").click();
+  await downloadPromise;
+  return readExportedLayoutRaw(page);
+}
+
 function arrayBuffersEqual(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) {
     return false;
@@ -588,6 +595,84 @@ test("script library: custom authored scripts round-trip through layout export a
   await expect(activeIndicatorList).toContainText("My Close Spread");
   await expect(activeIndicatorList).toContainText("length 4");
   await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "My Close Spread" })).toHaveCount(1);
+});
+
+test("script library: scripted studies round-trip through restore and import", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
+  const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
+
+  await saveCustomScript(page, {
+    label: "Restore Bridge Spread",
+    shortLabel: "RestoreBridge",
+    description: "Descriptor-driven restore demo.",
+    expressionText: "sma(close, length)",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+
+  await addCustomScriptFromLibrary(page, "custom-script-1", "6");
+  await expect(workbench).toContainText("added indicator Restore Bridge Spread (Length 6)");
+  await expect(activeIndicatorList).toContainText("Restore Bridge Spread");
+  await expect(activeIndicatorList).toContainText("length 6");
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Save layout", exact: true }).click();
+  await expect(workbench).toContainText("saved layout NDX");
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
+  await expect(activeIndicatorList).not.toContainText("Restore Bridge Spread");
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Restore layout", exact: true }).click();
+  await expect(workbench).toContainText("restored layout NDX");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(activeIndicatorList).toContainText("Restore Bridge Spread");
+  await expect(activeIndicatorList).toContainText("length 6");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Restore Bridge Spread" })).toHaveCount(1);
+
+  const exportedRaw = await readExportedLayoutRawAfterExport(page);
+  const exported = JSON.parse(exportedRaw) as {
+    scriptedIndicators?: { label: string; scriptId: string; inputValues?: Record<string, number> }[];
+  };
+  expect(exported.scriptedIndicators?.[0]).toMatchObject({
+    label: "Restore Bridge Spread",
+    scriptId: "custom-script-1",
+    inputValues: {
+      length: 6,
+    },
+  });
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
+  await expect(activeIndicatorList).not.toContainText("Restore Bridge Spread");
+
+  await page.evaluate(async (raw) => {
+    const input = document.querySelector(
+      'input[type="file"][accept*="json"]',
+    ) as HTMLInputElement | null;
+    if (input === null) {
+      throw new Error("layout import input is missing");
+    }
+    const file = new File([raw], "scripted-study-restore.json", {
+      type: "application/json",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, exportedRaw);
+
+  await expect(workbench).toContainText("Imported layout");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
+  await expect(activeIndicatorList).toContainText("Restore Bridge Spread");
+  await expect(activeIndicatorList).toContainText("length 6");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Restore Bridge Spread" })).toHaveCount(1);
 });
 
 test("script library: save builtin presets and duplicate custom scripts", async ({ page }) => {

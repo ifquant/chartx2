@@ -787,6 +787,11 @@ Implementation note:
   layer now normalizes scripted descriptors through a dedicated helper before
   save/export/import/restore paths touch them, and the demo bridge uses that
   helper instead of open-coded descriptor copies.
+- `Scripted Study Chart-State Restore V0` hardens the next step of that seam:
+  demo-local host and workspace records now keep scripted studies in the same
+  normalized descriptor shape used by layout persistence, and restore/import
+  both rebuild mounted scripted studies through one descriptor-based helper
+  instead of ad hoc `DemoActiveIndicator` replay.
 - Planned `Active Script Use Remove V0` should add a workbench-owned remove
   action for active scripted indicators so users can clear library `inUse`
   fences from the active indicator list without deleting the saved custom
@@ -802,6 +807,9 @@ Implementation note:
   Pine-compatible authoring surface. The new descriptor bridge is intentionally
   a workbench-layout normalization seam only, so later chart-state promotion
   can start from a stable descriptor contract instead of demo-local mapping.
+  Restore hardening still stays on that side of the boundary: chart state
+  remains stripped of scripted panes, while the descriptor bridge owns the
+  scripted-study round-trip after save/restore/export/import.
 
 ### 2. Strategy Tester
 

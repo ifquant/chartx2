@@ -1263,7 +1263,7 @@
                   {formatIndicatorInputValues(indicator.inputValues)}
                 {/if}
               </span>
-              {#if indicator.kind === "script" && indicator.paneIndex !== undefined}
+              {#if indicator.kind === "script" && indicator.paneIndex !== undefined && indicator.removable === true}
                 <button
                   type="button"
                   class="indicator-secondary-btn"

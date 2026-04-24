@@ -144,6 +144,7 @@ type DemoActiveIndicator = {
   scriptId?: string;
   inputValues?: WorkbenchScriptNumericInputValueMap;
   paneIndex?: number;
+  removable?: boolean;
 };
 
 export type DemoCustomScriptLibraryEntry = {
@@ -1268,6 +1269,42 @@ export function mountWorkbenchDemo(
   const getIndicatorCatalogEntryForRuntime = (entryId: string): WorkbenchIndicatorCatalogEntry | null =>
     currentIndicatorCatalog().find((entry) => entry.id === entryId) ?? null;
 
+  const projectActiveScriptIndicatorsFromChartState = (
+    chartState: PhaseOneChartStateSnapshot | null,
+    existingIndicators: readonly DemoActiveIndicator[],
+  ): readonly DemoActiveIndicator[] => {
+    if (chartState === null) {
+      return existingIndicators;
+    }
+    const mergedIndicators = [...existingIndicators];
+    for (const study of chartState.studies) {
+      if (study.type !== "scripted-study") {
+        continue;
+      }
+      const existingIndicator = mergedIndicators.find(
+        (indicator) =>
+          indicator.kind === "script" &&
+          indicator.scriptId === study.studyOptions.scriptId &&
+          indicator.paneIndex === study.paneIndex,
+      );
+      if (existingIndicator !== undefined) {
+        continue;
+      }
+      const definition = getScriptDefinitionForRuntime(study.studyOptions.scriptId);
+      mergedIndicators.push({
+        id: definition === null ? `scripted-study:${study.paneIndex}:${study.studyOptions.scriptId}` : `script-library:${study.studyOptions.scriptId}`,
+        label: definition?.label ?? formatObjectTreeKind(study.type),
+        kind: "script",
+        placement: "separate-pane",
+        scriptId: study.studyOptions.scriptId,
+        inputValues: study.studyOptions.inputValues,
+        paneIndex: study.paneIndex,
+        removable: activeScriptSeriesByPaneIndex.has(study.paneIndex),
+      });
+    }
+    return mergedIndicators;
+  };
+
   const createRuntimeCustomScriptIndicatorEntry = (
     definition: WorkbenchScriptDefinition,
   ): WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string } => ({
@@ -1336,7 +1373,8 @@ export function mountWorkbenchDemo(
   };
 
   const isCustomScriptInUse = (scriptId: string): boolean =>
-    activeIndicators.some((indicator) => indicator.scriptId === scriptId) ||
+    projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)
+      .some((indicator) => indicator.scriptId === scriptId) ||
     Object.values(chartHostRecords).some((record) =>
       record.scriptIndicators.some((indicator) => indicator.studyOptions.scriptId === scriptId),
     ) ||
@@ -1944,7 +1982,7 @@ export function mountWorkbenchDemo(
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       workbench: workbenchModel,
       indicatorCatalog: currentIndicatorCatalog(),
-      activeIndicators: [...activeIndicators],
+      activeIndicators: [...projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)],
       customScripts: summarizeCustomScripts(),
       replay: replayState,
       metrics: [
@@ -2940,6 +2978,7 @@ export function mountWorkbenchDemo(
         scriptId: extras?.scriptId,
         inputValues: extras?.inputValues,
         paneIndex: extras?.paneIndex,
+        removable: entry.engineKind === "script" && extras?.paneIndex !== undefined,
       },
     ];
   };

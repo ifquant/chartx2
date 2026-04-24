@@ -705,6 +705,7 @@ Progress checklist:
 - [x] Layout restore/import/workspace/host scripted-study replay now shares one apply path and surfaces partial scripted-study restore warnings
 - [x] Workbench layout sanitization strips trailing separate-pane scripted panes back out of persisted chart state when the descriptor bridge is present
 - [x] Workbench scripted-indicator descriptor serialization now uses a shared bridge creator instead of hand-built `studyOptions` defaults in the demo shell
+- [x] Active indicator and custom-script in-use surfaces now fall back to engine-native scripted-study chart-state snapshots when descriptor replay is absent
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
 
@@ -835,6 +836,13 @@ Implementation note:
   serialization no longer hand-builds `studyOptions` defaults locally and now
   routes through a shared layout helper, so future engine/default-field changes
   do not need a second manual update in `chartx-demo.ts`.
+- `Scripted Study Active Surface Fallback V1` closes the next user-facing gap in
+  that same middle state: when a chart imports or restores engine-native
+  `scripted-study` snapshots without descriptor replay, the active-indicator
+  list and custom-script library `inUse` guard now project fallback scripted
+  entries from live chart state instead of pretending no scripted study is
+  mounted. Those fallback rows intentionally do not expose a remove action
+  unless the demo runtime has an actual local remove handle for that pane.
 - `Scripted Study Promotion Review Pass` is now partly superseded: the workbench
   descriptor bridge is still useful for surrounding layout/library flows, but
   engine chart state now owns the separate-pane scripted-study snapshot and

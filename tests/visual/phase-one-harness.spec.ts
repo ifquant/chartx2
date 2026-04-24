@@ -838,6 +838,121 @@ test("script library: active custom scripts surface in-use state and fence edit/
   await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeEnabled();
 });
 
+test("script library: engine-native scripted studies still surface active and in-use fallback state", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
+
+  await saveCustomScript(page, {
+    label: "Native Bridge Spread",
+    shortLabel: "NativeBridge",
+    description: "Engine chart-state scripted-study fallback demo.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "7",
+  });
+
+  const baselineRaw = await readExportedLayoutRawAfterExport(page);
+  const baseline = JSON.parse(baselineRaw) as {
+    chartState: {
+      panes: { height: number | null; resizable: boolean }[];
+      studies: unknown[];
+    } | null;
+    customScripts?: unknown[];
+    scriptedIndicators?: unknown[];
+  };
+
+  if (baseline.chartState === null) {
+    throw new Error("baseline exported chart state is missing");
+  }
+
+  const nativeOnlyLayout = {
+    ...baseline,
+    customScripts: [
+      {
+        id: "custom-script-1",
+        version: 1,
+        source: "custom",
+        label: "Native Bridge Spread",
+        shortLabel: "NativeBridge",
+        description: "Engine chart-state scripted-study fallback demo.",
+        placement: "separate-pane",
+        inputs: [
+          {
+            id: "length",
+            label: "Length",
+            min: 2,
+            max: 60,
+            step: 1,
+            defaultValue: 7,
+          },
+        ],
+        expression: {
+          kind: "subtract",
+          left: { kind: "input", field: "close" },
+          right: {
+            kind: "sma",
+            input: { kind: "input", field: "close" },
+            length: { kind: "numeric-input", inputId: "length" },
+          },
+        },
+      },
+    ],
+    scriptedIndicators: [],
+    chartState: {
+      ...baseline.chartState,
+      panes: [...baseline.chartState.panes, { height: 126, resizable: true }],
+      studies: [
+        ...baseline.chartState.studies,
+        {
+          type: "scripted-study",
+          paneIndex: baseline.chartState.panes.length,
+          seriesOptions: {},
+          studyOptions: {
+            scriptId: "custom-script-1",
+            inputValues: { length: 5 },
+            inputContextMode: "chart-context",
+            requestedSymbol: null,
+            requestedResolution: null,
+            requestedSession: null,
+            requestedTimezone: null,
+            mergePolicy: "carry-forward",
+          },
+        },
+      ],
+    },
+  };
+
+  await page.evaluate(async (raw) => {
+    const input = document.querySelector(
+      'input[type="file"][accept*="json"]',
+    ) as HTMLInputElement | null;
+    if (input === null) {
+      throw new Error("layout import input is missing");
+    }
+    const file = new File([raw], "engine-native-scripted-study-layout.json", {
+      type: "application/json",
+    });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, JSON.stringify(nativeOnlyLayout));
+
+  await expect(workbench).toContainText("Imported layout");
+  await expect(activeIndicatorList).toContainText("Native Bridge Spread");
+  await expect(activeIndicatorList).toContainText("length 5");
+  await expect(activeIndicatorList.locator("[data-active-script-remove]")).toHaveCount(0);
+  await expect(workbench.locator('[data-custom-script-in-use="custom-script-1"]')).toContainText(
+    "Remove active uses before editing or deleting.",
+  );
+  await expect(workbench.locator('[data-custom-script-edit="custom-script-1"]')).toBeDisabled();
+  await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeDisabled();
+});
+
 test("script library: delete requires an explicit confirm step", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

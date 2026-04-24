@@ -325,6 +325,45 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("keeps engine-native scripted-study snapshots in chart state when the descriptor bridge is absent", () => {
+    const nativeOnlyChartState: PhaseOneChartStateSnapshot = {
+      ...minimalChartStateSnapshot,
+      panes: [
+        { height: null, resizable: false },
+        { height: 126, resizable: true },
+      ],
+      studies: [
+        {
+          type: "scripted-study",
+          paneIndex: 1,
+          seriesOptions: {},
+          studyOptions: {
+            scriptId: "close-sma-20-v0",
+            inputValues: {
+              length: 8,
+            },
+            inputContextMode: "chart-context",
+            requestedSymbol: null,
+            requestedResolution: null,
+            requestedSession: null,
+            requestedTimezone: null,
+            mergePolicy: "carry-forward",
+          },
+        },
+      ],
+    };
+
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: nativeOnlyChartState,
+    });
+
+    expect(state.chartState).toEqual(nativeOnlyChartState);
+    expect(state.scriptedIndicators).toBeUndefined();
+  });
+
   it("strips trailing separate panes when scripted descriptors are persisted through the bridge", () => {
     const state = createWorkbenchLayoutState({
       activeSymbol: "SPX",

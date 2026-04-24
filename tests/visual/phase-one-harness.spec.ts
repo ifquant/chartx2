@@ -749,6 +749,50 @@ test("script library: import field can resync to the current builder expression"
   );
 });
 
+test("script library: local filter narrows saved scripts without touching runtime state", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await saveCustomScript(page, {
+    label: "My Close Spread",
+    shortLabel: "Spread",
+    description: "Close minus close SMA.",
+    expressionText: "subtract(close, sma(close, length))",
+    placement: "separate-pane",
+    defaultLength: "9",
+  });
+  await saveCustomScript(page, {
+    label: "My HLC3 SMA",
+    shortLabel: "HLC3",
+    description: "HLC3 moving average.",
+    expressionText: "sma(hlc3, length)",
+    placement: "separate-pane",
+    defaultLength: "10",
+  });
+
+  await expect(workbench.locator("[data-custom-script]")).toHaveCount(2);
+  await expect(workbench.locator("[data-custom-script-filter-clear]")).toBeDisabled();
+
+  await workbench.locator("[data-custom-script-filter]").fill("hlc3");
+  await expect(workbench.locator("[data-custom-script-filter-clear]")).toBeEnabled();
+  await expect(workbench.locator("[data-custom-script]")).toHaveCount(1);
+  await expect(workbench.locator('[data-custom-script="custom-script-2"]')).toContainText(
+    "My HLC3 SMA",
+  );
+
+  await workbench.locator("[data-custom-script-filter]").fill("no-match");
+  await expect(workbench.locator("[data-custom-script]")).toHaveCount(0);
+  await expect(workbench.locator("[data-custom-script-empty]")).toContainText(
+    "No saved custom scripts match the current filter.",
+  );
+
+  await workbench.locator("[data-custom-script-filter-clear]").click();
+  await expect(workbench.locator("[data-custom-script]")).toHaveCount(2);
+  await expect(workbench.locator("[data-custom-script-filter-clear]")).toBeDisabled();
+});
+
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
   page,
 }) => {

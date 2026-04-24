@@ -150,10 +150,12 @@
   let customScriptDraftError: string | null = null;
   let customScriptImportExpressionInput = "";
   let customScriptImportError: string | null = null;
+  let customScriptFilter = "";
   let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
   let customScriptDefaultLengthErrorMessage: string | null = null;
   let customScriptLaunchErrors: Record<string, string | null> = {};
   let customScriptLaunchPayloads: Record<string, Record<string, number> | null> = {};
+  let filteredCustomScripts: readonly DemoCustomScriptLibraryEntry[] = [];
 
   function gridPositionForSlot(preset: string, index: number): SlotGridPosition {
     if (preset === "grid-2x2") {
@@ -251,6 +253,19 @@
       return null;
     }
     return entries.map(([key, value]) => `${key} ${String(value)}`).join(" · ");
+  }
+
+  function matchesCustomScriptFilter(script: DemoCustomScriptLibraryEntry, filter: string): boolean {
+    const needle = filter.trim().toLowerCase();
+    if (needle.length === 0) {
+      return true;
+    }
+    return (
+      script.label.toLowerCase().includes(needle) ||
+      script.shortLabel.toLowerCase().includes(needle) ||
+      script.description.toLowerCase().includes(needle) ||
+      script.expressionText.toLowerCase().includes(needle)
+    );
   }
 
   function loadCustomScriptDraft(entry: DemoCustomScriptLibraryEntry): void {
@@ -498,6 +513,9 @@
     customScriptLaunchErrors = nextErrors;
     customScriptLaunchPayloads = nextPayloads;
   }
+  $: filteredCustomScripts = (snapshot.customScripts ?? []).filter((script) =>
+    matchesCustomScriptFilter(script, customScriptFilter),
+  );
   $: slotViews =
     workbench?.layout.slots.map((slot, index) => {
       const host = slot.chartHostId
@@ -1129,7 +1147,35 @@
         <div class="custom-script-library" data-custom-script-library>
           <div class="sidebar-head compact-subhead">
             <h4>Script Library</h4>
-            <span>{snapshot.customScripts?.length ?? 0} saved</span>
+            <span>
+              {filteredCustomScripts.length}
+              {#if customScriptFilter.trim().length > 0}
+                / {snapshot.customScripts?.length ?? 0}
+              {/if}
+              {" "}saved
+            </span>
+          </div>
+          <div class="custom-script-actions">
+            <label class="script-input-field">
+              <span>Filter saved scripts</span>
+              <input
+                type="text"
+                bind:value={customScriptFilter}
+                data-custom-script-filter
+                placeholder="label, short label, or expression"
+              />
+            </label>
+            <button
+              type="button"
+              class="indicator-secondary-btn"
+              data-custom-script-filter-clear
+              disabled={customScriptFilter.trim().length === 0}
+              on:click={() => {
+                customScriptFilter = "";
+              }}
+            >
+              Clear filter
+            </button>
           </div>
           <div class="custom-script-form" data-custom-script-form>
             <label class="script-input-field">
@@ -1248,7 +1294,7 @@
             </div>
           </div>
           <div class="custom-script-list">
-            {#each snapshot.customScripts ?? [] as script}
+            {#each filteredCustomScripts as script}
               <article class="custom-script-entry" data-custom-script={script.id}>
                 <div class="custom-script-copy">
                   <strong>{script.label}</strong>
@@ -1311,7 +1357,13 @@
                 </div>
               </article>
             {:else}
-              <p class="indicator-empty">No saved custom scripts.</p>
+              <p class="indicator-empty" data-custom-script-empty>
+                {#if (snapshot.customScripts?.length ?? 0) === 0}
+                  No saved custom scripts.
+                {:else}
+                  No saved custom scripts match the current filter.
+                {/if}
+              </p>
             {/each}
           </div>
         </div>

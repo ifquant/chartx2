@@ -73,6 +73,16 @@ const minimalChartStateSnapshot: PhaseOneChartStateSnapshot = {
   drawings: [],
 };
 
+const scriptedIndicators = [
+  {
+    id: "scripted-close-sma",
+    label: "Scripted SMA 20",
+    kind: "script" as const,
+    placement: "separate-pane" as const,
+    scriptId: "close-sma-20-v0",
+  },
+] as const;
+
 describe("workbench layout state", () => {
   it("creates a versioned layout state for the active chart", () => {
     const state = createWorkbenchLayoutState({
@@ -171,6 +181,7 @@ describe("workbench layout state", () => {
       activeTimeframe: "1D",
       chartType: "candlestick",
       chartState: minimalChartStateSnapshot,
+      scriptedIndicators,
       workspace: {
         activeTabId: "workspace-2",
         tabs: [
@@ -182,6 +193,7 @@ describe("workbench layout state", () => {
             activeTimeframe: "1D",
             chartType: "candlestick",
             chartState: null,
+            scriptedIndicators,
             panels: {
               rightSidebar: "watchlist",
               bottomTab: "time-presets",
@@ -195,6 +207,7 @@ describe("workbench layout state", () => {
             activeTimeframe: "1D",
             chartType: "candlestick",
             chartState: minimalChartStateSnapshot,
+            scriptedIndicators: [],
             panels: {
               rightSidebar: "object-tree",
               bottomTab: "logs",
@@ -204,6 +217,41 @@ describe("workbench layout state", () => {
       },
     });
 
+    expect(isWorkbenchLayoutState(state)).toBe(true);
+  });
+
+  it("preserves scripted indicator layout metadata outside engine chart state", () => {
+    const state = createWorkbenchLayoutState({
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: minimalChartStateSnapshot,
+      scriptedIndicators,
+      workspace: {
+        activeTabId: "workspace-1",
+        tabs: [
+          {
+            id: "workspace-1",
+            label: "Trade",
+            viewId: "trade",
+            activeSymbol: "SPX",
+            activeTimeframe: "1D",
+            chartType: "candlestick",
+            chartState: minimalChartStateSnapshot,
+            scriptedIndicators,
+            panels: {
+              rightSidebar: "watchlist",
+              bottomTab: "time-presets",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(state.scriptedIndicators).toEqual(scriptedIndicators);
+    expect(state.workspace?.tabs[0]?.scriptedIndicators).toEqual(scriptedIndicators);
+    expect(state.chartState).toEqual(minimalChartStateSnapshot);
+    expect(state.chartState).not.toHaveProperty("scriptedIndicators");
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
@@ -294,6 +342,93 @@ describe("workbench layout state", () => {
     expect(isWorkbenchLayoutState(state)).toBe(true);
   });
 
+  it("keeps backward compatibility when scripted indicator metadata is absent", () => {
+    const legacyState = {
+      kind: "workbench-layout",
+      version: 1,
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: minimalChartStateSnapshot,
+      panels: {
+        rightSidebar: "watchlist",
+        bottomTab: "time-presets",
+      },
+      workspace: {
+        activeTabId: "workspace-1",
+        tabs: [
+          {
+            id: "workspace-1",
+            label: "Trade",
+            viewId: "trade",
+            activeSymbol: "SPX",
+            activeTimeframe: "1D",
+            chartType: "candlestick",
+            chartState: null,
+            panels: {
+              rightSidebar: "watchlist",
+              bottomTab: "time-presets",
+            },
+          },
+        ],
+      },
+    };
+
+    expect(isWorkbenchLayoutState(legacyState)).toBe(true);
+  });
+
+  it("rejects malformed scripted indicator payloads", () => {
+    const baseState = {
+      kind: "workbench-layout",
+      version: 1,
+      activeSymbol: "SPX",
+      activeTimeframe: "1D",
+      chartType: "candlestick",
+      chartState: minimalChartStateSnapshot,
+      panels: {
+        rightSidebar: "watchlist",
+        bottomTab: "time-presets",
+      },
+    };
+
+    expect(
+      isWorkbenchLayoutState({
+        ...baseState,
+        scriptedIndicators: [{ ...scriptedIndicators[0], kind: "overlay" }],
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        ...baseState,
+        scriptedIndicators: [{ ...scriptedIndicators[0], scriptId: "" }],
+      }),
+    ).toBe(false);
+    expect(
+      isWorkbenchLayoutState({
+        ...baseState,
+        workspace: {
+          activeTabId: "workspace-1",
+          tabs: [
+            {
+              id: "workspace-1",
+              label: "Trade",
+              viewId: "trade",
+              activeSymbol: "SPX",
+              activeTimeframe: "1D",
+              chartType: "candlestick",
+              chartState: null,
+              scriptedIndicators: [{ ...scriptedIndicators[0], placement: "floating-pane" }],
+              panels: {
+                rightSidebar: "watchlist",
+                bottomTab: "time-presets",
+              },
+            },
+          ],
+        },
+      }),
+    ).toBe(false);
+  });
+
   it("preserves the controller-saved symbol, timeframe, chart type, and chart snapshot", () => {
     const state = createWorkbenchLayoutState({
       activeSymbol: "SPX",
@@ -337,6 +472,7 @@ describe("workbench layout state", () => {
       activeTimeframe: "1D",
       chartType: "renko",
       chartState: null,
+      scriptedIndicators,
     });
 
     await expect(provider.saveWorkbenchLayout(state)).resolves.toBe(true);

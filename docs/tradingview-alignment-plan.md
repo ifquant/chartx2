@@ -675,6 +675,7 @@ Progress checklist:
 - [x] Catalog-visible canned scripted indicator
 - [x] Demo/workbench execution against active bars
 - [x] Active-indicator and object-tree reflection for the scripted entry
+- [x] Workbench-owned scripted layout/workspace persistence through save, restore, export, and import
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] User-authored scripts and editable script library
 - [ ] Pine-compatible subset evaluation
@@ -691,8 +692,9 @@ Implementation note:
 - Script failures are isolated through status/log surfaces rather than leaking
   uncontrolled exceptions into the shell.
 - Demo-local host/workspace snapshot capture strips scripted panes back out of
-  exported layout/chart state so restore paths do not replay unlabeled raw
-  series.
+  exported layout/chart state, but the workbench layout schema now carries
+  scripted indicator descriptors separately so save/restore/export/import can
+  reapply them without pretending they are chart-state-native studies.
 - This does not yet mean scripts are chart-state-native. V0 does not persist
   scripted indicators as distinct study definitions through `getChartState()`
   or `applyChartState()`, and it does not yet expose end-user script authoring.

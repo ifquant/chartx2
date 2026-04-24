@@ -7,6 +7,31 @@ export type WorkbenchLayoutRightSidebarPanel =
   | "object-tree"
   | "screener";
 
+export type WorkbenchLayoutScriptedIndicatorPlacement = "overlay" | "separate-pane";
+
+export interface WorkbenchLayoutScriptedIndicatorDescriptor {
+  id: string;
+  label: string;
+  kind: "script";
+  placement: WorkbenchLayoutScriptedIndicatorPlacement;
+  scriptId: string;
+}
+
+export interface WorkbenchLayoutWorkspaceTabState {
+  id: string;
+  label: string;
+  viewId: WorkbenchWorkspaceViewId;
+  activeSymbol: string;
+  activeTimeframe: string;
+  chartType: PhaseOneMainChartType;
+  chartState: PhaseOneChartStateSnapshot | null;
+  scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
+  panels: {
+    rightSidebar: WorkbenchLayoutRightSidebarPanel;
+    bottomTab: BottomPanelTabId;
+  };
+}
+
 export interface WorkbenchLayoutStateV1 {
   kind: "workbench-layout";
   version: 1;
@@ -14,25 +39,14 @@ export interface WorkbenchLayoutStateV1 {
   activeTimeframe: string;
   chartType: PhaseOneMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   panels: {
     rightSidebar: WorkbenchLayoutRightSidebarPanel;
     bottomTab: BottomPanelTabId;
   };
   workspace?: {
     activeTabId: string;
-    tabs: readonly {
-      id: string;
-      label: string;
-      viewId: WorkbenchWorkspaceViewId;
-      activeSymbol: string;
-      activeTimeframe: string;
-      chartType: PhaseOneMainChartType;
-      chartState: PhaseOneChartStateSnapshot | null;
-      panels: {
-        rightSidebar: WorkbenchLayoutRightSidebarPanel;
-        bottomTab: BottomPanelTabId;
-      };
-    }[];
+    tabs: readonly WorkbenchLayoutWorkspaceTabState[];
   };
 }
 
@@ -43,6 +57,7 @@ export interface WorkbenchLayoutStateInput {
   activeTimeframe: string;
   chartType: PhaseOneMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   rightSidebar?: WorkbenchLayoutRightSidebarPanel;
   bottomTab?: BottomPanelTabId;
   workspace?: WorkbenchLayoutStateV1["workspace"];
@@ -106,6 +121,35 @@ function isAllowedStudyType(value: unknown): value is "overlay" | "compare" | "m
 
 function isAllowedDrawingType(value: unknown): value is "horizontal-line" | "trend-line" {
   return value === "horizontal-line" || value === "trend-line";
+}
+
+function isWorkbenchLayoutScriptedIndicatorPlacement(
+  value: unknown,
+): value is WorkbenchLayoutScriptedIndicatorPlacement {
+  return value === "overlay" || value === "separate-pane";
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isWorkbenchLayoutScriptedIndicatorDescriptor(
+  value: unknown,
+): value is WorkbenchLayoutScriptedIndicatorDescriptor {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.label) &&
+    value.kind === "script" &&
+    isWorkbenchLayoutScriptedIndicatorPlacement(value.placement) &&
+    isNonEmptyString(value.scriptId)
+  );
+}
+
+function isWorkbenchLayoutScriptedIndicatorDescriptorList(
+  value: unknown,
+): value is readonly WorkbenchLayoutScriptedIndicatorDescriptor[] {
+  return Array.isArray(value) && value.every((indicator) => isWorkbenchLayoutScriptedIndicatorDescriptor(indicator));
 }
 
 function isOhlcDataRow(value: unknown): boolean {
@@ -267,6 +311,8 @@ function isWorkbenchLayoutWorkspaceState(value: unknown): value is NonNullable<W
         typeof tab.chartType !== "string" ||
         !PHASE_ONE_MAIN_CHART_TYPES.includes(tab.chartType as PhaseOneMainChartType) ||
         !(tab.chartState === null || isPhaseOneChartStateSnapshot(tab.chartState)) ||
+        !(tab.scriptedIndicators === undefined ||
+          isWorkbenchLayoutScriptedIndicatorDescriptorList(tab.scriptedIndicators)) ||
         !isRecord(tab.panels) ||
         !isWorkbenchLayoutRightSidebarPanel(tab.panels.rightSidebar) ||
         !isBottomPanelTabId(tab.panels.bottomTab)
@@ -353,6 +399,7 @@ export function createWorkbenchLayoutState(
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
     chartState: input.chartState,
+    scriptedIndicators: input.scriptedIndicators,
     panels: {
       rightSidebar: input.rightSidebar ?? "watchlist",
       bottomTab: input.bottomTab ?? "time-presets",
@@ -381,6 +428,12 @@ export function isWorkbenchLayoutState(value: unknown): value is WorkbenchLayout
     return false;
   }
   if (!(value.chartState === null || isPhaseOneChartStateSnapshot(value.chartState))) {
+    return false;
+  }
+  if (
+    !(value.scriptedIndicators === undefined ||
+      isWorkbenchLayoutScriptedIndicatorDescriptorList(value.scriptedIndicators))
+  ) {
     return false;
   }
   if (!isRecord(value.panels)) {

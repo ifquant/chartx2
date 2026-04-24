@@ -255,11 +255,24 @@ test("layout import/export: export downloads a focused snapshot and import resto
   page,
 }) => {
   await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
   const workbench = workbenchPanel(page);
   const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
   const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
 
-  await workbench.locator('[data-workspace-view="inspect"]').first().locator(".workspace-tab-main").click();
+  const inspectWorkspaceButton = workbench
+    .locator('[data-workspace-view="inspect"]')
+    .first()
+    .locator(".workspace-tab-main");
+  await inspectWorkspaceButton.scrollIntoViewIfNeeded();
+  await inspectWorkspaceButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("inspect workspace tab button is missing");
+    }
+    node.click();
+  });
   await expect(workbench.locator('[data-workspace-view="inspect"]').first()).toHaveAttribute(
     "data-workspace-active",
     "true",
@@ -282,6 +295,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
     node.click();
   });
   await expect(workbench).toContainText("added indicator Scripted SMA 20");
+  await expect(activeIndicatorList).toContainText("Scripted SMA 20");
   await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 
   const downloadPromise = page.waitForEvent("download");
@@ -290,6 +304,7 @@ test("layout import/export: export downloads a focused snapshot and import resto
   const exportedRaw = await page.locator("[data-layout-export-raw]").inputValue();
   const exported = JSON.parse(exportedRaw) as {
     activeSymbol: string;
+    scriptedIndicators?: { label: string; kind: string; placement: string }[];
     panels: { rightSidebar: string };
     chartState: { panes: unknown[] } | null;
   };
@@ -298,7 +313,13 @@ test("layout import/export: export downloads a focused snapshot and import resto
   expect(exported.activeSymbol).toBe("NDX");
   expect(exported.panels.rightSidebar).toBe("object-tree");
   expect(exported.chartState?.panes ?? []).toHaveLength(baselineExported.chartState?.panes.length ?? 0);
-  expect(exportedRaw).not.toContain("Scripted SMA 20");
+  expect(baselineExportedRaw).not.toContain("Scripted SMA 20");
+  expect(exported.scriptedIndicators ?? []).toHaveLength(1);
+  expect(exported.scriptedIndicators?.[0]).toMatchObject({
+    label: "Scripted SMA 20",
+    kind: "script",
+    placement: "separate-pane",
+  });
   await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Exported layout");
 
   await workbench.locator('[data-watchlist-symbol="SPX"]').click();
@@ -333,7 +354,8 @@ test("layout import/export: export downloads a focused snapshot and import resto
     "data-workbench-panel-active",
     "true",
   );
-  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(0);
+  await expect(activeIndicatorList).toContainText("Scripted SMA 20");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 });
 
 test("adapter status: missing local storage providers surfaces degraded workstation actions", async ({
@@ -1026,19 +1048,44 @@ test("workbench saves and restores the active layout locally", async ({ page }) 
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   const watchlist = workbench.locator(".watch-card").first();
+  const indicators = workbench.locator(".indicator-card");
+  const activeIndicatorList = indicators.locator(".active-indicator-list");
+  const objectTree = workbench.locator('[data-workbench-panel="object-tree"] [role="tree"]');
+
+  await workbench.locator('[data-workspace-view="inspect"]').first().locator(".workspace-tab-main").click();
+  await expect(workbench.locator('[data-workspace-view="inspect"]').first()).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
 
   await watchlist.getByRole("button", { name: /SPX/ }).click();
   await expect(workbench).toContainText("SPX Workbench");
+
+  const scriptedSmaButton = indicators.getByRole("button", { name: /Scripted SMA 20/ });
+  await scriptedSmaButton.scrollIntoViewIfNeeded();
+  await scriptedSmaButton.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("scripted sma indicator button is missing");
+    }
+    node.click();
+  });
+  await expect(workbench).toContainText("added indicator Scripted SMA 20");
+  await expect(activeIndicatorList).toContainText("Scripted SMA 20");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 
   await workbench.locator(".toolbar-strip").getByRole("button", { name: "Save layout", exact: true }).click();
   await expect(workbench).toContainText("saved layout SPX");
 
   await workbench.locator(".toolbar-strip").getByRole("button", { name: "Reset layout", exact: true }).click();
   await expect(workbench).toContainText("NDX Workbench");
+  await expect(activeIndicatorList).not.toContainText("Scripted SMA 20");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(0);
 
   await workbench.locator(".toolbar-strip").getByRole("button", { name: "Restore layout", exact: true }).click();
   await expect(workbench).toContainText("SPX Workbench");
   await expect(workbench).toContainText("restored layout SPX");
+  await expect(activeIndicatorList).toContainText("Scripted SMA 20");
+  await expect(objectTree.locator('[data-object-tree-kind="study"]').filter({ hasText: "Scripted SMA 20" })).toHaveCount(1);
 });
 
 test("features renders the panes tab as a deterministic grouped example baseline", async ({

@@ -46,6 +46,7 @@ import {
   createWorkbenchLayoutState,
   isWorkbenchLayoutState,
   type WorkbenchLayoutPersistenceProvider,
+  type WorkbenchLayoutScriptedIndicatorDescriptor,
   type WorkbenchLayoutState,
 } from "$lib/chartx/public/workbench-layout";
 import {
@@ -603,6 +604,7 @@ function createWorkbenchDemoLayoutState(input: {
   activeTimeframe: string;
   chartType: WorkbenchMainChartType;
   chartState: PhaseOneChartStateSnapshot | null;
+  scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   rightSidebar: WorkbenchSidebarPanelId;
   bottomTab: "time-presets" | "logs" | "replay";
   workspace?: WorkbenchLayoutState["workspace"];
@@ -612,6 +614,7 @@ function createWorkbenchDemoLayoutState(input: {
     activeTimeframe: input.activeTimeframe,
     chartType: input.chartType,
     chartState: input.chartState,
+    scriptedIndicators: input.scriptedIndicators,
     rightSidebar: input.rightSidebar,
     bottomTab: input.bottomTab,
     workspace: input.workspace,
@@ -892,6 +895,7 @@ export function mountWorkbenchDemo(
     timeframe: string;
     chartType?: WorkbenchMainChartType;
     chartState?: PhaseOneChartStateSnapshot | null;
+    scriptIndicators?: readonly DemoActiveIndicator[];
   }): DemoWorkspaceDocument => ({
     id: `workspace-${++workspaceTabSequence}`,
     label: input.label,
@@ -900,7 +904,7 @@ export function mountWorkbenchDemo(
     timeframe: input.timeframe,
     chartType: input.chartType ?? "candlestick",
     chartState: input.chartState ?? null,
-    scriptIndicators: [],
+    scriptIndicators: input.scriptIndicators ?? [],
     panels: workspaceFocusForView(input.viewId, false),
   });
   let workspaceDocuments: DemoWorkspaceDocument[] = [
@@ -1194,6 +1198,35 @@ export function mountWorkbenchDemo(
   const activeWorkspaceDocument = (): DemoWorkspaceDocument =>
     workspaceDocuments.find((document) => document.id === activeWorkspaceTabId) ?? workspaceDocuments[0]!;
 
+  const serializeScriptIndicators = (
+    indicators: readonly DemoActiveIndicator[],
+  ): WorkbenchLayoutScriptedIndicatorDescriptor[] =>
+    indicators.flatMap((indicator) => {
+      if (indicator.kind !== "script" || indicator.scriptId === undefined) {
+        return [];
+      }
+      return [
+        {
+          id: indicator.id,
+          label: indicator.label,
+          kind: "script" as const,
+          placement: indicator.placement,
+          scriptId: indicator.scriptId,
+        },
+      ];
+    });
+
+  const materializeScriptIndicators = (
+    indicators: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
+  ): DemoActiveIndicator[] =>
+    (indicators ?? []).map((indicator) => ({
+      id: indicator.id,
+      label: indicator.label,
+      kind: "script",
+      placement: indicator.placement,
+      scriptId: indicator.scriptId,
+    }));
+
   const persistedScriptIndicators = (): DemoActiveIndicator[] =>
     activeIndicators
       .filter((indicator) => indicator.kind === "script" && indicator.scriptId !== undefined)
@@ -1251,6 +1284,7 @@ export function mountWorkbenchDemo(
       activeTimeframe: document.timeframe,
       chartType: document.chartType,
       chartState: document.chartState,
+      scriptedIndicators: serializeScriptIndicators(document.scriptIndicators),
       panels: {
         rightSidebar: document.panels.sidebarPanel,
         bottomTab: document.panels.bottomTab,
@@ -1268,6 +1302,7 @@ export function mountWorkbenchDemo(
           timeframe: state.activeTimeframe,
           chartType: toWorkbenchMainChartType(state.chartType) ?? "candlestick",
           chartState: state.chartState,
+          scriptIndicators: materializeScriptIndicators(state.scriptedIndicators),
         }),
       ];
       activeWorkspaceTabId = workspaceDocuments[0]!.id;
@@ -1282,7 +1317,7 @@ export function mountWorkbenchDemo(
       timeframe: tab.activeTimeframe,
       chartType: toWorkbenchMainChartType(tab.chartType) ?? "candlestick",
       chartState: tab.chartState,
-      scriptIndicators: [],
+      scriptIndicators: materializeScriptIndicators(tab.scriptedIndicators),
       panels: {
         sidebarPanel: tab.panels.rightSidebar,
         bottomTab: tab.panels.bottomTab === "performance-link" || tab.panels.bottomTab === "custom"
@@ -3662,6 +3697,7 @@ export function mountWorkbenchDemo(
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
+          scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -3789,13 +3825,19 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
-      chartHostRecords[activeChartHostId].scriptIndicators = [];
+      chartHostRecords[activeChartHostId].scriptIndicators = materializeScriptIndicators(
+        state.scriptedIndicators,
+      );
 
       try {
         if (state.chartState !== null) {
           chart?.applyChartState(state.chartState);
           refreshObjectTreeProjection();
         }
+        restorePersistedScriptIndicators(
+          chartHostRecords[activeChartHostId].scriptIndicators,
+          `failed to restore layout ${state.activeSymbol} scripted indicator`,
+        );
       } catch (error) {
         if (destroyed) {
           return false;
@@ -3881,6 +3923,7 @@ export function mountWorkbenchDemo(
           activeTimeframe,
           chartType: mainChartType,
           chartState: capturePersistedChartState(),
+          scriptedIndicators: serializeScriptIndicators(persistedScriptIndicators()),
           rightSidebar: workspaceFocus.sidebarPanel,
           bottomTab: workspaceFocus.bottomTab,
           workspace: buildPersistedWorkspaceState(),
@@ -3975,7 +4018,9 @@ export function mountWorkbenchDemo(
       chartHostRecords[activeChartHostId].timeframe = state.activeTimeframe;
       chartHostRecords[activeChartHostId].chartType = chartType;
       chartHostRecords[activeChartHostId].chartState = state.chartState;
-      chartHostRecords[activeChartHostId].scriptIndicators = [];
+      chartHostRecords[activeChartHostId].scriptIndicators = materializeScriptIndicators(
+        state.scriptedIndicators,
+      );
       restoreWorkspaceDocumentsFromState(state);
 
       try {
@@ -3983,6 +4028,10 @@ export function mountWorkbenchDemo(
           chart?.applyChartState(state.chartState);
           refreshObjectTreeProjection();
         }
+        restorePersistedScriptIndicators(
+          chartHostRecords[activeChartHostId].scriptIndicators,
+          `failed to import layout ${state.activeSymbol} scripted indicator`,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setStatusNotice({

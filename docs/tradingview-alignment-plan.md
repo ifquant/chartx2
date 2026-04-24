@@ -694,6 +694,7 @@ Progress checklist:
 - [x] Script Library empty filter states can recover in place
 - [x] Script Library delete uses an explicit confirm/cancel row state before removing a saved custom script
 - [x] Script Library fences dirty draft replacement before switching saved edit targets
+- [x] Workbench layout exposes a normalized scripted-study descriptor bridge ahead of chart-state-native promotion
 - [ ] Persist scripted indicators as first-class chart-state studies
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset evaluation
@@ -781,6 +782,11 @@ Implementation note:
   from its last loaded baseline, clicking `Edit` on another saved script now
   raises a local discard/cancel fence instead of silently replacing the dirty
   draft, and save/reset/delete flows clear the pending replacement state.
+- `Scripted Study Descriptor Bridge V0` starts the first explicit promotion seam
+  without widening into engine-native study ownership: the workbench layout
+  layer now normalizes scripted descriptors through a dedicated helper before
+  save/export/import/restore paths touch them, and the demo bridge uses that
+  helper instead of open-coded descriptor copies.
 - Planned `Active Script Use Remove V0` should add a workbench-owned remove
   action for active scripted indicators so users can clear library `inUse`
   fences from the active indicator list without deleting the saved custom
@@ -793,7 +799,9 @@ Implementation note:
   scripted indicators as distinct study definitions through `getChartState()`
   or `applyChartState()`. The current authoring path is still a structured
   workbench form for saved SMA presets, not a general text editor, parser, or
-  Pine-compatible authoring surface.
+  Pine-compatible authoring surface. The new descriptor bridge is intentionally
+  a workbench-layout normalization seam only, so later chart-state promotion
+  can start from a stable descriptor contract instead of demo-local mapping.
 
 ### 2. Strategy Tester
 

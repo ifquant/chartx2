@@ -24,6 +24,9 @@ export interface WorkbenchLayoutScriptedIndicatorDescriptor {
   inputValues?: Readonly<Record<string, number>>;
 }
 
+export type WorkbenchLayoutScriptedStudyDescriptor =
+  WorkbenchLayoutScriptedIndicatorDescriptor;
+
 export interface WorkbenchLayoutWorkspaceTabState {
   id: string;
   label: string;
@@ -162,6 +165,59 @@ function isWorkbenchLayoutScriptedIndicatorDescriptorList(
   value: unknown,
 ): value is readonly WorkbenchLayoutScriptedIndicatorDescriptor[] {
   return Array.isArray(value) && value.every((indicator) => isWorkbenchLayoutScriptedIndicatorDescriptor(indicator));
+}
+
+function normalizeWorkbenchLayoutScriptedIndicatorInputValues(
+  value: unknown,
+): Readonly<Record<string, number>> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const normalizedEntries = Object.entries(value).flatMap(([key, entry]) => {
+    if (!isNonEmptyString(key) || !isNumber(entry)) {
+      return [];
+    }
+    return [[key.trim(), entry] as const];
+  });
+  return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+}
+
+export function normalizeWorkbenchLayoutScriptedIndicatorDescriptor(
+  value: unknown,
+): WorkbenchLayoutScriptedIndicatorDescriptor | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  if (
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.label) ||
+    value.kind !== "script" ||
+    !isWorkbenchLayoutScriptedIndicatorPlacement(value.placement) ||
+    !isNonEmptyString(value.scriptId)
+  ) {
+    return null;
+  }
+  return {
+    id: value.id.trim(),
+    label: value.label.trim(),
+    kind: "script",
+    placement: value.placement,
+    scriptId: value.scriptId.trim(),
+    inputValues: normalizeWorkbenchLayoutScriptedIndicatorInputValues(value.inputValues),
+  };
+}
+
+export function normalizeWorkbenchLayoutScriptedIndicatorDescriptors(
+  input: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
+): readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  const normalized = input.flatMap((descriptor) => {
+    const next = normalizeWorkbenchLayoutScriptedIndicatorDescriptor(descriptor);
+    return next === null ? [] : [next];
+  });
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function isWorkbenchScriptField(value: unknown): value is WorkbenchScriptField {
@@ -477,12 +533,20 @@ export function createWorkbenchLayoutState(
     chartType: input.chartType,
     chartState: input.chartState,
     customScripts: input.customScripts,
-    scriptedIndicators: input.scriptedIndicators,
+    scriptedIndicators: normalizeWorkbenchLayoutScriptedIndicatorDescriptors(input.scriptedIndicators),
     panels: {
       rightSidebar: input.rightSidebar ?? "watchlist",
       bottomTab: input.bottomTab ?? "time-presets",
     },
-    workspace: input.workspace,
+    workspace: input.workspace === undefined
+      ? undefined
+      : {
+          activeTabId: input.workspace.activeTabId,
+          tabs: input.workspace.tabs.map((tab) => ({
+            ...tab,
+            scriptedIndicators: normalizeWorkbenchLayoutScriptedIndicatorDescriptors(tab.scriptedIndicators),
+          })),
+        },
   };
 }
 

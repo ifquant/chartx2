@@ -46,6 +46,7 @@ import {
 import {
   createWorkbenchLayoutState,
   isWorkbenchLayoutState,
+  normalizeWorkbenchLayoutScriptedIndicatorDescriptors,
   type WorkbenchLayoutPersistenceProvider,
   type WorkbenchLayoutScriptedIndicatorDescriptor,
   type WorkbenchLayoutState,
@@ -1329,22 +1330,24 @@ export function mountWorkbenchDemo(
 
   const serializeScriptIndicators = (
     indicators: readonly DemoActiveIndicator[],
-  ): WorkbenchLayoutScriptedIndicatorDescriptor[] =>
-    indicators.flatMap((indicator) => {
-      if (indicator.kind !== "script" || indicator.scriptId === undefined) {
-        return [];
-      }
-      return [
-        {
-          id: indicator.id,
-          label: indicator.label,
-          kind: "script" as const,
-          placement: indicator.placement,
-          scriptId: indicator.scriptId,
-          inputValues: indicator.inputValues,
-        },
-      ];
-    });
+  ): readonly WorkbenchLayoutScriptedIndicatorDescriptor[] =>
+    normalizeWorkbenchLayoutScriptedIndicatorDescriptors(
+      indicators.flatMap((indicator) => {
+        if (indicator.kind !== "script" || indicator.scriptId === undefined) {
+          return [];
+        }
+        return [
+          {
+            id: indicator.id,
+            label: indicator.label,
+            kind: "script" as const,
+            placement: indicator.placement,
+            scriptId: indicator.scriptId,
+            inputValues: indicator.inputValues,
+          },
+        ];
+      }),
+    ) ?? [];
 
   const serializeCustomScripts = (): readonly WorkbenchScriptDefinition[] =>
     customScriptLibrary.map((definition) => ({ ...definition }));
@@ -1352,7 +1355,7 @@ export function mountWorkbenchDemo(
   const materializeScriptIndicators = (
     indicators: readonly WorkbenchLayoutScriptedIndicatorDescriptor[] | undefined,
   ): DemoActiveIndicator[] =>
-    (indicators ?? []).map((indicator) => ({
+    (normalizeWorkbenchLayoutScriptedIndicatorDescriptors(indicators) ?? []).map((indicator) => ({
       id: indicator.id,
       label: indicator.label,
       kind: "script",

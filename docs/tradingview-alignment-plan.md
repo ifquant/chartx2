@@ -792,6 +792,13 @@ Implementation note:
   normalized descriptor shape used by layout persistence, and restore/import
   both rebuild mounted scripted studies through one descriptor-based helper
   instead of ad hoc `DemoActiveIndicator` replay.
+- `Scripted Study Promotion Review Pass` closes the current execution wave with
+  an explicit boundary audit: the workbench descriptor bridge and restore path
+  are now stable enough to support the next promotion step, but scripted studies
+  are still not first-class engine-native chart-state studies because
+  `chartState.studies` has no scripted variant, `getChartState()` still strips
+  scripted panes, and `applyChartState()` still depends on workbench-side
+  descriptor replay rather than engine-owned study restoration.
 - Planned `Active Script Use Remove V0` should add a workbench-owned remove
   action for active scripted indicators so users can clear library `inUse`
   fences from the active indicator list without deleting the saved custom

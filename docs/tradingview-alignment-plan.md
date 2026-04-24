@@ -668,6 +668,35 @@ Acceptance:
   the indicator/source system.
 - Script failures are isolated and visible.
 
+Progress checklist:
+
+- [x] Local scripted indicator runtime with typed V0 expression model
+- [x] Execution budget and isolated failure result
+- [x] Catalog-visible canned scripted indicator
+- [x] Demo/workbench execution against active bars
+- [x] Active-indicator and object-tree reflection for the scripted entry
+- [ ] Persist scripted indicators as first-class chart-state studies
+- [ ] User-authored scripts and editable script library
+- [ ] Pine-compatible subset evaluation
+
+Implementation note:
+
+- `Scripted Indicator V0` is intentionally a workbench-owned slice, not a new
+  first-class chart study contract yet. The local script runtime lives in
+  `src/lib/chartx/public/workbench-scripts.ts` with a small typed expression
+  model, a bounded execution budget, and structured success/failure results.
+- The workbench indicator catalog now exposes one canned scripted entry,
+  `Scripted SMA 20`, and the demo executes it against the active OHLC payload
+  before attaching the output as a normal line study in a separate pane.
+- Script failures are isolated through status/log surfaces rather than leaking
+  uncontrolled exceptions into the shell.
+- Demo-local host/workspace snapshot capture strips scripted panes back out of
+  exported layout/chart state so restore paths do not replay unlabeled raw
+  series.
+- This does not yet mean scripts are chart-state-native. V0 does not persist
+  scripted indicators as distinct study definitions through `getChartState()`
+  or `applyChartState()`, and it does not yet expose end-user script authoring.
+
 ### 2. Strategy Tester
 
 Purpose:

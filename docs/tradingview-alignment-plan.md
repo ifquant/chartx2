@@ -1085,6 +1085,9 @@ Progress checklist:
   them before shell focus changes
 - [x] Mobile sidebar and bottom sheets now expose live drag follow and
   upward drag-to-snap between size steps before the dismiss path takes over
+- [x] The mobile bottom-sheet seam now covers the replay workflow too, so
+  narrow-screen replay controls no longer depend on the sidebar sheet staying
+  open
 
 Implementation note:
 
@@ -1114,6 +1117,10 @@ Implementation note:
 - `Mobile Drag-To-Snap + Live Follow V0` stays shell-only too. It adds transient
   drag state and live offset rendering on the existing handles, without pulling
   chart/runtime models into device-specific gesture concerns.
+- `Mobile Replay Bottom Sheet V0` keeps the next step on the same boundary. It
+  reuses a shared replay panel surface and mounts replay controls through the
+  existing mobile bottom-sheet seam, without widening the host/runtime replay
+  contract.
 
 ### Layer 3 Gate
 

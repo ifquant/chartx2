@@ -26,6 +26,7 @@
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
   import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
+  import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
@@ -210,7 +211,8 @@
 
   $: mobileBottomPanelAvailable =
     (workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester !== null && snapshot.strategyTester !== undefined) ||
-    (workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket !== null && snapshot.tradingTicket !== undefined);
+    (workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket !== null && snapshot.tradingTicket !== undefined) ||
+    (workbench?.bottomPanel.activeTab === "replay" && snapshot.replay !== null && snapshot.replay !== undefined);
 
   $: mobileBottomPanelLabel =
     workbench?.bottomPanel.tabs.find((tab) => tab.id === workbench?.bottomPanel.activeTab)?.label ?? "Panel";
@@ -1392,6 +1394,66 @@
             <TradingTicketPanel model={snapshot.tradingTicket} />
           </div>
         {/if}
+        {#if workbench?.bottomPanel.activeTab === "replay" && snapshot.replay}
+          <div
+            id="workbench-mobile-bottom-panel"
+            class="bottom-panel-body"
+            class:mobile-open={mobileBottomPanelOpen}
+            class:mobile-expanded={mobileBottomPanelSize === "expanded"}
+            class:mobile-full={mobileBottomPanelSize === "full"}
+            data-bottom-panel-body
+            data-bottom-panel-kind="replay"
+            data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+            data-mobile-bottom-panel-size={mobileBottomPanelSize}
+            data-mobile-bottom-panel-dragging={mobileDragTarget === "bottom" ? "true" : "false"}
+            data-mobile-bottom-panel-drag-offset={String(mobileDragTarget === "bottom" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "bottom" ? mobileDragOffsetY : 0}px;`}
+          >
+            <div class="mobile-bottom-panel-head">
+              <div class="mobile-sheet-title-block">
+                <button
+                  type="button"
+                  class="mobile-sheet-drag-handle"
+                  data-mobile-bottom-panel-drag-handle
+                  aria-label="Drag down to close mobile bottom panel"
+                  on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointermove={(event) => updateMobileSheetDrag("bottom", event)}
+                  on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
+                  on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
+                ></button>
+                <strong>{mobileBottomPanelLabel}</strong>
+              </div>
+              <div class="mobile-sheet-actions">
+                <button
+                  type="button"
+                  class="mobile-sheet-size-toggle"
+                  data-mobile-bottom-panel-size-toggle
+                  aria-pressed={mobileBottomPanelSize !== "default" ? "true" : "false"}
+                  on:click={() => {
+                    mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
+                  }}
+                >{mobileSheetSizeLabel(mobileBottomPanelSize)}</button>
+                <button
+                  type="button"
+                  class="mobile-bottom-panel-close"
+                  data-mobile-bottom-panel-close
+                  aria-label="Close mobile bottom panel"
+                  on:click={() => {
+                    closeMobileBottomSheet();
+                  }}
+                >Close</button>
+              </div>
+            </div>
+            <ReplayPanel
+              model={snapshot.replay}
+              {onEnterReplay}
+              {onPlayReplay}
+              {onPauseReplay}
+              {onStepReplay}
+              {onExitReplay}
+            />
+          </div>
+        {/if}
       </div>
     </div>
 
@@ -1988,50 +2050,14 @@
         </div>
       </section>
 
-      <section class="mini-card replay-card" data-replay-panel>
-        <div class="sidebar-head">
-          <h4>Replay</h4>
-          <span>{replayState?.active ? "active" : "ready"}</span>
-        </div>
-        <div
-          class="replay-summary"
-          data-replay-active={replayState?.active ? "true" : "false"}
-          data-replay-playing={replayState?.playing ? "true" : "false"}
-          data-replay-current-step={String(replayState?.currentStep ?? 0)}
-          data-replay-total-steps={String(replayState?.totalSteps ?? 0)}
-        >
-          <strong>{replayState?.currentTimeLabel ?? "--"}</strong>
-          <span>{replayState?.currentStep ?? 0} / {replayState?.totalSteps ?? 0}</span>
-          <span>{replayState?.startTimeLabel ?? "--"} → {replayState?.endTimeLabel ?? "--"}</span>
-        </div>
-        <div class="replay-controls">
-          {#if !(replayState?.active ?? false)}
-            <button type="button" data-replay-control="enter" on:click={onEnterReplay}>
-              Enter replay
-            </button>
-          {:else}
-            <button
-              type="button"
-              data-replay-control={replayState?.playing ? "pause" : "play"}
-              on:click={() => {
-                if (replayState?.playing) {
-                  onPauseReplay();
-                  return;
-                }
-                onPlayReplay();
-              }}
-            >
-              {replayState?.playing ? "Pause" : "Play"}
-            </button>
-            <button type="button" data-replay-control="step" on:click={onStepReplay}>
-              Step
-            </button>
-            <button type="button" data-replay-control="exit" on:click={onExitReplay}>
-              Exit
-            </button>
-          {/if}
-        </div>
-      </section>
+      <ReplayPanel
+        model={replayState}
+        {onEnterReplay}
+        {onPlayReplay}
+        {onPauseReplay}
+        {onStepReplay}
+        {onExitReplay}
+      />
 
       <section class="mini-card symbol-card">
         <div class="sidebar-head">
@@ -3623,40 +3649,6 @@
 
   .adapter-row.state-live {
     background: rgba(37, 99, 235, 0.1);
-  }
-
-  .replay-summary {
-    display: grid;
-    gap: 4px;
-    margin-top: 8px;
-    color: rgba(24, 24, 27, 0.64);
-    font-size: 0.76rem;
-  }
-
-  .replay-summary strong {
-    color: #18181b;
-    font-size: 0.84rem;
-  }
-
-  .replay-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .replay-controls button {
-    border: 0;
-    border-radius: 8px;
-    padding: 7px 10px;
-    background: rgba(24, 24, 27, 0.08);
-    color: #18181b;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .replay-controls button:hover {
-    background: rgba(24, 24, 27, 0.12);
   }
 
   .object-tree-body {

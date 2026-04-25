@@ -176,7 +176,7 @@ export type DemoCustomScriptLibraryEntry = {
   inUse?: boolean;
 };
 
-type DemoReplayState = {
+export type DemoReplayState = {
   available: boolean;
   active: boolean;
   playing: boolean;
@@ -818,6 +818,7 @@ function normalizeWorkspaceFocusForView(
         bottomTab:
           currentFocus.bottomTab === "performance-link" ||
           currentFocus.bottomTab === "custom" ||
+          currentFocus.bottomTab === "replay" ||
           currentFocus.bottomTab === "logs" ||
           currentFocus.bottomTab === "time-presets"
             ? currentFocus.bottomTab

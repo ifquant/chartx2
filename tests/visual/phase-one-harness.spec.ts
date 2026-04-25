@@ -1436,6 +1436,7 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
   const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
 
+  await expect.poll(async () => sheet.count()).toBe(1);
   await expect(trigger).toBeVisible();
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
@@ -1480,6 +1481,7 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
   const sheet = workbench.locator('[data-bottom-panel-kind="performance-link"]');
 
+  await expect.poll(async () => sheet.count()).toBe(1);
   await expect(trigger).toBeVisible();
   await expect(trigger).toContainText("Performance");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
@@ -1508,6 +1510,52 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+});
+
+test("workbench mobile replay panel opens as a bottom sheet and drives replay controls", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="replay"]').click();
+  await expect(workbench.locator('[data-bottom-tab="replay"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
+  const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
+  const sheet = workbench.locator('[data-bottom-panel-kind="replay"]');
+
+  await expect.poll(async () => sheet.count()).toBe(1);
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toContainText("Replay");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+  await expect(sheet).toBeHidden();
+
+  await trigger.click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator("[data-replay-panel]")).toBeVisible();
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "false");
+
+  await sheet.locator('[data-replay-control="enter"]').dispatchEvent("click");
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "true");
+
+  await sheet.locator('[data-replay-control="step"]').dispatchEvent("click");
+  await expect
+    .poll(async () => Number((await sheet.locator(".replay-summary").getAttribute("data-replay-current-step")) ?? "0"))
+    .toBeGreaterThan(0);
+
+  await sheet.locator('[data-replay-control="play"]').dispatchEvent("click");
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-playing", "true");
+
+  await sheet.locator('[data-replay-control="pause"]').dispatchEvent("click");
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-playing", "false");
+
+  await sheet.locator('[data-replay-control="exit"]').dispatchEvent("click");
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "false");
 });
 
 test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {

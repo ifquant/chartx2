@@ -85,6 +85,14 @@ import type {
   AccountSyncSurfaceHostAdapter,
   AccountSyncSurfaceModel,
 } from "$lib/chartx/public/account-sync-surface";
+import type {
+  ShareDialogModel,
+  ShareDialogStateModel,
+  ShareLinkModel,
+  SharePublishRequest,
+  ShareVisibility,
+  SharingSurfaceHostAdapter,
+} from "$lib/chartx/public/sharing-surface";
 import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
@@ -185,6 +193,7 @@ export type DemoSnapshot = {
   metrics: readonly DemoMetric[];
   eventLog: readonly string[];
   workbench?: ChartWorkbenchModel | null;
+  shareDialog?: ShareDialogModel | null;
   accountSync?: AccountSyncSurfaceModel | null;
   indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
   activeIndicators?: readonly DemoActiveIndicator[];
@@ -290,6 +299,7 @@ export type FeatureExampleDescriptor = {
 export type WorkbenchDemoOptions = {
   hostAdapter?: WorkbenchHostAdapter;
   scriptExecutionAdapter?: WorkbenchScriptExecutionAdapter;
+  sharingAdapter?: SharingSurfaceHostAdapter;
   tradingTicketFixtureMode?: "ready" | "submitting" | "error";
   initialSymbol?: string;
   initialTimeframe?: string;
@@ -330,6 +340,7 @@ type DemoScreenerCandidate = {
 };
 const REPLAY_INITIAL_VISIBLE_BARS = 120;
 const REPLAY_PLAY_INTERVAL_MS = 360;
+const SHARE_STATUS_NOTICE_TIMEOUT_MS = 2_400;
 type DemoWorkbenchChartHostRecord = {
   id: DemoWorkbenchChartHostId;
   symbol: string;
@@ -1460,9 +1471,18 @@ export function mountWorkbenchDemo(
   let replayCursor = -1;
   let replayTimer: ReturnType<typeof setInterval> | null = null;
   let statusNotice: WorkbenchStatusNoticeModel | null = null;
+  let transientStatusNoticeTimer: ReturnType<typeof setTimeout> | null = null;
   let accountSyncSurface = createDemoAccountSyncSurfaceModel({
     providerLabel: hasInjectedHostAdapter ? "Host sync adapter" : "Fixture sync adapter",
   });
+  const sharingAdapter = options.sharingAdapter ?? createFixtureSharingSurfaceHostAdapter();
+  let shareDialogVisibility: ShareVisibility = "unlisted";
+  let shareDialogLink: ShareLinkModel | undefined;
+  let shareDialogState: ShareDialogStateModel = {
+    status: "ready",
+    statusLabel: "Ready to publish an unlisted fixture link.",
+    publishEnabled: true,
+  };
   let accountSyncRefreshInFlight = false;
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
@@ -1525,6 +1545,121 @@ export function mountWorkbenchDemo(
       replayTimer = null;
     }
     replayPlaying = false;
+  };
+
+  const clearTransientStatusNoticeTimer = () => {
+    if (transientStatusNoticeTimer !== null) {
+      clearTimeout(transientStatusNoticeTimer);
+      transientStatusNoticeTimer = null;
+    }
+  };
+
+  const showTransientStatusNotice = (
+    notice: WorkbenchStatusNoticeModel,
+    durationMs = SHARE_STATUS_NOTICE_TIMEOUT_MS,
+  ) => {
+    clearTransientStatusNoticeTimer();
+    setStatusNotice(notice);
+    transientStatusNoticeTimer = setTimeout(() => {
+      if (destroyed) {
+        return;
+      }
+      if (statusNotice === notice) {
+        setStatusNotice(null);
+        publishSnapshot();
+      }
+    }, durationMs);
+  };
+
+  const buildShareArtifactTitle = () => {
+    const activeDocument = activeWorkspaceDocument();
+    return `${activeSymbol} ${activeTimeframe} ${activeDocument.label} layout`;
+  };
+
+  const buildShareArtifactId = () => {
+    const activeDocument = activeWorkspaceDocument();
+    return `${activeDocument.id}-${activeSymbol.toLowerCase()}-${activeTimeframe.toLowerCase()}`;
+  };
+
+  const shareDialogReadyStatusLabel = () =>
+    shareDialogLink === undefined
+      ? `Ready to publish a ${shareDialogVisibility} fixture link.`
+      : `${formatShareVisibilityLabel(shareDialogVisibility)} fixture link ready.`;
+
+  const resetShareDialogState = () => {
+    shareDialogLink = undefined;
+    shareDialogState = {
+      status: "ready",
+      statusLabel: shareDialogReadyStatusLabel(),
+      publishEnabled: true,
+    };
+  };
+
+  const buildShareDialogModel = (): ShareDialogModel => ({
+    artifactType: "layout",
+    title: buildShareArtifactTitle(),
+    descriptionLabel:
+      "Fixture-backed V0 shell. The host adapter owns real publish, permissions, and review flows.",
+    visibility: shareDialogVisibility,
+    link: shareDialogLink,
+    publishLabel: shareDialogLink === undefined ? "Publish link" : "Republish link",
+    state: shareDialogState,
+  });
+
+  const publishShareDialog = async (): Promise<boolean> => {
+    if (shareDialogState.status === "publishing") {
+      return false;
+    }
+
+    const request: SharePublishRequest = {
+      artifactType: "layout",
+      artifactId: buildShareArtifactId(),
+      title: buildShareArtifactTitle(),
+      visibility: shareDialogVisibility,
+    };
+    shareDialogState = {
+      status: "publishing",
+      statusLabel: `Publishing ${shareDialogVisibility} fixture link...`,
+      publishEnabled: false,
+    };
+    publishSnapshot();
+
+    const result = await sharingAdapter.publishArtifact(request);
+    if (destroyed) {
+      return false;
+    }
+
+    if (result.ok) {
+      shareDialogLink = {
+        label: `${formatShareVisibilityLabel(shareDialogVisibility)} fixture link`,
+        href: result.href,
+      };
+      shareDialogState = {
+        status: "ready",
+        statusLabel: result.statusLabel ?? shareDialogReadyStatusLabel(),
+        publishEnabled: true,
+      };
+      showTransientStatusNotice({
+        tone: "success",
+        message: `Share link ready for ${request.title}.`,
+      });
+      publishSnapshot();
+      return true;
+    }
+
+    shareDialogLink = undefined;
+    shareDialogState = {
+      status: "error",
+      statusLabel: result.detailLabel ?? "Publishing failed.",
+      errorLabel: result.errorLabel,
+      publishEnabled: true,
+    };
+    showTransientStatusNotice({
+      tone: "error",
+      message: result.errorLabel,
+    });
+    publishSnapshot();
+    return false;
   };
 
   const resolveReplayInitialCursor = () =>
@@ -2519,6 +2654,7 @@ export function mountWorkbenchDemo(
       summary:
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       workbench: workbenchModel,
+      shareDialog: buildShareDialogModel(),
       accountSync: accountSyncSurface,
       indicatorCatalog: currentIndicatorCatalog(),
       activeIndicators: [...projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)],
@@ -4026,6 +4162,24 @@ export function mountWorkbenchDemo(
           }
           void activateDemoChartHost("market-secondary");
           return;
+        case "share-dialog-visibility-private":
+          shareDialogVisibility = "private";
+          resetShareDialogState();
+          publishSnapshot();
+          return;
+        case "share-dialog-visibility-unlisted":
+          shareDialogVisibility = "unlisted";
+          resetShareDialogState();
+          publishSnapshot();
+          return;
+        case "share-dialog-visibility-public":
+          shareDialogVisibility = "public";
+          resetShareDialogState();
+          publishSnapshot();
+          return;
+        case "share-dialog-publish":
+          void publishShareDialog();
+          return;
         default:
           break;
       }
@@ -5063,6 +5217,7 @@ export function mountWorkbenchDemo(
     destroy() {
       destroyed = true;
       clearReplayTimer();
+      clearTransientStatusNoticeTimer();
       teardownChartTypeSubscription?.();
       chart?.destroy();
       chart = null;
@@ -5095,6 +5250,47 @@ export function mountFeatureDemo(
     case "annotations":
       return mountAnnotationsFeature(canvas, publish);
   }
+}
+
+function formatShareVisibilityLabel(visibility: ShareVisibility): string {
+  switch (visibility) {
+    case "private":
+      return "Private";
+    case "public":
+      return "Public";
+    default:
+      return "Unlisted";
+  }
+}
+
+function slugifyShareSegment(value: string): string {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "artifact"
+  );
+}
+
+function createFixtureSharingSurfaceHostAdapter(): SharingSurfaceHostAdapter {
+  return {
+    async publishArtifact(request: SharePublishRequest) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 80);
+      });
+      const slug = slugifyShareSegment(
+        `${request.artifactType}-${request.artifactId}-${request.visibility}`,
+      );
+      return {
+        ok: true,
+        shareId: `fixture-${slug}`,
+        href: `https://fixtures.chartx.local/share/${request.artifactType}/${slug}?visibility=${request.visibility}`,
+        statusLabel: `${formatShareVisibilityLabel(request.visibility)} fixture link ready`,
+      };
+    },
+  };
 }
 
 function mountSeriesFeature(canvas: HTMLCanvasElement, publish: SnapshotPublisher): DemoController {

@@ -1025,6 +1025,20 @@ Acceptance:
   `chartx2` shell.
 - The resulting sharing components are reusable by `alpha2`.
 
+Implementation note:
+
+- `Share Dialog Shell V0` is now a fixture-backed workbench slice. The toolbar
+  mounts a dedicated share trigger beside layout import/export, while the demo
+  controller publishes a separate `shareDialog` model backed by the public
+  `sharing-surface.ts` contract instead of overloading `adapterStatus`.
+- The dialog is intentionally host-adapter-oriented: `chartx2` owns only the
+  shell, visibility choices, deterministic fixture publish action, and stable
+  selectors for browser coverage. Real publication, permissions, review, and
+  marketplace flows remain external-host responsibilities.
+- This V0 does not add version history, copy-link UX, import/review queues,
+  script trust policy, or any real backend persistence. It is a narrow UI seam
+  proving where those host-backed flows will mount.
+
 ### 6. Multi-Device Productization
 
 Purpose:

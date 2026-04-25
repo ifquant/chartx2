@@ -28,6 +28,7 @@
   import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
+  import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -165,6 +166,7 @@
   let filteredCustomScripts: readonly DemoCustomScriptLibraryEntry[] = [];
   let pendingCustomScriptDeleteId: string | null = null;
   let pendingCustomScriptLoadId: string | null = null;
+  let shareDialogOpen = false;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -187,6 +189,10 @@
       return "action-btn danger";
     }
     return "action-btn";
+  }
+
+  $: if (commandPaletteOpen && shareDialogOpen) {
+    shareDialogOpen = false;
   }
 
   function resetCustomScriptDraft(): void {
@@ -727,6 +733,15 @@
         on:click={onExportLayout}
         disabled={workbench?.layoutTransfer.exportEnabled === false}
       >{workbench?.layoutTransfer.exportLabel ?? "Export layout"}</button>
+      <button
+        type="button"
+        data-share-dialog-trigger
+        aria-expanded={shareDialogOpen ? "true" : "false"}
+        aria-controls="workbench-share-dialog"
+        on:click={() => {
+          shareDialogOpen = !shareDialogOpen;
+        }}
+      >Share</button>
     </div>
     {#if workbench?.statusNotice}
       <div
@@ -836,6 +851,15 @@
       </div>
     </div>
   {/if}
+
+  <ShareDialogShell
+    model={snapshot.shareDialog ?? null}
+    open={shareDialogOpen}
+    onClose={() => {
+      shareDialogOpen = false;
+    }}
+    onRunAction={onRunAction}
+  />
 
   <div class="workbench-shell">
     <aside class="tool-rail">

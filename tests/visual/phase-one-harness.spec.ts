@@ -244,6 +244,41 @@ test("command palette: Cmd/Ctrl+K toggles the palette and runs layout commands",
   await expect(workbenchCommandPalette(page)).toHaveCount(0);
 });
 
+test("share dialog: toolbar trigger opens a fixture-backed publish shell", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-share-dialog-trigger]");
+
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await trigger.click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  const dialogState = dialog.locator("[data-share-dialog-state]");
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(dialog).toBeVisible();
+  await expect(dialogState).toHaveAttribute("data-share-dialog-status", "ready");
+  await expect(dialog).toContainText("Fixture-backed V0 shell");
+
+  await dialog.locator('[data-share-dialog-visibility="public"]').click();
+  await expect(dialog).toContainText("Ready to publish a public fixture link.");
+
+  await dialog.locator("[data-share-dialog-publish]").click();
+
+  await expect(dialogState).toHaveAttribute("data-share-dialog-status", "ready");
+  await expect(dialog.locator("[data-share-dialog-link]")).toHaveAttribute(
+    "href",
+    /visibility=public$/,
+  );
+  await expect(dialog.locator("[data-share-dialog-link]")).toContainText(
+    "fixtures.chartx.local/share/layout/",
+  );
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText(
+    "Share link ready",
+  );
+});
+
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

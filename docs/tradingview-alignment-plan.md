@@ -1090,6 +1090,9 @@ Progress checklist:
   open
 - [x] Entering replay from the narrow-screen toolbar now auto-opens the replay
   bottom sheet, so the active replay controls stay visible without a second tap
+- [x] Narrow-screen `logs` and `time presets` now have their own lightweight
+  bottom-sheet surfaces instead of relying on sidebar-only or inline-only
+  access paths
 
 Implementation note:
 
@@ -1127,6 +1130,9 @@ Implementation note:
   becomes active on a narrow viewport, the shell automatically opens the replay
   bottom sheet instead of forcing the user to enter replay and then open the
   sheet manually.
+- `Mobile Lightweight Bottom Panels V0` keeps the same shell-only boundary. It
+  mounts `logs` and `time presets` through the existing mobile bottom-sheet
+  seam without adding new engine behavior or host contracts.
 
 ### Layer 3 Gate
 

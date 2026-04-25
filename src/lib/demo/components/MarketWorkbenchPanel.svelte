@@ -26,8 +26,10 @@
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
   import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
+  import ActivityLogPanel from "$lib/demo/components/ActivityLogPanel.svelte";
   import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
+  import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
 
@@ -211,6 +213,8 @@
   }
 
   $: mobileBottomPanelAvailable =
+    workbench?.bottomPanel.activeTab === "logs" ||
+    workbench?.bottomPanel.activeTab === "time-presets" ||
     (workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester !== null && snapshot.strategyTester !== undefined) ||
     (workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket !== null && snapshot.tradingTicket !== undefined) ||
     (workbench?.bottomPanel.activeTab === "replay" && snapshot.replay !== null && snapshot.replay !== undefined);
@@ -1471,6 +1475,115 @@
             />
           </div>
         {/if}
+        {#if workbench?.bottomPanel.activeTab === "logs"}
+          <div
+            id="workbench-mobile-bottom-panel"
+            class="bottom-panel-body"
+            class:mobile-open={mobileBottomPanelOpen}
+            class:mobile-expanded={mobileBottomPanelSize === "expanded"}
+            class:mobile-full={mobileBottomPanelSize === "full"}
+            data-bottom-panel-body
+            data-bottom-panel-kind="logs"
+            data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+            data-mobile-bottom-panel-size={mobileBottomPanelSize}
+            data-mobile-bottom-panel-dragging={mobileDragTarget === "bottom" ? "true" : "false"}
+            data-mobile-bottom-panel-drag-offset={String(mobileDragTarget === "bottom" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "bottom" ? mobileDragOffsetY : 0}px;`}
+          >
+            <div class="mobile-bottom-panel-head">
+              <div class="mobile-sheet-title-block">
+                <button
+                  type="button"
+                  class="mobile-sheet-drag-handle"
+                  data-mobile-bottom-panel-drag-handle
+                  aria-label="Drag down to close mobile bottom panel"
+                  on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointermove={(event) => updateMobileSheetDrag("bottom", event)}
+                  on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
+                  on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
+                ></button>
+                <strong>{mobileBottomPanelLabel}</strong>
+              </div>
+              <div class="mobile-sheet-actions">
+                <button
+                  type="button"
+                  class="mobile-sheet-size-toggle"
+                  data-mobile-bottom-panel-size-toggle
+                  aria-pressed={mobileBottomPanelSize !== "default" ? "true" : "false"}
+                  on:click={() => {
+                    mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
+                  }}
+                >{mobileSheetSizeLabel(mobileBottomPanelSize)}</button>
+                <button
+                  type="button"
+                  class="mobile-bottom-panel-close"
+                  data-mobile-bottom-panel-close
+                  aria-label="Close mobile bottom panel"
+                  on:click={() => {
+                    closeMobileBottomSheet();
+                  }}
+                >Close</button>
+              </div>
+            </div>
+            <ActivityLogPanel entries={snapshot.eventLog} />
+          </div>
+        {/if}
+        {#if workbench?.bottomPanel.activeTab === "time-presets"}
+          <div
+            id="workbench-mobile-bottom-panel"
+            class="bottom-panel-body"
+            class:mobile-open={mobileBottomPanelOpen}
+            class:mobile-expanded={mobileBottomPanelSize === "expanded"}
+            class:mobile-full={mobileBottomPanelSize === "full"}
+            data-bottom-panel-body
+            data-bottom-panel-kind="time-presets"
+            data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+            data-mobile-bottom-panel-size={mobileBottomPanelSize}
+            data-mobile-bottom-panel-dragging={mobileDragTarget === "bottom" ? "true" : "false"}
+            data-mobile-bottom-panel-drag-offset={String(mobileDragTarget === "bottom" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "bottom" ? mobileDragOffsetY : 0}px;`}
+          >
+            <div class="mobile-bottom-panel-head">
+              <div class="mobile-sheet-title-block">
+                <button
+                  type="button"
+                  class="mobile-sheet-drag-handle"
+                  data-mobile-bottom-panel-drag-handle
+                  aria-label="Drag down to close mobile bottom panel"
+                  on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointermove={(event) => updateMobileSheetDrag("bottom", event)}
+                  on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
+                  on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
+                ></button>
+                <strong>{mobileBottomPanelLabel}</strong>
+              </div>
+              <div class="mobile-sheet-actions">
+                <button
+                  type="button"
+                  class="mobile-sheet-size-toggle"
+                  data-mobile-bottom-panel-size-toggle
+                  aria-pressed={mobileBottomPanelSize !== "default" ? "true" : "false"}
+                  on:click={() => {
+                    mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
+                  }}
+                >{mobileSheetSizeLabel(mobileBottomPanelSize)}</button>
+                <button
+                  type="button"
+                  class="mobile-bottom-panel-close"
+                  data-mobile-bottom-panel-close
+                  aria-label="Close mobile bottom panel"
+                  on:click={() => {
+                    closeMobileBottomSheet();
+                  }}
+                >Close</button>
+              </div>
+            </div>
+            <TimePresetsPanel
+              ranges={workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"]}
+              activeRange={workbench?.bottomPanel.activeRange ?? "1D"}
+            />
+          </div>
+        {/if}
       </div>
     </div>
 
@@ -2480,18 +2593,7 @@
           </div>
         </section>
 
-        <section class="mini-card action-card">
-          <h4>Activity</h4>
-          <ul class="event-log">
-            {#if snapshot.eventLog.length === 0}
-              <li>Waiting for the first chart event.</li>
-            {:else}
-              {#each snapshot.eventLog as entry}
-                <li>{entry}</li>
-              {/each}
-            {/if}
-          </ul>
-        </section>
+        <ActivityLogPanel entries={snapshot.eventLog} />
       </div>
     </aside>
   </div>

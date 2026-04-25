@@ -1573,6 +1573,57 @@ test("workbench mobile replay toolbar entry auto-opens the replay bottom sheet",
   await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "true");
 });
 
+test("workbench mobile logs panel opens as a bottom sheet instead of relying on the sidebar", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
+  const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
+  const sheet = workbench.locator('[data-bottom-panel-kind="logs"]');
+
+  await expect.poll(async () => sheet.count()).toBe(1);
+  await expect(trigger).toBeVisible();
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+
+  await trigger.click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet.locator("[data-activity-log-panel]")).toBeVisible();
+  await expect(sheet.locator("[data-activity-log-panel]")).toContainText("Activity");
+});
+
+test("workbench mobile time presets open as a bottom sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="time-presets"]').click();
+  await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
+  const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
+  const sheet = workbench.locator('[data-bottom-panel-kind="time-presets"]');
+
+  await expect.poll(async () => sheet.count()).toBe(1);
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toContainText("Time presets");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+
+  await trigger.click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet.locator("[data-time-presets-panel]")).toBeVisible();
+  await expect(sheet.locator('[data-time-preset="1D"]')).toHaveClass(/active/);
+});
+
 test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

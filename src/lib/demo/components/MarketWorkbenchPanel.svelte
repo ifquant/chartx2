@@ -289,6 +289,13 @@
     closeMobileBottomSheet();
   }
 
+  function shouldAutoOpenLightweightBottomTab(tabId: BottomPanelTabId): boolean {
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 840px)").matches) {
+      return false;
+    }
+    return tabId === "logs" || tabId === "time-presets";
+  }
+
   async function handleSetWorkspaceTab(tabId: WorkbenchWorkspaceTabId): Promise<void> {
     closeMobileSheetsForNavigation();
     await onSetWorkspaceTab(tabId);
@@ -297,6 +304,10 @@
   async function handleSetBottomTab(tabId: BottomPanelTabId): Promise<void> {
     closeMobileBottomSheet();
     await onSetBottomTab(tabId);
+    if (shouldAutoOpenLightweightBottomTab(tabId)) {
+      mobileBottomPanelSize = "default";
+      mobileBottomPanelOpen = true;
+    }
   }
 
   function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {

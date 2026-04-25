@@ -5,8 +5,9 @@ Date: 2026-04-23
 This document is the long-range alignment plan for `chartx2`.
 
 `chartx2` should not be treated as a one-page chart demo. The target is a
-modifiable TradingView-like chart workstation, with `lightweight-charts` parity
-as the first floor and a broader workstation/platform surface as the ceiling.
+modifiable TradingView-like chart workstation for the chart product surface,
+with `lightweight-charts` parity as the first floor and a reusable
+workstation/platform UI surface as the ceiling.
 
 The plan is intentionally split into three layers:
 
@@ -31,6 +32,9 @@ Current repo state should be understood as:
 - Platform features such as script execution, strategy testing, broker
   integration, cloud sync, publishing, and account-level services have not
   started and should not be mixed into the chart engine.
+- For the long-range split, `chartx2` should own chart-facing UI/components and
+  typed host contracts, while `alpha2` is the intended place to consume those
+  components and connect them to a future Rust core.
 
 Approximate alignment status:
 
@@ -52,6 +56,12 @@ Approximate alignment status:
   datafeeds, persistence, and host intents should enter through typed adapters.
 - Do not start Pine-like scripting or broker integration before the engine and
   workstation contracts are stable enough to host them.
+- Treat Layer 3 in `chartx2` as UI-first productization: panels, inspectors,
+  editors, tickets, status surfaces, and persistence/share shells belong here;
+  heavy execution, broker logic, backtesting engines, sync engines, and account
+  services should be expected to move behind `alpha2` plus a Rust core.
+- Prefer reusable chart-workstation components and typed view models over
+  embedding product logic in demo-only state machines.
 
 ## Layer 1: Foundation Parity
 
@@ -640,36 +650,51 @@ Layer 2 is acceptable when:
 - Workstation capabilities are exposed through explicit public/internal
   contracts.
 
-## Layer 3: Platform Parity
+## Layer 3: Platform UI Parity
 
-Goal: add TradingView-like platform capabilities only after the engine and
-workstation layers have stable contracts.
+Goal: add TradingView-like platform-facing UI capabilities only after the
+engine and workstation layers have stable contracts.
 
 Layer 3 is intentionally later. These features are high-leverage but dangerous
 if started too early because they can force unstable engine assumptions into
 public compatibility contracts.
 
+Boundary:
+
+- `chartx2` should implement the chart product's UI/components/contracts for
+  these platform-facing areas.
+- `chartx2` may keep lightweight demo or fixture-backed behavior where needed
+  to exercise the UI, but it should not become the long-term home for the full
+  execution logic.
+- `alpha2` is the intended host product for these surfaces.
+- Heavy logic such as script execution engines, strategy simulation, broker
+  logic, cloud/sync backends, and account services should be assumed to land in
+  a Rust core plus host-product adapters rather than in `chartx2` itself.
+
 ### 1. Script System Roadmap
 
 Purpose:
 
-- Enable user-defined indicators and strategies without copying Pine Script
-  blindly at the start.
+- Deliver a TradingView-like script authoring and inspection UI surface without
+  forcing the final script engine to live in `chartx2`.
 
 Scope:
 
-- Design a `chartx script` runtime or DSL.
-- AST, type system, sandbox, execution budget, and deterministic data access.
-- Indicator script output.
-- Drawing/plot output channels.
-- Versioned script metadata.
-- Later Pine-compatible subset evaluation.
+- Script editor, library, metadata, parameter editing, status/error UI, and
+  chart/workbench integration points.
+- Script output configuration UI for plots, panes, and display metadata.
+- Versioned script metadata and host-facing script execution contracts.
+- Demo/runtime scaffolding only where needed to exercise the UI and contracts.
+- Later Pine-compatible subset evaluation as a compatibility target for the UI
+  and contract layer, not as a promise that `chartx2` owns the final engine.
 
 Acceptance:
 
-- A script-created indicator can run in a sandbox and attach to a chart through
-  the indicator/source system.
-- Script failures are isolated and visible.
+- A script-created indicator UI can attach to a chart through the
+  indicator/source system and exercise a host execution seam.
+- Script failures are isolated and visible in the UI.
+- Script editing, script library, and indicator attachment surfaces are
+  reusable by `alpha2`.
 
 Progress checklist:
 
@@ -708,7 +733,7 @@ Progress checklist:
 - [x] Active indicator and custom-script in-use surfaces now fall back to engine-native scripted-study chart-state snapshots when descriptor replay is absent
 - [x] Engine-native fallback scripted-study rows now render an explicit `engine-restored` read-only hint instead of a silent missing remove affordance
 - [ ] Richer text editor and broader script-library management beyond preset cloning
-- [ ] Pine-compatible subset evaluation
+- [ ] Pine-compatible subset-oriented editor/metadata/compatibility surface
 
 Implementation note:
 
@@ -862,116 +887,130 @@ Implementation note:
   in chart state. This wave does not add Pine compatibility, overlay scripted
   studies, or broader layout/chart-state migration beyond the restore/mount
   seam itself.
+- The long-term expectation is that `chartx2` keeps the editor/library and
+  host-facing script contract surfaces, while deeper execution semantics move
+  into a Rust core consumed by `alpha2`.
 
 ### 2. Strategy Tester
 
 Purpose:
 
-- Support backtesting and performance review as a platform capability.
+- Provide a TradingView-like strategy tester UI surface and chart/performance
+  integration shell.
 
 Scope:
 
-- Strategy script output.
-- Simulated orders and positions.
-- Entry, exit, bracket, stop, target, commission, slippage.
-- PnL, drawdown, win rate, trade list, equity curve.
-- Link trades back to market chart locate-trade behavior.
+- Strategy tester panel layout, tabs, filters, summaries, trade list, equity
+  curve viewport, and chart locate-trade affordances.
+- Host-facing data contracts for trades, metrics, equity points, runs, and
+  parameter sets.
+- Fixture/demo-backed behavior where needed to exercise the UI.
+- No commitment that `chartx2` owns the final backtest engine.
 
 Acceptance:
 
-- A strategy can produce a trade list and performance report.
+- A strategy tester UI can display a trade list and performance report through
+  typed host contracts.
 - Performance chart family remains separate from market chart runtime.
+- The resulting components are reusable by `alpha2`.
 
 ### 3. Paper Trading And Broker Adapter
 
 Purpose:
 
-- Add chart trading without putting broker logic inside the engine.
+- Add chart-trading UI components without putting broker logic inside the
+  engine or `chartx2`.
 
 Scope:
 
-- Host trading adapter.
-- Paper trading adapter first.
-- Order ticket.
-- Order lines.
-- Drag-to-modify with confirmation.
-- Bracket order preview.
-- Audit trail for all trading intents.
+- Order ticket UI, order line UI, drag-to-modify affordances, confirmation
+  flows, bracket preview UI, and audit/status surfaces.
+- Host trading adapter contracts and local fixture/demo adapters.
+- No real broker implementation in `chartx2`; the final execution path should
+  be expected to live behind host adapters and a Rust core.
 
 Acceptance:
 
-- Paper orders can be created and modified from the chart.
+- Paper-trading-style UI flows can be exercised through local fixture adapters.
 - Real broker integration remains behind explicit adapters and confirmations.
+- The resulting trading widgets are reusable by `alpha2`.
 
 ### 4. Cloud, Sync, And Account Boundary
 
 Purpose:
 
-- Make persistence pluggable instead of making cloud state a chart-engine
-  dependency.
+- Make persistence and account-facing surfaces pluggable instead of making
+  cloud state a chart-engine dependency.
 
 Scope:
 
-- Persistence provider for layouts, watchlists, alerts, scripts, indicator
-  presets, and templates.
+- Persistence/sync/account settings UI, provider status UI, conflict dialogs,
+  offline indicators, import/export fallback UI, and typed provider contracts.
 - Local provider first.
-- Private backend provider later.
-- Import/export fallback.
-- Conflict handling and offline mode.
+- Backend/cloud implementations are expected to live outside `chartx2`.
 
 Acceptance:
 
 - Cloud or backend persistence can be added without changing chart runtime
   models.
 - Local-only usage remains possible.
+- The resulting settings/status surfaces are reusable by `alpha2`.
 
 ### 5. Publishing, Sharing, And Marketplace
 
 Purpose:
 
-- Add community/product surfaces only after core user workflows are stable.
+- Add community/product UI surfaces only after core user workflows are stable.
 
 Scope:
 
-- Share chart layout.
-- Share indicator preset.
-- Share script.
-- Version, permission, signature, audit, and rollback.
-- Optional marketplace or private library.
+- Share dialogs, version/history views, permission/status UIs, import/review
+  flows, and typed artifact contracts for layouts, presets, and scripts.
+- Optional marketplace/private-library shell UI.
+- No requirement that `chartx2` owns publication backends or trust services.
 
 Acceptance:
 
-- Shared artifacts are versioned and safe to import.
-- Untrusted scripts or layouts cannot mutate privileged host state.
+- Shared artifact UIs are versioned and reviewable through typed contracts.
+- Untrusted scripts or layouts cannot mutate privileged host state through the
+  `chartx2` shell.
+- The resulting sharing components are reusable by `alpha2`.
 
 ### 6. Multi-Device Productization
 
 Purpose:
 
-- Decide how far beyond desktop the product should go.
+- Decide how the chart product UI should scale beyond the current desktop-first
+  shell.
 
 Scope:
 
 - Tauri desktop as primary target.
 - Web as compatible target.
 - Mobile as later productization, not a first constraint.
-- Responsive fallbacks for key panels.
-- Shortcut profiles and workspace sync.
+- Responsive fallbacks for key panels, component density variants, input-mode
+  adaptations, and host profile contracts.
+- No requirement that `chartx2` owns the final cross-device sync engine.
 
 Acceptance:
 
 - Desktop remains the primary high-density workflow.
 - Web/mobile support does not force engine compromises.
+- The resulting responsive components and host contracts are reusable by
+  `alpha2`.
 
 ### Layer 3 Gate
 
 Layer 3 is acceptable when:
 
-- Script indicators can attach, render, save, restore, and fail safely.
-- Strategy tester produces trades and reports from deterministic input data.
-- Paper trading uses an adapter boundary and auditable intents.
-- Persistence providers can swap local and backend implementations.
+- Script indicators can attach, render, save, restore, and fail safely through
+  a reusable editor/library/contract surface.
+- Strategy tester, trading, sync, and sharing surfaces exist as reusable UI
+  components with typed host contracts.
+- Fixture/demo adapters are sufficient to exercise the intended UI behavior.
 - No platform feature reaches directly into private chart runtime internals.
+- `chartx2` remains a chart/workstation component suite rather than absorbing
+  the full product backend.
 
 ## Execution Order
 

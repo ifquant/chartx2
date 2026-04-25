@@ -177,6 +177,7 @@
   let mobileDragTarget: "sidebar" | "bottom" | null = null;
   let mobileDragStartY = 0;
   let mobileDragOffsetY = 0;
+  let previousReplayActive = false;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -231,6 +232,22 @@
 
   $: if (!mobileBottomPanelOpen && mobileBottomPanelSize !== "default") {
     mobileBottomPanelSize = "default";
+  }
+
+  $: {
+    const replayActive = snapshot.replay?.active ?? false;
+    if (
+      replayActive &&
+      !previousReplayActive &&
+      mobileBottomPanelAvailable &&
+      workbench?.bottomPanel.activeTab === "replay" &&
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 840px)").matches
+    ) {
+      mobileBottomPanelSize = "default";
+      mobileBottomPanelOpen = true;
+    }
+    previousReplayActive = replayActive;
   }
 
   function nextMobileSheetSize(current: "default" | "expanded" | "full"): "default" | "expanded" | "full" {

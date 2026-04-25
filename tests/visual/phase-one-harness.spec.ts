@@ -1558,6 +1558,21 @@ test("workbench mobile replay panel opens as a bottom sheet and drives replay co
   await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "false");
 });
 
+test("workbench mobile replay toolbar entry auto-opens the replay bottom sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const replayTab = workbench.locator('[data-bottom-tab="replay"]');
+  const sheet = workbench.locator('[data-bottom-panel-kind="replay"]');
+
+  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Replay", exact: true }).click();
+
+  await expect(replayTab).toHaveAttribute("data-bottom-tab-active", "true");
+  await expect.poll(async () => sheet.count()).toBe(1);
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "true");
+});
+
 test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

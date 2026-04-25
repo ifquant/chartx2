@@ -1088,6 +1088,8 @@ Progress checklist:
 - [x] The mobile bottom-sheet seam now covers the replay workflow too, so
   narrow-screen replay controls no longer depend on the sidebar sheet staying
   open
+- [x] Entering replay from the narrow-screen toolbar now auto-opens the replay
+  bottom sheet, so the active replay controls stay visible without a second tap
 
 Implementation note:
 
@@ -1121,6 +1123,10 @@ Implementation note:
   reuses a shared replay panel surface and mounts replay controls through the
   existing mobile bottom-sheet seam, without widening the host/runtime replay
   contract.
+- `Mobile Replay Auto-Open V0` keeps the follow-up equally bounded: when replay
+  becomes active on a narrow viewport, the shell automatically opens the replay
+  bottom sheet instead of forcing the user to enter replay and then open the
+  sheet manually.
 
 ### Layer 3 Gate
 

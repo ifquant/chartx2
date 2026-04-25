@@ -286,6 +286,25 @@ test("workspace tabs: switching documents changes active workspace and panel foc
   );
 });
 
+test("strategy tester panel renders fixture-backed metrics through the bottom-panel shell", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-bottom-panel-kind="performance-link"]')).toBeVisible();
+  await expect(workbench.locator("[data-strategy-tester-panel]")).toContainText("Strategy Tester");
+  await expect(workbench.locator("[data-strategy-tester-panel]")).toContainText("Net Profit");
+  await expect(workbench.locator('[data-strategy-tester-metric="net-profit"]')).toContainText("+12,340");
+  await expect(workbench.locator('[data-strategy-tester-trade-row="trade-1"]')).toContainText("Apr 18 09:35");
+});
+
 test("workspace tabs: create and close document tabs in the shell", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

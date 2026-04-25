@@ -917,12 +917,25 @@ Scope:
 - Fixture/demo-backed behavior where needed to exercise the UI.
 - No commitment that `chartx2` owns the final backtest engine.
 
+Progress checklist:
+
+- [x] A public `StrategyTesterPanelModel` now exists as a reusable host-facing UI contract
+- [x] The workbench demo mounts a fixture-backed strategy tester shell through the existing `performance-link` bottom-tab seam
+- [x] Focused visual coverage asserts the panel shell, metrics, and trade rows without relying on a real backtest engine
+
 Acceptance:
 
 - A strategy tester UI can display a trade list and performance report through
   typed host contracts.
 - Performance chart family remains separate from market chart runtime.
 - The resulting components are reusable by `alpha2`.
+
+Implementation note:
+
+- `Strategy Tester Shell V0` keeps the boundary narrow: `chartx2` now ships the
+  public panel contract and a fixture-backed workbench shell path, while real
+  strategy execution, parameter sweeps, and run storage stay deferred to
+  `alpha2` plus the future Rust core.
 
 ### 3. Paper Trading And Broker Adapter
 

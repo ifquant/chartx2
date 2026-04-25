@@ -14,6 +14,7 @@
     createLocalStorageWorkbenchLayoutProvider,
     type WorkbenchLayoutPersistenceProvider,
   } from "$lib/chartx/public/workbench-layout";
+  import type { BottomPanelTabId } from "$lib/chartx/public/workbench";
   import type { WorkbenchScriptExecutionAdapter } from "$lib/chartx/public/workbench-scripts";
   import {
     FEATURE_TABS,
@@ -567,6 +568,16 @@
     }
   }
 
+  async function setWorkbenchBottomTab(tabId: BottomPanelTabId): Promise<void> {
+    if (tabId === "custom") {
+      return;
+    }
+    const changed = await workbenchController?.setActiveBottomTab?.(tabId);
+    if (changed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   async function createWorkbenchWorkspaceTab(): Promise<void> {
     const created = await workbenchController?.createWorkspaceTab?.();
     if (created) {
@@ -1045,6 +1056,7 @@
           onRunAction={runWorkbenchAction}
           onSetDrawingTool={setWorkbenchDrawingTool}
           onSetWorkspaceTab={setWorkbenchWorkspaceTab}
+          onSetBottomTab={setWorkbenchBottomTab}
           onCreateWorkspaceTab={createWorkbenchWorkspaceTab}
           onCloseWorkspaceTab={closeWorkbenchWorkspaceTab}
           onToggleCommandPalette={toggleWorkbenchCommandPalette}

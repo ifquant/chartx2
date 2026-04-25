@@ -78,6 +78,7 @@ import {
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
+import type { StrategyTesterPanelModel } from "$lib/chartx/public/strategy-tester";
 import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
@@ -182,6 +183,7 @@ export type DemoSnapshot = {
   activeIndicators?: readonly DemoActiveIndicator[];
   customScripts?: readonly DemoCustomScriptLibraryEntry[];
   scriptExecution?: WorkbenchScriptExecutionStatusModel;
+  strategyTester?: StrategyTesterPanelModel | null;
   replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
@@ -232,6 +234,9 @@ export type DemoController = {
   exportLayout?(): Promise<string | null>;
   importLayout?(raw: string): Promise<boolean>;
   setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
+  setActiveBottomTab?(
+    tabId: "time-presets" | "logs" | "replay" | "performance-link",
+  ): Promise<boolean> | boolean;
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   addIndicatorFromCatalog?(
@@ -296,7 +301,7 @@ type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
 type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
 type DemoWorkspaceFocus = {
   sidebarPanel: WorkbenchSidebarPanelId;
-  bottomTab: "time-presets" | "logs" | "replay";
+  bottomTab: "time-presets" | "logs" | "replay" | "performance-link";
 };
 type DemoWorkspaceDocument = {
   id: WorkbenchWorkspaceTabId;
@@ -752,6 +757,154 @@ function workspaceFocusForView(viewId: WorkbenchWorkspaceViewId, replayActive: b
         bottomTab: replayActive ? "replay" : "time-presets",
       };
   }
+}
+
+function normalizeWorkspaceFocusForView(
+  viewId: WorkbenchWorkspaceViewId,
+  replayActive: boolean,
+  currentFocus?: DemoWorkspaceFocus,
+): DemoWorkspaceFocus {
+  const defaultFocus = workspaceFocusForView(viewId, replayActive);
+  if (replayActive && viewId === "trade") {
+    return {
+      ...defaultFocus,
+      bottomTab: "replay",
+    };
+  }
+  if (currentFocus === undefined) {
+    return defaultFocus;
+  }
+
+  switch (viewId) {
+    case "scan":
+      return {
+        sidebarPanel: "screener",
+        bottomTab: currentFocus.bottomTab === "time-presets" ? "time-presets" : "time-presets",
+      };
+    case "alerts":
+      return {
+        sidebarPanel: "alerts",
+        bottomTab: "logs",
+      };
+    case "inspect":
+      return {
+        sidebarPanel: "object-tree",
+        bottomTab: "logs",
+      };
+    case "trade":
+    default:
+      return {
+        sidebarPanel: "watchlist",
+        bottomTab:
+          currentFocus.bottomTab === "performance-link" ||
+          currentFocus.bottomTab === "logs" ||
+          currentFocus.bottomTab === "time-presets"
+            ? currentFocus.bottomTab
+            : "time-presets",
+      };
+  }
+}
+
+function persistableBottomTab(
+  tabId: DemoWorkspaceFocus["bottomTab"],
+): "time-presets" | "logs" | "replay" {
+  return tabId === "performance-link" ? "logs" : tabId;
+}
+
+function createDemoStrategyTesterModel(symbol: string, timeframe: string): StrategyTesterPanelModel {
+  return {
+    title: `${symbol} Breakout Range`,
+    runLabel: `${symbol} · ${timeframe} · Fixture run #17`,
+    summaryMetrics: [
+      {
+        id: "net-profit",
+        label: "Net Profit",
+        valueLabel: "+12,340",
+        detailLabel: "+8.7% vs baseline",
+        tone: "positive",
+      },
+      {
+        id: "max-drawdown",
+        label: "Max Drawdown",
+        valueLabel: "-2,110",
+        detailLabel: "3 losing runs",
+        tone: "negative",
+      },
+      {
+        id: "win-rate",
+        label: "Win Rate",
+        valueLabel: "54%",
+        detailLabel: "21 / 39 closed trades",
+        tone: "neutral",
+      },
+      {
+        id: "profit-factor",
+        label: "Profit Factor",
+        valueLabel: "1.68",
+        detailLabel: "Gross P/L fixture",
+        tone: "positive",
+      },
+    ],
+    tabs: [
+      { id: "overview", label: "Overview" },
+      { id: "trades", label: "Trades", badgeLabel: "39" },
+      { id: "ratios", label: "Ratios" },
+      { id: "list", label: "Trade List" },
+    ],
+    trades: [
+      {
+        id: "trade-1",
+        side: "long",
+        symbolLabel: symbol,
+        entryTimeLabel: "Apr 18 09:35",
+        exitTimeLabel: "Apr 18 11:10",
+        entryPriceLabel: "18,412.0",
+        exitPriceLabel: "18,505.5",
+        quantityLabel: "2 lots",
+        durationLabel: "95m",
+        pnlLabel: "+1,870",
+        statusLabel: "Closed at target",
+      },
+      {
+        id: "trade-2",
+        side: "short",
+        symbolLabel: symbol,
+        entryTimeLabel: "Apr 19 10:05",
+        exitTimeLabel: "Apr 19 13:40",
+        entryPriceLabel: "18,540.0",
+        exitPriceLabel: "18,498.0",
+        quantityLabel: "1 lot",
+        durationLabel: "215m",
+        pnlLabel: "+840",
+        statusLabel: "Closed on structure break",
+      },
+      {
+        id: "trade-3",
+        side: "long",
+        symbolLabel: symbol,
+        entryTimeLabel: "Apr 22 09:50",
+        exitTimeLabel: "Apr 22 10:25",
+        entryPriceLabel: "18,466.0",
+        exitPriceLabel: "18,431.5",
+        quantityLabel: "2 lots",
+        durationLabel: "35m",
+        pnlLabel: "-690",
+        statusLabel: "Stopped out",
+      },
+    ],
+    equityCurve: [
+      { id: "eq-1", timeLabel: "Apr 17", equityLabel: "100,000", value: 100000 },
+      { id: "eq-2", timeLabel: "Apr 18", equityLabel: "101,870", value: 101870, tradeId: "trade-1" },
+      { id: "eq-3", timeLabel: "Apr 19", equityLabel: "102,710", value: 102710, tradeId: "trade-2", active: true },
+      { id: "eq-4", timeLabel: "Apr 22", equityLabel: "102,020", value: 102020, tradeId: "trade-3", drawdownLabel: "-690" },
+      { id: "eq-5", timeLabel: "Apr 24", equityLabel: "112,340", value: 112340 },
+    ],
+    state: {
+      status: "ready",
+      activeTabId: "overview",
+      statusLabel: "Fixture-backed shell. No real backtest engine attached.",
+    },
+  };
 }
 
 function workspaceViewForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspaceViewId {
@@ -1506,7 +1659,7 @@ export function mountWorkbenchDemo(
       chartType: mainChartType,
       chartState: captureChartState ? capturePersistedChartState() : currentDocument.chartState,
       scriptIndicators: persistedScriptedStudyDescriptors(),
-      panels: workspaceFocusForView(currentDocument.viewId, replayActive),
+      panels: normalizeWorkspaceFocusForView(currentDocument.viewId, replayActive, currentDocument.panels),
     });
   };
 
@@ -1554,12 +1707,17 @@ export function mountWorkbenchDemo(
       chartType: toWorkbenchMainChartType(tab.chartType) ?? "candlestick",
       chartState: tab.chartState,
       scriptIndicators: normalizePersistedScriptedStudyDescriptors(tab.scriptedIndicators),
-      panels: {
-        sidebarPanel: tab.panels.rightSidebar,
-        bottomTab: tab.panels.bottomTab === "performance-link" || tab.panels.bottomTab === "custom"
-          ? "logs"
-          : tab.panels.bottomTab,
-      },
+      panels: normalizeWorkspaceFocusForView(
+        tab.viewId,
+        replayActive,
+        {
+          sidebarPanel: tab.panels.rightSidebar,
+          bottomTab:
+            tab.panels.bottomTab === "custom"
+              ? "logs"
+              : tab.panels.bottomTab,
+        },
+      ),
     }));
     workspaceTabSequence = Math.max(
       workspaceTabSequence,
@@ -1595,6 +1753,22 @@ export function mountWorkbenchDemo(
         options.alertsProvider === undefined ? "No provider attached" : "Local storage provider",
     },
   ];
+
+  const applyActiveBottomTab = (
+    tabId: "time-presets" | "logs" | "replay" | "performance-link",
+  ): void => {
+    const currentDocument = activeWorkspaceDocument();
+    const nextPanels = normalizeWorkspaceFocusForView(currentDocument.viewId, replayActive, {
+      ...currentDocument.panels,
+      bottomTab: tabId,
+    });
+    replaceWorkspaceDocument({
+      ...currentDocument,
+      panels: nextPanels,
+    });
+    pushLog(log, `opened ${nextPanels.bottomTab} bottom panel`);
+    publishSnapshot();
+  };
 
   const buildWatchlistEmptyLabel = (): string => {
     if (watchlistLoadFailed) {
@@ -1983,7 +2157,16 @@ export function mountWorkbenchDemo(
       emptyLabel: buildScreenerEmptyLabel(),
     });
     const replayState = buildReplaySnapshot();
-    const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayState.active);
+    const activeDocument = activeWorkspaceDocument();
+    const workspaceFocus = normalizeWorkspaceFocusForView(
+      activeDocument.viewId,
+      replayState.active,
+      activeDocument.panels,
+    );
+    const strategyTester =
+      activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "performance-link"
+        ? createDemoStrategyTesterModel(activeSymbol, activeTimeframe)
+        : null;
     const effectiveStatusNotice =
       statusNotice ??
       (options.persistenceProvider === undefined
@@ -2009,7 +2192,10 @@ export function mountWorkbenchDemo(
       objectTree,
       activeRange: activeTimeframe,
       activeTab: workspaceFocus.bottomTab,
-      enabledBottomTabs: ["logs", "replay"],
+      enabledBottomTabs:
+        activeDocument.viewId === "trade"
+          ? ["logs", "replay", "performance-link"]
+          : ["logs", "replay"],
       layoutPreset,
       chartHosts,
       commandPalette: buildWorkbenchCommandPalette(replayState),
@@ -2029,6 +2215,7 @@ export function mountWorkbenchDemo(
       activeIndicators: [...projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)],
       customScripts: summarizeCustomScripts(),
       scriptExecution: scriptExecutionStatus,
+      strategyTester,
       replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
@@ -4231,7 +4418,12 @@ export function mountWorkbenchDemo(
 
       try {
         captureActiveWorkspaceDocument(true);
-        const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
+        const currentDocument = activeWorkspaceDocument();
+        const workspaceFocus = normalizeWorkspaceFocusForView(
+          currentDocument.viewId,
+          replayActive,
+          currentDocument.panels,
+        );
         const scriptedIndicators = persistedScriptedStudyDescriptors();
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
@@ -4241,7 +4433,7 @@ export function mountWorkbenchDemo(
           customScripts: serializeCustomScripts(),
           scriptedIndicators,
           rightSidebar: workspaceFocus.sidebarPanel,
-          bottomTab: workspaceFocus.bottomTab,
+          bottomTab: persistableBottomTab(workspaceFocus.bottomTab),
           workspace: buildPersistedWorkspaceState(),
         });
         const saved = await provider.saveWorkbenchLayout(state);
@@ -4422,7 +4614,12 @@ export function mountWorkbenchDemo(
       }
       try {
         captureActiveWorkspaceDocument(true);
-        const workspaceFocus = workspaceFocusForView(activeWorkspaceDocument().viewId, replayActive);
+        const currentDocument = activeWorkspaceDocument();
+        const workspaceFocus = normalizeWorkspaceFocusForView(
+          currentDocument.viewId,
+          replayActive,
+          currentDocument.panels,
+        );
         const scriptedIndicators = persistedScriptedStudyDescriptors();
         const state = createWorkbenchDemoLayoutState({
           activeSymbol,
@@ -4432,7 +4629,7 @@ export function mountWorkbenchDemo(
           customScripts: serializeCustomScripts(),
           scriptedIndicators,
           rightSidebar: workspaceFocus.sidebarPanel,
-          bottomTab: workspaceFocus.bottomTab,
+          bottomTab: persistableBottomTab(workspaceFocus.bottomTab),
           workspace: buildPersistedWorkspaceState(),
         });
         const raw = JSON.stringify(state, null, 2);
@@ -4528,6 +4725,15 @@ export function mountWorkbenchDemo(
       return true;
     },
     setWorkspaceTab,
+    setActiveBottomTab(tabId) {
+      const currentDocument = activeWorkspaceDocument();
+      if (currentDocument.viewId !== "trade" && tabId === "performance-link") {
+        publishSnapshot();
+        return false;
+      }
+    applyActiveBottomTab(tabId);
+    return true;
+  },
     createWorkspaceTab,
     closeWorkspaceTab,
     enterReplay,

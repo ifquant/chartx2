@@ -5,6 +5,7 @@
     PhaseOneReadoutDetail,
   } from "$lib/chartx/public/market";
   import type {
+    BottomPanelTabId,
     ChartWorkbenchModel,
     WorkbenchCommandPaletteModel,
     WorkbenchWorkspaceTabId,
@@ -24,6 +25,7 @@
   } from "$lib/demo/chartx-demo";
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
+  import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -54,6 +56,7 @@
   export let onRunAction: (actionId: string) => void;
   export let onSetDrawingTool: (tool: WorkbenchDrawingTool) => void;
   export let onSetWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void | Promise<void>;
+  export let onSetBottomTab: (tabId: BottomPanelTabId) => void | Promise<void>;
   export let onCreateWorkspaceTab: () => void | Promise<void>;
   export let onCloseWorkspaceTab: (tabId: WorkbenchWorkspaceTabId) => void | Promise<void>;
   export let onToggleCommandPalette: () => void;
@@ -998,6 +1001,7 @@
               data-bottom-tab-active={tab.id === workbench?.bottomPanel.activeTab ? "true" : "false"}
               disabled={!tab.enabled}
               aria-disabled={!tab.enabled}
+              on:click={() => onSetBottomTab(tab.id)}
             >
               {tab.label}
             </button>
@@ -1043,6 +1047,11 @@
             </button>
           {/each}
         </div>
+        {#if workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester}
+          <div class="bottom-panel-body" data-bottom-panel-body data-bottom-panel-kind="performance-link">
+            <StrategyTesterPanel model={snapshot.strategyTester} />
+          </div>
+        {/if}
       </div>
     </div>
 
@@ -2633,10 +2642,16 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 28px 28px auto var(--action-strip-height, 40px);
+    grid-template-rows: 28px 28px auto var(--action-strip-height, 40px) auto;
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
+  }
+
+  .bottom-panel-body {
+    min-height: 0;
+    padding: 8px;
+    border-top: 1px solid rgba(24, 24, 27, 0.08);
   }
 
   .bottom-tab-strip,

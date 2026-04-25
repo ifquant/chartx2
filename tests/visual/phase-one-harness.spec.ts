@@ -1436,6 +1436,33 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
 });
 
+test("workbench mobile strategy panel opens as a bottom sheet instead of staying inline", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
+  const sheet = workbench.locator('[data-bottom-panel-kind="performance-link"]');
+
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toContainText("Performance");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+  await expect(sheet).toBeHidden();
+
+  await trigger.click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator("[data-strategy-tester-panel]")).toBeVisible();
+  await expect(sheet).toContainText("Strategy Tester");
+
+  await sheet.locator("[data-mobile-bottom-panel-close]").click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+});
+
 test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "devicePixelRatio", {

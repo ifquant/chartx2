@@ -3679,7 +3679,7 @@
     .workbench-sidebar {
       position: fixed;
       right: 0.75rem;
-      bottom: 0.75rem;
+      bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
       left: 0.75rem;
       z-index: 19;
       max-height: min(72vh, 42rem);
@@ -3730,7 +3730,7 @@
     .bottom-panel-body {
       position: fixed;
       right: 0.75rem;
-      bottom: 0.75rem;
+      bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
       left: 0.75rem;
       z-index: 17;
       max-height: min(68vh, 34rem);

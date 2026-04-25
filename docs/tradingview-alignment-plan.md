@@ -1073,6 +1073,8 @@ Progress checklist:
 - [x] Fixture-backed strategy/trading bottom content can now open as a mobile
   bottom sheet instead of permanently consuming inline chart space on narrow
   screens
+- [x] The same mobile bottom-sheet seam now covers both trading and strategy
+  shells, and sheet offsets account for device safe-area bottom insets
 
 Implementation note:
 
@@ -1085,6 +1087,10 @@ Implementation note:
   shells such as trading and strategy panels. The slice still avoids any new
   runtime or host contract; it only changes how existing content mounts at
   narrow widths.
+- `Mobile Strategy Parity + Safe-Area V0` keeps the follow-up equally narrow:
+  it reuses the same sheet path for strategy shells and hardens the narrow
+  layout with safe-area-aware bottom spacing instead of introducing new
+  device-specific host models.
 
 ### Layer 3 Gate
 

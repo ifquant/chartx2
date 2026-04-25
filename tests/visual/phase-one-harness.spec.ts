@@ -1399,9 +1399,14 @@ test("workbench mobile panels open as a sheet instead of forcing the sidebar inl
 
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "default");
   await expect(sheet).toBeVisible();
   await expect(sheet.locator("[data-workbench-panel='watchlist']")).toBeVisible();
   await expect(sheet.locator("[data-workbench-panel='account-sync']")).toBeVisible();
+
+  await sheet.locator("[data-mobile-sidebar-size-toggle]").click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "expanded");
 
   await sheet.locator("[data-mobile-sidebar-close]").click();
 
@@ -1427,9 +1432,14 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   await trigger.click();
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
   await expect(sheet).toBeVisible();
   await expect(sheet.locator("[data-trading-ticket]")).toBeVisible();
   await expect(sheet).toContainText("Trading Ticket");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
 
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
 
@@ -1454,9 +1464,14 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   await trigger.click();
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
   await expect(sheet).toBeVisible();
   await expect(sheet.locator("[data-strategy-tester-panel]")).toBeVisible();
   await expect(sheet).toContainText("Strategy Tester");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
 
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
 

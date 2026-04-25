@@ -1075,6 +1075,8 @@ Progress checklist:
   screens
 - [x] The same mobile bottom-sheet seam now covers both trading and strategy
   shells, and sheet offsets account for device safe-area bottom insets
+- [x] Mobile sidebar and bottom sheets now expose a compact/expanded size
+  toggle so dense panel content can open deeper without changing runtime state
 
 Implementation note:
 
@@ -1091,6 +1093,9 @@ Implementation note:
   it reuses the same sheet path for strategy shells and hardens the narrow
   layout with safe-area-aware bottom spacing instead of introducing new
   device-specific host models.
+- `Mobile Sheet Size Controls V0` keeps the next step shell-only as well: it
+  adds local expand/compact controls for dense mobile sheets without adding any
+  new public device profile or runtime layout model.
 
 ### Layer 3 Gate
 

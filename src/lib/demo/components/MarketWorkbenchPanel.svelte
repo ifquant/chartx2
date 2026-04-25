@@ -171,6 +171,8 @@
   let mobileBottomPanelOpen = false;
   let mobileBottomPanelAvailable = false;
   let mobileBottomPanelLabel = "Panel";
+  let mobileSidebarExpanded = false;
+  let mobileBottomPanelExpanded = false;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -216,6 +218,14 @@
 
   $: if (!mobileBottomPanelAvailable && mobileBottomPanelOpen) {
     mobileBottomPanelOpen = false;
+  }
+
+  $: if (!mobileSidebarOpen && mobileSidebarExpanded) {
+    mobileSidebarExpanded = false;
+  }
+
+  $: if (!mobileBottomPanelOpen && mobileBottomPanelExpanded) {
+    mobileBottomPanelExpanded = false;
   }
 
   function resetCustomScriptDraft(): void {
@@ -1148,21 +1158,34 @@
             id="workbench-mobile-bottom-panel"
             class="bottom-panel-body"
             class:mobile-open={mobileBottomPanelOpen}
+            class:mobile-expanded={mobileBottomPanelExpanded}
             data-bottom-panel-body
             data-bottom-panel-kind="performance-link"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+            data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
           >
             <div class="mobile-bottom-panel-head">
               <strong>{mobileBottomPanelLabel}</strong>
-              <button
-                type="button"
-                class="mobile-bottom-panel-close"
-                data-mobile-bottom-panel-close
-                aria-label="Close mobile bottom panel"
-                on:click={() => {
-                  mobileBottomPanelOpen = false;
-                }}
-              >Close</button>
+              <div class="mobile-sheet-actions">
+                <button
+                  type="button"
+                  class="mobile-sheet-size-toggle"
+                  data-mobile-bottom-panel-size-toggle
+                  aria-pressed={mobileBottomPanelExpanded ? "true" : "false"}
+                  on:click={() => {
+                    mobileBottomPanelExpanded = !mobileBottomPanelExpanded;
+                  }}
+                >{mobileBottomPanelExpanded ? "Compact" : "Expand"}</button>
+                <button
+                  type="button"
+                  class="mobile-bottom-panel-close"
+                  data-mobile-bottom-panel-close
+                  aria-label="Close mobile bottom panel"
+                  on:click={() => {
+                    mobileBottomPanelOpen = false;
+                  }}
+                >Close</button>
+              </div>
             </div>
             <StrategyTesterPanel model={snapshot.strategyTester} />
           </div>
@@ -1172,21 +1195,34 @@
             id="workbench-mobile-bottom-panel"
             class="bottom-panel-body"
             class:mobile-open={mobileBottomPanelOpen}
+            class:mobile-expanded={mobileBottomPanelExpanded}
             data-bottom-panel-body
             data-bottom-panel-kind="trading"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+            data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
           >
             <div class="mobile-bottom-panel-head">
               <strong>{mobileBottomPanelLabel}</strong>
-              <button
-                type="button"
-                class="mobile-bottom-panel-close"
-                data-mobile-bottom-panel-close
-                aria-label="Close mobile bottom panel"
-                on:click={() => {
-                  mobileBottomPanelOpen = false;
-                }}
-              >Close</button>
+              <div class="mobile-sheet-actions">
+                <button
+                  type="button"
+                  class="mobile-sheet-size-toggle"
+                  data-mobile-bottom-panel-size-toggle
+                  aria-pressed={mobileBottomPanelExpanded ? "true" : "false"}
+                  on:click={() => {
+                    mobileBottomPanelExpanded = !mobileBottomPanelExpanded;
+                  }}
+                >{mobileBottomPanelExpanded ? "Compact" : "Expand"}</button>
+                <button
+                  type="button"
+                  class="mobile-bottom-panel-close"
+                  data-mobile-bottom-panel-close
+                  aria-label="Close mobile bottom panel"
+                  on:click={() => {
+                    mobileBottomPanelOpen = false;
+                  }}
+                >Close</button>
+              </div>
             </div>
             <TradingTicketPanel model={snapshot.tradingTicket} />
           </div>
@@ -1198,23 +1234,36 @@
       id="workbench-mobile-sidebar"
       class="workbench-sidebar"
       class:mobile-open={mobileSidebarOpen}
+      class:mobile-expanded={mobileSidebarExpanded}
       data-mobile-sidebar-sheet
       data-mobile-sidebar-open={mobileSidebarOpen ? "true" : "false"}
+      data-mobile-sidebar-size={mobileSidebarExpanded ? "expanded" : "default"}
     >
       <div class="mobile-sidebar-sheet-head">
         <div>
           <strong>Panels</strong>
           <span>{workbench?.workspaceTabs.find((tab) => tab.active)?.label ?? "Trade"} workspace</span>
         </div>
-        <button
-          type="button"
-          class="mobile-sidebar-close"
-          data-mobile-sidebar-close
-          aria-label="Close mobile panels"
-          on:click={() => {
-            mobileSidebarOpen = false;
-          }}
-        >Close</button>
+        <div class="mobile-sheet-actions">
+          <button
+            type="button"
+            class="mobile-sheet-size-toggle"
+            data-mobile-sidebar-size-toggle
+            aria-pressed={mobileSidebarExpanded ? "true" : "false"}
+            on:click={() => {
+              mobileSidebarExpanded = !mobileSidebarExpanded;
+            }}
+          >{mobileSidebarExpanded ? "Compact" : "Expand"}</button>
+          <button
+            type="button"
+            class="mobile-sidebar-close"
+            data-mobile-sidebar-close
+            aria-label="Close mobile panels"
+            on:click={() => {
+              mobileSidebarOpen = false;
+            }}
+          >Close</button>
+        </div>
       </div>
       <section
         class="mini-card watch-card"
@@ -2829,7 +2878,14 @@
     padding-bottom: 0.75rem;
   }
 
+  .mobile-sheet-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
   .mobile-bottom-panel-trigger,
+  .mobile-sheet-size-toggle,
   .mobile-bottom-panel-close {
     border: 1px solid rgba(24, 24, 27, 0.14);
     border-radius: 999px;
@@ -2843,6 +2899,7 @@
     margin-left: auto;
   }
 
+  .mobile-sheet-size-toggle,
   .mobile-bottom-panel-close {
     padding: 0.5rem 0.85rem;
   }
@@ -2963,6 +3020,7 @@
   }
 
   .mobile-sidebar-trigger,
+  .mobile-sheet-size-toggle,
   .mobile-sidebar-close {
     border: 1px solid rgba(24, 24, 27, 0.14);
     border-radius: 999px;
@@ -2975,6 +3033,7 @@
     padding: 0.62rem 0.95rem;
   }
 
+  .mobile-sheet-size-toggle,
   .mobile-sidebar-close {
     padding: 0.55rem 0.9rem;
   }
@@ -3695,6 +3754,10 @@
       display: grid;
     }
 
+    .workbench-sidebar.mobile-expanded {
+      max-height: min(86vh, 52rem);
+    }
+
     .mobile-sidebar-sheet-head,
     .mobile-sidebar-backdrop {
       display: flex;
@@ -3745,6 +3808,10 @@
 
     .bottom-panel-body.mobile-open {
       display: grid;
+    }
+
+    .bottom-panel-body.mobile-expanded {
+      max-height: min(86vh, 46rem);
     }
 
     .chart-frame {

@@ -1099,6 +1099,8 @@ Progress checklist:
   instead of always occupying inline chart space on narrow viewports
 - [x] Mobile overlay triggers now explicitly yield to each other, so sidebar,
   bottom-panel, and footer-controls sheets do not stack or fight for focus
+- [x] Footer controls now expose the same handle-based downward dismiss pattern
+  as the other mobile overlays, instead of relying only on a close button
 
 Implementation note:
 
@@ -1150,6 +1152,9 @@ Implementation note:
   makes the three mobile overlay triggers explicitly close competing overlays
   before opening their own surface, rather than relying only on reactive state
   fallout.
+- `Mobile Footer Controls Drag Dismiss V0` keeps the same shell-only scope. It
+  gives the footer controls sheet the existing mobile handle-and-threshold
+  dismiss interaction without adding new state ownership or host contracts.
 
 ### Layer 3 Gate
 

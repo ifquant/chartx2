@@ -177,7 +177,7 @@
   let mobileBottomPanelLabel = "Panel";
   let mobileSidebarSize: "default" | "expanded" | "full" = "default";
   let mobileBottomPanelSize: "default" | "expanded" | "full" = "default";
-  let mobileDragTarget: "sidebar" | "bottom" | null = null;
+  let mobileDragTarget: "sidebar" | "bottom" | "footer" | null = null;
   let mobileDragStartY = 0;
   let mobileDragOffsetY = 0;
   let previousReplayActive = false;
@@ -349,7 +349,7 @@
     onRunAction(actionId);
   }
 
-  function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+  function beginMobileSheetDrag(target: "sidebar" | "bottom" | "footer", event: PointerEvent): void {
     mobileDragTarget = target;
     mobileDragStartY = event.clientY;
     mobileDragOffsetY = 0;
@@ -358,7 +358,7 @@
     }
   }
 
-  function updateMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+  function updateMobileSheetDrag(target: "sidebar" | "bottom" | "footer", event: PointerEvent): void {
     if (mobileDragTarget !== target) {
       return;
     }
@@ -378,7 +378,7 @@
     return "default";
   }
 
-  function endMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+  function endMobileSheetDrag(target: "sidebar" | "bottom" | "footer", event: PointerEvent): void {
     if (mobileDragTarget !== target) {
       return;
     }
@@ -390,6 +390,10 @@
     mobileDragStartY = 0;
     mobileDragOffsetY = 0;
     if (deltaY >= 72) {
+      if (target === "footer") {
+        closeMobileFooterControls();
+        return;
+      }
       if (target === "sidebar") {
         if (mobileSidebarSize === "default") {
           closeMobileSidebarSheet();
@@ -415,7 +419,7 @@
     }
   }
 
-  function cancelMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+  function cancelMobileSheetDrag(target: "sidebar" | "bottom" | "footer", event: PointerEvent): void {
     if (mobileDragTarget !== target) {
       return;
     }
@@ -1367,8 +1371,21 @@
             class="mobile-footer-controls-sheet"
             data-mobile-footer-controls-sheet
             data-mobile-footer-controls-open="true"
+            data-mobile-footer-controls-dragging={mobileDragTarget === "footer" ? "true" : "false"}
+            data-mobile-footer-controls-drag-offset={String(mobileDragTarget === "footer" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "footer" ? mobileDragOffsetY : 0}px;`}
           >
             <div class="mobile-footer-controls-head">
+              <button
+                type="button"
+                class="mobile-sheet-drag-handle"
+                data-mobile-footer-controls-drag-handle
+                aria-label="Drag down to close mobile footer controls"
+                on:pointerdown={(event) => beginMobileSheetDrag("footer", event)}
+                on:pointermove={(event) => updateMobileSheetDrag("footer", event)}
+                on:pointerup={(event) => endMobileSheetDrag("footer", event)}
+                on:pointercancel={(event) => cancelMobileSheetDrag("footer", event)}
+              ></button>
               <strong>Footer Controls</strong>
               <button
                 type="button"
@@ -3379,6 +3396,11 @@
     justify-content: space-between;
     gap: 0.75rem;
     padding-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .mobile-footer-controls-head strong {
+    margin-right: auto;
   }
 
   .mobile-footer-controls-close {
@@ -4294,6 +4316,7 @@
       border-radius: 1rem;
       background: rgba(255, 250, 243, 0.98);
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+      transform: translateY(var(--mobile-drag-offset, 0px));
     }
 
     .bottom-panel-body {

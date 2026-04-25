@@ -1708,6 +1708,38 @@ test("workbench mobile footer controls close after an action tap", async ({ page
   await expect(sheet).toBeHidden();
 });
 
+test("workbench mobile footer controls can be drag-dismissed from the handle", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(sheet).toBeVisible();
+
+  const handle = sheet.locator("[data-mobile-footer-controls-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
+
+  await expect(sheet).toBeHidden();
+});
+
+test("workbench mobile footer controls ignore short drag gestures below the dismiss threshold", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(sheet).toBeVisible();
+
+  const handle = sheet.locator("[data-mobile-footer-controls-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 148 });
+
+  await expect(sheet).toBeVisible();
+});
+
 test("workbench mobile footer controls yield to the sidebar sheet", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

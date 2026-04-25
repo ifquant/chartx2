@@ -1109,6 +1109,9 @@ Progress checklist:
 - [x] Narrow-width chart meta now drops the duplicated `Pane / O H L C` values
   that the bottom readout already carries, keeping only the high-signal symbol
   and time context above the chart
+- [x] Narrow-width workspace tabs now expose an active-summary row and hide the
+  verbose `symbol · timeframe` sublabels inside each chip, instead of squeezing
+  the full desktop tab treatment into one scroller
 
 Implementation note:
 
@@ -1172,6 +1175,8 @@ Implementation note:
 - `Mobile Readout Dedupe V0` is a tiny density pass. It removes the duplicated
   pane and OHLC fields from the narrow-width chart-meta row without changing
   readout ownership or chart-state contracts.
+- `Mobile Workspace Tabs Compaction V0` keeps the same tab model and actions but
+  gives narrow widths a lighter active-summary row and a shorter chip strip.
 
 ### Layer 3 Gate
 

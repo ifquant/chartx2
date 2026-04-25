@@ -132,6 +132,7 @@
   let slotViews: SlotView[] = [];
   let activeSlotView: SlotView | null = null;
   let activeGrid: SlotGridPosition = { col: 1, row: 1 };
+  let activeWorkspaceTab: ChartWorkbenchModel["workspaceTabs"][number] | null = null;
   let replayState = snapshot.replay;
   let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
   let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
@@ -968,6 +969,7 @@
     }) ?? [];
   $: activeSlotView = slotViews.find((view) => view.hostActive) ?? slotViews[0] ?? null;
   $: activeGrid = activeSlotView?.grid ?? { col: 1, row: 1 };
+  $: activeWorkspaceTab = workbench?.workspaceTabs.find((tab) => tab.active) ?? null;
 </script>
 
 <article class="demo-card workbench-card" data-demo-tab="workbench">
@@ -1079,6 +1081,15 @@
         {workbench.statusNotice.message}
       </div>
     {/if}
+    <div class="mobile-workspace-summary" data-mobile-workspace-summary>
+      <div class="mobile-workspace-summary-copy">
+        <strong>{activeWorkspaceTab?.label ?? "Workspace"}</strong>
+        <span
+          >{activeWorkspaceTab?.symbolLabel ?? "--"} · {activeWorkspaceTab?.timeframeLabel ?? "--"}</span
+        >
+      </div>
+      <span class="mobile-workspace-summary-view">{activeWorkspaceTab?.viewId ?? "--"}</span>
+    </div>
     <div class="workspace-tab-strip" data-workspace-tabs>
       {#each workbench?.workspaceTabs ?? [] as tab (tab.id)}
         <div
@@ -1103,7 +1114,9 @@
             }}
           >
             <strong>{tab.label}</strong>
-            <span>{tab.symbolLabel ?? "--"} · {tab.timeframeLabel ?? "--"}</span>
+            <span class="workspace-tab-detail" data-workspace-tab-detail
+              >{tab.symbolLabel ?? "--"} · {tab.timeframeLabel ?? "--"}</span
+            >
           </button>
           {#if tab.closeable}
             <button
@@ -3219,6 +3232,26 @@
     color: #1d4ed8;
   }
 
+  .mobile-workspace-summary {
+    display: none;
+  }
+
+  .mobile-workspace-summary-copy {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .mobile-workspace-summary-copy strong {
+    font-size: 0.88rem;
+  }
+
+  .mobile-workspace-summary-copy span,
+  .mobile-workspace-summary-view {
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.74rem;
+  }
+
   .workspace-tab-strip,
   .bottom-tab-strip {
     display: flex;
@@ -4600,9 +4633,43 @@
       display: flex;
     }
 
+    .mobile-workspace-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid rgba(24, 24, 27, 0.08);
+      border-radius: 0.9rem;
+      background: rgba(255, 250, 243, 0.78);
+    }
+
     .chart-meta-ohlc,
     .chart-meta-pane {
       display: none;
+    }
+
+    .workspace-tab-strip {
+      gap: 0.45rem;
+    }
+
+    .workspace-tab-chip {
+      border-radius: 0.85rem;
+    }
+
+    .workspace-tab-main {
+      min-width: 0;
+      padding: 0.58rem 0.7rem;
+    }
+
+    .workspace-tab-detail {
+      display: none;
+    }
+
+    .workspace-tab-close,
+    .workspace-tab-create {
+      width: 26px;
+      padding: 0;
     }
 
     .tool-rail {

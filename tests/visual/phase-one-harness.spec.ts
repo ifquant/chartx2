@@ -1632,6 +1632,26 @@ test("workbench mobile chart meta hides duplicated pane and OHLC readout", async
   await expect(workbench.locator(".chart-meta")).toContainText("NASDAQ");
 });
 
+test("workbench mobile workspace tabs collapse into a compact strip with active summary", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const summary = workbench.locator("[data-mobile-workspace-summary]");
+  const tradeTab = workbench.locator('[data-workspace-view="trade"]').first();
+  const scanTab = workbench.locator('[data-workspace-view="scan"]').first();
+
+  await expect(summary).toBeVisible();
+  await expect(summary).toContainText("Trade");
+  await expect(summary).toContainText("NDX · 1D");
+  await expect(tradeTab.locator("[data-workspace-tab-detail]")).toBeHidden();
+
+  await scanTab.locator(".workspace-tab-main").click();
+
+  await expect(summary).toContainText("Scan");
+  await expect(summary).toContainText("SPX · 4H");
+  await expect(scanTab.locator("[data-workspace-tab-detail]")).toBeHidden();
+});
+
 test("workbench mobile logs panel opens as a bottom sheet instead of relying on the sidebar", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

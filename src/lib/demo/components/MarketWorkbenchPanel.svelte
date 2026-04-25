@@ -167,6 +167,7 @@
   let pendingCustomScriptDeleteId: string | null = null;
   let pendingCustomScriptLoadId: string | null = null;
   let shareDialogOpen = false;
+  let mobileSidebarOpen = false;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -193,6 +194,10 @@
 
   $: if (commandPaletteOpen && shareDialogOpen) {
     shareDialogOpen = false;
+  }
+
+  $: if ((commandPaletteOpen || shareDialogOpen) && mobileSidebarOpen) {
+    mobileSidebarOpen = false;
   }
 
   function resetCustomScriptDraft(): void {
@@ -742,6 +747,16 @@
           shareDialogOpen = !shareDialogOpen;
         }}
       >Share</button>
+      <button
+        type="button"
+        class="mobile-sidebar-trigger"
+        data-mobile-sidebar-trigger
+        aria-expanded={mobileSidebarOpen ? "true" : "false"}
+        aria-controls="workbench-mobile-sidebar"
+        on:click={() => {
+          mobileSidebarOpen = !mobileSidebarOpen;
+        }}
+      >Panels</button>
     </div>
     {#if workbench?.statusNotice}
       <div
@@ -850,6 +865,18 @@
         {/each}
       </div>
     </div>
+  {/if}
+
+  {#if mobileSidebarOpen}
+    <button
+      type="button"
+      class="mobile-sidebar-backdrop"
+      data-mobile-sidebar-backdrop
+      aria-label="Close mobile panels"
+      on:click={() => {
+        mobileSidebarOpen = false;
+      }}
+    ></button>
   {/if}
 
   <ShareDialogShell
@@ -1086,7 +1113,28 @@
       </div>
     </div>
 
-    <aside class="workbench-sidebar">
+    <aside
+      id="workbench-mobile-sidebar"
+      class="workbench-sidebar"
+      class:mobile-open={mobileSidebarOpen}
+      data-mobile-sidebar-sheet
+      data-mobile-sidebar-open={mobileSidebarOpen ? "true" : "false"}
+    >
+      <div class="mobile-sidebar-sheet-head">
+        <div>
+          <strong>Panels</strong>
+          <span>{workbench?.workspaceTabs.find((tab) => tab.active)?.label ?? "Trade"} workspace</span>
+        </div>
+        <button
+          type="button"
+          class="mobile-sidebar-close"
+          data-mobile-sidebar-close
+          aria-label="Close mobile panels"
+          on:click={() => {
+            mobileSidebarOpen = false;
+          }}
+        >Close</button>
+      </div>
       <section
         class="mini-card watch-card"
         class:active-focus={activeSidebarPanel === "watchlist"}
@@ -2778,6 +2826,47 @@
     background: rgba(244, 240, 232, 0.96);
   }
 
+  .mobile-sidebar-trigger,
+  .mobile-sidebar-sheet-head,
+  .mobile-sidebar-backdrop {
+    display: none;
+  }
+
+  .mobile-sidebar-sheet-head {
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem 0.25rem;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+  }
+
+  .mobile-sidebar-sheet-head strong,
+  .mobile-sidebar-sheet-head span {
+    display: block;
+  }
+
+  .mobile-sidebar-sheet-head span {
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.8rem;
+  }
+
+  .mobile-sidebar-trigger,
+  .mobile-sidebar-close {
+    border: 1px solid rgba(24, 24, 27, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #18181b;
+    font-weight: 700;
+  }
+
+  .mobile-sidebar-trigger {
+    padding: 0.62rem 0.95rem;
+  }
+
+  .mobile-sidebar-close {
+    padding: 0.55rem 0.9rem;
+  }
+
   .workbench-sidebar-scroll {
     min-height: 0;
     overflow-y: auto;
@@ -3463,6 +3552,12 @@
       grid-template-columns: 1fr;
     }
 
+    .mobile-sidebar-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .tool-rail {
       grid-auto-flow: column;
       grid-template-columns: repeat(8, minmax(44px, 1fr));
@@ -3470,8 +3565,35 @@
     }
 
     .workbench-sidebar {
-      grid-template-columns: 1fr;
-      grid-template-rows: none;
+      position: fixed;
+      right: 0.75rem;
+      bottom: 0.75rem;
+      left: 0.75rem;
+      z-index: 19;
+      max-height: min(72vh, 42rem);
+      padding-bottom: 0.75rem;
+      border: 1px solid rgba(24, 24, 27, 0.12);
+      border-radius: 1rem;
+      background: rgba(244, 240, 232, 0.98);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+      display: none;
+    }
+
+    .workbench-sidebar.mobile-open {
+      display: grid;
+    }
+
+    .mobile-sidebar-sheet-head,
+    .mobile-sidebar-backdrop {
+      display: flex;
+    }
+
+    .mobile-sidebar-backdrop {
+      position: fixed;
+      inset: 0;
+      border: none;
+      background: rgba(15, 23, 42, 0.4);
+      z-index: 18;
     }
 
     .chart-frame {

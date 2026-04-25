@@ -1383,6 +1383,32 @@ test("workbench keeps a deterministic narrow baseline", async ({ page }) => {
   await expect(frame).toHaveScreenshot("phase-one-harness-narrow.png");
 });
 
+test("workbench mobile panels open as a sheet instead of forcing the sidebar inline", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
+  const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "false");
+  await expect(sheet).toBeHidden();
+
+  await trigger.click();
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator("[data-workbench-panel='watchlist']")).toBeVisible();
+  await expect(sheet.locator("[data-workbench-panel='account-sync']")).toBeVisible();
+
+  await sheet.locator("[data-mobile-sidebar-close]").click();
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "false");
+});
+
 test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "devicePixelRatio", {

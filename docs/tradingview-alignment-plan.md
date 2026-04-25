@@ -1062,6 +1062,23 @@ Acceptance:
 - The resulting responsive components and host contracts are reusable by
   `alpha2`.
 
+Progress checklist:
+
+- [x] Narrow-width workbench now exposes a dedicated `Panels` trigger instead of
+  always forcing the right sidebar inline below the chart shell
+- [x] The mobile panel surface reuses the existing sidebar content as a
+  sheet-style overlay, keeping the responsive slice UI-only and host-neutral
+- [x] Focused visual coverage asserts the mobile panel trigger, open state, and
+  close path at a narrow viewport
+
+Implementation note:
+
+- `Mobile Sidebar Sheet V0` keeps this layer intentionally narrow. `chartx2`
+  now provides a mobile-friendly shell affordance that protects chart space on
+  small screens, while deeper touch gesture tuning, density profiles, and
+  device-specific host policy stay deferred to later productization work and
+  the future Rust-backed host stack.
+
 ### Layer 3 Gate
 
 Layer 3 is acceptable when:

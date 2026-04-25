@@ -569,9 +569,6 @@
   }
 
   async function setWorkbenchBottomTab(tabId: BottomPanelTabId): Promise<void> {
-    if (tabId === "custom") {
-      return;
-    }
     const changed = await workbenchController?.setActiveBottomTab?.(tabId);
     if (changed) {
       workbenchActions = workbenchController?.actions() ?? [];

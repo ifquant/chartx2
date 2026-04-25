@@ -26,6 +26,7 @@
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
+  import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -1050,6 +1051,11 @@
         {#if workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester}
           <div class="bottom-panel-body" data-bottom-panel-body data-bottom-panel-kind="performance-link">
             <StrategyTesterPanel model={snapshot.strategyTester} />
+          </div>
+        {/if}
+        {#if workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket}
+          <div class="bottom-panel-body" data-bottom-panel-body data-bottom-panel-kind="trading">
+            <TradingTicketPanel model={snapshot.tradingTicket} />
           </div>
         {/if}
       </div>

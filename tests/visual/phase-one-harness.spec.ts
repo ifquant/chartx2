@@ -305,6 +305,26 @@ test("strategy tester panel renders fixture-backed metrics through the bottom-pa
   await expect(workbench.locator('[data-strategy-tester-trade-row="trade-1"]')).toContainText("Apr 18 09:35");
 });
 
+test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="custom"]').click();
+
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await expect(workbench.locator('[data-bottom-panel-kind="trading"]')).toBeVisible();
+  await expect(workbench.locator("[data-trading-ticket]")).toContainText("Trading Ticket");
+  await expect(workbench.locator("[data-trading-ticket]")).toContainText("Bracket Entry");
+  await expect(workbench.locator('[data-trading-ticket-symbol]')).toContainText("NDX");
+  await expect(workbench.locator('[data-trading-ticket-field="quantity"]')).toContainText("2 contracts");
+  await expect(workbench.locator("[data-trading-ticket-submit]")).toContainText("Review order");
+});
+
 test("workspace tabs: create and close document tabs in the shell", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

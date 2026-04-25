@@ -78,6 +78,7 @@ import {
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
+import type { TradingTicketModel } from "$lib/chartx/public/trading-surface";
 import type { StrategyTesterPanelModel } from "$lib/chartx/public/strategy-tester";
 import {
   openWorkbenchSymbol,
@@ -184,6 +185,7 @@ export type DemoSnapshot = {
   customScripts?: readonly DemoCustomScriptLibraryEntry[];
   scriptExecution?: WorkbenchScriptExecutionStatusModel;
   strategyTester?: StrategyTesterPanelModel | null;
+  tradingTicket?: TradingTicketModel | null;
   replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
@@ -235,7 +237,7 @@ export type DemoController = {
   importLayout?(raw: string): Promise<boolean>;
   setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   setActiveBottomTab?(
-    tabId: "time-presets" | "logs" | "replay" | "performance-link",
+    tabId: "time-presets" | "logs" | "replay" | "performance-link" | "custom",
   ): Promise<boolean> | boolean;
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
@@ -282,6 +284,7 @@ export type FeatureExampleDescriptor = {
 export type WorkbenchDemoOptions = {
   hostAdapter?: WorkbenchHostAdapter;
   scriptExecutionAdapter?: WorkbenchScriptExecutionAdapter;
+  tradingTicketFixtureMode?: "ready" | "submitting" | "error";
   initialSymbol?: string;
   initialTimeframe?: string;
   persistenceProvider?: WorkbenchLayoutPersistenceProvider;
@@ -301,7 +304,7 @@ type DemoWorkbenchLayoutPreset = "single" | "main-plus-secondary";
 type DemoWorkbenchChartHostId = "market-main" | "market-secondary";
 type DemoWorkspaceFocus = {
   sidebarPanel: WorkbenchSidebarPanelId;
-  bottomTab: "time-presets" | "logs" | "replay" | "performance-link";
+  bottomTab: "time-presets" | "logs" | "replay" | "performance-link" | "custom";
 };
 type DemoWorkspaceDocument = {
   id: WorkbenchWorkspaceTabId;
@@ -717,7 +720,7 @@ function createWorkbenchDemoLayoutState(input: {
   customScripts?: readonly WorkbenchScriptDefinition[];
   scriptedIndicators?: readonly WorkbenchLayoutScriptedIndicatorDescriptor[];
   rightSidebar: WorkbenchSidebarPanelId;
-  bottomTab: "time-presets" | "logs" | "replay";
+  bottomTab: "time-presets" | "logs" | "replay" | "custom";
   workspace?: WorkbenchLayoutState["workspace"];
 }): WorkbenchLayoutState {
   return createWorkbenchLayoutState({
@@ -797,6 +800,7 @@ function normalizeWorkspaceFocusForView(
         sidebarPanel: "watchlist",
         bottomTab:
           currentFocus.bottomTab === "performance-link" ||
+          currentFocus.bottomTab === "custom" ||
           currentFocus.bottomTab === "logs" ||
           currentFocus.bottomTab === "time-presets"
             ? currentFocus.bottomTab
@@ -807,7 +811,7 @@ function normalizeWorkspaceFocusForView(
 
 function persistableBottomTab(
   tabId: DemoWorkspaceFocus["bottomTab"],
-): "time-presets" | "logs" | "replay" {
+): "time-presets" | "logs" | "replay" | "custom" {
   return tabId === "performance-link" ? "logs" : tabId;
 }
 
@@ -903,6 +907,94 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
       status: "ready",
       activeTabId: "overview",
       statusLabel: "Fixture-backed shell. No real backtest engine attached.",
+    },
+  };
+}
+
+function createDemoTradingTicketModel(
+  symbol: string,
+  mode: NonNullable<WorkbenchDemoOptions["tradingTicketFixtureMode"]> = "ready",
+): TradingTicketModel {
+  if (mode === "submitting") {
+    return {
+      title: "Bracket Entry",
+      symbol,
+      side: "buy",
+      orderType: "limit",
+      quantity: {
+        label: "Quantity",
+        valueLabel: "2 contracts",
+      },
+      limitPrice: {
+        label: "Limit price",
+        valueLabel: "18,445.25",
+      },
+      stopPrice: {
+        label: "Stop loss",
+        valueLabel: "18,412.50",
+      },
+      accountLabel: "SIM-TRADER 01",
+      summaryLabel: "Submitting the fixture order through a host adapter seam. No broker call runs inside chartx2.",
+      submitLabel: "Submitting...",
+      state: {
+        status: "submitting",
+        statusLabel: "Submitting through host adapter",
+        submitEnabled: false,
+      },
+    };
+  }
+
+  if (mode === "error") {
+    return {
+      title: "Breakout Entry",
+      symbol,
+      side: "sell",
+      orderType: "stop",
+      quantity: {
+        label: "Quantity",
+        valueLabel: "1 contract",
+      },
+      stopPrice: {
+        label: "Stop trigger",
+        valueLabel: "18,398.75",
+        errorLabel: "Rejected by host risk check",
+      },
+      accountLabel: "SIM-TRADER 01",
+      summaryLabel: "The shell shows adapter-owned failure messaging while keeping broker and validation logic outside this repo.",
+      submitLabel: "Retry submit",
+      state: {
+        status: "error",
+        statusLabel: "Host adapter rejected ticket",
+        errorLabel: "Daily risk limit fixture blocked this order.",
+        submitEnabled: true,
+      },
+    };
+  }
+
+  return {
+    title: "Bracket Entry",
+    symbol,
+    side: "buy",
+    orderType: "limit",
+    quantity: {
+      label: "Quantity",
+      valueLabel: "2 contracts",
+    },
+    limitPrice: {
+      label: "Limit price",
+      valueLabel: "18,445.25",
+    },
+    stopPrice: {
+      label: "Stop loss",
+      valueLabel: "18,412.50",
+    },
+    accountLabel: "SIM-TRADER 01",
+    summaryLabel: "Fixture-backed host shell for ticket review, adapter status, and future confirmation flows.",
+    submitLabel: "Review order",
+    state: {
+      status: "ready",
+      statusLabel: "Ready to submit through host adapter",
+      submitEnabled: true,
     },
   };
 }
@@ -1712,10 +1804,7 @@ export function mountWorkbenchDemo(
         replayActive,
         {
           sidebarPanel: tab.panels.rightSidebar,
-          bottomTab:
-            tab.panels.bottomTab === "custom"
-              ? "logs"
-              : tab.panels.bottomTab,
+          bottomTab: tab.panels.bottomTab,
         },
       ),
     }));
@@ -1755,7 +1844,7 @@ export function mountWorkbenchDemo(
   ];
 
   const applyActiveBottomTab = (
-    tabId: "time-presets" | "logs" | "replay" | "performance-link",
+    tabId: "time-presets" | "logs" | "replay" | "performance-link" | "custom",
   ): void => {
     const currentDocument = activeWorkspaceDocument();
     const nextPanels = normalizeWorkspaceFocusForView(currentDocument.viewId, replayActive, {
@@ -2167,6 +2256,10 @@ export function mountWorkbenchDemo(
       activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "performance-link"
         ? createDemoStrategyTesterModel(activeSymbol, activeTimeframe)
         : null;
+    const tradingTicket =
+      activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "custom"
+        ? createDemoTradingTicketModel(activeSymbol, options.tradingTicketFixtureMode ?? "ready")
+        : null;
     const effectiveStatusNotice =
       statusNotice ??
       (options.persistenceProvider === undefined
@@ -2194,7 +2287,7 @@ export function mountWorkbenchDemo(
       activeTab: workspaceFocus.bottomTab,
       enabledBottomTabs:
         activeDocument.viewId === "trade"
-          ? ["logs", "replay", "performance-link"]
+          ? ["logs", "replay", "performance-link", "custom"]
           : ["logs", "replay"],
       layoutPreset,
       chartHosts,
@@ -2216,6 +2309,7 @@ export function mountWorkbenchDemo(
       customScripts: summarizeCustomScripts(),
       scriptExecution: scriptExecutionStatus,
       strategyTester,
+      tradingTicket,
       replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
@@ -4727,13 +4821,16 @@ export function mountWorkbenchDemo(
     setWorkspaceTab,
     setActiveBottomTab(tabId) {
       const currentDocument = activeWorkspaceDocument();
-      if (currentDocument.viewId !== "trade" && tabId === "performance-link") {
+      if (
+        currentDocument.viewId !== "trade" &&
+        (tabId === "performance-link" || tabId === "custom")
+      ) {
         publishSnapshot();
         return false;
       }
-    applyActiveBottomTab(tabId);
-    return true;
-  },
+      applyActiveBottomTab(tabId);
+      return true;
+    },
     createWorkspaceTab,
     closeWorkspaceTab,
     enterReplay,

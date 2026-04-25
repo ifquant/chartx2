@@ -952,11 +952,24 @@ Scope:
 - No real broker implementation in `chartx2`; the final execution path should
   be expected to live behind host adapters and a Rust core.
 
+Progress checklist:
+
+- [x] Public host-facing trading, sync, and sharing surface contracts now exist
+- [x] The workbench demo mounts a fixture-backed trading ticket shell through the existing trade bottom-panel seam
+- [x] Focused visual coverage asserts the ticket shell without relying on a broker backend
+
 Acceptance:
 
 - Paper-trading-style UI flows can be exercised through local fixture adapters.
 - Real broker integration remains behind explicit adapters and confirmations.
 - The resulting trading widgets are reusable by `alpha2`.
+
+Implementation note:
+
+- `Trading Ticket Shell V0` keeps the slice deliberately narrow: `chartx2` now
+  ships a reusable ticket contract and a fixture-backed panel path in the
+  workbench shell, while order validation, broker routing, and execution
+  confirmation remain deferred to host adapters and the future Rust core.
 
 ### 4. Cloud, Sync, And Account Boundary
 

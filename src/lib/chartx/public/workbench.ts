@@ -330,6 +330,7 @@ const DEFAULT_BOTTOM_TABS: readonly BottomPanelTabModel[] = [
   { id: "logs", label: "Logs", enabled: false },
   { id: "replay", label: "Replay", enabled: false },
   { id: "performance-link", label: "Performance", enabled: false },
+  { id: "custom", label: "Trading", enabled: false },
 ];
 const DEFAULT_WORKSPACE_TABS: readonly Omit<WorkbenchWorkspaceTabModel, "active">[] = [
   {

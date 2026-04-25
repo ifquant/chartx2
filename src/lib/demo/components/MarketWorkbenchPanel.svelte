@@ -1371,13 +1371,15 @@
           <strong>{workbench?.toolbar.activeSymbol ?? "NDX"} {workbench?.layout.preset === "single" ? "Workbench" : "Layout"}</strong>
           <span>{workbench?.toolbar.timeframeLabel ?? "1D"}</span>
           <span>{workbench?.toolbar.exchangeLabel ?? "NASDAQ"}</span>
-          <span>O {readout.formatted.open}</span>
-          <span>H {readout.formatted.high}</span>
-          <span>L {readout.formatted.low}</span>
-          <span>C {readout.formatted.close}</span>
+          <span class="chart-meta-ohlc" data-chart-meta-ohlc>O {readout.formatted.open}</span>
+          <span class="chart-meta-ohlc" data-chart-meta-ohlc>H {readout.formatted.high}</span>
+          <span class="chart-meta-ohlc" data-chart-meta-ohlc>L {readout.formatted.low}</span>
+          <span class="chart-meta-ohlc" data-chart-meta-ohlc>C {readout.formatted.close}</span>
         </div>
         <div class="market-line">
-          <span>Pane {readout.paneIndex === null ? "--" : readout.paneIndex + 1}</span>
+          <span class="chart-meta-pane" data-chart-meta-pane
+            >Pane {readout.paneIndex === null ? "--" : readout.paneIndex + 1}</span
+          >
           <span>{readout.formatted.time}</span>
         </div>
       </div>
@@ -4596,6 +4598,11 @@
     .mobile-toolbar-summary,
     .mobile-toolbar-backdrop {
       display: flex;
+    }
+
+    .chart-meta-ohlc,
+    .chart-meta-pane {
+      display: none;
     }
 
     .tool-rail {

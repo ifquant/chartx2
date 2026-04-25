@@ -1106,6 +1106,9 @@ Progress checklist:
 - [x] Narrow-width toolbar actions now move into a dedicated mobile `Tools`
   sheet instead of remaining a long desktop-style horizontal scroller above the
   chart
+- [x] Narrow-width chart meta now drops the duplicated `Pane / O H L C` values
+  that the bottom readout already carries, keeping only the high-signal symbol
+  and time context above the chart
 
 Implementation note:
 
@@ -1166,6 +1169,9 @@ Implementation note:
 - `Mobile Toolbar Sheet V0` keeps the follow-up UI-only. It compacts the
   desktop toolbar into a narrow-width summary plus a dedicated tools sheet
   without adding any new host/runtime contract.
+- `Mobile Readout Dedupe V0` is a tiny density pass. It removes the duplicated
+  pane and OHLC fields from the narrow-width chart-meta row without changing
+  readout ownership or chart-state contracts.
 
 ### Layer 3 Gate
 

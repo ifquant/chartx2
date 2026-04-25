@@ -1404,9 +1404,17 @@ test("workbench mobile panels open as a sheet instead of forcing the sidebar inl
   await expect(sheet.locator("[data-workbench-panel='watchlist']")).toBeVisible();
   await expect(sheet.locator("[data-workbench-panel='account-sync']")).toBeVisible();
 
-  await sheet.locator("[data-mobile-sidebar-size-toggle]").click();
+  await sheet.locator("[data-mobile-sidebar-size-toggle]").dispatchEvent("click");
 
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "expanded");
+
+  await sheet.locator("[data-mobile-sidebar-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "full");
+
+  await sheet.locator("[data-mobile-sidebar-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "default");
 
   await sheet.locator("[data-mobile-sidebar-close]").click();
 
@@ -1441,9 +1449,17 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   await expect(sheet.locator("[data-trading-ticket]")).toBeVisible();
   await expect(sheet).toContainText("Trading Ticket");
 
-  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").click();
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "full");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
 
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
 
@@ -1477,9 +1493,17 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   await expect(sheet.locator("[data-strategy-tester-panel]")).toBeVisible();
   await expect(sheet).toContainText("Strategy Tester");
 
-  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").click();
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "full");
+
+  await sheet.locator("[data-mobile-bottom-panel-size-toggle]").dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
 
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
 
@@ -1540,6 +1564,54 @@ test("workbench mobile bottom sheet can be drag-dismissed from the handle", asyn
   await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+});
+
+test("workbench mobile sidebar sheet auto-closes when workspace navigation changes", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
+  const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await trigger.click();
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+
+  await workbench.locator('[data-workspace-tab-trigger="workspace-2"]').dispatchEvent("click");
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "false");
+  await expect(workbench.locator('[data-workspace-tab="workspace-2"]')).toHaveAttribute(
+    "data-workspace-active",
+    "true",
+  );
+});
+
+test("workbench mobile bottom sheet auto-closes when bottom-tab navigation changes", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+
+  const tradingSheet = workbench.locator('[data-bottom-panel-kind="trading"]');
+  await expect(tradingSheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+
+  await workbench.locator('[data-bottom-tab="performance-link"]').dispatchEvent("click");
+  await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
+  const strategySheet = workbench.locator('[data-bottom-panel-kind="performance-link"]');
+  await expect(strategySheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+  await expect(workbench.locator("[data-mobile-bottom-panel-trigger]")).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
 });
 
 test("workbench keeps a deterministic high-dpi baseline", async ({ page }) => {

@@ -171,8 +171,8 @@
   let mobileBottomPanelOpen = false;
   let mobileBottomPanelAvailable = false;
   let mobileBottomPanelLabel = "Panel";
-  let mobileSidebarExpanded = false;
-  let mobileBottomPanelExpanded = false;
+  let mobileSidebarSize: "default" | "expanded" | "full" = "default";
+  let mobileBottomPanelSize: "default" | "expanded" | "full" = "default";
   let mobileDragTarget: "sidebar" | "bottom" | null = null;
   let mobileDragStartY = 0;
   let customScriptDraftBaseline = JSON.stringify({
@@ -222,12 +222,57 @@
     mobileBottomPanelOpen = false;
   }
 
-  $: if (!mobileSidebarOpen && mobileSidebarExpanded) {
-    mobileSidebarExpanded = false;
+  $: if (!mobileSidebarOpen && mobileSidebarSize !== "default") {
+    mobileSidebarSize = "default";
   }
 
-  $: if (!mobileBottomPanelOpen && mobileBottomPanelExpanded) {
-    mobileBottomPanelExpanded = false;
+  $: if (!mobileBottomPanelOpen && mobileBottomPanelSize !== "default") {
+    mobileBottomPanelSize = "default";
+  }
+
+  function nextMobileSheetSize(current: "default" | "expanded" | "full"): "default" | "expanded" | "full" {
+    if (current === "default") {
+      return "expanded";
+    }
+    if (current === "expanded") {
+      return "full";
+    }
+    return "default";
+  }
+
+  function mobileSheetSizeLabel(current: "default" | "expanded" | "full"): string {
+    if (current === "default") {
+      return "Expand";
+    }
+    if (current === "expanded") {
+      return "Full";
+    }
+    return "Compact";
+  }
+
+  function closeMobileSidebarSheet(): void {
+    mobileSidebarOpen = false;
+    mobileSidebarSize = "default";
+  }
+
+  function closeMobileBottomSheet(): void {
+    mobileBottomPanelOpen = false;
+    mobileBottomPanelSize = "default";
+  }
+
+  function closeMobileSheetsForNavigation(): void {
+    closeMobileSidebarSheet();
+    closeMobileBottomSheet();
+  }
+
+  async function handleSetWorkspaceTab(tabId: WorkbenchWorkspaceTabId): Promise<void> {
+    closeMobileSheetsForNavigation();
+    await onSetWorkspaceTab(tabId);
+  }
+
+  async function handleSetBottomTab(tabId: BottomPanelTabId): Promise<void> {
+    closeMobileBottomSheet();
+    await onSetBottomTab(tabId);
   }
 
   function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
@@ -823,6 +868,7 @@
         aria-expanded={mobileSidebarOpen ? "true" : "false"}
         aria-controls="workbench-mobile-sidebar"
         on:click={() => {
+          mobileSidebarSize = "default";
           mobileSidebarOpen = !mobileSidebarOpen;
         }}
       >Panels</button>
@@ -848,13 +894,14 @@
           <button
             type="button"
             class="workspace-tab-main"
+            data-workspace-tab-trigger={tab.id}
             disabled={!tab.enabled}
             aria-disabled={!tab.enabled}
             on:click={() => {
               if (!tab.enabled) {
                 return;
               }
-              void onSetWorkspaceTab(tab.id);
+              void handleSetWorkspaceTab(tab.id);
             }}
           >
             <strong>{tab.label}</strong>
@@ -868,6 +915,7 @@
               data-workspace-tab-close={tab.id}
               on:click={(event) => {
                 event.stopPropagation();
+                closeMobileSheetsForNavigation();
                 void onCloseWorkspaceTab(tab.id);
               }}
             >×</button>
@@ -879,6 +927,7 @@
         class="workspace-tab-create"
         data-workspace-tab-create
         on:click={() => {
+          closeMobileSheetsForNavigation();
           void onCreateWorkspaceTab();
         }}
       >＋</button>
@@ -943,7 +992,7 @@
       data-mobile-sidebar-backdrop
       aria-label="Close mobile panels"
       on:click={() => {
-        mobileSidebarOpen = false;
+        closeMobileSidebarSheet();
       }}
     ></button>
   {/if}
@@ -1123,7 +1172,9 @@
               data-bottom-tab-active={tab.id === workbench?.bottomPanel.activeTab ? "true" : "false"}
               disabled={!tab.enabled}
               aria-disabled={!tab.enabled}
-              on:click={() => onSetBottomTab(tab.id)}
+              on:click={() => {
+                void handleSetBottomTab(tab.id);
+              }}
             >
               {tab.label}
             </button>
@@ -1136,6 +1187,7 @@
               aria-expanded={mobileBottomPanelOpen ? "true" : "false"}
               aria-controls="workbench-mobile-bottom-panel"
               on:click={() => {
+                mobileBottomPanelSize = "default";
                 mobileBottomPanelOpen = !mobileBottomPanelOpen;
               }}
             >
@@ -1190,7 +1242,7 @@
             data-mobile-bottom-panel-backdrop
             aria-label="Close mobile bottom panel"
             on:click={() => {
-              mobileBottomPanelOpen = false;
+              closeMobileBottomSheet();
             }}
           ></button>
         {/if}
@@ -1199,11 +1251,12 @@
             id="workbench-mobile-bottom-panel"
             class="bottom-panel-body"
             class:mobile-open={mobileBottomPanelOpen}
-            class:mobile-expanded={mobileBottomPanelExpanded}
+            class:mobile-expanded={mobileBottomPanelSize === "expanded"}
+            class:mobile-full={mobileBottomPanelSize === "full"}
             data-bottom-panel-body
             data-bottom-panel-kind="performance-link"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
-            data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
+            data-mobile-bottom-panel-size={mobileBottomPanelSize}
           >
             <div class="mobile-bottom-panel-head">
               <div class="mobile-sheet-title-block">
@@ -1220,21 +1273,21 @@
               </div>
               <div class="mobile-sheet-actions">
                 <button
-                  type="button"
-                  class="mobile-sheet-size-toggle"
-                  data-mobile-bottom-panel-size-toggle
-                  aria-pressed={mobileBottomPanelExpanded ? "true" : "false"}
-                  on:click={() => {
-                    mobileBottomPanelExpanded = !mobileBottomPanelExpanded;
+                type="button"
+                class="mobile-sheet-size-toggle"
+                data-mobile-bottom-panel-size-toggle
+                aria-pressed={mobileBottomPanelSize !== "default" ? "true" : "false"}
+                on:click={() => {
+                    mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
                   }}
-                >{mobileBottomPanelExpanded ? "Compact" : "Expand"}</button>
+                >{mobileSheetSizeLabel(mobileBottomPanelSize)}</button>
                 <button
                   type="button"
                   class="mobile-bottom-panel-close"
                   data-mobile-bottom-panel-close
                   aria-label="Close mobile bottom panel"
                   on:click={() => {
-                    mobileBottomPanelOpen = false;
+                    closeMobileBottomSheet();
                   }}
                 >Close</button>
               </div>
@@ -1247,11 +1300,12 @@
             id="workbench-mobile-bottom-panel"
             class="bottom-panel-body"
             class:mobile-open={mobileBottomPanelOpen}
-            class:mobile-expanded={mobileBottomPanelExpanded}
+            class:mobile-expanded={mobileBottomPanelSize === "expanded"}
+            class:mobile-full={mobileBottomPanelSize === "full"}
             data-bottom-panel-body
             data-bottom-panel-kind="trading"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
-            data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
+            data-mobile-bottom-panel-size={mobileBottomPanelSize}
           >
             <div class="mobile-bottom-panel-head">
               <div class="mobile-sheet-title-block">
@@ -1268,21 +1322,21 @@
               </div>
               <div class="mobile-sheet-actions">
                 <button
-                  type="button"
-                  class="mobile-sheet-size-toggle"
-                  data-mobile-bottom-panel-size-toggle
-                  aria-pressed={mobileBottomPanelExpanded ? "true" : "false"}
-                  on:click={() => {
-                    mobileBottomPanelExpanded = !mobileBottomPanelExpanded;
+                type="button"
+                class="mobile-sheet-size-toggle"
+                data-mobile-bottom-panel-size-toggle
+                aria-pressed={mobileBottomPanelSize !== "default" ? "true" : "false"}
+                on:click={() => {
+                    mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
                   }}
-                >{mobileBottomPanelExpanded ? "Compact" : "Expand"}</button>
+                >{mobileSheetSizeLabel(mobileBottomPanelSize)}</button>
                 <button
                   type="button"
                   class="mobile-bottom-panel-close"
                   data-mobile-bottom-panel-close
                   aria-label="Close mobile bottom panel"
                   on:click={() => {
-                    mobileBottomPanelOpen = false;
+                    closeMobileBottomSheet();
                   }}
                 >Close</button>
               </div>
@@ -1297,10 +1351,11 @@
       id="workbench-mobile-sidebar"
       class="workbench-sidebar"
       class:mobile-open={mobileSidebarOpen}
-      class:mobile-expanded={mobileSidebarExpanded}
+      class:mobile-expanded={mobileSidebarSize === "expanded"}
+      class:mobile-full={mobileSidebarSize === "full"}
       data-mobile-sidebar-sheet
       data-mobile-sidebar-open={mobileSidebarOpen ? "true" : "false"}
-      data-mobile-sidebar-size={mobileSidebarExpanded ? "expanded" : "default"}
+      data-mobile-sidebar-size={mobileSidebarSize}
     >
       <div class="mobile-sidebar-sheet-head">
         <div class="mobile-sheet-title-block">
@@ -1321,18 +1376,18 @@
             type="button"
             class="mobile-sheet-size-toggle"
             data-mobile-sidebar-size-toggle
-            aria-pressed={mobileSidebarExpanded ? "true" : "false"}
+            aria-pressed={mobileSidebarSize !== "default" ? "true" : "false"}
             on:click={() => {
-              mobileSidebarExpanded = !mobileSidebarExpanded;
+              mobileSidebarSize = nextMobileSheetSize(mobileSidebarSize);
             }}
-          >{mobileSidebarExpanded ? "Compact" : "Expand"}</button>
+          >{mobileSheetSizeLabel(mobileSidebarSize)}</button>
           <button
             type="button"
             class="mobile-sidebar-close"
             data-mobile-sidebar-close
             aria-label="Close mobile panels"
             on:click={() => {
-              mobileSidebarOpen = false;
+              closeMobileSidebarSheet();
             }}
           >Close</button>
         </div>
@@ -3847,6 +3902,10 @@
       max-height: min(86vh, 52rem);
     }
 
+    .workbench-sidebar.mobile-full {
+      max-height: calc(100vh - 1.5rem - env(safe-area-inset-bottom, 0px));
+    }
+
     .mobile-sidebar-sheet-head,
     .mobile-sidebar-backdrop {
       display: flex;
@@ -3901,6 +3960,10 @@
 
     .bottom-panel-body.mobile-expanded {
       max-height: min(86vh, 46rem);
+    }
+
+    .bottom-panel-body.mobile-full {
+      max-height: calc(100vh - 1.5rem - env(safe-area-inset-bottom, 0px));
     }
 
     .chart-frame {

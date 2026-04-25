@@ -1080,6 +1080,9 @@ Progress checklist:
 - [x] Mobile sidebar and bottom sheets now expose handle-based downward
   drag-dismiss with a fixed threshold, and the threshold is covered by focused
   narrow-screen tests
+- [x] Mobile sidebar and bottom sheets now cycle through
+  `default -> expanded -> full -> default`, and navigation actions auto-close
+  them before shell focus changes
 
 Implementation note:
 
@@ -1102,6 +1105,10 @@ Implementation note:
 - `Mobile Sheet Drag Dismiss V0` still stays on the same boundary. It adds a
   deterministic handle-and-threshold dismiss path instead of jumping straight
   to full gesture physics or device-specific motion policy.
+- `Mobile Snap Heights + Navigation Close V0` keeps the next step just as
+  bounded: it upgrades local sheet sizing from a binary flag to a small snap
+  enum and ensures workspace/bottom-tab navigation does not leave stale mobile
+  overlays hanging around.
 
 ### Layer 3 Gate
 

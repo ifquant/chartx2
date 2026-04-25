@@ -170,6 +170,7 @@
   let pendingCustomScriptDeleteId: string | null = null;
   let pendingCustomScriptLoadId: string | null = null;
   let shareDialogOpen = false;
+  let mobileToolbarOpen = false;
   let mobileSidebarOpen = false;
   let mobileBottomPanelOpen = false;
   let mobileFooterControlsOpen = false;
@@ -208,6 +209,10 @@
 
   $: if (commandPaletteOpen && shareDialogOpen) {
     shareDialogOpen = false;
+  }
+
+  $: if ((commandPaletteOpen || shareDialogOpen) && mobileToolbarOpen) {
+    mobileToolbarOpen = false;
   }
 
   $: if ((commandPaletteOpen || shareDialogOpen) && mobileSidebarOpen) {
@@ -289,6 +294,10 @@
     mobileSidebarSize = "default";
   }
 
+  function closeMobileToolbarSheet(): void {
+    mobileToolbarOpen = false;
+  }
+
   function closeMobileBottomSheet(): void {
     mobileBottomPanelOpen = false;
     mobileBottomPanelSize = "default";
@@ -300,13 +309,23 @@
   }
 
   function closeMobileSheetsForNavigation(): void {
+    closeMobileToolbarSheet();
     closeMobileSidebarSheet();
     closeMobileBottomSheet();
     closeMobileFooterControls();
   }
 
+  function toggleMobileToolbarSheet(): void {
+    const nextOpen = !mobileToolbarOpen;
+    closeMobileSidebarSheet();
+    closeMobileBottomSheet();
+    closeMobileFooterControls();
+    mobileToolbarOpen = nextOpen;
+  }
+
   function toggleMobileSidebarSheet(): void {
     const nextOpen = !mobileSidebarOpen;
+    closeMobileToolbarSheet();
     closeMobileBottomSheet();
     closeMobileFooterControls();
     mobileSidebarSize = "default";
@@ -315,6 +334,7 @@
 
   function toggleMobileBottomPanel(): void {
     const nextOpen = !mobileBottomPanelOpen;
+    closeMobileToolbarSheet();
     closeMobileSidebarSheet();
     closeMobileFooterControls();
     mobileBottomPanelSize = "default";
@@ -323,6 +343,7 @@
 
   function toggleMobileFooterControls(): void {
     const nextOpen = !mobileFooterControlsOpen;
+    closeMobileToolbarSheet();
     closeMobileSidebarSheet();
     closeMobileBottomSheet();
     mobileFooterControlsSize = "default";
@@ -342,6 +363,7 @@
   }
 
   async function handleSetBottomTab(tabId: BottomPanelTabId): Promise<void> {
+    closeMobileToolbarSheet();
     closeMobileBottomSheet();
     closeMobileFooterControls();
     await onSetBottomTab(tabId);
@@ -354,6 +376,25 @@
   function handleRunAction(actionId: string): void {
     closeMobileFooterControls();
     onRunAction(actionId);
+  }
+
+  function handleMobileToolbarReplay(): void {
+    closeMobileToolbarSheet();
+    if (replayState?.active && replayState?.playing) {
+      onPauseReplay();
+      return;
+    }
+    if (replayState?.active) {
+      onPlayReplay();
+      return;
+    }
+    onEnterReplay();
+  }
+
+  function openSidebarFromMobileToolbar(): void {
+    closeMobileToolbarSheet();
+    mobileSidebarSize = "default";
+    mobileSidebarOpen = true;
   }
 
   function beginMobileSheetDrag(target: "sidebar" | "bottom" | "footer", event: PointerEvent): void {
@@ -996,11 +1037,39 @@
       <button
         type="button"
         class="mobile-sidebar-trigger"
-        data-mobile-sidebar-trigger
+        data-toolbar-sidebar-trigger
         aria-expanded={mobileSidebarOpen ? "true" : "false"}
         aria-controls="workbench-mobile-sidebar"
         on:click={toggleMobileSidebarSheet}
       >Panels</button>
+    </div>
+    <div class="mobile-toolbar-summary" data-mobile-toolbar-summary>
+      <div class="mobile-toolbar-summary-copy">
+        <strong>{workbench?.toolbar.activeSymbol ?? "NDX"}</strong>
+        <span>{workbench?.toolbar.timeframeLabel ?? "1D"} · {workbench?.toolbar.exchangeLabel ?? "NASDAQ"}</span>
+      </div>
+      <div class="mobile-toolbar-summary-actions">
+        <button
+          type="button"
+          class="mobile-toolbar-trigger"
+          data-mobile-toolbar-trigger
+          aria-expanded={mobileToolbarOpen ? "true" : "false"}
+          aria-controls="workbench-mobile-toolbar"
+          on:click={toggleMobileToolbarSheet}
+        >
+          {mobileToolbarOpen ? "Hide Tools" : "Tools"}
+        </button>
+        <button
+          type="button"
+          class="mobile-sidebar-trigger"
+          data-mobile-sidebar-trigger
+          aria-expanded={mobileSidebarOpen ? "true" : "false"}
+          aria-controls="workbench-mobile-sidebar"
+          on:click={toggleMobileSidebarSheet}
+        >
+          Panels
+        </button>
+      </div>
     </div>
     {#if workbench?.statusNotice}
       <div
@@ -1110,6 +1179,145 @@
             </span>
           </button>
         {/each}
+      </div>
+    </div>
+  {/if}
+
+  {#if mobileToolbarOpen}
+    <button
+      type="button"
+      class="mobile-toolbar-backdrop"
+      data-mobile-toolbar-backdrop
+      aria-label="Close mobile toolbar"
+      on:click={closeMobileToolbarSheet}
+    ></button>
+    <div
+      id="workbench-mobile-toolbar"
+      class="mobile-toolbar-sheet"
+      data-mobile-toolbar-sheet
+      data-mobile-toolbar-open="true"
+    >
+      <div class="mobile-toolbar-sheet-head">
+        <div class="mobile-toolbar-sheet-copy">
+          <strong>{workbench?.toolbar.activeSymbol ?? "NDX"}</strong>
+          <span>{workbench?.toolbar.timeframeLabel ?? "1D"} · {workbench?.toolbar.exchangeLabel ?? "NASDAQ"}</span>
+        </div>
+        <div class="mobile-toolbar-head-actions">
+          <button
+            type="button"
+            class="mobile-toolbar-panels"
+            data-mobile-toolbar-open-panels
+            on:click={openSidebarFromMobileToolbar}
+          >
+            Panels
+          </button>
+          <button
+            type="button"
+            class="mobile-toolbar-close"
+            data-mobile-toolbar-close
+            on:click={closeMobileToolbarSheet}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+      <div class="mobile-toolbar-chip-strip">
+        <span class="mobile-toolbar-chip">{workbench?.toolbar.indicatorsLabel ?? "Indicators"}</span>
+        <span class="mobile-toolbar-chip">{workbench?.toolbar.alertLabel ?? "Alert"}</span>
+        <span class="mobile-toolbar-chip">{workbench?.toolbar.layoutLabel ?? "Layout single"}</span>
+      </div>
+      <div class="type-picker mobile-toolbar-type-picker" aria-label="mobile chart type picker">
+        {#each chartTypeActions as action}
+          <button
+            class:active={action.active}
+            on:click={() => {
+              closeMobileToolbarSheet();
+              onRunAction(action.id);
+            }}
+          >
+            {action.label}
+          </button>
+        {/each}
+      </div>
+      <div class="mobile-toolbar-action-grid">
+        <button type="button" data-mobile-toolbar-action="replay" on:click={handleMobileToolbarReplay}
+          >{workbench?.toolbar.replayLabel ?? "Replay"}</button
+        >
+        <button
+          type="button"
+          data-mobile-toolbar-action="commands"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onToggleCommandPalette();
+          }}
+        >
+          Commands
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="save-layout"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onSaveLayout();
+          }}
+          disabled={replayState?.active || layoutPersistenceMissing()}
+        >
+          Save layout
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="restore-layout"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onRestoreLayout();
+          }}
+          disabled={replayState?.active || layoutPersistenceMissing()}
+        >
+          Restore layout
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="reset-layout"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onResetLayout();
+          }}
+          disabled={replayState?.active}
+        >
+          Reset layout
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="import-layout"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onImportLayout();
+          }}
+          disabled={workbench?.layoutTransfer.importEnabled === false}
+        >
+          {workbench?.layoutTransfer.importLabel ?? "Import layout"}
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="export-layout"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            onExportLayout();
+          }}
+          disabled={workbench?.layoutTransfer.exportEnabled === false}
+        >
+          {workbench?.layoutTransfer.exportLabel ?? "Export layout"}
+        </button>
+        <button
+          type="button"
+          data-mobile-toolbar-action="share"
+          on:click={() => {
+            closeMobileToolbarSheet();
+            shareDialogOpen = !shareDialogOpen;
+          }}
+        >
+          Share
+        </button>
       </div>
     </div>
   {/if}
@@ -3360,6 +3568,48 @@
     border-top: 1px solid rgba(24, 24, 27, 0.08);
   }
 
+  .mobile-toolbar-summary,
+  .mobile-toolbar-backdrop,
+  .mobile-toolbar-sheet {
+    display: none;
+  }
+
+  .mobile-toolbar-summary {
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    border-radius: 1rem;
+    background: rgba(255, 250, 243, 0.86);
+  }
+
+  .mobile-toolbar-summary-copy,
+  .mobile-toolbar-sheet-copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .mobile-toolbar-summary-copy strong,
+  .mobile-toolbar-sheet-copy strong {
+    font-size: 0.95rem;
+  }
+
+  .mobile-toolbar-summary-copy span,
+  .mobile-toolbar-sheet-copy span {
+    color: rgba(24, 24, 27, 0.58);
+    font-size: 0.78rem;
+  }
+
+  .mobile-toolbar-summary-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+  }
+
+  .mobile-toolbar-trigger,
   .mobile-bottom-panel-trigger,
   .mobile-footer-controls-trigger,
   .mobile-bottom-panel-head,
@@ -3399,6 +3649,7 @@
     cursor: ns-resize;
   }
 
+  .mobile-toolbar-trigger,
   .mobile-bottom-panel-trigger,
   .mobile-footer-controls-trigger,
   .mobile-sheet-size-toggle,
@@ -3410,13 +3661,102 @@
     font-weight: 700;
   }
 
+  .mobile-toolbar-trigger,
   .mobile-bottom-panel-trigger {
     padding: 0.42rem 0.75rem;
-    margin-left: auto;
   }
 
   .mobile-footer-controls-trigger {
     padding: 0.42rem 0.75rem;
+  }
+
+  .mobile-toolbar-sheet {
+    position: fixed;
+    top: 4.5rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    z-index: 20;
+    display: grid;
+    gap: 0.85rem;
+    max-height: min(62vh, 30rem);
+    overflow-y: auto;
+    padding: 0.95rem;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 1rem;
+    background: rgba(255, 250, 243, 0.98);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  }
+
+  .mobile-toolbar-backdrop {
+    position: fixed;
+    top: 4rem;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 19;
+    border: none;
+    background: rgba(15, 23, 42, 0.24);
+  }
+
+  .mobile-toolbar-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .mobile-toolbar-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .mobile-toolbar-panels,
+  .mobile-toolbar-close {
+    border: 1px solid rgba(24, 24, 27, 0.14);
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: rgba(255, 255, 255, 0.88);
+    color: #18181b;
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .mobile-toolbar-chip-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .mobile-toolbar-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.38rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.06);
+    color: rgba(24, 24, 27, 0.74);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .mobile-toolbar-type-picker {
+    padding: 0;
+  }
+
+  .mobile-toolbar-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .mobile-toolbar-action-grid button {
+    padding: 0.72rem 0.8rem;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.84);
+    color: #18181b;
+    font: inherit;
+    font-weight: 700;
   }
 
   .mobile-footer-controls-head {
@@ -4243,6 +4583,21 @@
       justify-content: center;
     }
 
+    .mobile-toolbar-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toolbar-strip.workstation-toolbar {
+      display: none;
+    }
+
+    .mobile-toolbar-summary,
+    .mobile-toolbar-backdrop {
+      display: flex;
+    }
+
     .tool-rail {
       grid-auto-flow: column;
       grid-template-columns: repeat(8, minmax(44px, 1fr));
@@ -4354,6 +4709,10 @@
 
     .mobile-footer-controls-sheet.mobile-full {
       max-height: calc(100vh - 5rem - env(safe-area-inset-bottom, 0px));
+    }
+
+    .mobile-toolbar-sheet {
+      display: grid;
     }
 
     .bottom-panel-body {

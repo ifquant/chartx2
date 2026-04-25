@@ -1573,6 +1573,55 @@ test("workbench mobile replay toolbar entry auto-opens the replay bottom sheet",
   await expect(sheet.locator(".replay-summary")).toHaveAttribute("data-replay-active", "true");
 });
 
+test("workbench mobile toolbar opens as a dedicated sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const trigger = workbench.locator("[data-mobile-toolbar-trigger]:visible").first();
+  const sheet = workbench.locator("[data-mobile-toolbar-sheet]");
+
+  await expect(trigger).toBeVisible();
+  await expect(sheet).toBeHidden();
+
+  await trigger.click();
+
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('[data-mobile-toolbar-action="commands"]')).toBeVisible();
+  await expect(sheet.locator('[data-mobile-toolbar-action="share"]')).toBeVisible();
+});
+
+test("workbench mobile toolbar closes after opening commands", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const sheet = workbench.locator("[data-mobile-toolbar-sheet]");
+  const palette = workbench.locator("[data-command-palette]");
+
+  await workbench.locator("[data-mobile-toolbar-trigger]:visible").first().click();
+  await expect(sheet).toBeVisible();
+
+  await sheet.locator('[data-mobile-toolbar-action="commands"]').click();
+
+  await expect(sheet).toBeHidden();
+  await expect(palette).toBeVisible();
+});
+
+test("workbench mobile toolbar yields to the sidebar sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const toolbar = workbench.locator("[data-mobile-toolbar-sheet]");
+  const sidebar = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await workbench.locator("[data-mobile-toolbar-trigger]:visible").first().click();
+  await expect(toolbar).toBeVisible();
+
+  await toolbar.locator("[data-mobile-toolbar-open-panels]").click();
+
+  await expect(toolbar).toBeHidden();
+  await expect(sidebar).toHaveAttribute("data-mobile-sidebar-open", "true");
+});
+
 test("workbench mobile logs panel opens as a bottom sheet instead of relying on the sidebar", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

@@ -1103,6 +1103,9 @@ Progress checklist:
   as the other mobile overlays, instead of relying only on a close button
 - [x] Footer controls now expose the same size-toggle and upward drag-to-snap
   behavior as the other mobile sheets, instead of staying a fixed-height modal
+- [x] Narrow-width toolbar actions now move into a dedicated mobile `Tools`
+  sheet instead of remaining a long desktop-style horizontal scroller above the
+  chart
 
 Implementation note:
 
@@ -1160,6 +1163,9 @@ Implementation note:
 - `Mobile Footer Controls Snap Sizes V0` continues on the same boundary. It
   gives footer controls the same `default / expanded / full` shell behavior and
   upward drag-to-snap semantics as the other mobile sheets.
+- `Mobile Toolbar Sheet V0` keeps the follow-up UI-only. It compacts the
+  desktop toolbar into a narrow-width summary plus a dedicated tools sheet
+  without adding any new host/runtime contract.
 
 ### Layer 3 Gate
 

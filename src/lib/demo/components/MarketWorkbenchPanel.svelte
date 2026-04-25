@@ -168,6 +168,9 @@
   let pendingCustomScriptLoadId: string | null = null;
   let shareDialogOpen = false;
   let mobileSidebarOpen = false;
+  let mobileBottomPanelOpen = false;
+  let mobileBottomPanelAvailable = false;
+  let mobileBottomPanelLabel = "Panel";
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -198,6 +201,21 @@
 
   $: if ((commandPaletteOpen || shareDialogOpen) && mobileSidebarOpen) {
     mobileSidebarOpen = false;
+  }
+
+  $: mobileBottomPanelAvailable =
+    (workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester !== null && snapshot.strategyTester !== undefined) ||
+    (workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket !== null && snapshot.tradingTicket !== undefined);
+
+  $: mobileBottomPanelLabel =
+    workbench?.bottomPanel.tabs.find((tab) => tab.id === workbench?.bottomPanel.activeTab)?.label ?? "Panel";
+
+  $: if ((commandPaletteOpen || shareDialogOpen || mobileSidebarOpen) && mobileBottomPanelOpen) {
+    mobileBottomPanelOpen = false;
+  }
+
+  $: if (!mobileBottomPanelAvailable && mobileBottomPanelOpen) {
+    mobileBottomPanelOpen = false;
   }
 
   function resetCustomScriptDraft(): void {
@@ -1059,6 +1077,20 @@
               {tab.label}
             </button>
           {/each}
+          {#if mobileBottomPanelAvailable}
+            <button
+              type="button"
+              class="mobile-bottom-panel-trigger"
+              data-mobile-bottom-panel-trigger
+              aria-expanded={mobileBottomPanelOpen ? "true" : "false"}
+              aria-controls="workbench-mobile-bottom-panel"
+              on:click={() => {
+                mobileBottomPanelOpen = !mobileBottomPanelOpen;
+              }}
+            >
+              {mobileBottomPanelOpen ? `Hide ${mobileBottomPanelLabel}` : `Open ${mobileBottomPanelLabel}`}
+            </button>
+          {/if}
         </div>
         <div class="time-strip">
           {#each workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as range}
@@ -1100,13 +1132,62 @@
             </button>
           {/each}
         </div>
+        {#if mobileBottomPanelOpen}
+          <button
+            type="button"
+            class="mobile-bottom-panel-backdrop"
+            data-mobile-bottom-panel-backdrop
+            aria-label="Close mobile bottom panel"
+            on:click={() => {
+              mobileBottomPanelOpen = false;
+            }}
+          ></button>
+        {/if}
         {#if workbench?.bottomPanel.activeTab === "performance-link" && snapshot.strategyTester}
-          <div class="bottom-panel-body" data-bottom-panel-body data-bottom-panel-kind="performance-link">
+          <div
+            id="workbench-mobile-bottom-panel"
+            class="bottom-panel-body"
+            class:mobile-open={mobileBottomPanelOpen}
+            data-bottom-panel-body
+            data-bottom-panel-kind="performance-link"
+            data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+          >
+            <div class="mobile-bottom-panel-head">
+              <strong>{mobileBottomPanelLabel}</strong>
+              <button
+                type="button"
+                class="mobile-bottom-panel-close"
+                data-mobile-bottom-panel-close
+                aria-label="Close mobile bottom panel"
+                on:click={() => {
+                  mobileBottomPanelOpen = false;
+                }}
+              >Close</button>
+            </div>
             <StrategyTesterPanel model={snapshot.strategyTester} />
           </div>
         {/if}
         {#if workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket}
-          <div class="bottom-panel-body" data-bottom-panel-body data-bottom-panel-kind="trading">
+          <div
+            id="workbench-mobile-bottom-panel"
+            class="bottom-panel-body"
+            class:mobile-open={mobileBottomPanelOpen}
+            data-bottom-panel-body
+            data-bottom-panel-kind="trading"
+            data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
+          >
+            <div class="mobile-bottom-panel-head">
+              <strong>{mobileBottomPanelLabel}</strong>
+              <button
+                type="button"
+                class="mobile-bottom-panel-close"
+                data-mobile-bottom-panel-close
+                aria-label="Close mobile bottom panel"
+                on:click={() => {
+                  mobileBottomPanelOpen = false;
+                }}
+              >Close</button>
+            </div>
             <TradingTicketPanel model={snapshot.tradingTicket} />
           </div>
         {/if}
@@ -2735,6 +2816,37 @@
     border-top: 1px solid rgba(24, 24, 27, 0.08);
   }
 
+  .mobile-bottom-panel-trigger,
+  .mobile-bottom-panel-head,
+  .mobile-bottom-panel-backdrop {
+    display: none;
+  }
+
+  .mobile-bottom-panel-head {
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .mobile-bottom-panel-trigger,
+  .mobile-bottom-panel-close {
+    border: 1px solid rgba(24, 24, 27, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #18181b;
+    font-weight: 700;
+  }
+
+  .mobile-bottom-panel-trigger {
+    padding: 0.42rem 0.75rem;
+    margin-left: auto;
+  }
+
+  .mobile-bottom-panel-close {
+    padding: 0.5rem 0.85rem;
+  }
+
   .bottom-tab-strip,
   .time-strip,
   .mode-strip,
@@ -3594,6 +3706,45 @@
       border: none;
       background: rgba(15, 23, 42, 0.4);
       z-index: 18;
+    }
+
+    .mobile-bottom-panel-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-bottom-panel-head,
+    .mobile-bottom-panel-backdrop {
+      display: flex;
+    }
+
+    .mobile-bottom-panel-backdrop {
+      position: fixed;
+      inset: 0;
+      border: none;
+      background: rgba(15, 23, 42, 0.32);
+      z-index: 16;
+    }
+
+    .bottom-panel-body {
+      position: fixed;
+      right: 0.75rem;
+      bottom: 0.75rem;
+      left: 0.75rem;
+      z-index: 17;
+      max-height: min(68vh, 34rem);
+      overflow-y: auto;
+      padding: 0.95rem;
+      border: 1px solid rgba(24, 24, 27, 0.12);
+      border-radius: 1rem;
+      background: rgba(255, 250, 243, 0.98);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+      display: none;
+    }
+
+    .bottom-panel-body.mobile-open {
+      display: grid;
     }
 
     .chart-frame {

@@ -1070,6 +1070,9 @@ Progress checklist:
   sheet-style overlay, keeping the responsive slice UI-only and host-neutral
 - [x] Focused visual coverage asserts the mobile panel trigger, open state, and
   close path at a narrow viewport
+- [x] Fixture-backed strategy/trading bottom content can now open as a mobile
+  bottom sheet instead of permanently consuming inline chart space on narrow
+  screens
 
 Implementation note:
 
@@ -1078,6 +1081,10 @@ Implementation note:
   small screens, while deeper touch gesture tuning, density profiles, and
   device-specific host policy stay deferred to later productization work and
   the future Rust-backed host stack.
+- `Mobile Bottom Panel Sheet V0` extends the same idea to fixture-backed bottom
+  shells such as trading and strategy panels. The slice still avoids any new
+  runtime or host contract; it only changes how existing content mounts at
+  narrow widths.
 
 ### Layer 3 Gate
 

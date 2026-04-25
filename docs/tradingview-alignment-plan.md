@@ -1083,6 +1083,8 @@ Progress checklist:
 - [x] Mobile sidebar and bottom sheets now cycle through
   `default -> expanded -> full -> default`, and navigation actions auto-close
   them before shell focus changes
+- [x] Mobile sidebar and bottom sheets now expose live drag follow and
+  upward drag-to-snap between size steps before the dismiss path takes over
 
 Implementation note:
 
@@ -1109,6 +1111,9 @@ Implementation note:
   bounded: it upgrades local sheet sizing from a binary flag to a small snap
   enum and ensures workspace/bottom-tab navigation does not leave stale mobile
   overlays hanging around.
+- `Mobile Drag-To-Snap + Live Follow V0` stays shell-only too. It adds transient
+  drag state and live offset rendering on the existing handles, without pulling
+  chart/runtime models into device-specific gesture concerns.
 
 ### Layer 3 Gate
 

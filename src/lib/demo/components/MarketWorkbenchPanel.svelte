@@ -175,6 +175,7 @@
   let mobileBottomPanelSize: "default" | "expanded" | "full" = "default";
   let mobileDragTarget: "sidebar" | "bottom" | null = null;
   let mobileDragStartY = 0;
+  let mobileDragOffsetY = 0;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -278,9 +279,30 @@
   function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
     mobileDragTarget = target;
     mobileDragStartY = event.clientY;
+    mobileDragOffsetY = 0;
     if (event.currentTarget instanceof HTMLElement) {
       event.currentTarget.setPointerCapture(event.pointerId);
     }
+  }
+
+  function updateMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+    if (mobileDragTarget !== target) {
+      return;
+    }
+    const rawDelta = event.clientY - mobileDragStartY;
+    mobileDragOffsetY = Math.max(-120, Math.min(180, rawDelta));
+  }
+
+  function previousMobileSheetSize(
+    current: "default" | "expanded" | "full",
+  ): "default" | "expanded" | "full" {
+    if (current === "full") {
+      return "expanded";
+    }
+    if (current === "expanded") {
+      return "default";
+    }
+    return "default";
   }
 
   function endMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
@@ -293,14 +315,31 @@
     }
     mobileDragTarget = null;
     mobileDragStartY = 0;
-    if (deltaY < 72) {
+    mobileDragOffsetY = 0;
+    if (deltaY >= 72) {
+      if (target === "sidebar") {
+        if (mobileSidebarSize === "default") {
+          closeMobileSidebarSheet();
+          return;
+        }
+        mobileSidebarSize = previousMobileSheetSize(mobileSidebarSize);
+        return;
+      }
+      if (mobileBottomPanelSize === "default") {
+        closeMobileBottomSheet();
+        return;
+      }
+      mobileBottomPanelSize = previousMobileSheetSize(mobileBottomPanelSize);
       return;
     }
-    if (target === "sidebar") {
-      mobileSidebarOpen = false;
+    if (deltaY <= -72) {
+      if (target === "sidebar") {
+        mobileSidebarSize = nextMobileSheetSize(mobileSidebarSize);
+        return;
+      }
+      mobileBottomPanelSize = nextMobileSheetSize(mobileBottomPanelSize);
       return;
     }
-    mobileBottomPanelOpen = false;
   }
 
   function cancelMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
@@ -312,6 +351,7 @@
     }
     mobileDragTarget = null;
     mobileDragStartY = 0;
+    mobileDragOffsetY = 0;
   }
 
   function resetCustomScriptDraft(): void {
@@ -1257,6 +1297,9 @@
             data-bottom-panel-kind="performance-link"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
             data-mobile-bottom-panel-size={mobileBottomPanelSize}
+            data-mobile-bottom-panel-dragging={mobileDragTarget === "bottom" ? "true" : "false"}
+            data-mobile-bottom-panel-drag-offset={String(mobileDragTarget === "bottom" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "bottom" ? mobileDragOffsetY : 0}px;`}
           >
             <div class="mobile-bottom-panel-head">
               <div class="mobile-sheet-title-block">
@@ -1266,6 +1309,7 @@
                   data-mobile-bottom-panel-drag-handle
                   aria-label="Drag down to close mobile bottom panel"
                   on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointermove={(event) => updateMobileSheetDrag("bottom", event)}
                   on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
                   on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
                 ></button>
@@ -1306,6 +1350,9 @@
             data-bottom-panel-kind="trading"
             data-mobile-bottom-panel-open={mobileBottomPanelOpen ? "true" : "false"}
             data-mobile-bottom-panel-size={mobileBottomPanelSize}
+            data-mobile-bottom-panel-dragging={mobileDragTarget === "bottom" ? "true" : "false"}
+            data-mobile-bottom-panel-drag-offset={String(mobileDragTarget === "bottom" ? mobileDragOffsetY : 0)}
+            style={`--mobile-drag-offset: ${mobileDragTarget === "bottom" ? mobileDragOffsetY : 0}px;`}
           >
             <div class="mobile-bottom-panel-head">
               <div class="mobile-sheet-title-block">
@@ -1315,6 +1362,7 @@
                   data-mobile-bottom-panel-drag-handle
                   aria-label="Drag down to close mobile bottom panel"
                   on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointermove={(event) => updateMobileSheetDrag("bottom", event)}
                   on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
                   on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
                 ></button>
@@ -1356,6 +1404,9 @@
       data-mobile-sidebar-sheet
       data-mobile-sidebar-open={mobileSidebarOpen ? "true" : "false"}
       data-mobile-sidebar-size={mobileSidebarSize}
+      data-mobile-sidebar-dragging={mobileDragTarget === "sidebar" ? "true" : "false"}
+      data-mobile-sidebar-drag-offset={String(mobileDragTarget === "sidebar" ? mobileDragOffsetY : 0)}
+      style={`--mobile-drag-offset: ${mobileDragTarget === "sidebar" ? mobileDragOffsetY : 0}px;`}
     >
       <div class="mobile-sidebar-sheet-head">
         <div class="mobile-sheet-title-block">
@@ -1365,6 +1416,7 @@
             data-mobile-sidebar-drag-handle
             aria-label="Drag down to close mobile panels"
             on:pointerdown={(event) => beginMobileSheetDrag("sidebar", event)}
+            on:pointermove={(event) => updateMobileSheetDrag("sidebar", event)}
             on:pointerup={(event) => endMobileSheetDrag("sidebar", event)}
             on:pointercancel={(event) => cancelMobileSheetDrag("sidebar", event)}
           ></button>
@@ -3891,6 +3943,7 @@
       border-radius: 1rem;
       background: rgba(244, 240, 232, 0.98);
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+      transform: translateY(var(--mobile-drag-offset, 0px));
       display: none;
     }
 
@@ -3951,6 +4004,7 @@
       border-radius: 1rem;
       background: rgba(255, 250, 243, 0.98);
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+      transform: translateY(var(--mobile-drag-offset, 0px));
       display: none;
     }
 

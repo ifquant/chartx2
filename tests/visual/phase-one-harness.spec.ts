@@ -1544,6 +1544,34 @@ test("workbench mobile sidebar sheet ignores short drag gestures below the dismi
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
 });
 
+test("workbench mobile sidebar sheet supports upward drag-to-snap and live drag follow", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
+  const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await trigger.click();
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "default");
+
+  const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-dragging", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-drag-offset", "-100");
+
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-dragging", "false");
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "expanded");
+
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "full");
+});
+
 test("workbench mobile bottom sheet can be drag-dismissed from the handle", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");
@@ -1564,6 +1592,39 @@ test("workbench mobile bottom sheet can be drag-dismissed from the handle", asyn
   await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+});
+
+test("workbench mobile bottom sheet supports upward drag-to-snap and live drag follow", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+
+  const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
+
+  const handle = sheet.locator("[data-mobile-bottom-panel-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-dragging", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-drag-offset", "-100");
+
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-dragging", "false");
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
+
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "full");
 });
 
 test("workbench mobile sidebar sheet auto-closes when workspace navigation changes", async ({ page }) => {

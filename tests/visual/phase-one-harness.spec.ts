@@ -325,6 +325,37 @@ test("trading ticket panel renders fixture-backed trade shell through the bottom
   await expect(workbench.locator("[data-trading-ticket-submit]")).toContainText("Review order");
 });
 
+test("account sync sidebar card renders as a separate shell and refreshes through the fixture adapter", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  const syncCard = workbench.locator('[data-workbench-panel="account-sync"]');
+
+  await expect(syncCard).toBeVisible();
+  await expect(syncCard.locator('[data-account-sync-status="ready"]')).toContainText(
+    "Host sync reachable",
+  );
+  await expect(syncCard.locator('[data-account-sync-target="layouts"]')).toContainText("Layouts");
+  await expect(syncCard.locator('[data-account-sync-target="alerts"]')).toContainText("Alerts");
+  await expect(syncCard.locator('[data-account-sync-target="watchlist"]')).toContainText(
+    "Watchlists",
+  );
+
+  await syncCard.locator("[data-account-sync-refresh]").click();
+  await expect(syncCard.locator('[data-account-sync-status="loading"]')).toContainText(
+    "Refreshing host sync status",
+  );
+  await expect(syncCard.locator('[data-account-sync-refresh]')).toBeDisabled();
+  await expect(syncCard.locator('[data-account-sync-status="ready"]')).toContainText(
+    "Host sync reachable",
+  );
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText(
+    "Host sync status refreshed",
+  );
+});
+
 test("workspace tabs: create and close document tabs in the shell", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

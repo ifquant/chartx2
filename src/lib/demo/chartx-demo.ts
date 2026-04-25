@@ -80,6 +80,11 @@ import {
 } from "$lib/chartx/public/workbench-scripts";
 import type { TradingTicketModel } from "$lib/chartx/public/trading-surface";
 import type { StrategyTesterPanelModel } from "$lib/chartx/public/strategy-tester";
+import type {
+  AccountSyncRefreshResult,
+  AccountSyncSurfaceHostAdapter,
+  AccountSyncSurfaceModel,
+} from "$lib/chartx/public/account-sync-surface";
 import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
@@ -180,6 +185,7 @@ export type DemoSnapshot = {
   metrics: readonly DemoMetric[];
   eventLog: readonly string[];
   workbench?: ChartWorkbenchModel | null;
+  accountSync?: AccountSyncSurfaceModel | null;
   indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
   activeIndicators?: readonly DemoActiveIndicator[];
   customScripts?: readonly DemoCustomScriptLibraryEntry[];
@@ -999,6 +1005,155 @@ function createDemoTradingTicketModel(
   };
 }
 
+function createDemoAccountSyncSurfaceModel(input?: {
+  loading?: boolean;
+  providerLabel?: string;
+  accountLabel?: string;
+  detailLabel?: string;
+  refreshedAtLabel?: string;
+  failure?: {
+    errorLabel: string;
+    detailLabel?: string;
+  } | null;
+}): AccountSyncSurfaceModel {
+  const providerLabel = input?.providerLabel ?? "Fixture sync adapter";
+  const accountLabel = input?.accountLabel ?? "SIM-TRADER 01";
+  const refreshedAtLabel = input?.refreshedAtLabel ?? "Synced 09:42 CST";
+  const failure = input?.failure ?? null;
+
+  if (input?.loading) {
+    return {
+      providerLabel,
+      accountLabel,
+      state: {
+        status: "loading",
+        statusLabel: "Refreshing host sync status",
+        detailLabel: "Polling the host-owned account boundary from the workbench shell.",
+      },
+      actionLabel: "Refreshing...",
+      targets: [
+        {
+          id: "layouts",
+          label: "Layouts",
+          detailLabel: "Cloud workspace snapshots",
+          state: "syncing",
+          stateLabel: "Checking",
+        },
+        {
+          id: "alerts",
+          label: "Alerts",
+          detailLabel: "Cross-device alert state",
+          state: "syncing",
+          stateLabel: "Checking",
+        },
+        {
+          id: "watchlist",
+          label: "Watchlists",
+          detailLabel: "Pinned symbols and lists",
+          state: "syncing",
+          stateLabel: "Checking",
+        },
+      ],
+    };
+  }
+
+  if (failure !== null) {
+    return {
+      providerLabel,
+      accountLabel,
+      state: {
+        status: "error",
+        statusLabel: "Host sync unavailable",
+        detailLabel:
+          failure.detailLabel ?? "The shell can render sync failures without owning cloud or account logic.",
+        errorLabel: failure.errorLabel,
+      },
+      actionLabel: "Retry sync",
+      targets: [
+        {
+          id: "layouts",
+          label: "Layouts",
+          detailLabel: "Cloud workspace snapshots",
+          state: "synced",
+          stateLabel: "Current",
+          lastUpdatedLabel: refreshedAtLabel,
+        },
+        {
+          id: "alerts",
+          label: "Alerts",
+          detailLabel: "Cross-device alert state",
+          state: "error",
+          stateLabel: "Failed",
+          errorLabel: failure.errorLabel,
+        },
+        {
+          id: "watchlist",
+          label: "Watchlists",
+          detailLabel: "Pinned symbols and lists",
+          state: "idle",
+          stateLabel: "Pending",
+        },
+      ],
+    };
+  }
+
+  return {
+    providerLabel,
+    accountLabel,
+    state: {
+      status: "ready",
+      statusLabel: "Host sync reachable",
+      detailLabel:
+        input?.detailLabel ?? "Status is fixture-backed here; real account sync remains outside chartx2.",
+    },
+    actionLabel: "Refresh status",
+    targets: [
+      {
+        id: "layouts",
+        label: "Layouts",
+        detailLabel: "Cloud workspace snapshots",
+        state: "synced",
+        stateLabel: "Current",
+        lastUpdatedLabel: refreshedAtLabel,
+      },
+      {
+        id: "alerts",
+        label: "Alerts",
+        detailLabel: "Cross-device alert state",
+        state: "synced",
+        stateLabel: "Current",
+        lastUpdatedLabel: refreshedAtLabel,
+      },
+      {
+        id: "watchlist",
+        label: "Watchlists",
+        detailLabel: "Pinned symbols and lists",
+        state: "idle",
+        stateLabel: "Ready",
+        lastUpdatedLabel: "Waiting for next refresh",
+      },
+    ],
+  };
+}
+
+function createDemoAccountSyncHostAdapter(): AccountSyncSurfaceHostAdapter {
+  let refreshAttempt = 0;
+  return {
+    async refreshStatus(): Promise<AccountSyncRefreshResult> {
+      refreshAttempt += 1;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 140);
+      });
+      return {
+        ok: true,
+        statusLabel: refreshAttempt === 1 ? "Host sync status refreshed" : "Host sync status refreshed again",
+        detailLabel: "Fixture host adapter responded; backend ownership stays outside chartx2.",
+        syncedAtLabel: refreshAttempt === 1 ? "Synced just now" : `Synced after refresh ${refreshAttempt}`,
+      };
+    },
+  };
+}
+
 function workspaceViewForPanel(panel: WorkbenchSidebarPanelId): WorkbenchWorkspaceViewId {
   switch (panel) {
     case "screener":
@@ -1305,6 +1460,10 @@ export function mountWorkbenchDemo(
   let replayCursor = -1;
   let replayTimer: ReturnType<typeof setInterval> | null = null;
   let statusNotice: WorkbenchStatusNoticeModel | null = null;
+  let accountSyncSurface = createDemoAccountSyncSurfaceModel({
+    providerLabel: hasInjectedHostAdapter ? "Host sync adapter" : "Fixture sync adapter",
+  });
+  let accountSyncRefreshInFlight = false;
   let workbenchAlerts: WorkbenchAlertState[] = [];
   let alertMutationVersion = 0;
   let alertsLoadPromise: Promise<boolean> | null = null;
@@ -1843,6 +2002,62 @@ export function mountWorkbenchDemo(
     },
   ];
 
+  const accountSyncAdapter = createDemoAccountSyncHostAdapter();
+
+  const refreshAccountSyncStatus = async (): Promise<boolean> => {
+    if (accountSyncRefreshInFlight || destroyed) {
+      publishSnapshot();
+      return false;
+    }
+    accountSyncRefreshInFlight = true;
+    setStatusNotice(null);
+    accountSyncSurface = createDemoAccountSyncSurfaceModel({
+      loading: true,
+      providerLabel: hasInjectedHostAdapter ? "Host sync adapter" : "Fixture sync adapter",
+    });
+    publishSnapshot();
+
+    const result = await accountSyncAdapter.refreshStatus({
+      providerId: hasInjectedHostAdapter ? "host-sync" : "fixture-sync",
+      accountId: "sim-trader-01",
+    });
+
+    if (destroyed) {
+      return false;
+    }
+
+    accountSyncRefreshInFlight = false;
+    if (result.ok) {
+      accountSyncSurface = createDemoAccountSyncSurfaceModel({
+        providerLabel: hasInjectedHostAdapter ? "Host sync adapter" : "Fixture sync adapter",
+        detailLabel: result.detailLabel,
+        refreshedAtLabel: result.syncedAtLabel ?? "Synced just now",
+      });
+      setStatusNotice({
+        tone: "success",
+        message: result.statusLabel,
+      });
+      pushLog(log, `refreshed account sync status via ${hasInjectedHostAdapter ? "host" : "fixture"} adapter`);
+      publishSnapshot();
+      return true;
+    }
+
+    accountSyncSurface = createDemoAccountSyncSurfaceModel({
+      providerLabel: hasInjectedHostAdapter ? "Host sync adapter" : "Fixture sync adapter",
+      failure: {
+        errorLabel: result.errorLabel,
+        detailLabel: result.detailLabel,
+      },
+    });
+    setStatusNotice({
+      tone: "error",
+      message: result.errorLabel,
+    });
+    pushLog(log, `failed to refresh account sync status: ${result.errorLabel}`);
+    publishSnapshot();
+    return false;
+  };
+
   const applyActiveBottomTab = (
     tabId: "time-presets" | "logs" | "replay" | "performance-link" | "custom",
   ): void => {
@@ -2304,6 +2519,7 @@ export function mountWorkbenchDemo(
       summary:
         "The default example now behaves like a compact chart terminal instead of a document-like homepage.",
       workbench: workbenchModel,
+      accountSync: accountSyncSurface,
       indicatorCatalog: currentIndicatorCatalog(),
       activeIndicators: [...projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)],
       customScripts: summarizeCustomScripts(),
@@ -4027,6 +4243,9 @@ export function mountWorkbenchDemo(
         case "theme":
           theme = theme === "warm" ? "ink" : "warm";
           rebuild();
+          return;
+        case "account-sync-refresh":
+          void refreshAccountSyncStatus();
           return;
         default:
           return;

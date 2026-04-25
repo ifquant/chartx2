@@ -25,6 +25,7 @@
   } from "$lib/demo/chartx-demo";
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
+  import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
 
@@ -1685,6 +1686,8 @@
           {/each}
         </div>
       </section>
+
+      <AccountSyncStatusCard model={snapshot.accountSync ?? null} onRefresh={() => onRunAction("account-sync-refresh")} />
 
       <div class="workbench-sidebar-scroll">
         {#if snapshot.pointFigureControls}

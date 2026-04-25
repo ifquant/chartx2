@@ -992,6 +992,19 @@ Acceptance:
 - Local-only usage remains possible.
 - The resulting settings/status surfaces are reusable by `alpha2`.
 
+Progress checklist:
+
+- [x] The workbench sidebar now mounts a fixture-backed account sync status card as its own host-oriented shell surface
+- [x] Refresh status uses the shell notice path only for transient outcomes instead of reusing adapter status as the primary sync UI
+- [x] Focused visual coverage asserts the separate sync card and refresh selector path
+
+Implementation note:
+
+- `Sync Status Shell V0` keeps the slice UI-only: `chartx2` now renders a
+  dedicated account sync status card in the workbench sidebar, while provider
+  auth, real cloud persistence, and conflict handling remain deferred to the
+  external host-owned sync boundary.
+
 ### 5. Publishing, Sharing, And Marketplace
 
 Purpose:

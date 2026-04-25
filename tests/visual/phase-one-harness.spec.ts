@@ -1708,6 +1708,56 @@ test("workbench mobile footer controls close after an action tap", async ({ page
   await expect(sheet).toBeHidden();
 });
 
+test("workbench mobile footer controls yield to the sidebar sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const sidebar = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(footer).toBeVisible();
+
+  await workbench.locator("[data-mobile-sidebar-trigger]").click();
+
+  await expect(footer).toBeHidden();
+  await expect(sidebar).toHaveAttribute("data-mobile-sidebar-open", "true");
+});
+
+test("workbench mobile footer controls yield to the bottom panel trigger", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const bottom = workbench.locator('[data-bottom-panel-kind="time-presets"]');
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(footer).toBeVisible();
+
+  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+
+  await expect(footer).toBeHidden();
+  await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+});
+
+test("workbench mobile footer controls replace an open bottom panel", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const bottom = workbench.locator('[data-bottom-panel-kind="time-presets"]');
+
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await workbench.locator('[data-bottom-panel-kind="logs"]').locator('[data-mobile-bottom-panel-close]').click();
+  await workbench.locator('[data-bottom-tab="time-presets"]').click();
+  await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+
+  await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+  await expect(footer).toBeVisible();
+});
+
 test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

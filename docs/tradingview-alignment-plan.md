@@ -1097,6 +1097,8 @@ Progress checklist:
   their lightweight bottom sheets instead of forcing a second trigger tap
 - [x] Dense footer controls now move into a dedicated mobile `Controls` sheet
   instead of always occupying inline chart space on narrow viewports
+- [x] Mobile overlay triggers now explicitly yield to each other, so sidebar,
+  bottom-panel, and footer-controls sheets do not stack or fight for focus
 
 Implementation note:
 
@@ -1144,6 +1146,10 @@ Implementation note:
   `time presets`, `mode` rows, and chart action buttons into a dedicated mobile
   controls sheet while leaving the bottom-tab strip as the primary narrow-screen
   footer surface.
+- `Mobile Overlay Yield Policy V0` keeps the follow-up just as bounded. It
+  makes the three mobile overlay triggers explicitly close competing overlays
+  before opening their own surface, rather than relying only on reactive state
+  fallout.
 
 ### Layer 3 Gate
 

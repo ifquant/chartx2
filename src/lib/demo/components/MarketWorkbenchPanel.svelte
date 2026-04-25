@@ -299,6 +299,29 @@
     closeMobileFooterControls();
   }
 
+  function toggleMobileSidebarSheet(): void {
+    const nextOpen = !mobileSidebarOpen;
+    closeMobileBottomSheet();
+    closeMobileFooterControls();
+    mobileSidebarSize = "default";
+    mobileSidebarOpen = nextOpen;
+  }
+
+  function toggleMobileBottomPanel(): void {
+    const nextOpen = !mobileBottomPanelOpen;
+    closeMobileSidebarSheet();
+    closeMobileFooterControls();
+    mobileBottomPanelSize = "default";
+    mobileBottomPanelOpen = nextOpen;
+  }
+
+  function toggleMobileFooterControls(): void {
+    const nextOpen = !mobileFooterControlsOpen;
+    closeMobileSidebarSheet();
+    closeMobileBottomSheet();
+    mobileFooterControlsOpen = nextOpen;
+  }
+
   function shouldAutoOpenLightweightBottomTab(tabId: BottomPanelTabId): boolean {
     if (typeof window === "undefined" || !window.matchMedia("(max-width: 840px)").matches) {
       return false;
@@ -957,10 +980,7 @@
         data-mobile-sidebar-trigger
         aria-expanded={mobileSidebarOpen ? "true" : "false"}
         aria-controls="workbench-mobile-sidebar"
-        on:click={() => {
-          mobileSidebarSize = "default";
-          mobileSidebarOpen = !mobileSidebarOpen;
-        }}
+        on:click={toggleMobileSidebarSheet}
       >Panels</button>
     </div>
     {#if workbench?.statusNotice}
@@ -1276,10 +1296,7 @@
               data-mobile-bottom-panel-trigger
               aria-expanded={mobileBottomPanelOpen ? "true" : "false"}
               aria-controls="workbench-mobile-bottom-panel"
-              on:click={() => {
-                mobileBottomPanelSize = "default";
-                mobileBottomPanelOpen = !mobileBottomPanelOpen;
-              }}
+              on:click={toggleMobileBottomPanel}
             >
               {mobileBottomPanelOpen ? `Hide ${mobileBottomPanelLabel}` : `Open ${mobileBottomPanelLabel}`}
             </button>
@@ -1290,9 +1307,7 @@
             data-mobile-footer-controls-trigger
             aria-expanded={mobileFooterControlsOpen ? "true" : "false"}
             aria-controls="workbench-mobile-footer-controls"
-            on:click={() => {
-              mobileFooterControlsOpen = !mobileFooterControlsOpen;
-            }}
+            on:click={toggleMobileFooterControls}
           >
             {mobileFooterControlsOpen ? "Hide Controls" : "Open Controls"}
           </button>
@@ -4243,7 +4258,10 @@
 
     .mobile-bottom-panel-backdrop {
       position: fixed;
-      inset: 0;
+      top: 0;
+      right: 0;
+      bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+      left: 0;
       border: none;
       background: rgba(15, 23, 42, 0.32);
       z-index: 16;
@@ -4252,7 +4270,10 @@
     .mobile-footer-controls-backdrop {
       display: flex;
       position: fixed;
-      inset: 0;
+      top: 0;
+      right: 0;
+      bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+      left: 0;
       border: none;
       background: rgba(15, 23, 42, 0.24);
       z-index: 14;
@@ -4263,7 +4284,7 @@
       position: fixed;
       right: 0.75rem;
       left: 0.75rem;
-      bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
       z-index: 15;
       gap: 0.75rem;
       max-height: min(56vh, 24rem);
@@ -4278,7 +4299,7 @@
     .bottom-panel-body {
       position: fixed;
       right: 0.75rem;
-      bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
       left: 0.75rem;
       z-index: 17;
       max-height: min(68vh, 34rem);

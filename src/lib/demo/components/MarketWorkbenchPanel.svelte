@@ -172,6 +172,7 @@
   let shareDialogOpen = false;
   let mobileSidebarOpen = false;
   let mobileBottomPanelOpen = false;
+  let mobileFooterControlsOpen = false;
   let mobileBottomPanelAvailable = false;
   let mobileBottomPanelLabel = "Panel";
   let mobileSidebarSize: "default" | "expanded" | "full" = "default";
@@ -224,6 +225,10 @@
 
   $: if ((commandPaletteOpen || shareDialogOpen || mobileSidebarOpen) && mobileBottomPanelOpen) {
     mobileBottomPanelOpen = false;
+  }
+
+  $: if ((commandPaletteOpen || shareDialogOpen || mobileSidebarOpen || mobileBottomPanelOpen) && mobileFooterControlsOpen) {
+    mobileFooterControlsOpen = false;
   }
 
   $: if (!mobileBottomPanelAvailable && mobileBottomPanelOpen) {
@@ -284,9 +289,14 @@
     mobileBottomPanelSize = "default";
   }
 
+  function closeMobileFooterControls(): void {
+    mobileFooterControlsOpen = false;
+  }
+
   function closeMobileSheetsForNavigation(): void {
     closeMobileSidebarSheet();
     closeMobileBottomSheet();
+    closeMobileFooterControls();
   }
 
   function shouldAutoOpenLightweightBottomTab(tabId: BottomPanelTabId): boolean {
@@ -303,11 +313,17 @@
 
   async function handleSetBottomTab(tabId: BottomPanelTabId): Promise<void> {
     closeMobileBottomSheet();
+    closeMobileFooterControls();
     await onSetBottomTab(tabId);
     if (shouldAutoOpenLightweightBottomTab(tabId)) {
       mobileBottomPanelSize = "default";
       mobileBottomPanelOpen = true;
     }
+  }
+
+  function handleRunAction(actionId: string): void {
+    closeMobileFooterControls();
+    onRunAction(actionId);
   }
 
   function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
@@ -1268,6 +1284,18 @@
               {mobileBottomPanelOpen ? `Hide ${mobileBottomPanelLabel}` : `Open ${mobileBottomPanelLabel}`}
             </button>
           {/if}
+          <button
+            type="button"
+            class="mobile-footer-controls-trigger"
+            data-mobile-footer-controls-trigger
+            aria-expanded={mobileFooterControlsOpen ? "true" : "false"}
+            aria-controls="workbench-mobile-footer-controls"
+            on:click={() => {
+              mobileFooterControlsOpen = !mobileFooterControlsOpen;
+            }}
+          >
+            {mobileFooterControlsOpen ? "Hide Controls" : "Open Controls"}
+          </button>
         </div>
         <div class="time-strip">
           {#each workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as range}
@@ -1279,7 +1307,7 @@
             {#each renkoActions as action}
               <button
                 class:active={action.active}
-                on:click={() => onRunAction(action.id)}
+                on:click={() => handleRunAction(action.id)}
               >
                 {action.label}
               </button>
@@ -1291,7 +1319,7 @@
             {#each lineBreakActions as action}
               <button
                 class:active={action.active}
-                on:click={() => onRunAction(action.id)}
+                on:click={() => handleRunAction(action.id)}
               >
                 {action.label}
               </button>
@@ -1303,12 +1331,83 @@
             <button
               class={`${actionClass(action.tone)} ${action.active ? "active" : ""}`}
               data-demo-action={action.id}
-              on:click={() => onRunAction(action.id)}
+              on:click={() => handleRunAction(action.id)}
             >
               {action.label}
             </button>
           {/each}
         </div>
+        {#if mobileFooterControlsOpen}
+          <button
+            type="button"
+            class="mobile-footer-controls-backdrop"
+            data-mobile-footer-controls-backdrop
+            aria-label="Close mobile footer controls"
+            on:click={() => {
+              closeMobileFooterControls();
+            }}
+          ></button>
+          <div
+            id="workbench-mobile-footer-controls"
+            class="mobile-footer-controls-sheet"
+            data-mobile-footer-controls-sheet
+            data-mobile-footer-controls-open="true"
+          >
+            <div class="mobile-footer-controls-head">
+              <strong>Footer Controls</strong>
+              <button
+                type="button"
+                class="mobile-footer-controls-close"
+                data-mobile-footer-controls-close
+                on:click={() => {
+                  closeMobileFooterControls();
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <div class="time-strip mobile-footer-copy">
+              {#each workbench?.bottomPanel.ranges ?? ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as range}
+                <button class:active={range === (workbench?.bottomPanel.activeRange ?? "1D")}>{range}</button>
+              {/each}
+            </div>
+            {#if renkoActions.length > 0}
+              <div class="mode-strip mobile-footer-copy">
+                {#each renkoActions as action}
+                  <button
+                    class:active={action.active}
+                    on:click={() => handleRunAction(action.id)}
+                  >
+                    {action.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#if lineBreakActions.length > 0}
+              <div class="mode-strip mobile-footer-copy">
+                {#each lineBreakActions as action}
+                  <button
+                    class:active={action.active}
+                    on:click={() => handleRunAction(action.id)}
+                  >
+                    {action.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            <div class="action-strip mobile-footer-copy">
+              {#each chartActions as action}
+                <button
+                  class={`${actionClass(action.tone)} ${action.active ? "active" : ""}`}
+                  data-mobile-footer-action={action.id}
+                  on:click={() => handleRunAction(action.id)}
+                >
+                  {action.label}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
         {#if mobileBottomPanelOpen}
           <button
             type="button"
@@ -3201,8 +3300,11 @@
   }
 
   .mobile-bottom-panel-trigger,
+  .mobile-footer-controls-trigger,
   .mobile-bottom-panel-head,
-  .mobile-bottom-panel-backdrop {
+  .mobile-bottom-panel-backdrop,
+  .mobile-footer-controls-backdrop,
+  .mobile-footer-controls-sheet {
     display: none;
   }
 
@@ -3237,6 +3339,7 @@
   }
 
   .mobile-bottom-panel-trigger,
+  .mobile-footer-controls-trigger,
   .mobile-sheet-size-toggle,
   .mobile-bottom-panel-close {
     border: 1px solid rgba(24, 24, 27, 0.14);
@@ -3249,6 +3352,33 @@
   .mobile-bottom-panel-trigger {
     padding: 0.42rem 0.75rem;
     margin-left: auto;
+  }
+
+  .mobile-footer-controls-trigger {
+    padding: 0.42rem 0.75rem;
+  }
+
+  .mobile-footer-controls-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .mobile-footer-controls-close {
+    border: 1px solid rgba(24, 24, 27, 0.14);
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: rgba(255, 255, 255, 0.88);
+    color: #18181b;
+    font: inherit;
+    font-weight: 700;
+  }
+
+  .mobile-footer-copy {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .mobile-sheet-size-toggle,
@@ -4100,6 +4230,12 @@
       justify-content: center;
     }
 
+    .mobile-footer-controls-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .mobile-bottom-panel-head,
     .mobile-bottom-panel-backdrop {
       display: flex;
@@ -4111,6 +4247,32 @@
       border: none;
       background: rgba(15, 23, 42, 0.32);
       z-index: 16;
+    }
+
+    .mobile-footer-controls-backdrop {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      border: none;
+      background: rgba(15, 23, 42, 0.24);
+      z-index: 14;
+    }
+
+    .mobile-footer-controls-sheet {
+      display: grid;
+      position: fixed;
+      right: 0.75rem;
+      left: 0.75rem;
+      bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+      z-index: 15;
+      gap: 0.75rem;
+      max-height: min(56vh, 24rem);
+      overflow-y: auto;
+      padding: 0.95rem;
+      border: 1px solid rgba(24, 24, 27, 0.12);
+      border-radius: 1rem;
+      background: rgba(255, 250, 243, 0.98);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
     }
 
     .bottom-panel-body {
@@ -4150,6 +4312,18 @@
     .workbench-main,
     .workbench-footer {
       grid-template-rows: none;
+    }
+
+    .time-strip,
+    .mode-strip,
+    .action-strip {
+      display: none;
+    }
+
+    .mobile-footer-controls-sheet .time-strip,
+    .mobile-footer-controls-sheet .mode-strip,
+    .mobile-footer-controls-sheet .action-strip {
+      display: flex;
     }
   }
 </style>

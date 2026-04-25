@@ -1095,6 +1095,8 @@ Progress checklist:
   access paths
 - [x] Selecting `logs` or `time presets` on a narrow viewport now auto-opens
   their lightweight bottom sheets instead of forcing a second trigger tap
+- [x] Dense footer controls now move into a dedicated mobile `Controls` sheet
+  instead of always occupying inline chart space on narrow viewports
 
 Implementation note:
 
@@ -1138,6 +1140,10 @@ Implementation note:
 - `Mobile Lightweight Bottom Panel Auto-Open V0` keeps the next step equally
   narrow: selecting those lightweight bottom tabs on a mobile-width viewport
   now opens their sheet immediately, without changing the heavier panel flows.
+- `Mobile Footer Controls Sheet V0` keeps the same shell-only scope. It moves
+  `time presets`, `mode` rows, and chart action buttons into a dedicated mobile
+  controls sheet while leaving the bottom-tab strip as the primary narrow-screen
+  footer surface.
 
 ### Layer 3 Gate
 

@@ -1609,6 +1609,11 @@ test("workbench mobile time presets open as a bottom sheet", async ({ page }) =>
     "data-bottom-tab-active",
     "true",
   );
+  await workbench.locator('[data-bottom-panel-kind="logs"]').locator('[data-mobile-bottom-panel-close]').click();
+  await expect(workbench.locator('[data-bottom-panel-kind="logs"]')).toHaveAttribute(
+    "data-mobile-bottom-panel-open",
+    "false",
+  );
 
   await workbench.locator('[data-bottom-tab="time-presets"]').click();
   await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
@@ -1654,6 +1659,12 @@ test("workbench mobile time-presets tab auto-opens its bottom sheet", async ({ p
   const workbench = workbenchPanel(page);
   const sheet = workbench.locator('[data-bottom-panel-kind="time-presets"]');
 
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+
   await workbench.locator('[data-bottom-tab="time-presets"]').click();
 
   await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
@@ -1662,6 +1673,39 @@ test("workbench mobile time-presets tab auto-opens its bottom sheet", async ({ p
   );
   await expect.poll(async () => sheet.count()).toBe(1);
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+});
+
+test("workbench mobile footer controls open as a dedicated sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-footer-controls-trigger]");
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+
+  await expect(trigger).toBeVisible();
+  await expect(workbench.locator(".time-strip").first()).toBeHidden();
+  await expect(sheet).toBeHidden();
+
+  await trigger.click();
+
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "1D", exact: true })).toBeVisible();
+  await expect(sheet.locator('[data-mobile-footer-action]').first()).toBeVisible();
+});
+
+test("workbench mobile footer controls close after an action tap", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-footer-controls-trigger]");
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+
+  await trigger.click();
+  await expect(sheet).toBeVisible();
+
+  await sheet.locator('[data-mobile-footer-action]').first().click();
+
+  await expect(sheet).toBeHidden();
 });
 
 test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {

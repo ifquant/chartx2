@@ -1101,6 +1101,8 @@ Progress checklist:
   bottom-panel, and footer-controls sheets do not stack or fight for focus
 - [x] Footer controls now expose the same handle-based downward dismiss pattern
   as the other mobile overlays, instead of relying only on a close button
+- [x] Footer controls now expose the same size-toggle and upward drag-to-snap
+  behavior as the other mobile sheets, instead of staying a fixed-height modal
 
 Implementation note:
 
@@ -1155,6 +1157,9 @@ Implementation note:
 - `Mobile Footer Controls Drag Dismiss V0` keeps the same shell-only scope. It
   gives the footer controls sheet the existing mobile handle-and-threshold
   dismiss interaction without adding new state ownership or host contracts.
+- `Mobile Footer Controls Snap Sizes V0` continues on the same boundary. It
+  gives footer controls the same `default / expanded / full` shell behavior and
+  upward drag-to-snap semantics as the other mobile sheets.
 
 ### Layer 3 Gate
 

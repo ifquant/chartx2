@@ -177,6 +177,7 @@
   let mobileBottomPanelLabel = "Panel";
   let mobileSidebarSize: "default" | "expanded" | "full" = "default";
   let mobileBottomPanelSize: "default" | "expanded" | "full" = "default";
+  let mobileFooterControlsSize: "default" | "expanded" | "full" = "default";
   let mobileDragTarget: "sidebar" | "bottom" | "footer" | null = null;
   let mobileDragStartY = 0;
   let mobileDragOffsetY = 0;
@@ -243,6 +244,10 @@
     mobileBottomPanelSize = "default";
   }
 
+  $: if (!mobileFooterControlsOpen && mobileFooterControlsSize !== "default") {
+    mobileFooterControlsSize = "default";
+  }
+
   $: {
     const replayActive = snapshot.replay?.active ?? false;
     if (
@@ -291,6 +296,7 @@
 
   function closeMobileFooterControls(): void {
     mobileFooterControlsOpen = false;
+    mobileFooterControlsSize = "default";
   }
 
   function closeMobileSheetsForNavigation(): void {
@@ -319,6 +325,7 @@
     const nextOpen = !mobileFooterControlsOpen;
     closeMobileSidebarSheet();
     closeMobileBottomSheet();
+    mobileFooterControlsSize = "default";
     mobileFooterControlsOpen = nextOpen;
   }
 
@@ -391,7 +398,11 @@
     mobileDragOffsetY = 0;
     if (deltaY >= 72) {
       if (target === "footer") {
-        closeMobileFooterControls();
+        if (mobileFooterControlsSize === "default") {
+          closeMobileFooterControls();
+          return;
+        }
+        mobileFooterControlsSize = previousMobileSheetSize(mobileFooterControlsSize);
         return;
       }
       if (target === "sidebar") {
@@ -410,6 +421,10 @@
       return;
     }
     if (deltaY <= -72) {
+      if (target === "footer") {
+        mobileFooterControlsSize = nextMobileSheetSize(mobileFooterControlsSize);
+        return;
+      }
       if (target === "sidebar") {
         mobileSidebarSize = nextMobileSheetSize(mobileSidebarSize);
         return;
@@ -1369,8 +1384,11 @@
           <div
             id="workbench-mobile-footer-controls"
             class="mobile-footer-controls-sheet"
+            class:mobile-expanded={mobileFooterControlsSize === "expanded"}
+            class:mobile-full={mobileFooterControlsSize === "full"}
             data-mobile-footer-controls-sheet
             data-mobile-footer-controls-open="true"
+            data-mobile-footer-controls-size={mobileFooterControlsSize}
             data-mobile-footer-controls-dragging={mobileDragTarget === "footer" ? "true" : "false"}
             data-mobile-footer-controls-drag-offset={String(mobileDragTarget === "footer" ? mobileDragOffsetY : 0)}
             style={`--mobile-drag-offset: ${mobileDragTarget === "footer" ? mobileDragOffsetY : 0}px;`}
@@ -1387,6 +1405,17 @@
                 on:pointercancel={(event) => cancelMobileSheetDrag("footer", event)}
               ></button>
               <strong>Footer Controls</strong>
+              <button
+                type="button"
+                class="mobile-sheet-size-toggle"
+                data-mobile-footer-controls-size-toggle
+                aria-pressed={mobileFooterControlsSize !== "default" ? "true" : "false"}
+                on:click={() => {
+                  mobileFooterControlsSize = nextMobileSheetSize(mobileFooterControlsSize);
+                }}
+              >
+                {mobileSheetSizeLabel(mobileFooterControlsSize)}
+              </button>
               <button
                 type="button"
                 class="mobile-footer-controls-close"
@@ -4317,6 +4346,14 @@
       background: rgba(255, 250, 243, 0.98);
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
       transform: translateY(var(--mobile-drag-offset, 0px));
+    }
+
+    .mobile-footer-controls-sheet.mobile-expanded {
+      max-height: min(72vh, 32rem);
+    }
+
+    .mobile-footer-controls-sheet.mobile-full {
+      max-height: calc(100vh - 5rem - env(safe-area-inset-bottom, 0px));
     }
 
     .bottom-panel-body {

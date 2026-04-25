@@ -1713,11 +1713,12 @@ test("workbench mobile footer controls can be drag-dismissed from the handle", a
   await page.goto("/");
   const workbench = workbenchPanel(page);
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
 
   await workbench.locator("[data-mobile-footer-controls-trigger]").click();
   await expect(sheet).toBeVisible();
+  await expect(handle).toBeVisible();
 
-  const handle = sheet.locator("[data-mobile-footer-controls-drag-handle]");
   await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
   await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
 
@@ -1729,15 +1730,65 @@ test("workbench mobile footer controls ignore short drag gestures below the dism
   await page.goto("/");
   const workbench = workbenchPanel(page);
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
 
   await workbench.locator("[data-mobile-footer-controls-trigger]").click();
   await expect(sheet).toBeVisible();
+  await expect(handle).toBeVisible();
 
-  const handle = sheet.locator("[data-mobile-footer-controls-drag-handle]");
   await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
   await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 148 });
 
   await expect(sheet).toBeVisible();
+});
+
+test("workbench mobile footer controls support size toggle cycling", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const sizeToggle = workbench.locator("[data-mobile-footer-controls-size-toggle]");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(sizeToggle).toBeVisible();
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "default");
+
+  await sizeToggle.dispatchEvent("click");
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "expanded");
+
+  await sizeToggle.dispatchEvent("click");
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "full");
+
+  await sizeToggle.dispatchEvent("click");
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "default");
+});
+
+test("workbench mobile footer controls support upward drag-to-snap and live drag follow", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
+  const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
+
+  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "default");
+  await expect(handle).toBeVisible();
+
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-dragging", "true");
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-drag-offset", "-100");
+
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-dragging", "false");
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "expanded");
+
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 220 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 120 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "full");
 });
 
 test("workbench mobile footer controls yield to the sidebar sheet", async ({ page }) => {

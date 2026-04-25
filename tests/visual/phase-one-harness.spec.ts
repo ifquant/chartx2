@@ -1652,6 +1652,25 @@ test("workbench mobile workspace tabs collapse into a compact strip with active 
   await expect(scanTab.locator("[data-workspace-tab-detail]")).toBeHidden();
 });
 
+test("workbench mobile bottom triggers use compact labels", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const panelTrigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
+  const controlsTrigger = workbench.locator("[data-mobile-footer-controls-trigger]");
+
+  await expect(panelTrigger).toContainText("Time presets");
+  await expect(panelTrigger).not.toContainText("Open");
+  await expect(controlsTrigger).toContainText("Controls");
+  await expect(controlsTrigger).not.toContainText("Open");
+
+  await controlsTrigger.click();
+  await expect(controlsTrigger).toContainText("Controls");
+
+  await workbench.locator("[data-mobile-footer-controls-close]").click();
+  await expect(controlsTrigger).toContainText("Controls");
+});
+
 test("workbench mobile logs panel opens as a bottom sheet instead of relying on the sidebar", async ({ page }) => {
   await page.setViewportSize({ width: 780, height: 1100 });
   await page.goto("/");

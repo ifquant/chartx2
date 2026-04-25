@@ -1112,6 +1112,9 @@ Progress checklist:
 - [x] Narrow-width workspace tabs now expose an active-summary row and hide the
   verbose `symbol · timeframe` sublabels inside each chip, instead of squeezing
   the full desktop tab treatment into one scroller
+- [x] Narrow-width bottom triggers now use compact labels like `Controls` and
+  the active panel name, instead of longer `Open ...` copy that wasted footer
+  strip space
 
 Implementation note:
 
@@ -1177,6 +1180,9 @@ Implementation note:
   readout ownership or chart-state contracts.
 - `Mobile Workspace Tabs Compaction V0` keeps the same tab model and actions but
   gives narrow widths a lighter active-summary row and a shorter chip strip.
+- `Mobile Bottom Trigger Labels V0` is another shell-only density pass. It keeps
+  the existing mobile trigger behavior but trims the trigger copy so the footer
+  strip spends less width on scaffolding words or stateful verb prefixes.
 
 ### Layer 3 Gate
 

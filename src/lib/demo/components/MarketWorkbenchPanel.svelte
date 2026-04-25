@@ -379,6 +379,14 @@
     onRunAction(actionId);
   }
 
+  function mobileBottomPanelTriggerLabel(): string {
+    return mobileBottomPanelOpen ? "Hide panel" : mobileBottomPanelLabel;
+  }
+
+  function mobileFooterControlsTriggerLabel(): string {
+    return "Controls";
+  }
+
   function handleMobileToolbarReplay(): void {
     closeMobileToolbarSheet();
     if (replayState?.active && replayState?.playing) {
@@ -1540,7 +1548,7 @@
               aria-controls="workbench-mobile-bottom-panel"
               on:click={toggleMobileBottomPanel}
             >
-              {mobileBottomPanelOpen ? `Hide ${mobileBottomPanelLabel}` : `Open ${mobileBottomPanelLabel}`}
+              {mobileBottomPanelTriggerLabel()}
             </button>
           {/if}
           <button
@@ -1551,7 +1559,7 @@
             aria-controls="workbench-mobile-footer-controls"
             on:click={toggleMobileFooterControls}
           >
-            {mobileFooterControlsOpen ? "Hide Controls" : "Open Controls"}
+            {mobileFooterControlsTriggerLabel()}
           </button>
         </div>
         <div class="time-strip">

@@ -1077,6 +1077,9 @@ Progress checklist:
   shells, and sheet offsets account for device safe-area bottom insets
 - [x] Mobile sidebar and bottom sheets now expose a compact/expanded size
   toggle so dense panel content can open deeper without changing runtime state
+- [x] Mobile sidebar and bottom sheets now expose handle-based downward
+  drag-dismiss with a fixed threshold, and the threshold is covered by focused
+  narrow-screen tests
 
 Implementation note:
 
@@ -1096,6 +1099,9 @@ Implementation note:
 - `Mobile Sheet Size Controls V0` keeps the next step shell-only as well: it
   adds local expand/compact controls for dense mobile sheets without adding any
   new public device profile or runtime layout model.
+- `Mobile Sheet Drag Dismiss V0` still stays on the same boundary. It adds a
+  deterministic handle-and-threshold dismiss path instead of jumping straight
+  to full gesture physics or device-specific motion policy.
 
 ### Layer 3 Gate
 

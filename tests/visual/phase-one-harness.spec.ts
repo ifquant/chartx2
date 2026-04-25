@@ -1420,6 +1420,10 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   const workbench = workbenchPanel(page);
 
   await workbench.locator('[data-bottom-tab="custom"]').click();
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
 
   const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
   const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
@@ -1452,6 +1456,10 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   const workbench = workbenchPanel(page);
 
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
+  await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
 
   const trigger = workbench.locator("[data-mobile-bottom-panel-trigger]");
   const sheet = workbench.locator('[data-bottom-panel-kind="performance-link"]');
@@ -1474,6 +1482,62 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "expanded");
 
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
+
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
+});
+
+test("workbench mobile sidebar sheet can be drag-dismissed from the handle", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
+  const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await trigger.click();
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+
+  const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "false");
+});
+
+test("workbench mobile sidebar sheet ignores short drag gestures below the dismiss threshold", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
+  const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
+
+  await trigger.click();
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+
+  const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 148 });
+
+  await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
+});
+
+test("workbench mobile bottom sheet can be drag-dismissed from the handle", async ({ page }) => {
+  await page.setViewportSize({ width: 780, height: 1100 });
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+
+  const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
+  await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
+
+  const handle = sheet.locator("[data-mobile-bottom-panel-drag-handle]");
+  await handle.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", clientY: 100 });
+  await handle.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", clientY: 180 });
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
 });

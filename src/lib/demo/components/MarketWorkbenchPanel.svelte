@@ -173,6 +173,8 @@
   let mobileBottomPanelLabel = "Panel";
   let mobileSidebarExpanded = false;
   let mobileBottomPanelExpanded = false;
+  let mobileDragTarget: "sidebar" | "bottom" | null = null;
+  let mobileDragStartY = 0;
   let customScriptDraftBaseline = JSON.stringify({
     editingCustomScriptId,
     draft: customScriptDraft,
@@ -226,6 +228,45 @@
 
   $: if (!mobileBottomPanelOpen && mobileBottomPanelExpanded) {
     mobileBottomPanelExpanded = false;
+  }
+
+  function beginMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+    mobileDragTarget = target;
+    mobileDragStartY = event.clientY;
+    if (event.currentTarget instanceof HTMLElement) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function endMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+    if (mobileDragTarget !== target) {
+      return;
+    }
+    const deltaY = event.clientY - mobileDragStartY;
+    if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    mobileDragTarget = null;
+    mobileDragStartY = 0;
+    if (deltaY < 72) {
+      return;
+    }
+    if (target === "sidebar") {
+      mobileSidebarOpen = false;
+      return;
+    }
+    mobileBottomPanelOpen = false;
+  }
+
+  function cancelMobileSheetDrag(target: "sidebar" | "bottom", event: PointerEvent): void {
+    if (mobileDragTarget !== target) {
+      return;
+    }
+    if (event.currentTarget instanceof HTMLElement && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    mobileDragTarget = null;
+    mobileDragStartY = 0;
   }
 
   function resetCustomScriptDraft(): void {
@@ -1165,7 +1206,18 @@
             data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
           >
             <div class="mobile-bottom-panel-head">
-              <strong>{mobileBottomPanelLabel}</strong>
+              <div class="mobile-sheet-title-block">
+                <button
+                  type="button"
+                  class="mobile-sheet-drag-handle"
+                  data-mobile-bottom-panel-drag-handle
+                  aria-label="Drag down to close mobile bottom panel"
+                  on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
+                  on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
+                ></button>
+                <strong>{mobileBottomPanelLabel}</strong>
+              </div>
               <div class="mobile-sheet-actions">
                 <button
                   type="button"
@@ -1202,7 +1254,18 @@
             data-mobile-bottom-panel-size={mobileBottomPanelExpanded ? "expanded" : "default"}
           >
             <div class="mobile-bottom-panel-head">
-              <strong>{mobileBottomPanelLabel}</strong>
+              <div class="mobile-sheet-title-block">
+                <button
+                  type="button"
+                  class="mobile-sheet-drag-handle"
+                  data-mobile-bottom-panel-drag-handle
+                  aria-label="Drag down to close mobile bottom panel"
+                  on:pointerdown={(event) => beginMobileSheetDrag("bottom", event)}
+                  on:pointerup={(event) => endMobileSheetDrag("bottom", event)}
+                  on:pointercancel={(event) => cancelMobileSheetDrag("bottom", event)}
+                ></button>
+                <strong>{mobileBottomPanelLabel}</strong>
+              </div>
               <div class="mobile-sheet-actions">
                 <button
                   type="button"
@@ -1240,7 +1303,16 @@
       data-mobile-sidebar-size={mobileSidebarExpanded ? "expanded" : "default"}
     >
       <div class="mobile-sidebar-sheet-head">
-        <div>
+        <div class="mobile-sheet-title-block">
+          <button
+            type="button"
+            class="mobile-sheet-drag-handle"
+            data-mobile-sidebar-drag-handle
+            aria-label="Drag down to close mobile panels"
+            on:pointerdown={(event) => beginMobileSheetDrag("sidebar", event)}
+            on:pointerup={(event) => endMobileSheetDrag("sidebar", event)}
+            on:pointercancel={(event) => cancelMobileSheetDrag("sidebar", event)}
+          ></button>
           <strong>Panels</strong>
           <span>{workbench?.workspaceTabs.find((tab) => tab.active)?.label ?? "Trade"} workspace</span>
         </div>
@@ -2882,6 +2954,23 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+  }
+
+  .mobile-sheet-title-block {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .mobile-sheet-drag-handle {
+    width: 3rem;
+    height: 0.45rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: rgba(24, 24, 27, 0.18);
+    justify-self: start;
+    cursor: ns-resize;
   }
 
   .mobile-bottom-panel-trigger,

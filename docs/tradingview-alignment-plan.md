@@ -732,6 +732,10 @@ Progress checklist:
 - [x] Workbench scripted-indicator descriptor serialization now uses a shared bridge creator instead of hand-built `studyOptions` defaults in the demo shell
 - [x] Active indicator and custom-script in-use surfaces now fall back to engine-native scripted-study chart-state snapshots when descriptor replay is absent
 - [x] Engine-native fallback scripted-study rows now render an explicit `engine-restored` read-only hint instead of a silent missing remove affordance
+- [x] Script editor and library rows now expose a reusable execution-status surface instead of hiding script attach state inside demo-only callbacks
+- [x] Script library rows distinguish local-runtime and host-adapter execution ownership
+- [x] Script attach results now flow through an explicit host-facing execution adapter contract
+- [x] Visual coverage now exercises adapter-driven script failure state without crashing the panel
 - [ ] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset-oriented editor/metadata/compatibility surface
 
@@ -890,6 +894,12 @@ Implementation note:
 - The long-term expectation is that `chartx2` keeps the editor/library and
   host-facing script contract surfaces, while deeper execution semantics move
   into a Rust core consumed by `alpha2`.
+- `Script Execution Adapter Surface V0` starts that contract-first split in the
+  current shell: the public script helpers now export a typed execution adapter
+  and status model, the workbench demo consumes that adapter instead of calling
+  local execution directly from the panel-owned attach flow, and the Indicators
+  panel renders adapter-owned owner/state/message UI that can be reused by a
+  real host product.
 
 ### 2. Strategy Tester
 

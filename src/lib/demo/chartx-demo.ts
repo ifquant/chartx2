@@ -67,12 +67,14 @@ import {
 } from "$lib/chartx/public/workbench-indicators";
 import {
   buildWorkbenchScriptLibrary,
+  createWorkbenchRuntimeScriptExecutionAdapter,
   createWorkbenchCustomScriptDefinition,
   createWorkbenchCustomScriptDraftFromDefinition,
-  executeWorkbenchScript,
   getWorkbenchScriptDefinitionFromLibrary,
   validateWorkbenchCustomScriptDraft,
   type WorkbenchCustomScriptDraft,
+  type WorkbenchScriptExecutionAdapter,
+  type WorkbenchScriptExecutionStatusModel,
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
@@ -179,6 +181,7 @@ export type DemoSnapshot = {
   indicatorCatalog?: readonly WorkbenchIndicatorCatalogEntry[];
   activeIndicators?: readonly DemoActiveIndicator[];
   customScripts?: readonly DemoCustomScriptLibraryEntry[];
+  scriptExecution?: WorkbenchScriptExecutionStatusModel;
   replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
@@ -231,8 +234,14 @@ export type DemoController = {
   setWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
   createWorkspaceTab?(): Promise<boolean> | boolean;
   closeWorkspaceTab?(tabId: WorkbenchWorkspaceTabId): Promise<boolean> | boolean;
-  addIndicatorFromCatalog?(entryId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
-  addCustomScriptToChart?(scriptId: string, inputValues?: WorkbenchScriptNumericInputValueMap): boolean;
+  addIndicatorFromCatalog?(
+    entryId: string,
+    inputValues?: WorkbenchScriptNumericInputValueMap,
+  ): Promise<boolean> | boolean;
+  addCustomScriptToChart?(
+    scriptId: string,
+    inputValues?: WorkbenchScriptNumericInputValueMap,
+  ): Promise<boolean> | boolean;
   removeActiveScriptIndicator?(paneIndex: number): boolean;
   saveCustomScript?(scriptId: string | null, draft: WorkbenchCustomScriptDraft): boolean;
   deleteCustomScript?(scriptId: string): boolean;
@@ -267,6 +276,7 @@ export type FeatureExampleDescriptor = {
 
 export type WorkbenchDemoOptions = {
   hostAdapter?: WorkbenchHostAdapter;
+  scriptExecutionAdapter?: WorkbenchScriptExecutionAdapter;
   initialSymbol?: string;
   initialTimeframe?: string;
   persistenceProvider?: WorkbenchLayoutPersistenceProvider;
@@ -1044,6 +1054,7 @@ export function mountWorkbenchDemo(
   let customScriptLibrary: WorkbenchScriptDefinition[] = [];
   let activeIndicators: DemoActiveIndicator[] = [];
   let activeScriptSeriesByPaneIndex = new Map<number, PhaseOneLineSeriesApi>();
+  let scriptExecutionStatus: WorkbenchScriptExecutionStatusModel;
   let replayActive = false;
   let replayPlaying = false;
   let replayCursor = -1;
@@ -1266,6 +1277,37 @@ export function mountWorkbenchDemo(
 
   const getScriptDefinitionForRuntime = (scriptId: string): WorkbenchScriptDefinition | null =>
     getWorkbenchScriptDefinitionFromLibrary(workbenchScriptLibrary(), scriptId);
+
+  const scriptExecutionAdapter =
+    options.scriptExecutionAdapter ??
+    createWorkbenchRuntimeScriptExecutionAdapter({
+      getDefinition: getScriptDefinitionForRuntime,
+      getBars: () => displayedBarsPayload().bars,
+    });
+
+  scriptExecutionStatus = {
+    owner: scriptExecutionAdapter.owner,
+    adapterLabel: scriptExecutionAdapter.label,
+    adapterDetailLabel: scriptExecutionAdapter.detailLabel,
+    state: "idle",
+    scriptId: null,
+    scriptLabel: null,
+    message:
+      scriptExecutionAdapter.owner === "runtime"
+        ? "Script attach runs through the local runtime preview."
+        : "Script attach delegates to the host execution adapter.",
+  };
+
+  const setScriptExecutionStatus = (
+    next: Omit<WorkbenchScriptExecutionStatusModel, "owner" | "adapterLabel" | "adapterDetailLabel">,
+  ) => {
+    scriptExecutionStatus = {
+      owner: scriptExecutionAdapter.owner,
+      adapterLabel: scriptExecutionAdapter.label,
+      adapterDetailLabel: scriptExecutionAdapter.detailLabel,
+      ...next,
+    };
+  };
 
   const getIndicatorCatalogEntryForRuntime = (entryId: string): WorkbenchIndicatorCatalogEntry | null =>
     currentIndicatorCatalog().find((entry) => entry.id === entryId) ?? null;
@@ -1986,6 +2028,7 @@ export function mountWorkbenchDemo(
       indicatorCatalog: currentIndicatorCatalog(),
       activeIndicators: [...projectActiveScriptIndicatorsFromChartState(chart?.getChartState() ?? null, activeIndicators)],
       customScripts: summarizeCustomScripts(),
+      scriptExecution: scriptExecutionStatus,
       replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },
@@ -2287,11 +2330,11 @@ export function mountWorkbenchDemo(
     }
   };
 
-  const applyPersistedChartContent = (input: {
+  const applyPersistedChartContent = async (input: {
     chartState: PhaseOneChartStateSnapshot | null;
     scriptedIndicators: readonly WorkbenchLayoutScriptedStudyDescriptor[] | undefined;
     failureLogPrefix: string;
-  }): "complete" | "partial" | "failed" => {
+  }): Promise<"complete" | "partial" | "failed"> => {
     if (input.chartState !== null) {
       const restoredChartState = applyHostChartSnapshot({
         chartState: input.chartState,
@@ -2304,7 +2347,7 @@ export function mountWorkbenchDemo(
       refreshObjectTreeProjection();
     }
 
-    const restoredAllScriptedStudies = restoreScriptedStudyDescriptors(
+    const restoredAllScriptedStudies = await restoreScriptedStudyDescriptors(
       input.scriptedIndicators,
       `${input.failureLogPrefix} scripted indicator`,
     );
@@ -2345,7 +2388,7 @@ export function mountWorkbenchDemo(
     );
     restoreWorkspaceDocumentsFromState(input.state);
 
-    return applyPersistedChartContent({
+    return await applyPersistedChartContent({
       chartState: input.state.chartState,
       scriptedIndicators: chartHostRecords[activeChartHostId].scriptIndicators,
       failureLogPrefix: input.failureLogPrefix,
@@ -2396,7 +2439,7 @@ export function mountWorkbenchDemo(
     }
 
     activeWorkspaceTabId = targetDocument.id;
-    const restoreResult = applyPersistedChartContent({
+    const restoreResult = await applyPersistedChartContent({
       chartState: targetDocument.chartState,
       scriptedIndicators: targetDocument.scriptIndicators,
       failureLogPrefix: `failed to restore workspace ${targetDocument.label}`,
@@ -2551,7 +2594,7 @@ export function mountWorkbenchDemo(
       return opened;
     }
 
-    const restoreResult = applyPersistedChartContent({
+    const restoreResult = await applyPersistedChartContent({
       chartState: targetRecord.chartState,
       scriptedIndicators: targetRecord.scriptIndicators,
       failureLogPrefix: `failed to restore ${targetHostId} snapshot`,
@@ -2999,7 +3042,7 @@ export function mountWorkbenchDemo(
       .join(" · ");
   };
 
-  const addScriptIndicatorFromCatalogEntry = (
+  const addScriptIndicatorFromCatalogEntry = async (
     entry: WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string },
     options?: {
       logLabel?: string;
@@ -3007,7 +3050,7 @@ export function mountWorkbenchDemo(
       updateStatusOnFailure?: boolean;
       inputValues?: WorkbenchScriptNumericInputValueMap;
     },
-  ): boolean => {
+  ): Promise<boolean> => {
     if (chart === null) {
       pushLog(log, `${options?.failurePrefix ?? `failed to add indicator ${entry.label}`}: chart unavailable`);
       publishSnapshot();
@@ -3021,11 +3064,27 @@ export function mountWorkbenchDemo(
       return false;
     }
 
-    const execution = executeWorkbenchScript(definition, {
-      bars: displayedBarsPayload().bars,
-      numericInputs: options?.inputValues,
+    setScriptExecutionStatus({
+      state: "running",
+      scriptId: entry.scriptId,
+      scriptLabel: entry.label,
+      message: `Running ${entry.label} through ${scriptExecutionAdapter.label}.`,
+    });
+    publishSnapshot();
+
+    const execution = await scriptExecutionAdapter.executeIndicator({
+      scriptId: entry.scriptId,
+      inputValues: options?.inputValues,
+      symbol: activeSymbol,
+      timeframe: activeTimeframe,
     });
     if (!execution.ok) {
+      setScriptExecutionStatus({
+        state: "error",
+        scriptId: entry.scriptId,
+        scriptLabel: entry.label,
+        message: execution.message,
+      });
       if (options?.updateStatusOnFailure !== false) {
         setStatusNotice({
           tone: "error",
@@ -3043,13 +3102,19 @@ export function mountWorkbenchDemo(
       color: theme === "warm" ? "#0f766e" : "#22c55e",
       lineWidth: 2,
     });
-    series.setData(execution.output);
+    series.setData(execution.outputSeries ?? []);
     addActiveIndicator(entry, {
       scriptId: entry.scriptId,
       inputValues: options?.inputValues,
       paneIndex: pane.paneIndex(),
     });
     activeScriptSeriesByPaneIndex.set(pane.paneIndex(), series);
+    setScriptExecutionStatus({
+      state: "success",
+      scriptId: entry.scriptId,
+      scriptLabel: entry.label,
+      message: execution.message ?? `Executed ${entry.label} through ${scriptExecutionAdapter.label}.`,
+    });
     if (options?.logLabel !== undefined) {
       pushLog(log, options.logLabel);
     } else {
@@ -3062,10 +3127,10 @@ export function mountWorkbenchDemo(
     return true;
   };
 
-  const runCustomScriptFromLibrary = (
+  const runCustomScriptFromLibrary = async (
     scriptId: string,
     inputValues?: WorkbenchScriptNumericInputValueMap,
-  ): boolean => {
+  ): Promise<boolean> => {
     const definition = customScriptLibrary.find((entry) => entry.id === scriptId) ?? null;
     if (definition === null) {
       pushLog(log, `failed to add custom script ${scriptId}: unknown saved script`);
@@ -3078,10 +3143,10 @@ export function mountWorkbenchDemo(
     });
   };
 
-  const restoreScriptedStudyDescriptors = (
+  const restoreScriptedStudyDescriptors = async (
     descriptors: readonly WorkbenchLayoutScriptedStudyDescriptor[] | undefined,
     failurePrefix: string,
-  ): boolean => {
+  ): Promise<boolean> => {
     let restoredAll = true;
     for (const indicator of normalizePersistedScriptedStudyDescriptors(descriptors)) {
       const customDefinition = customScriptLibrary.find(
@@ -3097,7 +3162,7 @@ export function mountWorkbenchDemo(
         continue;
       }
       const scriptEntry = entry as WorkbenchIndicatorCatalogEntry & { engineKind: "script"; scriptId: string };
-      const restored = addScriptIndicatorFromCatalogEntry(scriptEntry, {
+      const restored = await addScriptIndicatorFromCatalogEntry(scriptEntry, {
         failurePrefix: `${failurePrefix}: ${indicator.label}`,
         inputValues: indicator.studyOptions.inputValues,
         updateStatusOnFailure: false,
@@ -3814,7 +3879,7 @@ export function mountWorkbenchDemo(
       }
       publishSnapshot();
     },
-    addIndicatorFromCatalog(entryId, inputValues) {
+    async addIndicatorFromCatalog(entryId, inputValues) {
       const entry = getIndicatorCatalogEntryForRuntime(entryId);
       if (entry === null) {
         pushLog(log, `failed to add indicator ${entryId}: unknown catalog entry`);
@@ -3867,7 +3932,7 @@ export function mountWorkbenchDemo(
         const definition = getScriptDefinitionForRuntime(scriptEntry.scriptId);
         const inputSummary =
           definition === null ? null : formatScriptInputSummary(definition, inputValues);
-        return addScriptIndicatorFromCatalogEntry(scriptEntry, {
+        return await addScriptIndicatorFromCatalogEntry(scriptEntry, {
           inputValues,
           logLabel: inputSummary === null ? `added indicator ${entry.label}` : `added indicator ${entry.label} (${inputSummary})`,
         });
@@ -3884,8 +3949,8 @@ export function mountWorkbenchDemo(
       refreshObjectTreeProjectionAndPublish();
       return true;
     },
-    addCustomScriptToChart(scriptId, inputValues) {
-      return runCustomScriptFromLibrary(scriptId, inputValues);
+    async addCustomScriptToChart(scriptId, inputValues) {
+      return await runCustomScriptFromLibrary(scriptId, inputValues);
     },
     removeActiveScriptIndicator(paneIndex) {
       if (chart === null) {

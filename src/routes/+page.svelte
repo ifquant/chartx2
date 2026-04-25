@@ -14,6 +14,7 @@
     createLocalStorageWorkbenchLayoutProvider,
     type WorkbenchLayoutPersistenceProvider,
   } from "$lib/chartx/public/workbench-layout";
+  import type { WorkbenchScriptExecutionAdapter } from "$lib/chartx/public/workbench-scripts";
   import {
     FEATURE_TABS,
     mountFeatureDemo,
@@ -162,6 +163,8 @@
   let workbenchInspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
   let workbenchToolPointer: { x: number; y: number } | null = null;
 
+  type ScriptAdapterMode = "host-fail";
+
   onMount(() => {
     try {
       const storage = window.localStorage;
@@ -179,6 +182,25 @@
       teardownFeature();
     };
   });
+
+  function resolveScriptExecutionAdapterForTests(): WorkbenchScriptExecutionAdapter | undefined {
+    const mode = (window as Window & { __chartxScriptAdapterMode?: ScriptAdapterMode })
+      .__chartxScriptAdapterMode;
+    if (mode !== "host-fail") {
+      return undefined;
+    }
+    return {
+      owner: "host-adapter",
+      label: "Host execution adapter",
+      detailLabel: "Fixture host adapter injected by the visual harness.",
+      async executeIndicator(input) {
+        return {
+          ok: false,
+          message: `Host adapter rejected ${input.scriptId} for ${input.symbol} ${input.timeframe}.`,
+        };
+      },
+    };
+  }
 
   function featureDescriptor(tabId: FeatureTabId): FeatureExampleDescriptor | undefined {
     return FEATURE_TABS.find((tab) => tab.id === tabId);
@@ -328,6 +350,7 @@
       }, {
         alertsProvider: workbenchAlertsProvider,
         persistenceProvider: workbenchPersistenceProvider,
+        scriptExecutionAdapter: resolveScriptExecutionAdapterForTests(),
       });
       workbenchTradeIntentBridge.connect(workbenchController);
       workbenchActions = workbenchController.actions();
@@ -448,15 +471,15 @@
     }
   }
 
-  function addWorkbenchIndicator(entryId: string, inputValues?: Record<string, number>): void {
-    const added = workbenchController?.addIndicatorFromCatalog?.(entryId, inputValues);
+  async function addWorkbenchIndicator(entryId: string, inputValues?: Record<string, number>): Promise<void> {
+    const added = await workbenchController?.addIndicatorFromCatalog?.(entryId, inputValues);
     if (added) {
       workbenchActions = workbenchController?.actions() ?? [];
     }
   }
 
-  function addWorkbenchCustomScript(scriptId: string, inputValues?: Record<string, number>): void {
-    const added = workbenchController?.addCustomScriptToChart?.(scriptId, inputValues);
+  async function addWorkbenchCustomScript(scriptId: string, inputValues?: Record<string, number>): Promise<void> {
+    const added = await workbenchController?.addCustomScriptToChart?.(scriptId, inputValues);
     if (added) {
       workbenchActions = workbenchController?.actions() ?? [];
     }

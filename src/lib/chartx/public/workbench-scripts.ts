@@ -4,6 +4,8 @@ export type WorkbenchScriptField = "open" | "high" | "low" | "close" | "hl2" | "
 export type WorkbenchScriptPlacement = "overlay" | "separate-pane";
 export type WorkbenchScriptNumericInputId = string;
 export type WorkbenchScriptSource = "builtin" | "custom";
+export type WorkbenchScriptExecutionOwner = "runtime" | "host-adapter";
+export type WorkbenchScriptExecutionState = "idle" | "running" | "success" | "error";
 
 export interface WorkbenchScriptNumericInputDefinition {
   id: WorkbenchScriptNumericInputId;
@@ -97,6 +99,43 @@ export interface WorkbenchScriptExecutionInput {
   bars: readonly PhaseOneCandlestickData[];
   numericInputs?: WorkbenchScriptNumericInputValueMap;
   maxOperations?: number;
+}
+
+export interface WorkbenchScriptExecutionAdapterRequest {
+  scriptId: string;
+  inputValues?: WorkbenchScriptNumericInputValueMap;
+  symbol: string;
+  timeframe: string;
+}
+
+export type WorkbenchScriptExecutionAdapterResult =
+  | {
+      ok: true;
+      message?: string;
+      outputSeries?: readonly PhaseOneLineData[];
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
+export interface WorkbenchScriptExecutionAdapter {
+  owner: WorkbenchScriptExecutionOwner;
+  label: string;
+  detailLabel: string;
+  executeIndicator(
+    input: WorkbenchScriptExecutionAdapterRequest,
+  ): Promise<WorkbenchScriptExecutionAdapterResult>;
+}
+
+export interface WorkbenchScriptExecutionStatusModel {
+  owner: WorkbenchScriptExecutionOwner;
+  adapterLabel: string;
+  adapterDetailLabel: string;
+  state: WorkbenchScriptExecutionState;
+  scriptId: string | null;
+  scriptLabel: string | null;
+  message: string;
 }
 
 const DEFAULT_MAX_OPERATIONS = 100_000;
@@ -605,4 +644,45 @@ export function executeWorkbenchScript(
     }
     throw error;
   }
+}
+
+export function createWorkbenchRuntimeScriptExecutionAdapter(input: {
+  getDefinition(scriptId: string): WorkbenchScriptDefinition | null;
+  getBars(): readonly PhaseOneCandlestickData[];
+  maxOperations?: number;
+  label?: string;
+  detailLabel?: string;
+}): WorkbenchScriptExecutionAdapter {
+  return {
+    owner: "runtime",
+    label: input.label ?? "Local runtime preview",
+    detailLabel:
+      input.detailLabel ??
+      "Executes scripted indicators against the active chart bars inside chartx2.",
+    async executeIndicator(request) {
+      const definition = input.getDefinition(request.scriptId);
+      if (definition === null) {
+        return {
+          ok: false,
+          message: `Unknown script ${request.scriptId}.`,
+        };
+      }
+      const execution = executeWorkbenchScript(definition, {
+        bars: input.getBars(),
+        numericInputs: request.inputValues,
+        maxOperations: input.maxOperations,
+      });
+      if (!execution.ok) {
+        return {
+          ok: false,
+          message: execution.message,
+        };
+      }
+      return {
+        ok: true,
+        message: "Executed through the local runtime preview.",
+        outputSeries: execution.output,
+      };
+    },
+  };
 }

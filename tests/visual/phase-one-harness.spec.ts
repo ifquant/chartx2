@@ -15,6 +15,13 @@ function workbenchPanel(page: Page) {
   return page.locator('[data-demo-tab="workbench"]');
 }
 
+async function injectHostScriptAdapterFailure(page: Page) {
+  await page.addInitScript(() => {
+    (window as Window & { __chartxScriptAdapterMode?: "host-fail" }).__chartxScriptAdapterMode =
+      "host-fail";
+  });
+}
+
 function workbenchAction(page: Page, actionId: string) {
   return workbenchPanel(page).locator(`[data-demo-action="${actionId}"]`);
 }
@@ -24,7 +31,9 @@ function workbenchCommandPalette(page: Page) {
 }
 
 function scriptedIndicatorCard(page: Page, entryId: string) {
-  return workbenchPanel(page).locator(`[data-script-add-entry="${entryId}"]`).locator("xpath=..");
+  return workbenchPanel(page)
+    .locator(`[data-script-add-entry="${entryId}"]`)
+    .locator("xpath=ancestor::article[contains(@class, 'scripted-entry')][1]");
 }
 
 async function configureAndAddScriptIndicator(
@@ -1228,6 +1237,37 @@ test("adapter status: missing local storage providers surfaces degraded workstat
   await expect(toolbar.getByRole("button", { name: "Save layout", exact: true })).toBeDisabled();
   await expect(toolbar.getByRole("button", { name: "Restore layout", exact: true })).toBeDisabled();
   await expect(toolbar.getByRole("button", { name: "Reset layout", exact: true })).toBeEnabled();
+});
+
+test("script library: host execution failure surfaces adapter-owned status without crashing the panel", async ({
+  page,
+}) => {
+  await injectHostScriptAdapterFailure(page);
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  const scriptedSmaCard = scriptedIndicatorCard(page, "scripted-close-sma");
+
+  await expect(workbench.locator("[data-script-execution-surface]")).toHaveAttribute(
+    "data-script-execution-owner",
+    "host-adapter",
+  );
+  await expect(scriptedSmaCard).toContainText("host adapter");
+
+  await configureAndAddScriptIndicator(page, "scripted-close-sma", "length", "3");
+
+  await expect(workbench.locator("[data-script-execution-surface]")).toHaveAttribute(
+    "data-script-execution-state",
+    "error",
+  );
+  await expect(workbench.locator("[data-script-execution-surface]")).toContainText(
+    "Host adapter rejected close-sma-20-v0 for NDX 1D.",
+  );
+  await expect(workbench.locator('[data-workbench-status="error"]')).toContainText(
+    "Scripted indicator failed: Host adapter rejected close-sma-20-v0 for NDX 1D.",
+  );
+  await expect(workbench.locator(".active-indicator-list")).toContainText("No active indicators.");
+  await expect(workbench.locator("[data-custom-script-library]")).toBeVisible();
 });
 
 test("workbench keeps a deterministic narrow baseline", async ({ page }) => {

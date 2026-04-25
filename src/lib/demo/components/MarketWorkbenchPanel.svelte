@@ -61,8 +61,8 @@
   export let onExecuteCommand: (commandId: string) => void | Promise<void>;
   export let onOpenWatchlistSymbol: (symbol: string) => void;
   export let onOpenScreenerSymbol: (symbol: string) => void;
-  export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void;
-  export let onAddCustomScriptToChart: (scriptId: string, inputValues?: Record<string, number>) => void;
+  export let onAddIndicator: (entryId: string, inputValues?: Record<string, number>) => void | Promise<void>;
+  export let onAddCustomScriptToChart: (scriptId: string, inputValues?: Record<string, number>) => void | Promise<void>;
   export let onRemoveActiveScriptIndicator: (paneIndex: number) => void;
   export let onSaveCatalogScriptAsCustom: (entryId: string) => void;
   export let onSaveCustomScript: (scriptId: string | null, draft: {
@@ -277,6 +277,10 @@
       return null;
     }
     return entries.map(([key, value]) => `${key} ${String(value)}`).join(" · ");
+  }
+
+  function scriptExecutionOwnerLabel(): string {
+    return snapshot.scriptExecution?.owner === "host-adapter" ? "host adapter" : "local runtime";
   }
 
   function matchesCustomScriptFilter(script: DemoCustomScriptLibraryEntry, filter: string): boolean {
@@ -1179,6 +1183,20 @@
           <h4>Indicators</h4>
           <span>{snapshot.activeIndicators?.length ?? 0} active</span>
         </div>
+        {#if snapshot.scriptExecution}
+          <div
+            class={`script-execution-status state-${snapshot.scriptExecution.state}`}
+            data-script-execution-surface
+            data-script-execution-state={snapshot.scriptExecution.state}
+            data-script-execution-owner={snapshot.scriptExecution.owner}
+          >
+            <strong>{snapshot.scriptExecution.adapterLabel}</strong>
+            <span>{snapshot.scriptExecution.adapterDetailLabel}</span>
+            <span>
+              {snapshot.scriptExecution.scriptLabel ?? "No script selected"} · {snapshot.scriptExecution.message}
+            </span>
+          </div>
+        {/if}
         <div class="indicator-list">
           {#each snapshot.indicatorCatalog ?? [] as entry}
             {#if entry.engineKind === "script" && (entry.scriptInputs?.length ?? 0) > 0}
@@ -1187,7 +1205,7 @@
                 title={entry.enabled ? entry.description : entry.unavailableReason ?? entry.description}
               >
                 <strong>{entry.label}</strong>
-                <span>{entry.shortLabel} · {entry.family} · builtin</span>
+                <span>{entry.shortLabel} · {entry.family} · builtin · {scriptExecutionOwnerLabel()}</span>
                 <div class="script-input-grid">
                   {#each entry.scriptInputs ?? [] as input}
                     <label class="script-input-field">
@@ -1467,7 +1485,7 @@
               <article class="custom-script-entry" data-custom-script={script.id}>
                 <div class="custom-script-copy">
                   <strong>{script.label}</strong>
-                  <span>{script.expressionText} · {script.placement} · length {script.defaultLength}</span>
+                  <span>{script.expressionText} · {script.placement} · length {script.defaultLength} · {scriptExecutionOwnerLabel()}</span>
                   {#if script.inUse}
                     <span class="indicator-empty" data-custom-script-in-use={script.id}>
                       In use on an active chart. Remove active uses before editing or deleting.
@@ -2898,6 +2916,37 @@
 
   .script-input-grid.dual {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-execution-status {
+    display: grid;
+    gap: 4px;
+    margin: 8px 0 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.04);
+  }
+
+  .script-execution-status strong {
+    color: #18181b;
+  }
+
+  .script-execution-status span {
+    color: rgba(24, 24, 27, 0.64);
+    font-size: 0.76rem;
+    text-transform: none;
+  }
+
+  .script-execution-status.state-running {
+    background: rgba(37, 99, 235, 0.1);
+  }
+
+  .script-execution-status.state-success {
+    background: rgba(15, 118, 110, 0.12);
+  }
+
+  .script-execution-status.state-error {
+    background: rgba(185, 28, 28, 0.1);
   }
 
   .script-input-field {

@@ -75,6 +75,8 @@ import {
   type WorkbenchCustomScriptDraft,
   type WorkbenchScriptExecutionAdapter,
   type WorkbenchScriptExecutionStatusModel,
+  type WorkbenchScriptAuthoringSurface,
+  type WorkbenchScriptCompatibilityInfo,
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
@@ -171,6 +173,8 @@ export type DemoCustomScriptLibraryEntry = {
   shortLabel: string;
   description: string;
   expressionText: string;
+  authoringSurface: WorkbenchScriptAuthoringSurface;
+  compatibility?: WorkbenchScriptCompatibilityInfo;
   placement: WorkbenchIndicatorCatalogEntry["placement"];
   defaultLength: number;
   inUse?: boolean;
@@ -1918,6 +1922,8 @@ export function mountWorkbenchDemo(
           shortLabel: definition.shortLabel,
           description: definition.description,
           expressionText: draft.expressionText,
+          authoringSurface: definition.authoringSurface ?? "chartx-subset-v0",
+          compatibility: definition.compatibility,
           placement: definition.placement,
           defaultLength: draft.defaultLength,
           inUse: isCustomScriptInUse(definition.id),

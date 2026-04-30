@@ -11,9 +11,12 @@
     WorkbenchWorkspaceTabId,
   } from "$lib/chartx/public/workbench";
   import {
+    formatWorkbenchScriptCompatibilityLabel,
     formatWorkbenchCustomScriptExpressionText,
     parseWorkbenchCustomScriptExpressionText,
+    resolveWorkbenchScriptCompatibility,
     validateWorkbenchCustomScriptDraft,
+    type WorkbenchScriptAuthoringSurface,
     type WorkbenchScriptExpression,
     type WorkbenchScriptField,
   } from "$lib/chartx/public/workbench-scripts";
@@ -79,6 +82,7 @@
     shortLabel: string;
     description: string;
     expressionText: string;
+    authoringSurface: WorkbenchScriptAuthoringSurface;
     placement: "overlay" | "separate-pane";
     defaultLength: number;
   }) => boolean;
@@ -154,6 +158,7 @@
     shortLabel: "",
     description: "",
     expressionText: "sma(close, length)",
+    authoringSurface: "pine-subset-v0" as WorkbenchScriptAuthoringSurface,
     placement: "separate-pane" as "overlay" | "separate-pane",
     defaultLength: 20,
   };
@@ -166,6 +171,9 @@
   let customScriptSortMode: "newest" | "label" | "in-use" = "newest";
   let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
   let customScriptDefaultLengthErrorMessage: string | null = null;
+  let customScriptCompatibilityLabel = "Pine subset v0 · candidate";
+  let customScriptCompatibilityNote =
+    "Uses the Pine-oriented subset surface: input fields, sma(...), and subtract(...).";
   let customScriptLaunchErrors: Record<string, string | null> = {};
   let customScriptLaunchPayloads: Record<string, Record<string, number> | null> = {};
   let filteredCustomScripts: readonly DemoCustomScriptLibraryEntry[] = [];
@@ -520,6 +528,7 @@
       shortLabel: "",
       description: "",
       expressionText: "sma(close, length)",
+      authoringSurface: "pine-subset-v0",
       placement: "separate-pane",
       defaultLength: 20,
     };
@@ -674,6 +683,7 @@
       shortLabel: entry.shortLabel,
       description: entry.description,
       expressionText: parsed.ok ? formatWorkbenchCustomScriptExpressionText(parsed.expression) : entry.expressionText,
+      authoringSurface: entry.authoringSurface,
       placement: entry.placement,
       defaultLength: entry.defaultLength,
     };
@@ -858,6 +868,7 @@
       shortLabel: customScriptDraft.shortLabel.trim(),
       description: customScriptDraft.description.trim(),
       expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
+      authoringSurface: customScriptDraft.authoringSurface,
       placement: customScriptDraft.placement,
       defaultLength: nextLength ?? Number.NaN,
     });
@@ -871,6 +882,7 @@
       shortLabel: customScriptDraft.shortLabel.trim(),
       description: customScriptDraft.description.trim(),
       expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
+      authoringSurface: customScriptDraft.authoringSurface,
       placement: customScriptDraft.placement,
       defaultLength: nextLength ?? Number.NaN,
     });
@@ -922,6 +934,15 @@
     customScriptDraftPreviewLabel = !parsed.ok
       ? `expression invalid · length ${lengthLabel} · ${customScriptDraft.placement}`
       : `${formatWorkbenchCustomScriptExpressionText(customScriptExpression)} · length ${lengthLabel} · ${customScriptDraft.placement}`;
+  }
+  $: {
+    const compatibility = resolveWorkbenchScriptCompatibility({
+      authoringSurface: customScriptDraft.authoringSurface,
+      expressionText: formatWorkbenchCustomScriptExpressionText(customScriptExpression),
+      placement: customScriptDraft.placement,
+    });
+    customScriptCompatibilityLabel = formatWorkbenchScriptCompatibilityLabel(compatibility);
+    customScriptCompatibilityNote = compatibility.note;
   }
   $: {
     const nextErrors: Record<string, string | null> = {};
@@ -2427,6 +2448,13 @@
             {/if}
             <div class="script-input-grid dual">
               <label class="script-input-field">
+                <span>Compatibility surface</span>
+                <select bind:value={customScriptDraft.authoringSurface} data-custom-script-field="authoring-surface">
+                  <option value="pine-subset-v0">Pine subset v0</option>
+                  <option value="chartx-subset-v0">Chartx subset v0</option>
+                </select>
+              </label>
+              <label class="script-input-field">
                 <span>Placement</span>
                 <select bind:value={customScriptDraft.placement} data-custom-script-field="placement">
                   <option value="separate-pane">Separate pane</option>
@@ -2435,6 +2463,8 @@
               </label>
             </div>
             <p class="custom-script-preview">Custom scripted indicators currently save as separate-pane studies only.</p>
+            <p class="custom-script-preview" data-custom-script-compatibility-label>{customScriptCompatibilityLabel}</p>
+            <p class="custom-script-preview" data-custom-script-compatibility-note>{customScriptCompatibilityNote}</p>
             <label class="script-input-field">
               <span>Default length</span>
               <ScriptLengthInput
@@ -2503,6 +2533,18 @@
                 <div class="custom-script-copy">
                   <strong>{script.label}</strong>
                   <span>{script.expressionText} · {script.placement} · length {script.defaultLength} · {scriptExecutionOwnerLabel()}</span>
+                  <span
+                    class="custom-script-compatibility"
+                    data-custom-script-compatibility={script.id}
+                    data-custom-script-compatibility-state={script.compatibility?.state ?? "unknown"}
+                  >
+                    {formatWorkbenchScriptCompatibilityLabel(script.compatibility)}
+                  </span>
+                  {#if script.compatibility}
+                    <span class="custom-script-compatibility-note" data-custom-script-compatibility-note={script.id}>
+                      {script.compatibility.note}
+                    </span>
+                  {/if}
                   {#if script.inUse}
                     <span class="indicator-empty" data-custom-script-in-use={script.id}>
                       In use on an active chart. Remove active uses before editing or deleting.

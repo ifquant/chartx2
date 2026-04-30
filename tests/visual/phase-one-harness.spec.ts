@@ -943,6 +943,32 @@ test("script library: text editor mode can apply a supported expression and save
   );
 });
 
+test("script library: pine subset metadata surfaces in the editor and saved rows", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-custom-script-field="label"]').fill("My Pine Candidate");
+  await workbench.locator('[data-custom-script-field="short-label"]').fill("Pine Candidate");
+  await workbench.locator('[data-custom-script-field="description"]').fill("Compatibility surface demo.");
+  await workbench.locator('[data-custom-script-field="authoring-surface"]').selectOption("pine-subset-v0");
+
+  await expect(workbench.locator("[data-custom-script-compatibility-label]")).toContainText(
+    "Pine subset v0 · candidate",
+  );
+  await expect(workbench.locator("[data-custom-script-compatibility-note]")).toContainText(
+    "Pine-oriented subset surface",
+  );
+
+  await workbench.locator("[data-custom-script-save]").click();
+
+  await expect(workbench).toContainText("saved custom script My Pine Candidate");
+  await expect(workbench.locator('[data-custom-script-compatibility="custom-script-1"]')).toContainText(
+    "Pine subset v0 · candidate",
+  );
+});
+
 test("script library: active custom scripts surface in-use state and fence edit/delete", async ({
   page,
 }) => {

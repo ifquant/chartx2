@@ -6,6 +6,14 @@ export type WorkbenchScriptNumericInputId = string;
 export type WorkbenchScriptSource = "builtin" | "custom";
 export type WorkbenchScriptExecutionOwner = "runtime" | "host-adapter";
 export type WorkbenchScriptExecutionState = "idle" | "running" | "success" | "error";
+export type WorkbenchScriptAuthoringSurface = "chartx-subset-v0" | "pine-subset-v0";
+export type WorkbenchScriptCompatibilityState = "native" | "candidate" | "incompatible";
+
+export interface WorkbenchScriptCompatibilityInfo {
+  surface: WorkbenchScriptAuthoringSurface;
+  state: WorkbenchScriptCompatibilityState;
+  note: string;
+}
 
 export interface WorkbenchScriptNumericInputDefinition {
   id: WorkbenchScriptNumericInputId;
@@ -45,6 +53,8 @@ export interface WorkbenchScriptDefinition {
   id: string;
   version: 1;
   source?: WorkbenchScriptSource;
+  authoringSurface?: WorkbenchScriptAuthoringSurface;
+  compatibility?: WorkbenchScriptCompatibilityInfo;
   label: string;
   description: string;
   shortLabel: string;
@@ -58,6 +68,7 @@ export interface WorkbenchCustomScriptDraft {
   shortLabel: string;
   description: string;
   expressionText: string;
+  authoringSurface?: WorkbenchScriptAuthoringSurface;
   placement: WorkbenchScriptPlacement;
   defaultLength: number;
 }
@@ -153,6 +164,12 @@ export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
     id: "close-sma-20-v0",
     version: 1,
     source: "builtin",
+    authoringSurface: "chartx-subset-v0",
+    compatibility: {
+      surface: "chartx-subset-v0",
+      state: "native",
+      note: "Runs natively through the chartx local script subset runtime.",
+    },
     label: "Scripted SMA 20",
     shortLabel: "Script SMA",
     description: "Close-price SMA executed through the local script runtime.",
@@ -183,6 +200,12 @@ export const WORKBENCH_SCRIPT_LIBRARY: readonly WorkbenchScriptDefinition[] = [
     id: "hlc3-sma-10-v0",
     version: 1,
     source: "builtin",
+    authoringSurface: "chartx-subset-v0",
+    compatibility: {
+      surface: "chartx-subset-v0",
+      state: "native",
+      note: "Runs natively through the chartx local script subset runtime.",
+    },
     label: "Scripted HLC3 SMA 10",
     shortLabel: "HLC3 SMA",
     description: "HLC3 SMA executed through the local script runtime.",
@@ -547,6 +570,39 @@ export function validateWorkbenchCustomScriptDraft(
   return parseWorkbenchCustomScriptExpressionText(draft.expressionText);
 }
 
+export function resolveWorkbenchScriptCompatibility(
+  input: Pick<WorkbenchCustomScriptDraft, "authoringSurface" | "placement" | "expressionText">,
+): WorkbenchScriptCompatibilityInfo {
+  const surface = input.authoringSurface ?? "chartx-subset-v0";
+  const parsed = parseWorkbenchCustomScriptExpressionText(input.expressionText);
+  if (!parsed.ok) {
+    return {
+      surface,
+      state: "incompatible",
+      note: parsed.message,
+    };
+  }
+  if (input.placement !== "separate-pane") {
+    return {
+      surface,
+      state: "incompatible",
+      note: "Only separate-pane scripted studies participate in the current compatibility surface.",
+    };
+  }
+  if (surface === "chartx-subset-v0") {
+    return {
+      surface,
+      state: "native",
+      note: "Runs directly through the chartx local script subset runtime.",
+    };
+  }
+  return {
+    surface,
+    state: "candidate",
+    note: "Uses the Pine-oriented subset surface: input fields, sma(...), and subtract(...).",
+  };
+}
+
 export function createWorkbenchCustomScriptDefinition(
   id: string,
   draft: WorkbenchCustomScriptDraft,
@@ -560,6 +616,8 @@ export function createWorkbenchCustomScriptDefinition(
     id,
     version: 1,
     source: "custom",
+    authoringSurface: draft.authoringSurface ?? "chartx-subset-v0",
+    compatibility: resolveWorkbenchScriptCompatibility(draft),
     label: draft.label,
     shortLabel: draft.shortLabel,
     description: draft.description,
@@ -596,9 +654,21 @@ export function createWorkbenchCustomScriptDraftFromDefinition(
     shortLabel: definition.shortLabel,
     description: definition.description,
     expressionText: formatWorkbenchCustomScriptExpressionText(definition.expression),
+    authoringSurface: definition.authoringSurface ?? "chartx-subset-v0",
     placement: definition.placement,
     defaultLength,
   };
+}
+
+export function formatWorkbenchScriptCompatibilityLabel(
+  compatibility: WorkbenchScriptCompatibilityInfo | undefined,
+): string {
+  if (compatibility === undefined) {
+    return "compatibility unknown";
+  }
+  const surfaceLabel =
+    compatibility.surface === "pine-subset-v0" ? "Pine subset v0" : "Chartx subset v0";
+  return `${surfaceLabel} · ${compatibility.state}`;
 }
 
 export function executeWorkbenchScript(

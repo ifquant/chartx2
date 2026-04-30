@@ -737,7 +737,7 @@ Progress checklist:
 - [x] Script attach results now flow through an explicit host-facing execution adapter contract
 - [x] Visual coverage now exercises adapter-driven script failure state without crashing the panel
 - [x] Richer text editor and broader script-library management beyond preset cloning
-- [ ] Pine-compatible subset-oriented editor/metadata/compatibility surface
+- [x] Pine-compatible subset-oriented editor/metadata/compatibility surface
 
 Implementation note:
 
@@ -762,6 +762,10 @@ Implementation note:
   widening the runtime contract: the custom-script library now exposes a real
   text-editor mode alongside the AST builder, with apply/reset flows that still
   parse back into the same supported expression subset.
+- `Pine Subset Compatibility Surface V0` keeps the same execution boundary. It
+  adds explicit authoring-surface metadata, compatibility labeling, and saved
+  row/editor hints for the Pine-oriented subset without claiming Pine runtime
+  parity or introducing a second executor.
 - `User-Authored Script Library V0` keeps the same boundary and adds a local
   custom-script library on top: the Indicators panel can create, edit, and
   delete structured SMA presets, the catalog is rebuilt from the saved custom

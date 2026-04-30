@@ -409,6 +409,27 @@ test("strategy tester surfaces fixture-backed run metadata through the panel con
   await expect(panel.locator('[data-strategy-tester-run-metric="parameter-risk"]')).toContainText("0.75%");
 });
 
+test("strategy tester selected trade detail can drive the existing locate-trade shell", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]");
+  await expect(panel.locator('[data-strategy-tester-trade-detail="trade-2"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-detail-field="pnl"]')).toContainText("+840");
+
+  await panel.locator('[data-strategy-tester-tab="trades"]').click();
+  await panel.locator('[data-strategy-tester-trade-row="trade-1"]').click();
+  await expect(panel.locator('[data-strategy-tester-trade-detail="trade-1"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-detail-field="pnl"]')).toContainText("+1,870");
+
+  await panel.locator('[data-strategy-tester-locate-trade="trade-1"]').click();
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await expect(workbench.locator('[data-bottom-panel-kind="logs"] [data-activity-log-panel]')).toContainText(
+    "located trade trade-1",
+  );
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

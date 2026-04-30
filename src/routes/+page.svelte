@@ -664,6 +664,13 @@
     }
   }
 
+  function locateWorkbenchTrade(intent: TradeLocationIntent): void {
+    const located = workbenchController?.locateTrade?.(intent);
+    if (located) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
   function setPointFigureAutoScale(value: number): void {
     workbenchController?.setPointFigureAutoScale?.(value);
   }
@@ -1095,6 +1102,7 @@
           onPauseReplay={pauseWorkbenchReplay}
           onStepReplay={stepWorkbenchReplay}
           onExitReplay={exitWorkbenchReplay}
+          onLocateTrade={locateWorkbenchTrade}
           onPointerMove={handleWorkbenchChartPointerMove}
           onPointerLeave={clearWorkbenchToolPointer}
           onSetPointFigureAutoScale={setPointFigureAutoScale}

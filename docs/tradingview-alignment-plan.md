@@ -934,6 +934,7 @@ Progress checklist:
 - [x] Trade-row and equity-point selection now cross-highlight through local shell state without needing a backtest engine callback
 - [x] Host-supplied trade filters now narrow the visible trade list and equity shell without introducing engine-owned query callbacks
 - [x] Fixture-backed run metadata and parameter chips now render through the reusable strategy tester contract
+- [x] Selected trade detail and locate-trade affordance now reuse the existing workbench trade-intent seam instead of stopping at local row highlight
 
 Acceptance:
 
@@ -960,6 +961,11 @@ Implementation note:
   context chips. The host can now provide parameter/run labels through the
   public panel contract, while strategy execution and editable parameter sets
   remain deferred.
+- `Strategy Tester Trade Detail V4` adds a selected-trade detail card and wires
+  its locate affordance into the existing `TradeLocationIntent ->
+  workbench.locateTrade(...)` path. The shell still does not own a backtest
+  engine, but it now exercises the same chart-location boundary that a real
+  host product will want to reuse.
 
 ### 3. Paper Trading And Broker Adapter
 

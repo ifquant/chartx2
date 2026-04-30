@@ -5,8 +5,10 @@
     StrategyTesterPanelModel,
     StrategyTesterRunMetric,
     StrategyTesterSummaryMetric,
+    StrategyTesterTradeDetail,
     StrategyTesterTradeRow,
   } from "$lib/chartx/public/strategy-tester";
+  import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 
   const EMPTY_PANEL: StrategyTesterPanelModel = {
     title: "Strategy Tester",
@@ -25,6 +27,7 @@
   };
 
   export let model: StrategyTesterPanelModel = EMPTY_PANEL;
+  export let onLocateTrade: (intent: TradeLocationIntent) => void | Promise<void> = () => {};
 
   function metricToneClass(metric: StrategyTesterSummaryMetric): string {
     if (metric.tone === "positive") {
@@ -105,8 +108,8 @@
   }
 
   function tradeIsActive(trade: StrategyTesterTradeRow): boolean {
-    if (selectedTradeId !== null) {
-      return trade.id === selectedTradeId;
+    if (resolvedSelectedTradeId !== null) {
+      return trade.id === resolvedSelectedTradeId;
     }
     return false;
   }
@@ -135,6 +138,10 @@
   $: visibleEquityCurve = visibleTradeIds
     ? model.equityCurve.filter((point) => point.tradeId === undefined || visibleTradeIds.has(point.tradeId))
     : model.equityCurve;
+  $: fallbackSelectedTradeId = visibleEquityCurve.find((point) => point.active && point.tradeId)?.tradeId ?? null;
+  $: resolvedSelectedTradeId = selectedTradeId ?? fallbackSelectedTradeId;
+  $: selectedTradeDetail =
+    model.tradeDetails?.find((detail) => detail.tradeId === resolvedSelectedTradeId) ?? null;
   $: hasSummary = model.summaryMetrics.length > 0;
   $: hasTrades = visibleTrades.length > 0;
   $: hasEquity = visibleEquityCurve.length > 0;
@@ -224,6 +231,42 @@
           <strong>{metric.valueLabel}</strong>
         </article>
       {/each}
+    </section>
+  {/if}
+
+  {#if selectedTradeDetail}
+    <section class="trade-detail-card" data-strategy-tester-trade-detail={selectedTradeDetail.tradeId}>
+      <div class="section-header">
+        <div class="trade-detail-title-block">
+          <h3>{selectedTradeDetail.title ?? "Selected Trade"}</h3>
+          {#if selectedTradeDetail.subtitle}
+            <span class="section-detail">{selectedTradeDetail.subtitle}</span>
+          {/if}
+        </div>
+        {#if selectedTradeDetail.statusLabel}
+          <span class="trade-detail-status">{selectedTradeDetail.statusLabel}</span>
+        {/if}
+      </div>
+      <div class="trade-detail-grid">
+        {#each selectedTradeDetail.fields as field}
+          <article data-strategy-tester-trade-detail-field={field.id}>
+            <small>{field.label}</small>
+            <strong>{field.valueLabel}</strong>
+          </article>
+        {/each}
+      </div>
+      {#if selectedTradeDetail.locateIntent}
+        <button
+          type="button"
+          class="locate-trade-button"
+          data-strategy-tester-locate-trade={selectedTradeDetail.tradeId}
+          on:click={() => {
+            void onLocateTrade(selectedTradeDetail.locateIntent!);
+          }}
+        >
+          {selectedTradeDetail.locateLabel ?? "Locate on chart"}
+        </button>
+      {/if}
     </section>
   {/if}
 
@@ -442,6 +485,7 @@
   .tab-chip,
   .metric-card,
   .run-metric,
+  .trade-detail-card,
   .summary-card,
   .equity-card,
   .trades-card,
@@ -504,6 +548,56 @@
   .run-metric strong {
     font-size: 0.95rem;
     color: #e2e8f0;
+  }
+
+  .trade-detail-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 0.9rem;
+  }
+
+  .trade-detail-title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .trade-detail-status {
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(51, 65, 85, 0.9);
+    color: #e2e8f0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+  }
+
+  .trade-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .trade-detail-grid article {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .trade-detail-grid small {
+    color: #94a3b8;
+    font-size: 0.78rem;
+  }
+
+  .locate-trade-button {
+    align-self: flex-start;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid rgba(96, 165, 250, 0.45);
+    border-radius: 0.7rem;
+    background: rgba(30, 41, 59, 0.9);
+    color: #e2e8f0;
+    font: inherit;
+    cursor: pointer;
   }
 
   .tab-badge,

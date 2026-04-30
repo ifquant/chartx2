@@ -35,6 +35,7 @@
   import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
+  import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];
@@ -99,6 +100,7 @@
   export let onPauseReplay: () => void;
   export let onStepReplay: () => void;
   export let onExitReplay: () => void;
+  export let onLocateTrade: (intent: TradeLocationIntent) => void | Promise<void>;
   export let onPointerMove: (event: PointerEvent) => void;
   export let onPointerLeave: () => void;
   export let onSetPointFigureAutoScale: (value: number) => void;
@@ -1783,7 +1785,7 @@
                 >Close</button>
               </div>
             </div>
-            <StrategyTesterPanel model={snapshot.strategyTester} />
+            <StrategyTesterPanel model={snapshot.strategyTester} onLocateTrade={onLocateTrade} />
           </div>
         {/if}
         {#if workbench?.bottomPanel.activeTab === "custom" && snapshot.tradingTicket}

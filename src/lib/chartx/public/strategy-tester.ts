@@ -1,3 +1,5 @@
+import type { TradeLocationIntent } from "./performance";
+
 export type StrategyTesterPanelStatus = "loading" | "ready" | "empty" | "error";
 export type StrategyTesterTabId = string;
 export type StrategyTesterTradeSide = "long" | "short";
@@ -29,6 +31,22 @@ export interface StrategyTesterRunMetric {
   id: string;
   label: string;
   valueLabel: string;
+}
+
+export interface StrategyTesterTradeDetailField {
+  id: string;
+  label: string;
+  valueLabel: string;
+}
+
+export interface StrategyTesterTradeDetail {
+  tradeId: string;
+  title?: string;
+  subtitle?: string;
+  statusLabel?: string;
+  fields: readonly StrategyTesterTradeDetailField[];
+  locateIntent?: TradeLocationIntent;
+  locateLabel?: string;
 }
 
 export interface StrategyTesterTradeRow {
@@ -73,6 +91,7 @@ export interface StrategyTesterPanelModel {
   filterOptions?: readonly StrategyTesterFilterOption[];
   activeFilterId?: string;
   trades: readonly StrategyTesterTradeRow[];
+  tradeDetails?: readonly StrategyTesterTradeDetail[];
   equityCurve: readonly StrategyTesterEquityPoint[];
   state: StrategyTesterPanelStateModel;
 }

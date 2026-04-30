@@ -397,6 +397,18 @@ test("strategy tester filters narrow the visible trades and equity shell locally
   await expect(panel.locator('[data-strategy-tester-trade-row="trade-2"]')).toHaveCount(0);
 });
 
+test("strategy tester surfaces fixture-backed run metadata through the panel contract", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("ATR Length");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("14");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-stop"]')).toContainText("Stop Multiplier");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-risk"]')).toContainText("0.75%");
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

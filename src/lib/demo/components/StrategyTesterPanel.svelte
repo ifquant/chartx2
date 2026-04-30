@@ -3,12 +3,14 @@
     StrategyTesterEquityPoint,
     StrategyTesterFilterOption,
     StrategyTesterPanelModel,
+    StrategyTesterRunMetric,
     StrategyTesterSummaryMetric,
     StrategyTesterTradeRow,
   } from "$lib/chartx/public/strategy-tester";
 
   const EMPTY_PANEL: StrategyTesterPanelModel = {
     title: "Strategy Tester",
+    runMetrics: [],
     summaryMetrics: [],
     tabs: [],
     filterOptions: [],
@@ -32,6 +34,10 @@
       return "metric-card negative";
     }
     return "metric-card";
+  }
+
+  function runMetricToneClass(metric: StrategyTesterRunMetric): string {
+    return metric.valueLabel.length > 0 ? "run-metric" : "run-metric empty";
   }
 
   function tradeSideClass(trade: StrategyTesterTradeRow): string {
@@ -208,6 +214,17 @@
         </button>
       {/each}
     </nav>
+  {/if}
+
+  {#if (model.runMetrics?.length ?? 0) > 0}
+    <section class="run-metrics" data-strategy-tester-run-metrics>
+      {#each model.runMetrics ?? [] as metric}
+        <article class={runMetricToneClass(metric)} data-strategy-tester-run-metric={metric.id}>
+          <span>{metric.label}</span>
+          <strong>{metric.valueLabel}</strong>
+        </article>
+      {/each}
+    </section>
   {/if}
 
   {#if state.status === "error"}
@@ -403,6 +420,7 @@
 
   .tabs,
   .filters,
+  .run-metrics,
   .metric-grid,
   .panel-grid {
     display: grid;
@@ -417,8 +435,13 @@
     grid-template-columns: repeat(auto-fit, minmax(7rem, max-content));
   }
 
+  .run-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  }
+
   .tab-chip,
   .metric-card,
+  .run-metric,
   .summary-card,
   .equity-card,
   .trades-card,
@@ -469,6 +492,18 @@
   .filter-chip.disabled {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+
+  .run-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .run-metric strong {
+    font-size: 0.95rem;
+    color: #e2e8f0;
   }
 
   .tab-badge,

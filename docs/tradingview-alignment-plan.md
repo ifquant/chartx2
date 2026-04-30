@@ -933,6 +933,7 @@ Progress checklist:
 - [x] Strategy tester tabs now switch visible shell sections instead of staying decorative
 - [x] Trade-row and equity-point selection now cross-highlight through local shell state without needing a backtest engine callback
 - [x] Host-supplied trade filters now narrow the visible trade list and equity shell without introducing engine-owned query callbacks
+- [x] Fixture-backed run metadata and parameter chips now render through the reusable strategy tester contract
 
 Acceptance:
 
@@ -955,6 +956,10 @@ Implementation note:
   provides filter labels plus trade membership, while the panel applies those
   filters to the visible trade/equity surfaces without introducing a real
   backtest query boundary.
+- `Strategy Tester Run Metadata V3` thickens the same shell with readonly run
+  context chips. The host can now provide parameter/run labels through the
+  public panel contract, while strategy execution and editable parameter sets
+  remain deferred.
 
 ### 3. Paper Trading And Broker Adapter
 

@@ -25,6 +25,12 @@ export interface StrategyTesterFilterOption {
   disabled?: boolean;
 }
 
+export interface StrategyTesterRunMetric {
+  id: string;
+  label: string;
+  valueLabel: string;
+}
+
 export interface StrategyTesterTradeRow {
   id: string;
   side: StrategyTesterTradeSide;
@@ -61,6 +67,7 @@ export interface StrategyTesterPanelStateModel {
 export interface StrategyTesterPanelModel {
   title: string;
   runLabel?: string;
+  runMetrics?: readonly StrategyTesterRunMetric[];
   summaryMetrics: readonly StrategyTesterSummaryMetric[];
   tabs: readonly StrategyTesterTabModel[];
   filterOptions?: readonly StrategyTesterFilterOption[];

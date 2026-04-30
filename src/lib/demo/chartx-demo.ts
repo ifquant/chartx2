@@ -841,6 +841,12 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
   return {
     title: `${symbol} Breakout Range`,
     runLabel: `${symbol} · ${timeframe} · Fixture run #17`,
+    runMetrics: [
+      { id: "parameter-atr", label: "ATR Length", valueLabel: "14" },
+      { id: "parameter-stop", label: "Stop Multiplier", valueLabel: "1.8x" },
+      { id: "parameter-risk", label: "Risk / Trade", valueLabel: "0.75%" },
+      { id: "parameter-session", label: "Session", valueLabel: "RTH" },
+    ],
     summaryMetrics: [
       {
         id: "net-profit",

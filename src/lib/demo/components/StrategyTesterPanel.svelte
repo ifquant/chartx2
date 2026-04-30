@@ -4,6 +4,7 @@
     StrategyTesterFilterOption,
     StrategyTesterPanelModel,
     StrategyTesterRunMetric,
+    StrategyTesterRunOption,
     StrategyTesterSummaryMetric,
     StrategyTesterTradeDetail,
     StrategyTesterTradeRow,
@@ -13,6 +14,8 @@
   const EMPTY_PANEL: StrategyTesterPanelModel = {
     title: "Strategy Tester",
     runMetrics: [],
+    runOptions: [],
+    activeRunOptionId: "default",
     summaryMetrics: [],
     tabs: [],
     filterOptions: [],
@@ -64,6 +67,7 @@
   }
 
   let activeTabId = model.state.activeTabId;
+  let activeRunOptionId = model.activeRunOptionId ?? model.runOptions?.[0]?.id ?? "default";
   let activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
   let selectedTradeId: string | null = null;
   let lastModelStateKey = "";
@@ -73,7 +77,7 @@
     if (selectedTradeId === null) {
       return;
     }
-    const stillPresent = model.trades.some((trade) => trade.id === selectedTradeId);
+    const stillPresent = effectiveTrades.some((trade) => trade.id === selectedTradeId);
     if (!stillPresent) {
       selectedTradeId = null;
     }
@@ -93,6 +97,13 @@
     }
   }
 
+  function selectRunOption(nextRunOptionId: string): void {
+    const nextOption = model.runOptions?.find((option) => option.id === nextRunOptionId) ?? null;
+    activeRunOptionId = nextRunOptionId;
+    selectedTradeId = null;
+    activeFilterId = nextOption?.activeFilterId ?? nextOption?.filterOptions?.[0]?.id ?? model.activeFilterId ?? "all";
+  }
+
   function resolveVisibleTradeIds(filter: StrategyTesterFilterOption | null): Set<string> | null {
     if (!filter?.tradeIds) {
       return null;
@@ -101,8 +112,8 @@
   }
 
   function pointIsActive(point: StrategyTesterEquityPoint): boolean {
-    if (selectedTradeId !== null) {
-      return point.tradeId === selectedTradeId;
+    if (resolvedSelectedTradeId !== null) {
+      return point.tradeId === resolvedSelectedTradeId;
     }
     return point.active ?? false;
   }
@@ -116,33 +127,46 @@
 
   $: state = model.state;
   $: {
-    const nextModelStateKey = `${model.title}:${model.runLabel ?? ""}:${model.state.activeTabId}:${model.activeFilterId ?? ""}`;
+    const nextModelStateKey = `${model.title}:${model.runLabel ?? ""}:${model.state.activeTabId}:${model.activeRunOptionId ?? ""}:${model.activeFilterId ?? ""}`;
     if (nextModelStateKey !== lastModelStateKey) {
       lastModelStateKey = nextModelStateKey;
       selectedTradeId = null;
       activeTabId = model.state.activeTabId;
+      activeRunOptionId = model.activeRunOptionId ?? model.runOptions?.[0]?.id ?? "default";
       activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
     }
   }
   $: if (model.tabs.every((tab) => tab.id !== activeTabId)) {
     activeTabId = model.state.activeTabId;
   }
-  $: if ((model.filterOptions?.length ?? 0) > 0 && model.filterOptions?.every((option) => option.id !== activeFilterId)) {
-    activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
+  $: if ((model.runOptions?.length ?? 0) > 0 && model.runOptions?.every((option) => option.id !== activeRunOptionId)) {
+    activeRunOptionId = model.activeRunOptionId ?? model.runOptions?.[0]?.id ?? "default";
+  }
+  $: effectiveRunOption =
+    model.runOptions?.find((option) => option.id === activeRunOptionId) ?? model.runOptions?.[0] ?? null;
+  $: effectiveRunLabel = effectiveRunOption?.runLabel ?? model.runLabel;
+  $: effectiveRunMetrics = effectiveRunOption?.runMetrics ?? model.runMetrics ?? [];
+  $: effectiveSummaryMetrics = effectiveRunOption?.summaryMetrics ?? model.summaryMetrics;
+  $: effectiveFilterOptions = effectiveRunOption?.filterOptions ?? model.filterOptions ?? [];
+  $: effectiveTrades = effectiveRunOption?.trades ?? model.trades;
+  $: effectiveTradeDetails = effectiveRunOption?.tradeDetails ?? model.tradeDetails ?? [];
+  $: effectiveEquityCurve = effectiveRunOption?.equityCurve ?? model.equityCurve;
+  $: if ((effectiveFilterOptions.length ?? 0) > 0 && effectiveFilterOptions.every((option) => option.id !== activeFilterId)) {
+    activeFilterId = effectiveRunOption?.activeFilterId ?? model.activeFilterId ?? effectiveFilterOptions[0]?.id ?? "all";
   }
   $: activeTab = model.tabs.find((tab) => tab.id === activeTabId) ?? model.tabs[0] ?? null;
   $: activeFilter =
-    model.filterOptions?.find((option) => option.id === activeFilterId) ?? model.filterOptions?.[0] ?? null;
+    effectiveFilterOptions.find((option) => option.id === activeFilterId) ?? effectiveFilterOptions[0] ?? null;
   $: visibleTradeIds = resolveVisibleTradeIds(activeFilter);
-  $: visibleTrades = visibleTradeIds ? model.trades.filter((trade) => visibleTradeIds.has(trade.id)) : model.trades;
+  $: visibleTrades = visibleTradeIds ? effectiveTrades.filter((trade) => visibleTradeIds.has(trade.id)) : effectiveTrades;
   $: visibleEquityCurve = visibleTradeIds
-    ? model.equityCurve.filter((point) => point.tradeId === undefined || visibleTradeIds.has(point.tradeId))
-    : model.equityCurve;
+    ? effectiveEquityCurve.filter((point) => point.tradeId === undefined || visibleTradeIds.has(point.tradeId))
+    : effectiveEquityCurve;
   $: fallbackSelectedTradeId = visibleEquityCurve.find((point) => point.active && point.tradeId)?.tradeId ?? null;
   $: resolvedSelectedTradeId = selectedTradeId ?? fallbackSelectedTradeId;
   $: selectedTradeDetail =
-    model.tradeDetails?.find((detail) => detail.tradeId === resolvedSelectedTradeId) ?? null;
-  $: hasSummary = model.summaryMetrics.length > 0;
+    effectiveTradeDetails.find((detail) => detail.tradeId === resolvedSelectedTradeId) ?? null;
+  $: hasSummary = effectiveSummaryMetrics.length > 0;
   $: hasTrades = visibleTrades.length > 0;
   $: hasEquity = visibleEquityCurve.length > 0;
   $: showSummary = activeTabId === "overview" || activeTabId === "ratios" || activeTabId === "trades";
@@ -161,10 +185,30 @@
       <p class="eyebrow">Strategy Tester</p>
       <h2>{model.title}</h2>
     </div>
-    {#if model.runLabel}
-      <p class="run-label" data-strategy-tester-run>{model.runLabel}</p>
+    {#if effectiveRunLabel}
+      <p class="run-label" data-strategy-tester-run>{effectiveRunLabel}</p>
     {/if}
   </header>
+
+  {#if (model.runOptions?.length ?? 0) > 0}
+    <nav class="run-options" aria-label="Strategy tester runs" data-strategy-tester-run-options>
+      {#each model.runOptions ?? [] as option}
+        <button
+          type="button"
+          class:active={option.id === activeRunOptionId}
+          class="run-option-chip"
+          data-strategy-tester-run-option={option.id}
+          data-strategy-tester-run-option-active={option.id === activeRunOptionId ? "true" : "false"}
+          on:click={() => selectRunOption(option.id)}
+        >
+          <span>{option.label}</span>
+          {#if option.badgeLabel}
+            <span class="filter-badge">{option.badgeLabel}</span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+  {/if}
 
   {#if model.tabs.length > 0}
     <nav class="tabs" aria-label="Strategy tester tabs" data-strategy-tester-tabs>
@@ -195,9 +239,9 @@
     </nav>
   {/if}
 
-  {#if (model.filterOptions?.length ?? 0) > 0}
+  {#if effectiveFilterOptions.length > 0}
     <nav class="filters" aria-label="Strategy tester filters" data-strategy-tester-filters>
-      {#each model.filterOptions ?? [] as filter}
+      {#each effectiveFilterOptions as filter}
         <button
           type="button"
           class:active={filter.id === activeFilterId}
@@ -223,9 +267,9 @@
     </nav>
   {/if}
 
-  {#if (model.runMetrics?.length ?? 0) > 0}
+  {#if effectiveRunMetrics.length > 0}
     <section class="run-metrics" data-strategy-tester-run-metrics>
-      {#each model.runMetrics ?? [] as metric}
+      {#each effectiveRunMetrics as metric}
         <article class={runMetricToneClass(metric)} data-strategy-tester-run-metric={metric.id}>
           <span>{metric.label}</span>
           <strong>{metric.valueLabel}</strong>
@@ -299,7 +343,7 @@
         </div>
         {#if hasSummary}
           <div class="metric-grid">
-            {#each model.summaryMetrics as metric}
+            {#each effectiveSummaryMetrics as metric}
               <article
                 class={metricToneClass(metric)}
                 data-strategy-tester-metric={metric.id}
@@ -462,6 +506,7 @@
   }
 
   .tabs,
+  .run-options,
   .filters,
   .run-metrics,
   .metric-grid,
@@ -471,6 +516,10 @@
   }
 
   .tabs {
+    grid-template-columns: repeat(auto-fit, minmax(7rem, max-content));
+  }
+
+  .run-options {
     grid-template-columns: repeat(auto-fit, minmax(7rem, max-content));
   }
 
@@ -526,6 +575,24 @@
     color: inherit;
     font: inherit;
     cursor: pointer;
+  }
+
+  .run-option-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.55);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .run-option-chip.active {
+    border-color: rgba(34, 197, 94, 0.45);
+    background: rgba(20, 83, 45, 0.45);
   }
 
   .filter-chip.active {

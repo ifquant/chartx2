@@ -33,6 +33,20 @@ export interface StrategyTesterRunMetric {
   valueLabel: string;
 }
 
+export interface StrategyTesterRunOption {
+  id: string;
+  label: string;
+  badgeLabel?: string;
+  runLabel?: string;
+  runMetrics?: readonly StrategyTesterRunMetric[];
+  summaryMetrics: readonly StrategyTesterSummaryMetric[];
+  filterOptions?: readonly StrategyTesterFilterOption[];
+  activeFilterId?: string;
+  trades: readonly StrategyTesterTradeRow[];
+  tradeDetails?: readonly StrategyTesterTradeDetail[];
+  equityCurve: readonly StrategyTesterEquityPoint[];
+}
+
 export interface StrategyTesterTradeDetailField {
   id: string;
   label: string;
@@ -86,6 +100,8 @@ export interface StrategyTesterPanelModel {
   title: string;
   runLabel?: string;
   runMetrics?: readonly StrategyTesterRunMetric[];
+  runOptions?: readonly StrategyTesterRunOption[];
+  activeRunOptionId?: string;
   summaryMetrics: readonly StrategyTesterSummaryMetric[];
   tabs: readonly StrategyTesterTabModel[];
   filterOptions?: readonly StrategyTesterFilterOption[];

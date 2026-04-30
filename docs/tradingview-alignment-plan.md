@@ -935,6 +935,7 @@ Progress checklist:
 - [x] Host-supplied trade filters now narrow the visible trade list and equity shell without introducing engine-owned query callbacks
 - [x] Fixture-backed run metadata and parameter chips now render through the reusable strategy tester contract
 - [x] Selected trade detail and locate-trade affordance now reuse the existing workbench trade-intent seam instead of stopping at local row highlight
+- [x] Host-supplied run options now switch the visible strategy tester shell locally without introducing a run-execution callback
 
 Acceptance:
 
@@ -966,6 +967,11 @@ Implementation note:
   workbench.locateTrade(...)` path. The shell still does not own a backtest
   engine, but it now exercises the same chart-location boundary that a real
   host product will want to reuse.
+- `Strategy Tester Run Switching V5` extends the panel contract with host-owned
+  run options that each carry their own readonly shell snapshot. The panel
+  applies run switching locally, so `chartx2` still avoids owning a backtest
+  runtime or run-loading callback while exposing the UI surface that `alpha2`
+  can later back with a real core.
 
 ### 3. Paper Trading And Broker Adapter
 

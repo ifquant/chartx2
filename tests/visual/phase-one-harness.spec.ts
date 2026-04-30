@@ -430,6 +430,33 @@ test("strategy tester selected trade detail can drive the existing locate-trade 
   );
 });
 
+test("strategy tester run options switch the visible run shell locally", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]");
+  await expect(panel.locator('[data-strategy-tester-run-option="run-17"]')).toHaveAttribute(
+    "data-strategy-tester-run-option-active",
+    "true",
+  );
+  await expect(panel.locator("[data-strategy-tester-run]")).toContainText("Fixture run #17");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("14");
+  await expect(panel.locator('[data-strategy-tester-trade-detail="trade-2"]')).toBeVisible();
+
+  await panel.locator('[data-strategy-tester-run-option="run-18"]').click();
+  await expect(panel.locator('[data-strategy-tester-run-option="run-18"]')).toHaveAttribute(
+    "data-strategy-tester-run-option-active",
+    "true",
+  );
+  await expect(panel.locator("[data-strategy-tester-run]")).toContainText("Fixture run #18");
+  await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("21");
+  await expect(panel.locator('[data-strategy-tester-trade-detail="trade-18-1"]')).toBeVisible();
+  await panel.locator('[data-strategy-tester-tab="trades"]').click();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-18-1"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-1"]')).toHaveCount(0);
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

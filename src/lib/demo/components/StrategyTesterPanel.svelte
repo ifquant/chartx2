@@ -51,12 +51,58 @@
     return `left: ${horizontal}%; bottom: ${vertical}%;`;
   }
 
+  let activeTabId = model.state.activeTabId;
+  let selectedTradeId: string | null = null;
+  let lastModelStateKey = "";
+
+  function syncSelectionForTab(nextTabId: string): void {
+    activeTabId = nextTabId;
+    if (selectedTradeId === null) {
+      return;
+    }
+    const stillPresent = model.trades.some((trade) => trade.id === selectedTradeId);
+    if (!stillPresent) {
+      selectedTradeId = null;
+    }
+  }
+
+  function selectTrade(tradeId: string | null): void {
+    selectedTradeId = tradeId;
+  }
+
+  function pointIsActive(point: StrategyTesterEquityPoint): boolean {
+    if (selectedTradeId !== null) {
+      return point.tradeId === selectedTradeId;
+    }
+    return point.active ?? false;
+  }
+
+  function tradeIsActive(trade: StrategyTesterTradeRow): boolean {
+    if (selectedTradeId !== null) {
+      return trade.id === selectedTradeId;
+    }
+    return false;
+  }
+
   $: state = model.state;
-  $: activeTabId = state.activeTabId;
+  $: {
+    const nextModelStateKey = `${model.title}:${model.runLabel ?? ""}:${model.state.activeTabId}`;
+    if (nextModelStateKey !== lastModelStateKey) {
+      lastModelStateKey = nextModelStateKey;
+      selectedTradeId = null;
+      activeTabId = model.state.activeTabId;
+    }
+  }
+  $: if (model.tabs.every((tab) => tab.id !== activeTabId)) {
+    activeTabId = model.state.activeTabId;
+  }
   $: activeTab = model.tabs.find((tab) => tab.id === activeTabId) ?? model.tabs[0] ?? null;
   $: hasSummary = model.summaryMetrics.length > 0;
   $: hasTrades = model.trades.length > 0;
   $: hasEquity = model.equityCurve.length > 0;
+  $: showSummary = activeTabId === "overview" || activeTabId === "ratios" || activeTabId === "trades";
+  $: showEquity = activeTabId === "overview" || activeTabId === "trades";
+  $: showTrades = activeTabId === "trades" || activeTabId === "list";
 </script>
 
 <section
@@ -78,19 +124,28 @@
   {#if model.tabs.length > 0}
     <nav class="tabs" aria-label="Strategy tester tabs" data-strategy-tester-tabs>
       {#each model.tabs as tab}
-        <div
+        <button
+          type="button"
           class:active={tab.id === activeTabId}
           class:disabled={tab.disabled}
           class="tab-chip"
           data-strategy-tester-tab={tab.id}
           data-strategy-tester-tab-active={tab.id === activeTabId ? "true" : "false"}
           data-strategy-tester-tab-disabled={tab.disabled ? "true" : "false"}
+          disabled={tab.disabled}
+          aria-pressed={tab.id === activeTabId ? "true" : "false"}
+          on:click={() => {
+            if (tab.disabled) {
+              return;
+            }
+            syncSelectionForTab(tab.id);
+          }}
         >
           <span>{tab.label}</span>
           {#if tab.badgeLabel}
             <span class="tab-badge">{tab.badgeLabel}</span>
           {/if}
-        </div>
+        </button>
       {/each}
     </nav>
   {/if}
@@ -114,6 +169,7 @@
     {/if}
 
     <div class="panel-grid">
+      {#if showSummary}
       <section class="summary-card" data-strategy-tester-section="summary">
         <div class="section-header">
           <h3>Summary</h3>
@@ -140,7 +196,9 @@
           <p class="section-empty" data-strategy-tester-summary-empty>No summary metrics.</p>
         {/if}
       </section>
+      {/if}
 
+      {#if showEquity}
       <section class="equity-card" data-strategy-tester-section="equity">
         <div class="section-header">
           <h3>Equity Curve</h3>
@@ -151,12 +209,13 @@
             {#each model.equityCurve as point, index}
               <button
                 type="button"
-                class:active={point.active}
+                class:active={pointIsActive(point)}
                 class="equity-point"
                 style={pointStyle(point, index, model.equityCurve)}
                 data-strategy-tester-equity-point={point.id}
-                data-strategy-tester-equity-active={point.active ? "true" : "false"}
+                data-strategy-tester-equity-active={pointIsActive(point) ? "true" : "false"}
                 aria-label={`${point.timeLabel} ${point.equityLabel}`}
+                on:click={() => selectTrade(point.tradeId ?? null)}
               ></button>
             {/each}
           </div>
@@ -174,7 +233,9 @@
           <p class="section-empty" data-strategy-tester-equity-empty>No equity points.</p>
         {/if}
       </section>
+      {/if}
 
+      {#if showTrades}
       <section class="trades-card" data-strategy-tester-section="trades">
         <div class="section-header">
           <h3>Trades</h3>
@@ -192,7 +253,15 @@
             </div>
             <div class="trade-table-body" role="rowgroup" data-strategy-tester-trades>
               {#each model.trades as trade}
-                <div class="trade-row" role="row" data-strategy-tester-trade-row={trade.id}>
+                <button
+                  type="button"
+                  class:active={tradeIsActive(trade)}
+                  class="trade-row"
+                  role="row"
+                  data-strategy-tester-trade-row={trade.id}
+                  data-strategy-tester-trade-active={tradeIsActive(trade) ? "true" : "false"}
+                  on:click={() => selectTrade(trade.id)}
+                >
                   <div class="trade-main" role="cell">
                     <span class={tradeSideClass(trade)}>{trade.side}</span>
                     {#if trade.symbolLabel}
@@ -219,7 +288,7 @@
                       </span>
                     {/if}
                   </div>
-                </div>
+                </button>
               {/each}
             </div>
           </div>
@@ -227,6 +296,7 @@
           <p class="section-empty" data-strategy-tester-trades-empty>No closed trades.</p>
         {/if}
       </section>
+      {/if}
     </div>
   {/if}
 </section>
@@ -296,6 +366,9 @@
     align-items: center;
     gap: 0.45rem;
     padding: 0.55rem 0.75rem;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
   }
 
   .tab-chip.active {
@@ -305,6 +378,7 @@
 
   .tab-chip.disabled {
     opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .tab-badge,
@@ -399,13 +473,27 @@
     display: grid;
     grid-template-columns: minmax(7rem, 1fr) minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(7rem, 1fr);
     gap: 0.75rem;
+    width: 100%;
     padding: 0.65rem 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
     border-top: 1px solid rgba(148, 163, 184, 0.12);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
   }
 
   .trade-row.header {
     padding-top: 0;
     border-top: 0;
+    cursor: default;
+  }
+
+  .trade-row.active {
+    background: rgba(30, 41, 59, 0.75);
   }
 
   .trade-row > div,

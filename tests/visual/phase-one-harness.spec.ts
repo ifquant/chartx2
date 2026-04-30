@@ -340,6 +340,31 @@ test("strategy tester panel renders fixture-backed metrics through the bottom-pa
   await expect(workbench.locator('[data-strategy-tester-trade-row="trade-1"]')).toContainText("Apr 18 09:35");
 });
 
+test("strategy tester panel tabs and trade selection drive shell state", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]");
+  await expect(panel).toHaveAttribute("data-strategy-tester-active-tab", "overview");
+  await expect(panel.locator('[data-strategy-tester-section="summary"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-section="equity"]')).toBeVisible();
+
+  await panel.locator('[data-strategy-tester-tab="list"]').click();
+  await expect(panel).toHaveAttribute("data-strategy-tester-active-tab", "list");
+  await expect(panel.locator('[data-strategy-tester-section="trades"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-section="summary"]')).toHaveCount(0);
+
+  await panel.locator('[data-strategy-tester-trade-row="trade-2"]').click();
+
+  await panel.locator('[data-strategy-tester-tab="trades"]').click();
+  await expect(panel).toHaveAttribute("data-strategy-tester-active-tab", "trades");
+  await expect(panel.locator('[data-strategy-tester-equity-point="eq-3"]')).toHaveAttribute(
+    "data-strategy-tester-equity-active",
+    "true",
+  );
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

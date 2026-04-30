@@ -912,6 +912,37 @@ test("script library: imports expression text into the builder without clobberin
   );
 });
 
+test("script library: text editor mode can apply a supported expression and save it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+
+  await workbench.locator('[data-custom-script-field="label"]').fill("My Text Script");
+  await workbench.locator('[data-custom-script-field="short-label"]').fill("Text Script");
+  await workbench.locator('[data-custom-script-field="description"]').fill("Saved from text mode.");
+  const textMode = workbench.locator('[data-custom-script-editor-mode="text"]:visible').first();
+  await textMode.scrollIntoViewIfNeeded();
+  await textMode.dispatchEvent("click");
+  await expect(textMode).toHaveAttribute("aria-pressed", "true");
+  await workbench
+    .locator("[data-custom-script-import-expression]:visible")
+    .fill("subtract(hlc3, sma(close, length))");
+  await workbench.locator("[data-custom-script-import-apply]").click();
+
+  await expect(workbench.locator("[data-custom-script-expression-preview]")).toContainText(
+    "subtract(hlc3, sma(close, length))",
+  );
+
+  await workbench.locator('[data-custom-script-field="default-length"]').fill("11");
+  await workbench.locator("[data-custom-script-save]").click();
+
+  await expect(workbench).toContainText("saved custom script My Text Script");
+  await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toContainText(
+    "subtract(hlc3, sma(close, length))",
+  );
+});
+
 test("script library: active custom scripts surface in-use state and fence edit/delete", async ({
   page,
 }) => {

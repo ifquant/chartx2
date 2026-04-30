@@ -736,7 +736,7 @@ Progress checklist:
 - [x] Script library rows distinguish local-runtime and host-adapter execution ownership
 - [x] Script attach results now flow through an explicit host-facing execution adapter contract
 - [x] Visual coverage now exercises adapter-driven script failure state without crashing the panel
-- [ ] Richer text editor and broader script-library management beyond preset cloning
+- [x] Richer text editor and broader script-library management beyond preset cloning
 - [ ] Pine-compatible subset-oriented editor/metadata/compatibility surface
 
 Implementation note:
@@ -758,6 +758,10 @@ Implementation note:
   carry `inputValues`, so save/restore/export/import can round-trip
   parameterized scripted entries without promoting them into chart-state-native
   studies.
+- `Script Text Editor Mode V0` extends the local authoring surface without
+  widening the runtime contract: the custom-script library now exposes a real
+  text-editor mode alongside the AST builder, with apply/reset flows that still
+  parse back into the same supported expression subset.
 - `User-Authored Script Library V0` keeps the same boundary and adds a local
   custom-script library on top: the Indicators panel can create, edit, and
   delete structured SMA presets, the catalog is rebuilt from the saved custom

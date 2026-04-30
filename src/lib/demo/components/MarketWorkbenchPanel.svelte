@@ -161,6 +161,7 @@
   let customScriptDraftError: string | null = null;
   let customScriptImportExpressionInput = "";
   let customScriptImportError: string | null = null;
+  let customScriptEditorMode: "builder" | "text" = "builder";
   let customScriptFilter = "";
   let customScriptSortMode: "newest" | "label" | "in-use" = "newest";
   let customScriptDraftPreviewLabel = "sma(close, length) · length 20 · separate-pane";
@@ -2360,23 +2361,47 @@
               />
             </label>
             <div class="script-input-field">
-              <span>Expression builder</span>
-              <ScriptExpressionBuilder
-                expression={customScriptExpression}
-                path={[]}
-                onSetKind={setCustomScriptNodeKind}
-                onSetField={setCustomScriptNodeField}
-              />
+              <span>Expression editor</span>
+              <div class="custom-script-editor-mode-row" data-custom-script-editor-mode-row>
+                <button
+                  type="button"
+                  class="indicator-secondary-btn"
+                  data-custom-script-editor-mode="builder"
+                  aria-pressed={customScriptEditorMode === "builder" ? "true" : "false"}
+                  on:click={() => {
+                    customScriptEditorMode = "builder";
+                  }}
+                >
+                  Builder
+                </button>
+                <button
+                  type="button"
+                  class="indicator-secondary-btn"
+                  data-custom-script-editor-mode="text"
+                  aria-pressed={customScriptEditorMode === "text" ? "true" : "false"}
+                  on:click={() => {
+                    customScriptEditorMode = "text";
+                  }}
+                >
+                  Text
+                </button>
+              </div>
+              {#if customScriptEditorMode === "builder"}
+                <ScriptExpressionBuilder
+                  expression={customScriptExpression}
+                  path={[]}
+                  onSetKind={setCustomScriptNodeKind}
+                  onSetField={setCustomScriptNodeField}
+                />
+              {:else}
+                <textarea
+                  bind:value={customScriptImportExpressionInput}
+                  data-custom-script-import-expression
+                  rows="4"
+                  placeholder="subtract(close, sma(close, length))"
+                ></textarea>
+              {/if}
             </div>
-            <label class="script-input-field">
-              <span>Import expression</span>
-              <input
-                type="text"
-                bind:value={customScriptImportExpressionInput}
-                data-custom-script-import-expression
-                placeholder="subtract(close, sma(close, length))"
-              />
-            </label>
             <div class="custom-script-actions">
               <button
                 type="button"
@@ -2384,7 +2409,7 @@
                 data-custom-script-import-apply
                 on:click={importCustomScriptExpression}
               >
-                Apply expression
+                Apply text
               </button>
               <button
                 type="button"
@@ -2396,6 +2421,7 @@
                 Use builder expression
               </button>
             </div>
+            <p class="custom-script-preview">Supported text subset: `input`, `sma(...)`, and `subtract(...)`.</p>
             {#if customScriptImportError}
               <p class="indicator-empty" data-custom-script-import-error>{customScriptImportError}</p>
             {/if}
@@ -4200,7 +4226,8 @@
   }
 
   .script-input-field input,
-  .script-input-field select {
+  .script-input-field select,
+  .script-input-field textarea {
     width: 100%;
     border: 1px solid rgba(24, 24, 27, 0.12);
     border-radius: 7px;
@@ -4208,6 +4235,11 @@
     background: rgba(255, 255, 255, 0.92);
     color: #18181b;
     font: inherit;
+  }
+
+  .script-input-field textarea {
+    resize: vertical;
+    min-height: 5.5rem;
   }
 
   .indicator-add-btn {
@@ -4239,6 +4271,17 @@
 
   .indicator-secondary-btn.danger {
     color: #b91c1c;
+  }
+
+  .custom-script-editor-mode-row {
+    display: inline-flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .custom-script-editor-mode-row .indicator-secondary-btn[aria-pressed="true"] {
+    background: #18181b;
+    color: #fffdf8;
   }
 
   .indicator-entry:disabled {

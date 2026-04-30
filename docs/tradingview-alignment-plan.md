@@ -932,6 +932,7 @@ Progress checklist:
 - [x] Focused visual coverage asserts the panel shell, metrics, and trade rows without relying on a real backtest engine
 - [x] Strategy tester tabs now switch visible shell sections instead of staying decorative
 - [x] Trade-row and equity-point selection now cross-highlight through local shell state without needing a backtest engine callback
+- [x] Host-supplied trade filters now narrow the visible trade list and equity shell without introducing engine-owned query callbacks
 
 Acceptance:
 
@@ -949,6 +950,11 @@ Implementation note:
 - `Strategy Tester Interaction V1` keeps the same UI-only boundary. It adds tab
   switching and local trade/equity selection state inside the reusable panel,
   without introducing run control, parameter editing, or backtest engine hooks.
+- `Strategy Tester Filters V2` extends the reusable contract with host-supplied
+  filter descriptors and keeps filtering local to the panel shell. The host
+  provides filter labels plus trade membership, while the panel applies those
+  filters to the visible trade/equity surfaces without introducing a real
+  backtest query boundary.
 
 ### 3. Paper Trading And Broker Adapter
 

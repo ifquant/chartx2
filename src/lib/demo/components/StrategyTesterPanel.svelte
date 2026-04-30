@@ -1,6 +1,7 @@
 <script lang="ts">
   import type {
     StrategyTesterEquityPoint,
+    StrategyTesterFilterOption,
     StrategyTesterPanelModel,
     StrategyTesterSummaryMetric,
     StrategyTesterTradeRow,
@@ -10,6 +11,8 @@
     title: "Strategy Tester",
     summaryMetrics: [],
     tabs: [],
+    filterOptions: [],
+    activeFilterId: "all",
     trades: [],
     equityCurve: [],
     state: {
@@ -52,6 +55,7 @@
   }
 
   let activeTabId = model.state.activeTabId;
+  let activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
   let selectedTradeId: string | null = null;
   let lastModelStateKey = "";
 
@@ -70,6 +74,23 @@
     selectedTradeId = tradeId;
   }
 
+  function selectFilter(nextFilterId: string): void {
+    activeFilterId = nextFilterId;
+    if (selectedTradeId === null) {
+      return;
+    }
+    if (!visibleTrades.some((trade) => trade.id === selectedTradeId)) {
+      selectedTradeId = null;
+    }
+  }
+
+  function resolveVisibleTradeIds(filter: StrategyTesterFilterOption | null): Set<string> | null {
+    if (!filter?.tradeIds) {
+      return null;
+    }
+    return new Set(filter.tradeIds);
+  }
+
   function pointIsActive(point: StrategyTesterEquityPoint): boolean {
     if (selectedTradeId !== null) {
       return point.tradeId === selectedTradeId;
@@ -86,20 +107,31 @@
 
   $: state = model.state;
   $: {
-    const nextModelStateKey = `${model.title}:${model.runLabel ?? ""}:${model.state.activeTabId}`;
+    const nextModelStateKey = `${model.title}:${model.runLabel ?? ""}:${model.state.activeTabId}:${model.activeFilterId ?? ""}`;
     if (nextModelStateKey !== lastModelStateKey) {
       lastModelStateKey = nextModelStateKey;
       selectedTradeId = null;
       activeTabId = model.state.activeTabId;
+      activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
     }
   }
   $: if (model.tabs.every((tab) => tab.id !== activeTabId)) {
     activeTabId = model.state.activeTabId;
   }
+  $: if ((model.filterOptions?.length ?? 0) > 0 && model.filterOptions?.every((option) => option.id !== activeFilterId)) {
+    activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
+  }
   $: activeTab = model.tabs.find((tab) => tab.id === activeTabId) ?? model.tabs[0] ?? null;
+  $: activeFilter =
+    model.filterOptions?.find((option) => option.id === activeFilterId) ?? model.filterOptions?.[0] ?? null;
+  $: visibleTradeIds = resolveVisibleTradeIds(activeFilter);
+  $: visibleTrades = visibleTradeIds ? model.trades.filter((trade) => visibleTradeIds.has(trade.id)) : model.trades;
+  $: visibleEquityCurve = visibleTradeIds
+    ? model.equityCurve.filter((point) => point.tradeId === undefined || visibleTradeIds.has(point.tradeId))
+    : model.equityCurve;
   $: hasSummary = model.summaryMetrics.length > 0;
-  $: hasTrades = model.trades.length > 0;
-  $: hasEquity = model.equityCurve.length > 0;
+  $: hasTrades = visibleTrades.length > 0;
+  $: hasEquity = visibleEquityCurve.length > 0;
   $: showSummary = activeTabId === "overview" || activeTabId === "ratios" || activeTabId === "trades";
   $: showEquity = activeTabId === "overview" || activeTabId === "trades";
   $: showTrades = activeTabId === "trades" || activeTabId === "list";
@@ -144,6 +176,34 @@
           <span>{tab.label}</span>
           {#if tab.badgeLabel}
             <span class="tab-badge">{tab.badgeLabel}</span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+  {/if}
+
+  {#if (model.filterOptions?.length ?? 0) > 0}
+    <nav class="filters" aria-label="Strategy tester filters" data-strategy-tester-filters>
+      {#each model.filterOptions ?? [] as filter}
+        <button
+          type="button"
+          class:active={filter.id === activeFilterId}
+          class:disabled={filter.disabled}
+          class="filter-chip"
+          data-strategy-tester-filter={filter.id}
+          data-strategy-tester-filter-active={filter.id === activeFilterId ? "true" : "false"}
+          data-strategy-tester-filter-disabled={filter.disabled ? "true" : "false"}
+          disabled={filter.disabled}
+          on:click={() => {
+            if (filter.disabled) {
+              return;
+            }
+            selectFilter(filter.id);
+          }}
+        >
+          <span>{filter.label}</span>
+          {#if filter.badgeLabel}
+            <span class="filter-badge">{filter.badgeLabel}</span>
           {/if}
         </button>
       {/each}
@@ -202,16 +262,16 @@
       <section class="equity-card" data-strategy-tester-section="equity">
         <div class="section-header">
           <h3>Equity Curve</h3>
-          <span class="section-detail">{model.equityCurve.length} points</span>
+          <span class="section-detail">{visibleEquityCurve.length} points</span>
         </div>
         {#if hasEquity}
           <div class="equity-viewport" data-strategy-tester-equity>
-            {#each model.equityCurve as point, index}
+            {#each visibleEquityCurve as point, index}
               <button
                 type="button"
                 class:active={pointIsActive(point)}
                 class="equity-point"
-                style={pointStyle(point, index, model.equityCurve)}
+                style={pointStyle(point, index, visibleEquityCurve)}
                 data-strategy-tester-equity-point={point.id}
                 data-strategy-tester-equity-active={pointIsActive(point) ? "true" : "false"}
                 aria-label={`${point.timeLabel} ${point.equityLabel}`}
@@ -222,11 +282,11 @@
           <div class="equity-footer">
             <div>
               <p class="section-detail">First</p>
-              <strong>{model.equityCurve[0]?.equityLabel}</strong>
+              <strong>{visibleEquityCurve[0]?.equityLabel ?? "--"}</strong>
             </div>
-            <div class="equity-last" data-strategy-tester-equity-last={model.equityCurve[model.equityCurve.length - 1]?.id ?? ""}>
+            <div class="equity-last" data-strategy-tester-equity-last={visibleEquityCurve[visibleEquityCurve.length - 1]?.id ?? ""}>
               <p class="section-detail">Latest</p>
-              <strong>{model.equityCurve[model.equityCurve.length - 1]?.equityLabel}</strong>
+              <strong>{visibleEquityCurve[visibleEquityCurve.length - 1]?.equityLabel ?? "--"}</strong>
             </div>
           </div>
         {:else}
@@ -239,7 +299,7 @@
       <section class="trades-card" data-strategy-tester-section="trades">
         <div class="section-header">
           <h3>Trades</h3>
-          <span class="section-detail">{model.trades.length} rows</span>
+          <span class="section-detail">{visibleTrades.length} rows</span>
         </div>
         {#if hasTrades}
           <div class="trade-table" role="table" aria-label="Strategy tester trades">
@@ -252,7 +312,7 @@
               </div>
             </div>
             <div class="trade-table-body" role="rowgroup" data-strategy-tester-trades>
-              {#each model.trades as trade}
+              {#each visibleTrades as trade}
                 <button
                   type="button"
                   class:active={tradeIsActive(trade)}
@@ -293,7 +353,9 @@
             </div>
           </div>
         {:else}
-          <p class="section-empty" data-strategy-tester-trades-empty>No closed trades.</p>
+          <p class="section-empty" data-strategy-tester-trades-empty>
+            No trades match {activeFilter?.label ?? "the current filter"}.
+          </p>
         {/if}
       </section>
       {/if}
@@ -340,6 +402,7 @@
   }
 
   .tabs,
+  .filters,
   .metric-grid,
   .panel-grid {
     display: grid;
@@ -347,6 +410,10 @@
   }
 
   .tabs {
+    grid-template-columns: repeat(auto-fit, minmax(7rem, max-content));
+  }
+
+  .filters {
     grid-template-columns: repeat(auto-fit, minmax(7rem, max-content));
   }
 
@@ -381,7 +448,31 @@
     cursor: not-allowed;
   }
 
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.55);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .filter-chip.active {
+    border-color: rgba(96, 165, 250, 0.65);
+    background: rgba(30, 41, 59, 0.95);
+  }
+
+  .filter-chip.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   .tab-badge,
+  .filter-badge,
   .trade-side {
     padding: 0.15rem 0.45rem;
     border-radius: 999px;

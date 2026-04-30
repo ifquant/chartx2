@@ -17,6 +17,14 @@ export interface StrategyTesterTabModel {
   disabled?: boolean;
 }
 
+export interface StrategyTesterFilterOption {
+  id: string;
+  label: string;
+  badgeLabel?: string;
+  tradeIds?: readonly string[];
+  disabled?: boolean;
+}
+
 export interface StrategyTesterTradeRow {
   id: string;
   side: StrategyTesterTradeSide;
@@ -55,6 +63,8 @@ export interface StrategyTesterPanelModel {
   runLabel?: string;
   summaryMetrics: readonly StrategyTesterSummaryMetric[];
   tabs: readonly StrategyTesterTabModel[];
+  filterOptions?: readonly StrategyTesterFilterOption[];
+  activeFilterId?: string;
   trades: readonly StrategyTesterTradeRow[];
   equityCurve: readonly StrategyTesterEquityPoint[];
   state: StrategyTesterPanelStateModel;

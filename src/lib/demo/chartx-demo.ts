@@ -877,6 +877,14 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
       { id: "ratios", label: "Ratios" },
       { id: "list", label: "Trade List" },
     ],
+    filterOptions: [
+      { id: "all", label: "All trades", badgeLabel: "3" },
+      { id: "winners", label: "Winners", badgeLabel: "2", tradeIds: ["trade-1", "trade-2"] },
+      { id: "losers", label: "Losers", badgeLabel: "1", tradeIds: ["trade-3"] },
+      { id: "long", label: "Long", badgeLabel: "2", tradeIds: ["trade-1", "trade-3"] },
+      { id: "short", label: "Short", badgeLabel: "1", tradeIds: ["trade-2"] },
+    ],
+    activeFilterId: "all",
     trades: [
       {
         id: "trade-1",

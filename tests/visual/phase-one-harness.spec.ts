@@ -365,6 +365,38 @@ test("strategy tester panel tabs and trade selection drive shell state", async (
   );
 });
 
+test("strategy tester filters narrow the visible trades and equity shell locally", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]");
+  await panel.locator('[data-strategy-tester-tab="trades"]').click();
+
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-1"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-2"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-3"]')).toBeVisible();
+
+  await panel.locator('[data-strategy-tester-filter="winners"]').click();
+  await expect(panel.locator('[data-strategy-tester-filter="winners"]')).toHaveAttribute(
+    "data-strategy-tester-filter-active",
+    "true",
+  );
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-1"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-2"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-3"]')).toHaveCount(0);
+  await expect(panel.locator('[data-strategy-tester-equity-point="eq-4"]')).toHaveCount(0);
+
+  await panel.locator('[data-strategy-tester-filter="losers"]').click();
+  await expect(panel.locator('[data-strategy-tester-filter="losers"]')).toHaveAttribute(
+    "data-strategy-tester-filter-active",
+    "true",
+  );
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-3"]')).toBeVisible();
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-1"]')).toHaveCount(0);
+  await expect(panel.locator('[data-strategy-tester-trade-row="trade-2"]')).toHaveCount(0);
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

@@ -33,12 +33,28 @@ export interface StrategyTesterRunMetric {
   valueLabel: string;
 }
 
+export interface StrategyTesterParameterFieldOption {
+  value: string;
+  label: string;
+}
+
+export interface StrategyTesterParameterField {
+  id: string;
+  label: string;
+  value: string;
+  kind: "number" | "select";
+  step?: number;
+  suffixLabel?: string;
+  options?: readonly StrategyTesterParameterFieldOption[];
+}
+
 export interface StrategyTesterRunOption {
   id: string;
   label: string;
   badgeLabel?: string;
   runLabel?: string;
   runMetrics?: readonly StrategyTesterRunMetric[];
+  parameterFields?: readonly StrategyTesterParameterField[];
   summaryMetrics: readonly StrategyTesterSummaryMetric[];
   filterOptions?: readonly StrategyTesterFilterOption[];
   activeFilterId?: string;

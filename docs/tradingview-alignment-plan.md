@@ -936,6 +936,7 @@ Progress checklist:
 - [x] Fixture-backed run metadata and parameter chips now render through the reusable strategy tester contract
 - [x] Selected trade detail and locate-trade affordance now reuse the existing workbench trade-intent seam instead of stopping at local row highlight
 - [x] Host-supplied run options now switch the visible strategy tester shell locally without introducing a run-execution callback
+- [x] Host-supplied parameter fields now expose a local draft/reset shell without introducing a rerun callback
 
 Acceptance:
 
@@ -972,6 +973,10 @@ Implementation note:
   applies run switching locally, so `chartx2` still avoids owning a backtest
   runtime or run-loading callback while exposing the UI surface that `alpha2`
   can later back with a real core.
+- `Strategy Tester Parameter Draft V6` adds editable parameter fields as a
+  local shell concern. The host supplies readonly parameter values per run, and
+  the panel now supports draft edits plus reset state without pretending that
+  `chartx2` owns rerun execution or strategy persistence.
 
 ### 3. Paper Trading And Broker Adapter
 

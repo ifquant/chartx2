@@ -935,6 +935,21 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
         label: "Run #17",
         badgeLabel: "Base",
         runLabel: `${symbol} · ${timeframe} · Fixture run #17`,
+        parameterFields: [
+          { id: "atr-length", label: "ATR Length", value: "14", kind: "number", step: 1 },
+          { id: "stop-multiplier", label: "Stop Multiplier", value: "1.8", kind: "number", step: 0.1, suffixLabel: "x" },
+          { id: "risk-per-trade", label: "Risk / Trade", value: "0.75", kind: "number", step: 0.05, suffixLabel: "%" },
+          {
+            id: "session",
+            label: "Session",
+            value: "rth",
+            kind: "select",
+            options: [
+              { value: "rth", label: "RTH" },
+              { value: "eth", label: "ETH" },
+            ],
+          },
+        ],
         runMetrics: [
           { id: "parameter-atr", label: "ATR Length", valueLabel: "14" },
           { id: "parameter-stop", label: "Stop Multiplier", valueLabel: "1.8x" },
@@ -1076,6 +1091,21 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
         label: "Run #18",
         badgeLabel: "Alt",
         runLabel: `${symbol} · ${timeframe} · Fixture run #18`,
+        parameterFields: [
+          { id: "atr-length", label: "ATR Length", value: "21", kind: "number", step: 1 },
+          { id: "stop-multiplier", label: "Stop Multiplier", value: "1.3", kind: "number", step: 0.1, suffixLabel: "x" },
+          { id: "risk-per-trade", label: "Risk / Trade", value: "0.50", kind: "number", step: 0.05, suffixLabel: "%" },
+          {
+            id: "session",
+            label: "Session",
+            value: "eth",
+            kind: "select",
+            options: [
+              { value: "rth", label: "RTH" },
+              { value: "eth", label: "ETH" },
+            ],
+          },
+        ],
         runMetrics: [
           { id: "parameter-atr", label: "ATR Length", valueLabel: "21" },
           { id: "parameter-stop", label: "Stop Multiplier", valueLabel: "1.3x" },

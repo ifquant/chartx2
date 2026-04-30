@@ -2,6 +2,7 @@
   import type {
     StrategyTesterEquityPoint,
     StrategyTesterFilterOption,
+    StrategyTesterParameterField,
     StrategyTesterPanelModel,
     StrategyTesterRunMetric,
     StrategyTesterRunOption,
@@ -70,7 +71,9 @@
   let activeRunOptionId = model.activeRunOptionId ?? model.runOptions?.[0]?.id ?? "default";
   let activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
   let selectedTradeId: string | null = null;
+  let parameterDraft: Record<string, string> = {};
   let lastModelStateKey = "";
+  let lastParameterDraftKey = "";
 
   function syncSelectionForTab(nextTabId: string): void {
     activeTabId = nextTabId;
@@ -102,6 +105,21 @@
     activeRunOptionId = nextRunOptionId;
     selectedTradeId = null;
     activeFilterId = nextOption?.activeFilterId ?? nextOption?.filterOptions?.[0]?.id ?? model.activeFilterId ?? "all";
+  }
+
+  function parameterDraftFromFields(fields: readonly StrategyTesterParameterField[]): Record<string, string> {
+    return Object.fromEntries(fields.map((field) => [field.id, field.value]));
+  }
+
+  function updateParameterDraft(fieldId: string, value: string): void {
+    parameterDraft = {
+      ...parameterDraft,
+      [fieldId]: value,
+    };
+  }
+
+  function resetParameterDraft(): void {
+    parameterDraft = parameterDraftFromFields(effectiveParameterFields);
   }
 
   function resolveVisibleTradeIds(filter: StrategyTesterFilterOption | null): Set<string> | null {
@@ -146,6 +164,7 @@
     model.runOptions?.find((option) => option.id === activeRunOptionId) ?? model.runOptions?.[0] ?? null;
   $: effectiveRunLabel = effectiveRunOption?.runLabel ?? model.runLabel;
   $: effectiveRunMetrics = effectiveRunOption?.runMetrics ?? model.runMetrics ?? [];
+  $: effectiveParameterFields = effectiveRunOption?.parameterFields ?? [];
   $: effectiveSummaryMetrics = effectiveRunOption?.summaryMetrics ?? model.summaryMetrics;
   $: effectiveFilterOptions = effectiveRunOption?.filterOptions ?? model.filterOptions ?? [];
   $: effectiveTrades = effectiveRunOption?.trades ?? model.trades;
@@ -162,6 +181,12 @@
   $: visibleEquityCurve = visibleTradeIds
     ? effectiveEquityCurve.filter((point) => point.tradeId === undefined || visibleTradeIds.has(point.tradeId))
     : effectiveEquityCurve;
+  $: nextParameterDraftKey = `${activeRunOptionId}:${effectiveParameterFields.map((field) => `${field.id}=${field.value}`).join("|")}`;
+  $: if (lastParameterDraftKey !== nextParameterDraftKey) {
+    lastParameterDraftKey = nextParameterDraftKey;
+    parameterDraft = parameterDraftFromFields(effectiveParameterFields);
+  }
+  $: parameterDraftDirty = effectiveParameterFields.some((field) => parameterDraft[field.id] !== field.value);
   $: fallbackSelectedTradeId = visibleEquityCurve.find((point) => point.active && point.tradeId)?.tradeId ?? null;
   $: resolvedSelectedTradeId = selectedTradeId ?? fallbackSelectedTradeId;
   $: selectedTradeDetail =
@@ -275,6 +300,63 @@
           <strong>{metric.valueLabel}</strong>
         </article>
       {/each}
+    </section>
+  {/if}
+
+  {#if effectiveParameterFields.length > 0}
+    <section
+      class="parameter-shell-card"
+      data-strategy-tester-parameter-shell
+      data-strategy-tester-parameter-dirty={parameterDraftDirty ? "true" : "false"}
+    >
+      <div class="section-header">
+        <div class="trade-detail-title-block">
+          <h3>Parameter Set</h3>
+          <span class="section-detail">
+            {parameterDraftDirty ? "Draft diverges from the active run shell" : "Draft matches the active run shell"}
+          </span>
+        </div>
+        <button
+          type="button"
+          class="parameter-reset-button"
+          data-strategy-tester-parameter-reset
+          disabled={!parameterDraftDirty}
+          on:click={resetParameterDraft}
+        >
+          Reset draft
+        </button>
+      </div>
+      <div class="parameter-grid">
+        {#each effectiveParameterFields as field}
+          <label class="parameter-field" data-strategy-tester-parameter-field={field.id}>
+            <span>{field.label}</span>
+            {#if field.kind === "select"}
+              <select
+                data-strategy-tester-parameter-input={field.id}
+                value={parameterDraft[field.id] ?? field.value}
+                on:change={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLSelectElement).value)}
+              >
+                {#each field.options ?? [] as option}
+                  <option value={option.value}>{option.label}</option>
+                {/each}
+              </select>
+            {:else}
+              <div class="parameter-input-row">
+                <input
+                  type="number"
+                  step={field.step ?? 1}
+                  data-strategy-tester-parameter-input={field.id}
+                  value={parameterDraft[field.id] ?? field.value}
+                  on:input={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLInputElement).value)}
+                />
+                {#if field.suffixLabel}
+                  <span class="parameter-suffix">{field.suffixLabel}</span>
+                {/if}
+              </div>
+            {/if}
+          </label>
+        {/each}
+      </div>
     </section>
   {/if}
 
@@ -534,6 +616,7 @@
   .tab-chip,
   .metric-card,
   .run-metric,
+  .parameter-shell-card,
   .trade-detail-card,
   .summary-card,
   .equity-card,
@@ -615,6 +698,67 @@
   .run-metric strong {
     font-size: 0.95rem;
     color: #e2e8f0;
+  }
+
+  .parameter-shell-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 0.9rem;
+  }
+
+  .parameter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .parameter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
+  }
+
+  .parameter-field input,
+  .parameter-field select {
+    padding: 0.5rem 0.65rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.65rem;
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    font: inherit;
+  }
+
+  .parameter-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .parameter-input-row input {
+    flex: 1 1 auto;
+  }
+
+  .parameter-suffix {
+    color: #94a3b8;
+    font-size: 0.78rem;
+  }
+
+  .parameter-reset-button {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.7rem;
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .parameter-reset-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .trade-detail-card {

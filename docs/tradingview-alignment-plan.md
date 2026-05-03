@@ -937,6 +937,7 @@ Progress checklist:
 - [x] Selected trade detail and locate-trade affordance now reuse the existing workbench trade-intent seam instead of stopping at local row highlight
 - [x] Host-supplied run options now switch the visible strategy tester shell locally without introducing a run-execution callback
 - [x] Host-supplied parameter fields now expose a local draft/reset shell without introducing a rerun callback
+- [x] Host-supplied run actions now expose a draft-aware local action shell without introducing real rerun execution
 
 Acceptance:
 
@@ -977,6 +978,10 @@ Implementation note:
   local shell concern. The host supplies readonly parameter values per run, and
   the panel now supports draft edits plus reset state without pretending that
   `chartx2` owns rerun execution or strategy persistence.
+- `Strategy Tester Action Shell V7` adds host-supplied action buttons as a
+  local shell concern. Actions can now react to draft state and show local
+  banner feedback, while real rerun execution, compare queues, and persistence
+  remain deferred to the future host/runtime boundary.
 
 ### 3. Paper Trading And Broker Adapter
 

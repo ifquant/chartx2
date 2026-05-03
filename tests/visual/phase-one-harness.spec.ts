@@ -345,7 +345,7 @@ test("strategy tester panel tabs and trade selection drive shell state", async (
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await expect(panel).toHaveAttribute("data-strategy-tester-active-tab", "overview");
   await expect(panel.locator('[data-strategy-tester-section="summary"]')).toBeVisible();
   await expect(panel.locator('[data-strategy-tester-section="equity"]')).toBeVisible();
@@ -370,7 +370,7 @@ test("strategy tester filters narrow the visible trades and equity shell locally
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await panel.locator('[data-strategy-tester-tab="trades"]').click();
 
   await expect(panel.locator('[data-strategy-tester-trade-row="trade-1"]')).toBeVisible();
@@ -402,7 +402,7 @@ test("strategy tester surfaces fixture-backed run metadata through the panel con
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("ATR Length");
   await expect(panel.locator('[data-strategy-tester-run-metric="parameter-atr"]')).toContainText("14");
   await expect(panel.locator('[data-strategy-tester-run-metric="parameter-stop"]')).toContainText("Stop Multiplier");
@@ -414,7 +414,7 @@ test("strategy tester selected trade detail can drive the existing locate-trade 
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await expect(panel.locator('[data-strategy-tester-trade-detail="trade-2"]')).toBeVisible();
   await expect(panel.locator('[data-strategy-tester-trade-detail-field="pnl"]')).toContainText("+840");
 
@@ -435,7 +435,7 @@ test("strategy tester run options switch the visible run shell locally", async (
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await expect(panel.locator('[data-strategy-tester-run-option="run-17"]')).toHaveAttribute(
     "data-strategy-tester-run-option-active",
     "true",
@@ -462,7 +462,7 @@ test("strategy tester parameter shell tracks local draft state per run", async (
   const workbench = workbenchPanel(page);
   await workbench.locator('[data-bottom-tab="performance-link"]').click();
 
-  const panel = workbench.locator("[data-strategy-tester-panel]");
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
   const parameterShell = panel.locator("[data-strategy-tester-parameter-shell]");
 
   await expect(parameterShell).toHaveAttribute("data-strategy-tester-parameter-dirty", "false");
@@ -480,6 +480,34 @@ test("strategy tester parameter shell tracks local draft state per run", async (
   await expect(panel.locator('[data-strategy-tester-parameter-input="atr-length"]')).toHaveValue("21");
   await expect(panel.locator('[data-strategy-tester-parameter-input="session"]')).toHaveValue("eth");
   await expect(parameterShell).toHaveAttribute("data-strategy-tester-parameter-dirty", "false");
+});
+
+test("strategy tester action shell gates run actions behind the local parameter draft", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const panel = workbench.locator("[data-strategy-tester-panel]").first();
+  await expect(panel.locator('[data-strategy-tester-action="rerun"]')).toBeEnabled();
+  await expect(panel.locator('[data-strategy-tester-action="queue-compare"]')).toBeEnabled();
+  await expect(panel.locator('[data-strategy-tester-action="save-variant"]')).toBeEnabled();
+
+  await panel.locator('[data-strategy-tester-action="rerun"]').click();
+  await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Edit parameters before using rerun shell.");
+
+  await panel.locator('[data-strategy-tester-action="save-variant"]').click();
+  await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Saved a local tester shell variant for Run #17.");
+
+  await panel.locator('[data-strategy-tester-parameter-input="atr-length"]').fill("18");
+  await panel.locator('[data-strategy-tester-action="rerun"]').click();
+  await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Queued a rerun shell request for Run #17.");
+
+  await panel.locator('[data-strategy-tester-run-option="run-18"]').click();
+  await panel.locator('[data-strategy-tester-action="queue-compare"]').click();
+  await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Edit parameters before using queue compare.");
+  await panel.locator('[data-strategy-tester-parameter-input="atr-length"]').fill("24");
+  await panel.locator('[data-strategy-tester-action="queue-compare"]').click();
+  await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Queued a compare shell request for Run #18.");
 });
 
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({

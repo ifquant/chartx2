@@ -48,6 +48,15 @@ export interface StrategyTesterParameterField {
   options?: readonly StrategyTesterParameterFieldOption[];
 }
 
+export interface StrategyTesterAction {
+  id: string;
+  label: string;
+  tone?: "default" | "primary";
+  disabled?: boolean;
+  requiresDirtyDraft?: boolean;
+  resultLabel?: string;
+}
+
 export interface StrategyTesterRunOption {
   id: string;
   label: string;
@@ -55,6 +64,7 @@ export interface StrategyTesterRunOption {
   runLabel?: string;
   runMetrics?: readonly StrategyTesterRunMetric[];
   parameterFields?: readonly StrategyTesterParameterField[];
+  actions?: readonly StrategyTesterAction[];
   summaryMetrics: readonly StrategyTesterSummaryMetric[];
   filterOptions?: readonly StrategyTesterFilterOption[];
   activeFilterId?: string;

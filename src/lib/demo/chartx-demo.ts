@@ -950,6 +950,26 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
             ],
           },
         ],
+        actions: [
+          {
+            id: "rerun",
+            label: "Rerun shell",
+            tone: "primary",
+            requiresDirtyDraft: true,
+            resultLabel: "Queued a rerun shell request for Run #17.",
+          },
+          {
+            id: "queue-compare",
+            label: "Queue compare",
+            requiresDirtyDraft: true,
+            resultLabel: "Queued a compare shell request for Run #17.",
+          },
+          {
+            id: "save-variant",
+            label: "Save variant",
+            resultLabel: "Saved a local tester shell variant for Run #17.",
+          },
+        ],
         runMetrics: [
           { id: "parameter-atr", label: "ATR Length", valueLabel: "14" },
           { id: "parameter-stop", label: "Stop Multiplier", valueLabel: "1.8x" },
@@ -1104,6 +1124,26 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
               { value: "rth", label: "RTH" },
               { value: "eth", label: "ETH" },
             ],
+          },
+        ],
+        actions: [
+          {
+            id: "rerun",
+            label: "Rerun shell",
+            tone: "primary",
+            requiresDirtyDraft: true,
+            resultLabel: "Queued a rerun shell request for Run #18.",
+          },
+          {
+            id: "queue-compare",
+            label: "Queue compare",
+            requiresDirtyDraft: true,
+            resultLabel: "Queued a compare shell request for Run #18.",
+          },
+          {
+            id: "save-variant",
+            label: "Save variant",
+            resultLabel: "Saved a local tester shell variant for Run #18.",
           },
         ],
         runMetrics: [

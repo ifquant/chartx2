@@ -1,5 +1,6 @@
 <script lang="ts">
   import type {
+    StrategyTesterAction,
     StrategyTesterEquityPoint,
     StrategyTesterFilterOption,
     StrategyTesterParameterField,
@@ -72,6 +73,7 @@
   let activeFilterId = model.activeFilterId ?? model.filterOptions?.[0]?.id ?? "all";
   let selectedTradeId: string | null = null;
   let parameterDraft: Record<string, string> = {};
+  let actionBanner = "";
   let lastModelStateKey = "";
   let lastParameterDraftKey = "";
 
@@ -118,8 +120,23 @@
     };
   }
 
+  function parameterDraftValue(field: StrategyTesterParameterField): string {
+    return parameterDraft[field.id] ?? field.value;
+  }
+
   function resetParameterDraft(): void {
     parameterDraft = parameterDraftFromFields(effectiveParameterFields);
+  }
+
+  function runActionShell(action: StrategyTesterAction): void {
+    if (action.disabled) {
+      return;
+    }
+    if (action.requiresDirtyDraft && !parameterDraftDirty) {
+      actionBanner = `Edit parameters before using ${action.label.toLowerCase()}.`;
+      return;
+    }
+    actionBanner = action.resultLabel ?? `${action.label} requested.`;
   }
 
   function resolveVisibleTradeIds(filter: StrategyTesterFilterOption | null): Set<string> | null {
@@ -165,6 +182,7 @@
   $: effectiveRunLabel = effectiveRunOption?.runLabel ?? model.runLabel;
   $: effectiveRunMetrics = effectiveRunOption?.runMetrics ?? model.runMetrics ?? [];
   $: effectiveParameterFields = effectiveRunOption?.parameterFields ?? [];
+  $: effectiveActions = effectiveRunOption?.actions ?? [];
   $: effectiveSummaryMetrics = effectiveRunOption?.summaryMetrics ?? model.summaryMetrics;
   $: effectiveFilterOptions = effectiveRunOption?.filterOptions ?? model.filterOptions ?? [];
   $: effectiveTrades = effectiveRunOption?.trades ?? model.trades;
@@ -185,8 +203,10 @@
   $: if (lastParameterDraftKey !== nextParameterDraftKey) {
     lastParameterDraftKey = nextParameterDraftKey;
     parameterDraft = parameterDraftFromFields(effectiveParameterFields);
+    actionBanner = "";
   }
   $: parameterDraftDirty = effectiveParameterFields.some((field) => parameterDraft[field.id] !== field.value);
+  $: parameterRenderKey = `${activeRunOptionId}:${JSON.stringify(parameterDraft)}`;
   $: fallbackSelectedTradeId = visibleEquityCurve.find((point) => point.active && point.tradeId)?.tradeId ?? null;
   $: resolvedSelectedTradeId = selectedTradeId ?? fallbackSelectedTradeId;
   $: selectedTradeDetail =
@@ -327,36 +347,66 @@
         </button>
       </div>
       <div class="parameter-grid">
-        {#each effectiveParameterFields as field}
-          <label class="parameter-field" data-strategy-tester-parameter-field={field.id}>
-            <span>{field.label}</span>
-            {#if field.kind === "select"}
-              <select
-                data-strategy-tester-parameter-input={field.id}
-                value={parameterDraft[field.id] ?? field.value}
-                on:change={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLSelectElement).value)}
-              >
-                {#each field.options ?? [] as option}
-                  <option value={option.value}>{option.label}</option>
-                {/each}
-              </select>
-            {:else}
-              <div class="parameter-input-row">
-                <input
-                  type="number"
-                  step={field.step ?? 1}
+        {#key parameterRenderKey}
+          {#each effectiveParameterFields as field}
+            <label class="parameter-field" data-strategy-tester-parameter-field={field.id}>
+              <span>{field.label}</span>
+              {#if field.kind === "select"}
+                <select
                   data-strategy-tester-parameter-input={field.id}
-                  value={parameterDraft[field.id] ?? field.value}
-                  on:input={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLInputElement).value)}
-                />
-                {#if field.suffixLabel}
-                  <span class="parameter-suffix">{field.suffixLabel}</span>
-                {/if}
-              </div>
-            {/if}
-          </label>
+                  value={parameterDraftValue(field)}
+                  on:change={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLSelectElement).value)}
+                >
+                  {#each field.options ?? [] as option}
+                    <option value={option.value}>{option.label}</option>
+                  {/each}
+                </select>
+              {:else}
+                <div class="parameter-input-row">
+                  <input
+                    type="number"
+                    step={field.step ?? 1}
+                    data-strategy-tester-parameter-input={field.id}
+                    value={parameterDraftValue(field)}
+                    on:input={(event) => updateParameterDraft(field.id, (event.currentTarget as HTMLInputElement).value)}
+                  />
+                  {#if field.suffixLabel}
+                    <span class="parameter-suffix">{field.suffixLabel}</span>
+                  {/if}
+                </div>
+              {/if}
+            </label>
+          {/each}
+        {/key}
+      </div>
+    </section>
+  {/if}
+
+  {#if effectiveActions.length > 0}
+    <section class="action-shell-card" data-strategy-tester-action-shell>
+      <div class="section-header">
+        <div class="trade-detail-title-block">
+          <h3>Run Actions</h3>
+          <span class="section-detail">Local tester shell actions only</span>
+        </div>
+      </div>
+      <div class="action-shell-row">
+        {#each effectiveActions as action}
+          <button
+            type="button"
+            class:primary={action.tone === "primary"}
+            class="tester-action-button"
+            data-strategy-tester-action={action.id}
+            disabled={action.disabled ?? false}
+            on:click={() => runActionShell(action)}
+          >
+            {action.label}
+          </button>
         {/each}
       </div>
+      {#if actionBanner}
+        <p class="action-banner" data-strategy-tester-action-banner>{actionBanner}</p>
+      {/if}
     </section>
   {/if}
 
@@ -617,6 +667,7 @@
   .metric-card,
   .run-metric,
   .parameter-shell-card,
+  .action-shell-card,
   .trade-detail-card,
   .summary-card,
   .equity-card,
@@ -759,6 +810,44 @@
   .parameter-reset-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .action-shell-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 0.9rem;
+  }
+
+  .action-shell-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .tester-action-button {
+    padding: 0.55rem 0.8rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.7rem;
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .tester-action-button.primary {
+    border-color: rgba(96, 165, 250, 0.45);
+    background: rgba(30, 41, 59, 0.95);
+  }
+
+  .tester-action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .action-banner {
+    color: #94a3b8;
+    font-size: 0.82rem;
   }
 
   .trade-detail-card {

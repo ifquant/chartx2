@@ -2143,6 +2143,25 @@ export function mountWorkbenchDemo(
               noteLabel: "Saved before the current split-layout adjustments.",
             },
           ],
+    reviewEntries:
+      shareDialogLink === undefined
+        ? []
+        : [
+            {
+              id: "share-review-layout-import",
+              label: "Layout import review",
+              targetLabel: "alpha2 workstation shell",
+              statusLabel: "Pending approval",
+              noteLabel: "Verify the split-layout shell and active symbol mapping before import.",
+            },
+            {
+              id: "share-review-script-policy",
+              label: "Script trust review",
+              targetLabel: "script host adapter boundary",
+              statusLabel: "Host policy required",
+              noteLabel: "Script execution stays blocked until the host adapter accepts this artifact.",
+            },
+          ],
     secondaryActions:
       shareDialogLink === undefined
         ? []
@@ -2159,6 +2178,10 @@ export function mountWorkbenchDemo(
             {
               id: "share-dialog-history-preview",
               label: "Preview history",
+            },
+            {
+              id: "share-dialog-open-review-queue",
+              label: "Open import review",
             },
           ],
     publishLabel: shareDialogLink === undefined ? "Publish link" : "Republish link",
@@ -4769,6 +4792,14 @@ export function mountWorkbenchDemo(
             message: `History preview opened for ${buildShareArtifactTitle()}.`,
           });
           pushLog(log, `opened share history preview for ${buildShareArtifactId()}`);
+          publishSnapshot();
+          return;
+        case "share-dialog-open-review-queue":
+          showTransientStatusNotice({
+            tone: "warning",
+            message: `Import review queue opened for ${buildShareArtifactTitle()}.`,
+          });
+          pushLog(log, `opened share import review queue for ${buildShareArtifactId()}`);
           publishSnapshot();
           return;
         default:

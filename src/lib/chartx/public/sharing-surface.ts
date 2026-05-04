@@ -37,6 +37,14 @@ export interface ShareHistoryEntryModel {
   noteLabel?: string;
 }
 
+export interface ShareReviewEntryModel {
+  id: string;
+  label: string;
+  targetLabel: string;
+  statusLabel: string;
+  noteLabel?: string;
+}
+
 export interface ShareDialogModel {
   artifactType: ShareArtifactType;
   title: string;
@@ -45,6 +53,7 @@ export interface ShareDialogModel {
   artifactFields?: readonly ShareArtifactFieldModel[];
   link?: ShareLinkModel;
   historyEntries?: readonly ShareHistoryEntryModel[];
+  reviewEntries?: readonly ShareReviewEntryModel[];
   secondaryActions?: readonly ShareDialogActionModel[];
   publishLabel: string;
   state: ShareDialogStateModel;

@@ -1076,6 +1076,7 @@ Progress checklist:
 - [x] The share dialog now mounts as a dedicated toolbar-triggered shell surface
 - [x] Published artifacts now expose readonly metadata rows and secondary actions through the public share contract
 - [x] Published artifacts now expose a local version/history preview shell through the same share contract
+- [x] Published artifacts now expose a local import/review queue shell without requiring a backend queue
 - [x] Focused visual coverage asserts share publish, metadata surfacing, and local secondary actions without needing a backend
 
 Implementation note:
@@ -1100,6 +1101,11 @@ Implementation note:
   a local history-preview action. The shell can now show recent artifact
   lineage without introducing backend version storage, review queues, or
   marketplace ownership into `chartx2`.
+- `Share Import Review Queue V3` adds a typed review-entry list for host import
+  checks and script-policy gating. The queue is still fixture-backed and
+  readonly from `chartx2`'s perspective, but it gives `alpha2` and other hosts
+  a stable seam for import/review UI without forcing review services into the
+  chart package.
 
 ### 6. Multi-Device Productization
 

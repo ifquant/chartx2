@@ -326,6 +326,29 @@ test("share dialog: published artifacts surface version history previews", async
   );
 });
 
+test("share dialog: published artifacts surface an import review queue shell", async ({ page }) => {
+  await page.goto("/");
+  await featureTab(page, "Workbench").click();
+  const workbench = workbenchPanel(page);
+  await workbench.locator("[data-share-dialog-trigger]").click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  await dialog.locator("[data-share-dialog-publish]").click();
+
+  await expect(dialog.locator("[data-share-dialog-review-queue]")).toBeVisible();
+  await expect(dialog.locator('[data-share-dialog-review-entry="share-review-layout-import"]')).toContainText(
+    "Pending approval",
+  );
+  await expect(dialog.locator('[data-share-dialog-review-entry="share-review-script-policy"]')).toContainText(
+    "Host policy required",
+  );
+
+  await dialog.locator('[data-share-dialog-action="share-dialog-open-review-queue"]').click();
+  await expect(workbench.locator('[data-workbench-status="warning"]')).toContainText(
+    "Import review queue opened",
+  );
+});
+
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

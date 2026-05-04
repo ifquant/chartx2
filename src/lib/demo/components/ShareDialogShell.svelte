@@ -130,6 +130,28 @@
           </div>
         </div>
       {/if}
+
+      {#if (model.reviewEntries?.length ?? 0) > 0}
+        <div class="share-dialog-review-queue" data-share-dialog-review-queue>
+          <span class="share-dialog-label">Import review</span>
+          <div class="share-dialog-review-list">
+            {#each model.reviewEntries ?? [] as entry}
+              <article data-share-dialog-review-entry={entry.id}>
+                <div class="share-dialog-history-head">
+                  <strong>{entry.label}</strong>
+                  <span>{entry.statusLabel}</span>
+                </div>
+                <div class="share-dialog-history-meta">
+                  <small>{entry.targetLabel}</small>
+                </div>
+                {#if entry.noteLabel}
+                  <p>{entry.noteLabel}</p>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <footer class="share-dialog-actions">
@@ -229,7 +251,21 @@
     gap: 0.55rem;
   }
 
+  .share-dialog-review-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
   .share-dialog-history-list article {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.85rem;
+    background: rgba(248, 250, 252, 0.9);
+  }
+
+  .share-dialog-review-list article {
     display: grid;
     gap: 0.25rem;
     padding: 0.75rem 0.85rem;

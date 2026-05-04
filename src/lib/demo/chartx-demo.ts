@@ -2099,6 +2099,19 @@ export function mountWorkbenchDemo(
     descriptionLabel:
       "Fixture-backed V0 shell. The host adapter owns real publish, permissions, and review flows.",
     visibility: shareDialogVisibility,
+    summaryCard:
+      shareDialogLink === undefined
+        ? undefined
+        : {
+            title: buildShareArtifactTitle(),
+            artifactType: "layout",
+            visibility: shareDialogVisibility,
+            statusLabel: shareDialogState.statusLabel ?? "Shared artifact ready",
+            href: shareDialogLink.href,
+            versionLabel: "Version 3",
+            reviewLabel: "2 review checks",
+            permissionLabel: "2 permission rows",
+          },
     artifactFields: [
       {
         id: "symbol",

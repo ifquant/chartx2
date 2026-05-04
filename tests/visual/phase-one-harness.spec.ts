@@ -372,6 +372,27 @@ test("share dialog: published artifacts surface readonly permission status rows"
   );
 });
 
+test("share dialog: published artifacts project into a reusable summary card shell", async ({ page }) => {
+  await page.goto("/");
+  await featureTab(page, "Workbench").click();
+  const workbench = workbenchPanel(page);
+  await workbench.locator("[data-share-dialog-trigger]").click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  await dialog.locator("[data-share-dialog-publish]").click();
+  await dialog.locator(".share-dialog-close").click();
+
+  const summary = workbench.locator("[data-share-summary-card]");
+  await expect(summary).toBeVisible();
+  await expect(summary.locator("[data-share-summary-status]")).toContainText("fixture link ready");
+  await expect(summary.locator("[data-share-summary-version]")).toContainText("Version 3");
+  await expect(summary.locator("[data-share-summary-review]")).toContainText("2 review checks");
+  await expect(summary.locator("[data-share-summary-permission]")).toContainText("2 permission rows");
+
+  await summary.locator("[data-share-summary-open-shell]").click();
+  await expect(workbench.locator("[data-share-dialog]")).toBeVisible();
+});
+
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

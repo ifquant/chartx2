@@ -1078,6 +1078,7 @@ Progress checklist:
 - [x] Published artifacts now expose a local version/history preview shell through the same share contract
 - [x] Published artifacts now expose a local import/review queue shell without requiring a backend queue
 - [x] Published artifacts now expose readonly permission/status rows without requiring a host policy engine
+- [x] Published artifacts now project into a reusable summary/card shell outside the dialog itself
 - [x] Focused visual coverage asserts share publish, metadata surfacing, and local secondary actions without needing a backend
 
 Implementation note:
@@ -1111,6 +1112,10 @@ Implementation note:
   importer boundaries. This keeps trust and host-policy semantics visible in
   the share shell while still leaving actual enforcement and approval state to
   the embedding host.
+- `Share Summary Card V5` splits the published artifact summary out of the
+  dialog and into a reusable card shell. This lets host modules embed share
+  status, link, version, review, and permission counts without depending on
+  dialog-specific interaction state.
 
 ### 6. Multi-Device Productization
 

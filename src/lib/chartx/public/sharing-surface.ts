@@ -53,11 +53,23 @@ export interface SharePermissionEntryModel {
   noteLabel?: string;
 }
 
+export interface ShareArtifactSummaryModel {
+  title: string;
+  artifactType: ShareArtifactType;
+  visibility: ShareVisibility;
+  statusLabel: string;
+  href?: string;
+  versionLabel?: string;
+  reviewLabel?: string;
+  permissionLabel?: string;
+}
+
 export interface ShareDialogModel {
   artifactType: ShareArtifactType;
   title: string;
   descriptionLabel?: string;
   visibility: ShareVisibility;
+  summaryCard?: ShareArtifactSummaryModel;
   artifactFields?: readonly ShareArtifactFieldModel[];
   link?: ShareLinkModel;
   historyEntries?: readonly ShareHistoryEntryModel[];

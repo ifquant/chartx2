@@ -1081,6 +1081,9 @@ Implementation note:
 - The public `chartx` barrel now re-exports the host-facing sharing, strategy,
   trading, and sync contracts, so downstream modules can consume the new shell
   surfaces without importing deep file paths.
+- The public barrel now also re-exports the host-facing Svelte shell
+  components, so downstream modules can mount the reusable cards, dialogs, and
+  summary docks without importing `demo/components` paths directly.
 
 ### 5. Publishing, Sharing, And Marketplace
 

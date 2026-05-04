@@ -1,6 +1,7 @@
 export * from "./market";
 export * from "./performance";
 export * from "./account-sync-surface";
+export * from "./host-shell-components";
 export * from "./sharing-surface";
 export * from "./strategy-tester";
 export * from "./trading-surface";

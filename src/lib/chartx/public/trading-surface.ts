@@ -17,9 +17,20 @@ export interface TradingTicketStateModel {
   submitEnabled: boolean;
 }
 
+export interface TradingTicketSummaryShellModel {
+  title: string;
+  symbol: string;
+  statusLabel: string;
+  side: TradingTicketSide;
+  orderType: TradingTicketOrderType;
+  quantityLabel?: string;
+  accountLabel?: string;
+}
+
 export interface TradingTicketModel {
   title: string;
   symbol: string;
+  summaryShell?: TradingTicketSummaryShellModel;
   side: TradingTicketSide;
   orderType: TradingTicketOrderType;
   quantity: TradingTicketFieldModel;

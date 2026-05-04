@@ -34,6 +34,7 @@
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
+  import TradingTicketSummaryCard from "$lib/demo/components/TradingTicketSummaryCard.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
   import ShareArtifactSummaryCard from "$lib/demo/components/ShareArtifactSummaryCard.svelte";
   import StrategyTesterSummaryCard from "$lib/demo/components/StrategyTesterSummaryCard.svelte";
@@ -1555,13 +1556,25 @@
       </div>
 
       <div class="workbench-footer">
-        {#if snapshot.strategyTesterSummary}
-          <StrategyTesterSummaryCard
-            model={snapshot.strategyTesterSummary}
-            onOpenPanel={() => {
-              void handleSetBottomTab("performance-link");
-            }}
-          />
+        {#if snapshot.strategyTesterSummary || snapshot.tradingTicketSummary}
+          <div class="workbench-summary-strip">
+            {#if snapshot.strategyTesterSummary}
+              <StrategyTesterSummaryCard
+                model={snapshot.strategyTesterSummary}
+                onOpenPanel={() => {
+                  void handleSetBottomTab("performance-link");
+                }}
+              />
+            {/if}
+            {#if snapshot.tradingTicketSummary}
+              <TradingTicketSummaryCard
+                model={snapshot.tradingTicketSummary}
+                onOpenPanel={() => {
+                  void handleSetBottomTab("custom");
+                }}
+              />
+            {/if}
+          </div>
         {/if}
         <div class="bottom-tab-strip" data-workbench-bottom-tabs>
           {#each workbench?.bottomPanel.tabs ?? [] as tab}
@@ -3689,6 +3702,12 @@
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
+  }
+
+  .workbench-summary-strip {
+    display: grid;
+    gap: 8px;
+    padding: 8px 10px 10px;
   }
 
   .bottom-panel-body {

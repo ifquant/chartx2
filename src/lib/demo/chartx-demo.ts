@@ -80,7 +80,10 @@ import {
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
-import type { TradingTicketModel } from "$lib/chartx/public/trading-surface";
+import type {
+  TradingTicketModel,
+  TradingTicketSummaryShellModel,
+} from "$lib/chartx/public/trading-surface";
 import type {
   StrategyTesterPanelModel,
   StrategyTesterSummaryShellModel,
@@ -209,6 +212,7 @@ export type DemoSnapshot = {
   strategyTester?: StrategyTesterPanelModel | null;
   strategyTesterSummary?: StrategyTesterSummaryShellModel | null;
   tradingTicket?: TradingTicketModel | null;
+  tradingTicketSummary?: TradingTicketSummaryShellModel | null;
   replay?: DemoReplayState;
   note?: string;
   featureGap?: string;
@@ -1466,6 +1470,15 @@ function createDemoTradingTicketModel(
     return {
       title: "Bracket Entry",
       symbol,
+      summaryShell: {
+        title: "Bracket Entry",
+        symbol,
+        statusLabel: "Submitting through host adapter",
+        side: "buy",
+        orderType: "limit",
+        quantityLabel: "2 contracts",
+        accountLabel: "SIM-TRADER 01",
+      },
       side: "buy",
       orderType: "limit",
       quantity: {
@@ -1495,6 +1508,15 @@ function createDemoTradingTicketModel(
     return {
       title: "Breakout Entry",
       symbol,
+      summaryShell: {
+        title: "Breakout Entry",
+        symbol,
+        statusLabel: "Host adapter rejected ticket",
+        side: "sell",
+        orderType: "stop",
+        quantityLabel: "1 contract",
+        accountLabel: "SIM-TRADER 01",
+      },
       side: "sell",
       orderType: "stop",
       quantity: {
@@ -1521,6 +1543,15 @@ function createDemoTradingTicketModel(
   return {
     title: "Bracket Entry",
     symbol,
+    summaryShell: {
+      title: "Bracket Entry",
+      symbol,
+      statusLabel: "Fixture-backed trading ticket shell ready for host embedding.",
+      side: "buy",
+      orderType: "limit",
+      quantityLabel: "2 contracts",
+      accountLabel: "SIM-TRADER 01",
+    },
     side: "buy",
     orderType: "limit",
     quantity: {
@@ -3266,6 +3297,11 @@ export function mountWorkbenchDemo(
       activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "custom"
         ? createDemoTradingTicketModel(activeSymbol, options.tradingTicketFixtureMode ?? "ready")
         : null;
+    const tradingTicketSummary =
+      activeDocument.viewId === "trade"
+        ? createDemoTradingTicketModel(activeSymbol, options.tradingTicketFixtureMode ?? "ready")
+            .summaryShell ?? null
+        : null;
     const effectiveStatusNotice =
       statusNotice ??
       (options.persistenceProvider === undefined
@@ -3319,6 +3355,7 @@ export function mountWorkbenchDemo(
       strategyTester,
       strategyTesterSummary,
       tradingTicket,
+      tradingTicketSummary,
       replay: replayState,
       metrics: [
         { label: "Theme", value: theme === "warm" ? "Warm terminal" : "Ink terminal" },

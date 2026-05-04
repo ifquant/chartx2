@@ -1009,6 +1009,7 @@ Progress checklist:
 - [x] Public host-facing trading, sync, and sharing surface contracts now exist
 - [x] The workbench demo mounts a fixture-backed trading ticket shell through the existing trade bottom-panel seam
 - [x] Focused visual coverage asserts the ticket shell without relying on a broker backend
+- [x] Trading ticket now projects a reusable summary shell outside the panel body for host embedding
 
 Acceptance:
 
@@ -1022,6 +1023,10 @@ Implementation note:
   ships a reusable ticket contract and a fixture-backed panel path in the
   workbench shell, while order validation, broker routing, and execution
   confirmation remain deferred to host adapters and the future Rust core.
+- `Trading Ticket Summary Shell V1` projects a readonly summary card out of the
+  bottom-panel body and into the workbench shell. Hosts can now embed a compact
+  ticket surface using the same public contract without depending on the full
+  bottom-panel interaction state.
 
 ### 4. Cloud, Sync, And Account Boundary
 

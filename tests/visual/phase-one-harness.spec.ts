@@ -671,6 +671,32 @@ test("trading ticket panel renders fixture-backed trade shell through the bottom
   await expect(workbench.locator("[data-trading-ticket-submit]")).toContainText("Review order");
 });
 
+test("trading ticket projects into a reusable summary shell outside the panel body", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="custom"]').click();
+
+  const summary = workbench.locator("[data-trading-ticket-summary-card]");
+  await expect(summary).toBeVisible();
+  await expect(summary.locator("[data-trading-ticket-summary-symbol]")).toContainText("NDX");
+  await expect(summary.locator("[data-trading-ticket-summary-status]")).toContainText(
+    "Fixture-backed trading ticket shell ready for host embedding.",
+  );
+  await expect(summary.locator("[data-trading-ticket-summary-order-type]")).toContainText("limit");
+  await expect(summary.locator("[data-trading-ticket-summary-quantity]")).toContainText("2 contracts");
+
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await summary.locator("[data-trading-ticket-summary-open]").click();
+  await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+});
+
 test("account sync sidebar card renders as a separate shell and refreshes through the fixture adapter", async ({
   page,
 }) => {

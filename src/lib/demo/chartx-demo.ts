@@ -81,7 +81,10 @@ import {
   type WorkbenchScriptNumericInputValueMap,
 } from "$lib/chartx/public/workbench-scripts";
 import type { TradingTicketModel } from "$lib/chartx/public/trading-surface";
-import type { StrategyTesterPanelModel } from "$lib/chartx/public/strategy-tester";
+import type {
+  StrategyTesterPanelModel,
+  StrategyTesterSummaryShellModel,
+} from "$lib/chartx/public/strategy-tester";
 import type {
   AccountSyncRefreshResult,
   AccountSyncSurfaceHostAdapter,
@@ -204,6 +207,7 @@ export type DemoSnapshot = {
   customScripts?: readonly DemoCustomScriptLibraryEntry[];
   scriptExecution?: WorkbenchScriptExecutionStatusModel;
   strategyTester?: StrategyTesterPanelModel | null;
+  strategyTesterSummary?: StrategyTesterSummaryShellModel | null;
   tradingTicket?: TradingTicketModel | null;
   replay?: DemoReplayState;
   note?: string;
@@ -923,6 +927,34 @@ function createDemoStrategyTesterModel(symbol: string, timeframe: string): Strat
   return {
     title: `${symbol} Breakout Range`,
     runLabel: `${symbol} · ${timeframe} · Fixture run #17`,
+    summaryShell: {
+      title: `${symbol} Breakout Range`,
+      runLabel: `${symbol} · ${timeframe} · Fixture run #17`,
+      statusLabel: "Fixture-backed strategy tester shell ready for host embedding.",
+      highlights: [
+        {
+          id: "net-profit",
+          label: "Net Profit",
+          valueLabel: "+12,340",
+          detailLabel: "+8.7% vs baseline",
+          tone: "positive",
+        },
+        {
+          id: "win-rate",
+          label: "Win Rate",
+          valueLabel: "54%",
+          detailLabel: "21 / 39 closed trades",
+          tone: "neutral",
+        },
+        {
+          id: "profit-factor",
+          label: "Profit Factor",
+          valueLabel: "1.68",
+          detailLabel: "Gross P/L fixture",
+          tone: "positive",
+        },
+      ],
+    },
     runMetrics: [
       { id: "parameter-atr", label: "ATR Length", valueLabel: "14" },
       { id: "parameter-stop", label: "Stop Multiplier", valueLabel: "1.8x" },
@@ -3226,6 +3258,10 @@ export function mountWorkbenchDemo(
       activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "performance-link"
         ? createDemoStrategyTesterModel(activeSymbol, activeTimeframe)
         : null;
+    const strategyTesterSummary =
+      activeDocument.viewId === "trade"
+        ? createDemoStrategyTesterModel(activeSymbol, activeTimeframe).summaryShell ?? null
+        : null;
     const tradingTicket =
       activeDocument.viewId === "trade" && workspaceFocus.bottomTab === "custom"
         ? createDemoTradingTicketModel(activeSymbol, options.tradingTicketFixtureMode ?? "ready")
@@ -3281,6 +3317,7 @@ export function mountWorkbenchDemo(
       customScripts: summarizeCustomScripts(),
       scriptExecution: scriptExecutionStatus,
       strategyTester,
+      strategyTesterSummary,
       tradingTicket,
       replay: replayState,
       metrics: [

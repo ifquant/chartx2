@@ -938,6 +938,7 @@ Progress checklist:
 - [x] Host-supplied run options now switch the visible strategy tester shell locally without introducing a run-execution callback
 - [x] Host-supplied parameter fields now expose a local draft/reset shell without introducing a rerun callback
 - [x] Host-supplied run actions now expose a draft-aware local action shell without introducing real rerun execution
+- [x] Strategy tester now projects a reusable summary shell outside the panel body for host embedding
 
 Acceptance:
 
@@ -947,6 +948,11 @@ Acceptance:
 - The resulting components are reusable by `alpha2`.
 
 Implementation note:
+
+- `Strategy Tester Summary Shell V8` projects a readonly summary card out of
+  the bottom-panel body and into the workbench shell. Hosts can now embed a
+  compact tester surface using the same public contract without depending on
+  the full panel interaction state.
 
 - `Strategy Tester Shell V0` keeps the boundary narrow: `chartx2` now ships the
   public panel contract and a fixture-backed workbench shell path, while real

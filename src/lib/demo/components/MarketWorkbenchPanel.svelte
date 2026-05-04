@@ -36,6 +36,7 @@
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
   import ShareArtifactSummaryCard from "$lib/demo/components/ShareArtifactSummaryCard.svelte";
+  import StrategyTesterSummaryCard from "$lib/demo/components/StrategyTesterSummaryCard.svelte";
   import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 
   export let chartTypeActions: readonly DemoAction[] = [];
@@ -1554,6 +1555,14 @@
       </div>
 
       <div class="workbench-footer">
+        {#if snapshot.strategyTesterSummary}
+          <StrategyTesterSummaryCard
+            model={snapshot.strategyTesterSummary}
+            onOpenPanel={() => {
+              void handleSetBottomTab("performance-link");
+            }}
+          />
+        {/if}
         <div class="bottom-tab-strip" data-workbench-bottom-tabs>
           {#each workbench?.bottomPanel.tabs ?? [] as tab}
             <button
@@ -3676,7 +3685,7 @@
 
   .workbench-footer {
     display: grid;
-    grid-template-rows: 28px 28px auto var(--action-strip-height, 40px) auto;
+    grid-template-rows: auto 28px 28px auto var(--action-strip-height, 40px) auto;
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);

@@ -12,6 +12,13 @@ export interface StrategyTesterSummaryMetric {
   tone?: "positive" | "negative" | "neutral";
 }
 
+export interface StrategyTesterSummaryShellModel {
+  title: string;
+  runLabel?: string;
+  statusLabel: string;
+  highlights: readonly StrategyTesterSummaryMetric[];
+}
+
 export interface StrategyTesterTabModel {
   id: StrategyTesterTabId;
   label: string;
@@ -125,6 +132,7 @@ export interface StrategyTesterPanelStateModel {
 export interface StrategyTesterPanelModel {
   title: string;
   runLabel?: string;
+  summaryShell?: StrategyTesterSummaryShellModel;
   runMetrics?: readonly StrategyTesterRunMetric[];
   runOptions?: readonly StrategyTesterRunOption[];
   activeRunOptionId?: string;

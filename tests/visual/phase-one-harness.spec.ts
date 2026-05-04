@@ -624,6 +624,33 @@ test("strategy tester action shell gates run actions behind the local parameter 
   await expect(panel.locator("[data-strategy-tester-action-banner]")).toContainText("Queued a compare shell request for Run #18.");
 });
 
+test("strategy tester projects into a reusable summary shell outside the panel body", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+
+  const summary = workbench.locator("[data-strategy-tester-summary-card]");
+  await expect(summary).toBeVisible();
+  await expect(summary.locator("[data-strategy-tester-summary-run]")).toContainText("Fixture run #17");
+  await expect(summary.locator('[data-strategy-tester-summary-metric="net-profit"]')).toContainText(
+    "+12,340",
+  );
+  await expect(summary.locator('[data-strategy-tester-summary-metric="profit-factor"]')).toContainText(
+    "1.68",
+  );
+
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+  await summary.locator("[data-strategy-tester-summary-open]").click();
+  await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
+    "data-bottom-tab-active",
+    "true",
+  );
+});
+
 test("trading ticket panel renders fixture-backed trade shell through the bottom-panel seam", async ({
   page,
 }) => {

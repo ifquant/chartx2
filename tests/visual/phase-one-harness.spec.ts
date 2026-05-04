@@ -728,6 +728,36 @@ test("account sync sidebar card renders as a separate shell and refreshes throug
   );
 });
 
+test("account sync projects into a reusable summary shell outside the sidebar card", async ({ page }) => {
+  await page.goto("/");
+
+  const workbench = workbenchPanel(page);
+  const summary = workbench.locator("[data-account-sync-summary-card]");
+
+  await expect(summary).toBeVisible();
+  await expect(summary.locator("[data-account-sync-summary-status]")).toContainText(
+    "Host sync reachable",
+  );
+  await expect(summary.locator("[data-account-sync-summary-target='0']")).toContainText(
+    "Layouts",
+  );
+  await expect(summary.locator("[data-account-sync-summary-target='1']")).toContainText(
+    "Alerts",
+  );
+  await expect(summary.locator("[data-account-sync-summary-target='2']")).toContainText(
+    "Watchlists",
+  );
+
+  await summary.locator("[data-account-sync-summary-refresh]").click();
+  await expect(summary.locator("[data-account-sync-summary-status]")).toContainText(
+    "Refreshing host sync status",
+  );
+  await expect(summary.locator("[data-account-sync-summary-refresh]")).toBeDisabled();
+  await expect(summary.locator("[data-account-sync-summary-status]")).toContainText(
+    "Host sync reachable",
+  );
+});
+
 test("workspace tabs: create and close document tabs in the shell", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

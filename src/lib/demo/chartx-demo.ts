@@ -1592,11 +1592,30 @@ function createDemoAccountSyncSurfaceModel(input?: {
   const accountLabel = input?.accountLabel ?? "SIM-TRADER 01";
   const refreshedAtLabel = input?.refreshedAtLabel ?? "Synced 09:42 CST";
   const failure = input?.failure ?? null;
+  const summaryShell = (
+    statusLabel: string,
+    targets: readonly string[],
+    actionEnabled: boolean,
+    actionLabel?: string,
+  ) => ({
+    providerLabel,
+    accountLabel,
+    statusLabel,
+    targetSummaries: targets,
+    actionEnabled,
+    actionLabel,
+  });
 
   if (input?.loading) {
     return {
       providerLabel,
       accountLabel,
+      summaryShell: summaryShell(
+        "Refreshing host sync status",
+        ["Layouts · checking", "Alerts · checking", "Watchlists · checking"],
+        false,
+        "Refreshing...",
+      ),
       state: {
         status: "loading",
         statusLabel: "Refreshing host sync status",
@@ -1633,6 +1652,12 @@ function createDemoAccountSyncSurfaceModel(input?: {
     return {
       providerLabel,
       accountLabel,
+      summaryShell: summaryShell(
+        "Host sync unavailable",
+        ["Layouts · current", "Alerts · failed", "Watchlists · ready"],
+        true,
+        "Retry sync",
+      ),
       state: {
         status: "error",
         statusLabel: "Host sync unavailable",
@@ -1672,6 +1697,12 @@ function createDemoAccountSyncSurfaceModel(input?: {
   return {
     providerLabel,
     accountLabel,
+    summaryShell: summaryShell(
+      "Host sync reachable",
+      ["Layouts · current", "Alerts · current", "Watchlists · ready"],
+      true,
+      "Refresh status",
+    ),
     state: {
       status: "ready",
       statusLabel: "Host sync reachable",

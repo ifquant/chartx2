@@ -29,6 +29,7 @@
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
   import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
+  import AccountSyncSummaryCard from "$lib/demo/components/AccountSyncSummaryCard.svelte";
   import ActivityLogPanel from "$lib/demo/components/ActivityLogPanel.svelte";
   import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
@@ -1556,19 +1557,25 @@
       </div>
 
       <div class="workbench-footer">
-        {#if snapshot.strategyTesterSummary || snapshot.tradingTicketSummary}
+        {#if snapshot.strategyTesterSummary || snapshot.accountSync?.summaryShell || snapshot.tradingTicketSummary}
           <div class="workbench-summary-strip">
-            {#if snapshot.strategyTesterSummary}
-              <StrategyTesterSummaryCard
-                model={snapshot.strategyTesterSummary}
-                onOpenPanel={() => {
-                  void handleSetBottomTab("performance-link");
-                }}
-              />
-            {/if}
-            {#if snapshot.tradingTicketSummary}
-              <TradingTicketSummaryCard
-                model={snapshot.tradingTicketSummary}
+        {#if snapshot.strategyTesterSummary}
+          <StrategyTesterSummaryCard
+            model={snapshot.strategyTesterSummary}
+            onOpenPanel={() => {
+              void handleSetBottomTab("performance-link");
+            }}
+          />
+        {/if}
+        {#if snapshot.accountSync?.summaryShell}
+          <AccountSyncSummaryCard
+            model={snapshot.accountSync.summaryShell}
+            onRefresh={() => onRunAction("account-sync-refresh")}
+          />
+        {/if}
+        {#if snapshot.tradingTicketSummary}
+          <TradingTicketSummaryCard
+            model={snapshot.tradingTicketSummary}
                 onOpenPanel={() => {
                   void handleSetBottomTab("custom");
                 }}

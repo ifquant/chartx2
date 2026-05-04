@@ -18,9 +18,19 @@ export interface AccountSyncStateModel {
   errorLabel?: string;
 }
 
+export interface AccountSyncSummaryShellModel {
+  providerLabel: string;
+  accountLabel?: string;
+  statusLabel: string;
+  targetSummaries: readonly string[];
+  actionLabel?: string;
+  actionEnabled?: boolean;
+}
+
 export interface AccountSyncSurfaceModel {
   providerLabel: string;
   accountLabel?: string;
+  summaryShell?: AccountSyncSummaryShellModel;
   state: AccountSyncStateModel;
   targets: readonly AccountSyncTargetModel[];
   actionLabel?: string;

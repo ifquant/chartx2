@@ -1053,6 +1053,7 @@ Progress checklist:
 
 - [x] The workbench sidebar now mounts a fixture-backed account sync status card as its own host-oriented shell surface
 - [x] Refresh status uses the shell notice path only for transient outcomes instead of reusing adapter status as the primary sync UI
+- [x] Account sync now projects a reusable summary shell outside the sidebar card for host embedding
 - [x] Focused visual coverage asserts the separate sync card and refresh selector path
 
 Implementation note:
@@ -1061,6 +1062,10 @@ Implementation note:
   dedicated account sync status card in the workbench sidebar, while provider
   auth, real cloud persistence, and conflict handling remain deferred to the
   external host-owned sync boundary.
+- `Account Sync Summary Shell V1` projects a readonly sync summary card out of
+  the sidebar card and into the workbench shell. Hosts can now embed a compact
+  sync surface using the same public contract without depending on the full
+  sidebar card layout.
 
 ### 5. Publishing, Sharing, And Marketplace
 

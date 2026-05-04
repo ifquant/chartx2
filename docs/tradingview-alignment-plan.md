@@ -1066,6 +1066,9 @@ Implementation note:
   the sidebar card and into the workbench shell. Hosts can now embed a compact
   sync surface using the same public contract without depending on the full
   sidebar card layout.
+- The share, strategy, trading, and sync summary shells now share a common
+  host-surface card chrome so `alpha2` can embed them through one consistent
+  summary-shell pattern instead of four unrelated card layouts.
 
 ### 5. Publishing, Sharing, And Marketplace
 

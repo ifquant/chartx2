@@ -1078,6 +1078,9 @@ Implementation note:
 - The share summary card and footer summary strip now also compose through one
   reusable host-surface dock, so hosts can mount the common workbench summary
   deck without reassembling share and runtime summaries by hand.
+- The public `chartx` barrel now re-exports the host-facing sharing, strategy,
+  trading, and sync contracts, so downstream modules can consume the new shell
+  surfaces without importing deep file paths.
 
 ### 5. Publishing, Sharing, And Marketplace
 

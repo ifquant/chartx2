@@ -61,6 +61,19 @@ import {
 } from "$lib/chartx/public";
 ```
 
+There is also a checked-in minimal example component at:
+
+- [Alpha2HostIntegrationExample.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/Alpha2HostIntegrationExample.svelte)
+
+That file is intended to be copied or adapted by a host that wants the smallest
+working composition of:
+
+- share shell
+- strategy tester shell
+- trading ticket shell
+- account sync shell
+- summary dock
+
 Do not import:
 
 - `src/lib/demo/components/...`
@@ -165,6 +178,9 @@ Example:
   }}
 />
 ```
+
+If you want a fuller copyable baseline instead of the inline snippet above, use
+`Alpha2HostIntegrationExample.svelte` as the concrete reference.
 
 ## Summary Registry Rule
 

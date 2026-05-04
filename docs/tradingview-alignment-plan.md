@@ -1088,6 +1088,9 @@ Implementation note:
   the intended `alpha2` boundary: public contracts and reusable host shells
   come from `chartx2`, while backend wiring and action execution stay
   host-owned.
+- The public UI layer now also carries a checked-in minimal host embedding
+  example, so downstream modules can start from a real compiled composition
+  instead of translating documentation prose into their own first draft.
 
 ### 5. Publishing, Sharing, And Marketplace
 

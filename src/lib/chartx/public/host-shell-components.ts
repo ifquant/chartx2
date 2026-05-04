@@ -1,3 +1,4 @@
+export { default as Alpha2HostIntegrationExample } from "./Alpha2HostIntegrationExample.svelte";
 export { default as AccountSyncStatusCard } from "../../demo/components/AccountSyncStatusCard.svelte";
 export { default as AccountSyncSummaryCard } from "../../demo/components/AccountSyncSummaryCard.svelte";
 export { default as HostSurfaceSummaryCard } from "../../demo/components/HostSurfaceSummaryCard.svelte";

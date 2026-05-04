@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { AccountSyncSummaryShellModel } from "$lib/chartx/public/account-sync-surface";
-  import type { ShareArtifactSummaryModel } from "$lib/chartx/public/sharing-surface";
-  import type { StrategyTesterSummaryShellModel } from "$lib/chartx/public/strategy-tester";
-  import type { TradingTicketSummaryShellModel } from "$lib/chartx/public/trading-surface";
-  import type { WorkbenchHostSummarySurfaceModel } from "$lib/chartx/public/workbench";
-  import ShareArtifactSummaryCard from "$lib/demo/components/ShareArtifactSummaryCard.svelte";
-  import WorkbenchHostSummaryStrip from "$lib/demo/components/WorkbenchHostSummaryStrip.svelte";
+  import type { AccountSyncSummaryShellModel } from "../../chartx/public/account-sync-surface";
+  import type { ShareArtifactSummaryModel } from "../../chartx/public/sharing-surface";
+  import type { StrategyTesterSummaryShellModel } from "../../chartx/public/strategy-tester";
+  import type { TradingTicketSummaryShellModel } from "../../chartx/public/trading-surface";
+  import type { WorkbenchHostSummarySurfaceModel } from "../../chartx/public/workbench";
+  import ShareArtifactSummaryCard from "./ShareArtifactSummaryCard.svelte";
+  import WorkbenchHostSummaryStrip from "./WorkbenchHostSummaryStrip.svelte";
 
   export let shareSummary: ShareArtifactSummaryModel | null = null;
   export let hostSummarySurfaces: readonly WorkbenchHostSummarySurfaceModel[] = [];

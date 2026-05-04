@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { TradingTicketSummaryShellModel } from "$lib/chartx/public/trading-surface";
-  import HostSurfaceSummaryCard from "$lib/demo/components/HostSurfaceSummaryCard.svelte";
+  import type { TradingTicketSummaryShellModel } from "../../chartx/public/trading-surface";
+  import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: TradingTicketSummaryShellModel | null = null;
   export let onOpenPanel: () => void;

@@ -52,6 +52,8 @@ Reason:
 Reason:
 
 - these now export through the public barrel
+- the host-facing component graph no longer depends on chartx2-only `$lib/...`
+  import paths for its own internal wiring
 - they compile through the repo's normal `svelte-check` and `build` flow
 - they represent the current intentional host-facing UI layer
 

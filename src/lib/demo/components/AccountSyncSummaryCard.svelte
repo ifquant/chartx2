@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { AccountSyncSummaryShellModel } from "$lib/chartx/public/account-sync-surface";
-  import HostSurfaceSummaryCard from "$lib/demo/components/HostSurfaceSummaryCard.svelte";
+  import type { AccountSyncSummaryShellModel } from "../../chartx/public/account-sync-surface";
+  import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: AccountSyncSummaryShellModel | null = null;
   export let onRefresh: () => void = () => {};

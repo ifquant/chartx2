@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { AccountSyncSummaryShellModel } from "$lib/chartx/public/account-sync-surface";
-  import type { StrategyTesterSummaryShellModel } from "$lib/chartx/public/strategy-tester";
-  import type { TradingTicketSummaryShellModel } from "$lib/chartx/public/trading-surface";
-  import type { WorkbenchHostSummarySurfaceModel } from "$lib/chartx/public/workbench";
-  import AccountSyncSummaryCard from "$lib/demo/components/AccountSyncSummaryCard.svelte";
-  import StrategyTesterSummaryCard from "$lib/demo/components/StrategyTesterSummaryCard.svelte";
-  import TradingTicketSummaryCard from "$lib/demo/components/TradingTicketSummaryCard.svelte";
+  import type { AccountSyncSummaryShellModel } from "../../chartx/public/account-sync-surface";
+  import type { StrategyTesterSummaryShellModel } from "../../chartx/public/strategy-tester";
+  import type { TradingTicketSummaryShellModel } from "../../chartx/public/trading-surface";
+  import type { WorkbenchHostSummarySurfaceModel } from "../../chartx/public/workbench";
+  import AccountSyncSummaryCard from "./AccountSyncSummaryCard.svelte";
+  import StrategyTesterSummaryCard from "./StrategyTesterSummaryCard.svelte";
+  import TradingTicketSummaryCard from "./TradingTicketSummaryCard.svelte";
 
   export let surfaces: readonly WorkbenchHostSummarySurfaceModel[] = [];
   export let strategyTesterSummary: StrategyTesterSummaryShellModel | null = null;

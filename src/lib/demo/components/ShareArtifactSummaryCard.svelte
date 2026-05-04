@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { ShareArtifactSummaryModel } from "$lib/chartx/public/sharing-surface";
-  import HostSurfaceSummaryCard from "$lib/demo/components/HostSurfaceSummaryCard.svelte";
+  import type { ShareArtifactSummaryModel } from "../../chartx/public/sharing-surface";
+  import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: ShareArtifactSummaryModel | null = null;
   export let onOpenShell: () => void;

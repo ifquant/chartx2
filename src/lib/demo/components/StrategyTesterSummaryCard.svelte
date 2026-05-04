@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { StrategyTesterSummaryShellModel } from "$lib/chartx/public/strategy-tester";
-  import HostSurfaceSummaryCard from "$lib/demo/components/HostSurfaceSummaryCard.svelte";
+  import type { StrategyTesterSummaryShellModel } from "../../chartx/public/strategy-tester";
+  import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: StrategyTesterSummaryShellModel | null = null;
   export let onOpenPanel: () => void;

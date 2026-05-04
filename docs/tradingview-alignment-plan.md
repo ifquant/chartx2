@@ -1071,6 +1071,12 @@ Acceptance:
   `chartx2` shell.
 - The resulting sharing components are reusable by `alpha2`.
 
+Progress checklist:
+
+- [x] The share dialog now mounts as a dedicated toolbar-triggered shell surface
+- [x] Published artifacts now expose readonly metadata rows and secondary actions through the public share contract
+- [x] Focused visual coverage asserts share publish, metadata surfacing, and local secondary actions without needing a backend
+
 Implementation note:
 
 - `Share Dialog Shell V0` is now a fixture-backed workbench slice. The toolbar
@@ -1084,6 +1090,11 @@ Implementation note:
 - This V0 does not add version history, copy-link UX, import/review queues,
   script trust policy, or any real backend persistence. It is a narrow UI seam
   proving where those host-backed flows will mount.
+- `Share Metadata Shell V1` thickens the same seam without expanding ownership:
+  the public contract now carries artifact metadata rows and post-publish
+  secondary actions, while the demo shell only performs local copy/review
+  feedback instead of introducing real review queues, trust policy, or backend
+  persistence.
 
 ### 6. Multi-Device Productization
 

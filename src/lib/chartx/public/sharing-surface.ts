@@ -15,12 +15,27 @@ export interface ShareLinkModel {
   copied?: boolean;
 }
 
+export interface ShareArtifactFieldModel {
+  id: string;
+  label: string;
+  valueLabel: string;
+}
+
+export interface ShareDialogActionModel {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  tone?: "default" | "primary";
+}
+
 export interface ShareDialogModel {
   artifactType: ShareArtifactType;
   title: string;
   descriptionLabel?: string;
   visibility: ShareVisibility;
+  artifactFields?: readonly ShareArtifactFieldModel[];
   link?: ShareLinkModel;
+  secondaryActions?: readonly ShareDialogActionModel[];
   publishLabel: string;
   state: ShareDialogStateModel;
 }

@@ -279,6 +279,28 @@ test("share dialog: toolbar trigger opens a fixture-backed publish shell", async
   );
 });
 
+test("share dialog: published artifacts surface metadata and secondary actions", async ({ page }) => {
+  await page.goto("/");
+  const workbench = workbenchPanel(page);
+  await workbench.locator("[data-share-dialog-trigger]").click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  await expect(dialog.locator('[data-share-dialog-field="symbol"]')).toContainText("NDX");
+  await expect(dialog.locator('[data-share-dialog-field="timeframe"]')).toContainText("1D");
+  await expect(dialog.locator('[data-share-dialog-field="workspace"]')).toContainText("Trade");
+
+  await dialog.locator("[data-share-dialog-publish]").click();
+  await expect(dialog.locator('[data-share-dialog-action="share-dialog-copy-link"]')).toBeVisible();
+  await expect(dialog.locator('[data-share-dialog-action="share-dialog-review-shell"]')).toBeVisible();
+
+  await dialog.locator('[data-share-dialog-action="share-dialog-copy-link"]').click();
+  await expect(dialog.locator('[data-share-dialog-action="share-dialog-copy-link"]')).toContainText("Copied");
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText("Copied share link");
+
+  await dialog.locator('[data-share-dialog-action="share-dialog-review-shell"]').click();
+  await expect(workbench.locator('[data-workbench-status="warning"]')).toContainText("Review shell opened");
+});
+
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

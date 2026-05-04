@@ -2099,7 +2099,43 @@ export function mountWorkbenchDemo(
     descriptionLabel:
       "Fixture-backed V0 shell. The host adapter owns real publish, permissions, and review flows.",
     visibility: shareDialogVisibility,
+    artifactFields: [
+      {
+        id: "symbol",
+        label: "Symbol",
+        valueLabel: activeSymbol,
+      },
+      {
+        id: "timeframe",
+        label: "Timeframe",
+        valueLabel: activeTimeframe,
+      },
+      {
+        id: "workspace",
+        label: "Workspace",
+        valueLabel: activeWorkspaceDocument().label,
+      },
+      {
+        id: "layout",
+        label: "Layout",
+        valueLabel: layoutPreset === "main-plus-secondary" ? "Split layout" : "Single layout",
+      },
+    ],
     link: shareDialogLink,
+    secondaryActions:
+      shareDialogLink === undefined
+        ? []
+        : [
+            {
+              id: "share-dialog-copy-link",
+              label: shareDialogLink.copied ? "Copied" : "Copy link",
+              tone: shareDialogLink.copied ? "primary" : "default",
+            },
+            {
+              id: "share-dialog-review-shell",
+              label: "Review shell",
+            },
+          ],
     publishLabel: shareDialogLink === undefined ? "Publish link" : "Republish link",
     state: shareDialogState,
   });
@@ -4679,6 +4715,28 @@ export function mountWorkbenchDemo(
           return;
         case "share-dialog-publish":
           void publishShareDialog();
+          return;
+        case "share-dialog-copy-link":
+          if (shareDialogLink === undefined) {
+            return;
+          }
+          shareDialogLink = {
+            ...shareDialogLink,
+            copied: true,
+          };
+          showTransientStatusNotice({
+            tone: "success",
+            message: `Copied share link for ${buildShareArtifactTitle()}.`,
+          });
+          publishSnapshot();
+          return;
+        case "share-dialog-review-shell":
+          showTransientStatusNotice({
+            tone: "warning",
+            message: `Review shell opened for ${buildShareArtifactTitle()}.`,
+          });
+          pushLog(log, `opened share review shell for ${buildShareArtifactId()}`);
+          publishSnapshot();
           return;
         default:
           break;

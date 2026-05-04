@@ -45,6 +45,17 @@
         <small>{model.artifactType}</small>
       </div>
 
+      {#if (model.artifactFields?.length ?? 0) > 0}
+        <div class="share-dialog-metadata" data-share-dialog-metadata>
+          {#each model.artifactFields ?? [] as field}
+            <article data-share-dialog-field={field.id}>
+              <span class="share-dialog-label">{field.label}</span>
+              <strong>{field.valueLabel}</strong>
+            </article>
+          {/each}
+        </div>
+      {/if}
+
       <div class="share-dialog-block">
         <span class="share-dialog-label">Visibility</span>
         <div class="share-dialog-visibility">
@@ -79,6 +90,21 @@
           <a href={model.link.href} target="_blank" rel="noreferrer" data-share-dialog-link>
             {model.link.href}
           </a>
+          {#if (model.secondaryActions?.length ?? 0) > 0}
+            <div class="share-dialog-secondary-actions">
+              {#each model.secondaryActions ?? [] as action}
+                <button
+                  type="button"
+                  class:primary={action.tone === "primary"}
+                  data-share-dialog-action={action.id}
+                  disabled={action.disabled}
+                  on:click={() => onRunAction(action.id)}
+                >
+                  {action.label}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
     </div>
@@ -155,6 +181,21 @@
     gap: 0.3rem;
   }
 
+  .share-dialog-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.7rem;
+  }
+
+  .share-dialog-metadata article {
+    display: grid;
+    gap: 0.22rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.85rem;
+    background: rgba(248, 250, 252, 0.9);
+  }
+
   .share-dialog-label {
     color: rgba(15, 23, 42, 0.58);
     font-size: 0.74rem;
@@ -222,6 +263,28 @@
   .share-dialog-link a {
     color: #1d4ed8;
     overflow-wrap: anywhere;
+  }
+
+  .share-dialog-secondary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.35rem;
+  }
+
+  .share-dialog-secondary-actions button {
+    padding: 0.55rem 0.8rem;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.82);
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  .share-dialog-secondary-actions button.primary {
+    border-color: rgba(37, 99, 235, 0.42);
+    background: rgba(219, 234, 254, 0.92);
+    color: #1d4ed8;
   }
 
   .share-dialog-actions {

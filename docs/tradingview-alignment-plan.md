@@ -1091,6 +1091,9 @@ Implementation note:
 - The public UI layer now also carries a checked-in minimal host embedding
   example, so downstream modules can start from a real compiled composition
   instead of translating documentation prose into their own first draft.
+- The repo now also carries a host-surface readiness audit, so `alpha2` can
+  distinguish surfaces that are ready for direct consumption from ones that are
+  still intentionally demo-leaning or missing stronger formal seams.
 
 ### 5. Publishing, Sharing, And Marketplace
 

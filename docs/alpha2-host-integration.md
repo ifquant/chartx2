@@ -5,6 +5,10 @@ Date: 2026-05-04
 This note defines the current stable way for `alpha2` or another host to embed
 `chartx2` as a library.
 
+For a readiness-oriented audit of which surfaces are already strong enough to
+consume directly versus which still lean on demo-era assumptions, see
+[alpha2-host-surface-readiness.md](/Users/dev/workspace2/hc_apps/chartx2/docs/alpha2-host-surface-readiness.md).
+
 The goal is not to reuse the whole demo app. The goal is to consume:
 
 - the engine-facing public contracts

@@ -33,6 +33,16 @@
 
   export let model: StrategyTesterPanelModel = EMPTY_PANEL;
   export let onLocateTrade: (intent: TradeLocationIntent) => void | Promise<void> = () => {};
+  export let onRunAction: (
+    action: StrategyTesterAction,
+    context: {
+      activeRunOptionId: string;
+      activeFilterId: string;
+      selectedTradeId: string | null;
+      parameterDraft: Record<string, string>;
+      parameterDraftDirty: boolean;
+    },
+  ) => void | Promise<void> = () => {};
 
   function metricToneClass(metric: StrategyTesterSummaryMetric): string {
     if (metric.tone === "positive") {
@@ -137,6 +147,13 @@
       return;
     }
     actionBanner = action.resultLabel ?? `${action.label} requested.`;
+    void onRunAction(action, {
+      activeRunOptionId,
+      activeFilterId,
+      selectedTradeId,
+      parameterDraft: { ...parameterDraft },
+      parameterDraftDirty,
+    });
   }
 
   function resolveVisibleTradeIds(filter: StrategyTesterFilterOption | null): Set<string> | null {

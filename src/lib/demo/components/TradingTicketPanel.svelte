@@ -19,6 +19,7 @@
   };
 
   export let model: TradingTicketModel = EMPTY_MODEL;
+  export let onSubmit: (model: TradingTicketModel) => void | Promise<void> = () => {};
 
   function statusClass(status: TradingTicketModel["state"]["status"]): string {
     if (status === "error") {
@@ -115,6 +116,9 @@
         data-trading-ticket-submit
         disabled={!model.state.submitEnabled}
         aria-disabled={!model.state.submitEnabled}
+        on:click={() => {
+          void onSubmit(model);
+        }}
       >
         {model.submitLabel}
       </button>

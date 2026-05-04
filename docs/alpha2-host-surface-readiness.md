@@ -105,9 +105,8 @@ Good now:
 
 Still demo-leaning:
 
-- no explicit submit callback surface in the public Svelte shell contract
-- host must still treat it as a display/review shell unless a stronger action
-  seam is added later
+- only the callback seam is provided; the host still owns request/result policy
+- shell remains review-oriented until the host wires a real submission runtime
 
 ### `AccountSyncStatusCard`
 

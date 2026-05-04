@@ -1069,6 +1069,9 @@ Implementation note:
 - The share, strategy, trading, and sync summary shells now share a common
   host-surface card chrome so `alpha2` can embed them through one consistent
   summary-shell pattern instead of four unrelated card layouts.
+- The workbench contract now also publishes an explicit host-summary surface
+  registry, so hosts can enumerate which summary shells should mount in the
+  footer strip without hardcoding panel-specific summary checks.
 
 ### 5. Publishing, Sharing, And Marketplace
 

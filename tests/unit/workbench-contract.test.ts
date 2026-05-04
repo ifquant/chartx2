@@ -359,6 +359,43 @@ describe("chart workbench contract", () => {
     ]);
   });
 
+  it("keeps host summary surface registration on the public workbench contract", () => {
+    const model = createChartWorkbenchModel({
+      symbol: "NQ",
+      timeframeLabel: "15m",
+      chartTypeLabel: "Candles",
+      hostSummarySurfaces: [
+        {
+          id: "strategy-tester-summary",
+          kind: "strategy-tester",
+        },
+        {
+          id: "account-sync-summary",
+          kind: "account-sync",
+        },
+        {
+          id: "trading-ticket-summary",
+          kind: "trading-ticket",
+        },
+      ],
+    });
+
+    expect(model.hostSummarySurfaces).toEqual([
+      {
+        id: "strategy-tester-summary",
+        kind: "strategy-tester",
+      },
+      {
+        id: "account-sync-summary",
+        kind: "account-sync",
+      },
+      {
+        id: "trading-ticket-summary",
+        kind: "trading-ticket",
+      },
+    ]);
+  });
+
   it("preserves watchlist and alerts empty-state labels on the public workbench contract", () => {
     const model = createChartWorkbenchModel({
       symbol: "GC",

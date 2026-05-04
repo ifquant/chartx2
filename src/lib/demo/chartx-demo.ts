@@ -38,6 +38,7 @@ import {
   type WorkbenchLayoutTransferModel,
   type WorkbenchObjectTreeNodeModel,
   type WorkbenchSidebarPanelId,
+  type WorkbenchHostSummarySurfaceModel,
   type WorkbenchStatusNoticeModel,
   type WorkbenchWorkspaceTabId,
   type WorkbenchWorkspaceTabModel,
@@ -3333,6 +3334,25 @@ export function mountWorkbenchDemo(
         ? createDemoTradingTicketModel(activeSymbol, options.tradingTicketFixtureMode ?? "ready")
             .summaryShell ?? null
         : null;
+    const hostSummarySurfaces: WorkbenchHostSummarySurfaceModel[] = [];
+    if (strategyTesterSummary) {
+      hostSummarySurfaces.push({
+        id: "strategy-tester-summary",
+        kind: "strategy-tester",
+      });
+    }
+    if (accountSyncSurface?.summaryShell) {
+      hostSummarySurfaces.push({
+        id: "account-sync-summary",
+        kind: "account-sync",
+      });
+    }
+    if (tradingTicketSummary) {
+      hostSummarySurfaces.push({
+        id: "trading-ticket-summary",
+        kind: "trading-ticket",
+      });
+    }
     const effectiveStatusNotice =
       statusNotice ??
       (options.persistenceProvider === undefined
@@ -3370,6 +3390,7 @@ export function mountWorkbenchDemo(
       layoutTransfer: buildLayoutTransferModel(replayState),
       statusNotice: effectiveStatusNotice,
       adapterStatus: buildAdapterStatus(),
+      hostSummarySurfaces,
     });
 
     publish({

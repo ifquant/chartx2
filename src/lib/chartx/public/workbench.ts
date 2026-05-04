@@ -210,6 +210,16 @@ export interface WorkbenchAdapterStatusModel {
   detailLabel: string;
 }
 
+export type WorkbenchHostSummarySurfaceKind =
+  | "strategy-tester"
+  | "account-sync"
+  | "trading-ticket";
+
+export interface WorkbenchHostSummarySurfaceModel {
+  id: string;
+  kind: WorkbenchHostSummarySurfaceKind;
+}
+
 export interface ChartWorkbenchModel {
   title: string;
   toolbar: WorkbenchToolbarModel;
@@ -224,6 +234,7 @@ export interface ChartWorkbenchModel {
   layoutTransfer: WorkbenchLayoutTransferModel;
   statusNotice: WorkbenchStatusNoticeModel | null;
   adapterStatus: readonly WorkbenchAdapterStatusModel[];
+  hostSummarySurfaces: readonly WorkbenchHostSummarySurfaceModel[];
 }
 
 export interface MarketDataSearchResult {
@@ -321,6 +332,7 @@ export interface ChartWorkbenchModelInput {
   layoutTransfer?: WorkbenchLayoutTransferModel;
   statusNotice?: WorkbenchStatusNoticeModel | null;
   adapterStatus?: readonly WorkbenchAdapterStatusModel[];
+  hostSummarySurfaces?: readonly WorkbenchHostSummarySurfaceModel[];
 }
 
 const DEFAULT_RANGES = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "5Y", "All"] as const;
@@ -525,5 +537,6 @@ export function createChartWorkbenchModel(
     },
     statusNotice: input.statusNotice ?? null,
     adapterStatus: input.adapterStatus ?? [],
+    hostSummarySurfaces: input.hostSummarySurfaces ?? [],
   };
 }

@@ -7,6 +7,7 @@
   import type {
     BottomPanelTabId,
     ChartWorkbenchModel,
+    WorkbenchHostSummarySurfaceModel,
     WorkbenchCommandPaletteModel,
     WorkbenchWorkspaceTabId,
   } from "$lib/chartx/public/workbench";
@@ -145,6 +146,7 @@
   let activeWorkspaceTab: ChartWorkbenchModel["workspaceTabs"][number] | null = null;
   let replayState = snapshot.replay;
   let activeSidebarPanel = workbench?.activeRightSidebarPanel ?? "watchlist";
+  let hostSummarySurfaces: readonly WorkbenchHostSummarySurfaceModel[] = [];
   let scriptedIndicatorDrafts: Record<string, Record<string, string>> = {};
   let customScriptLaunchDrafts: Record<string, string> = {};
   let editingCustomScriptId: string | null = null;
@@ -226,6 +228,8 @@
   $: if (commandPaletteOpen && shareDialogOpen) {
     shareDialogOpen = false;
   }
+
+  $: hostSummarySurfaces = workbench?.hostSummarySurfaces ?? [];
 
   $: if ((commandPaletteOpen || shareDialogOpen) && mobileToolbarOpen) {
     mobileToolbarOpen = false;
@@ -1557,30 +1561,30 @@
       </div>
 
       <div class="workbench-footer">
-        {#if snapshot.strategyTesterSummary || snapshot.accountSync?.summaryShell || snapshot.tradingTicketSummary}
+        {#if hostSummarySurfaces.length > 0}
           <div class="workbench-summary-strip">
-        {#if snapshot.strategyTesterSummary}
-          <StrategyTesterSummaryCard
-            model={snapshot.strategyTesterSummary}
-            onOpenPanel={() => {
-              void handleSetBottomTab("performance-link");
-            }}
-          />
-        {/if}
-        {#if snapshot.accountSync?.summaryShell}
-          <AccountSyncSummaryCard
-            model={snapshot.accountSync.summaryShell}
-            onRefresh={() => onRunAction("account-sync-refresh")}
-          />
-        {/if}
-        {#if snapshot.tradingTicketSummary}
-          <TradingTicketSummaryCard
-            model={snapshot.tradingTicketSummary}
-                onOpenPanel={() => {
-                  void handleSetBottomTab("custom");
-                }}
-              />
-            {/if}
+            {#each hostSummarySurfaces as summarySurface (summarySurface.id)}
+              {#if summarySurface.kind === "strategy-tester" && snapshot.strategyTesterSummary}
+                <StrategyTesterSummaryCard
+                  model={snapshot.strategyTesterSummary}
+                  onOpenPanel={() => {
+                    void handleSetBottomTab("performance-link");
+                  }}
+                />
+              {:else if summarySurface.kind === "account-sync" && snapshot.accountSync?.summaryShell}
+                <AccountSyncSummaryCard
+                  model={snapshot.accountSync.summaryShell}
+                  onRefresh={() => onRunAction("account-sync-refresh")}
+                />
+              {:else if summarySurface.kind === "trading-ticket" && snapshot.tradingTicketSummary}
+                <TradingTicketSummaryCard
+                  model={snapshot.tradingTicketSummary}
+                  onOpenPanel={() => {
+                    void handleSetBottomTab("custom");
+                  }}
+                />
+              {/if}
+            {/each}
           </div>
         {/if}
         <div class="bottom-tab-strip" data-workbench-bottom-tabs>

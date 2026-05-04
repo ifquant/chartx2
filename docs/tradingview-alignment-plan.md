@@ -1075,6 +1075,9 @@ Implementation note:
 - The demo now also exposes a reusable host-summary strip component over that
   registry, so downstream shells can mount the same footer summary pattern
   without copying `MarketWorkbenchPanel` branch logic.
+- The share summary card and footer summary strip now also compose through one
+  reusable host-surface dock, so hosts can mount the common workbench summary
+  deck without reassembling share and runtime summaries by hand.
 
 ### 5. Publishing, Sharing, And Marketplace
 

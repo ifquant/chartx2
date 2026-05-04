@@ -36,8 +36,7 @@
   import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
-  import ShareArtifactSummaryCard from "$lib/demo/components/ShareArtifactSummaryCard.svelte";
-  import WorkbenchHostSummaryStrip from "$lib/demo/components/WorkbenchHostSummaryStrip.svelte";
+  import WorkbenchHostSurfaceDock from "$lib/demo/components/WorkbenchHostSurfaceDock.svelte";
   import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 
   export let chartTypeActions: readonly DemoAction[] = [];
@@ -1083,12 +1082,6 @@
         on:click={toggleMobileSidebarSheet}
       >Panels</button>
     </div>
-    <ShareArtifactSummaryCard
-      model={snapshot.shareDialog?.summaryCard ?? null}
-      onOpenShell={() => {
-        shareDialogOpen = true;
-      }}
-    />
     <div class="mobile-toolbar-summary" data-mobile-toolbar-summary>
       <div class="mobile-toolbar-summary-copy">
         <strong>{workbench?.toolbar.activeSymbol ?? "NDX"}</strong>
@@ -1559,11 +1552,15 @@
       </div>
 
       <div class="workbench-footer">
-        <WorkbenchHostSummaryStrip
-          surfaces={hostSummarySurfaces}
+        <WorkbenchHostSurfaceDock
+          shareSummary={snapshot.shareDialog?.summaryCard ?? null}
+          hostSummarySurfaces={hostSummarySurfaces}
           strategyTesterSummary={snapshot.strategyTesterSummary ?? null}
           accountSyncSummary={snapshot.accountSync?.summaryShell ?? null}
           tradingTicketSummary={snapshot.tradingTicketSummary ?? null}
+          onOpenShareShell={() => {
+            shareDialogOpen = true;
+          }}
           onOpenStrategyTester={() => {
             void handleSetBottomTab("performance-link");
           }}

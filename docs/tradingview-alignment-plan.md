@@ -1072,6 +1072,9 @@ Implementation note:
 - The workbench contract now also publishes an explicit host-summary surface
   registry, so hosts can enumerate which summary shells should mount in the
   footer strip without hardcoding panel-specific summary checks.
+- The demo now also exposes a reusable host-summary strip component over that
+  registry, so downstream shells can mount the same footer summary pattern
+  without copying `MarketWorkbenchPanel` branch logic.
 
 ### 5. Publishing, Sharing, And Marketplace
 

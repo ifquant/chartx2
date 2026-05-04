@@ -30,16 +30,14 @@
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
   import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
-  import AccountSyncSummaryCard from "$lib/demo/components/AccountSyncSummaryCard.svelte";
   import ActivityLogPanel from "$lib/demo/components/ActivityLogPanel.svelte";
   import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
   import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
   import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
-  import TradingTicketSummaryCard from "$lib/demo/components/TradingTicketSummaryCard.svelte";
   import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
   import ShareArtifactSummaryCard from "$lib/demo/components/ShareArtifactSummaryCard.svelte";
-  import StrategyTesterSummaryCard from "$lib/demo/components/StrategyTesterSummaryCard.svelte";
+  import WorkbenchHostSummaryStrip from "$lib/demo/components/WorkbenchHostSummaryStrip.svelte";
   import type { TradeLocationIntent } from "$lib/chartx/public/performance";
 
   export let chartTypeActions: readonly DemoAction[] = [];
@@ -1561,32 +1559,19 @@
       </div>
 
       <div class="workbench-footer">
-        {#if hostSummarySurfaces.length > 0}
-          <div class="workbench-summary-strip">
-            {#each hostSummarySurfaces as summarySurface (summarySurface.id)}
-              {#if summarySurface.kind === "strategy-tester" && snapshot.strategyTesterSummary}
-                <StrategyTesterSummaryCard
-                  model={snapshot.strategyTesterSummary}
-                  onOpenPanel={() => {
-                    void handleSetBottomTab("performance-link");
-                  }}
-                />
-              {:else if summarySurface.kind === "account-sync" && snapshot.accountSync?.summaryShell}
-                <AccountSyncSummaryCard
-                  model={snapshot.accountSync.summaryShell}
-                  onRefresh={() => onRunAction("account-sync-refresh")}
-                />
-              {:else if summarySurface.kind === "trading-ticket" && snapshot.tradingTicketSummary}
-                <TradingTicketSummaryCard
-                  model={snapshot.tradingTicketSummary}
-                  onOpenPanel={() => {
-                    void handleSetBottomTab("custom");
-                  }}
-                />
-              {/if}
-            {/each}
-          </div>
-        {/if}
+        <WorkbenchHostSummaryStrip
+          surfaces={hostSummarySurfaces}
+          strategyTesterSummary={snapshot.strategyTesterSummary ?? null}
+          accountSyncSummary={snapshot.accountSync?.summaryShell ?? null}
+          tradingTicketSummary={snapshot.tradingTicketSummary ?? null}
+          onOpenStrategyTester={() => {
+            void handleSetBottomTab("performance-link");
+          }}
+          onRefreshAccountSync={() => onRunAction("account-sync-refresh")}
+          onOpenTradingTicket={() => {
+            void handleSetBottomTab("custom");
+          }}
+        />
         <div class="bottom-tab-strip" data-workbench-bottom-tabs>
           {#each workbench?.bottomPanel.tabs ?? [] as tab}
             <button
@@ -3713,12 +3698,6 @@
     gap: 0;
     min-height: 0;
     background: rgba(244, 240, 232, 0.96);
-  }
-
-  .workbench-summary-strip {
-    display: grid;
-    gap: 8px;
-    padding: 8px 10px 10px;
   }
 
   .bottom-panel-body {

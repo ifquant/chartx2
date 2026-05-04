@@ -9,6 +9,9 @@ This document defines the next stable product boundary for `chartx2`.
 The full three-layer TradingView alignment roadmap is tracked separately in
 [tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md).
 
+The current host embedding seam for `alpha2` and similar consumers is recorded
+in [alpha2-host-integration.md](/Users/dev/workspace2/hc_apps/chartx2/docs/alpha2-host-integration.md).
+
 ## Core Decision
 
 The repository should be treated as three layers:

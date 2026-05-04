@@ -1084,6 +1084,10 @@ Implementation note:
 - The public barrel now also re-exports the host-facing Svelte shell
   components, so downstream modules can mount the reusable cards, dialogs, and
   summary docks without importing `demo/components` paths directly.
+- The repo now also carries a checked-in host integration guide that spells out
+  the intended `alpha2` boundary: public contracts and reusable host shells
+  come from `chartx2`, while backend wiring and action execution stay
+  host-owned.
 
 ### 5. Publishing, Sharing, And Marketplace
 

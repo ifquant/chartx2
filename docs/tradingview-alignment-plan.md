@@ -1077,6 +1077,7 @@ Progress checklist:
 - [x] Published artifacts now expose readonly metadata rows and secondary actions through the public share contract
 - [x] Published artifacts now expose a local version/history preview shell through the same share contract
 - [x] Published artifacts now expose a local import/review queue shell without requiring a backend queue
+- [x] Published artifacts now expose readonly permission/status rows without requiring a host policy engine
 - [x] Focused visual coverage asserts share publish, metadata surfacing, and local secondary actions without needing a backend
 
 Implementation note:
@@ -1106,6 +1107,10 @@ Implementation note:
   readonly from `chartx2`'s perspective, but it gives `alpha2` and other hosts
   a stable seam for import/review UI without forcing review services into the
   chart package.
+- `Share Permission Status V4` adds readonly permission entries for owner and
+  importer boundaries. This keeps trust and host-policy semantics visible in
+  the share shell while still leaving actual enforcement and approval state to
+  the embedding host.
 
 ### 6. Multi-Device Productization
 

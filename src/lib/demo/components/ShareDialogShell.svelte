@@ -152,6 +152,28 @@
           </div>
         </div>
       {/if}
+
+      {#if (model.permissionEntries?.length ?? 0) > 0}
+        <div class="share-dialog-permissions" data-share-dialog-permissions>
+          <span class="share-dialog-label">Permissions</span>
+          <div class="share-dialog-review-list">
+            {#each model.permissionEntries ?? [] as entry}
+              <article data-share-dialog-permission-entry={entry.id}>
+                <div class="share-dialog-history-head">
+                  <strong>{entry.label}</strong>
+                  <span>{entry.statusLabel}</span>
+                </div>
+                <div class="share-dialog-history-meta">
+                  <small>{entry.scopeLabel}</small>
+                </div>
+                {#if entry.noteLabel}
+                  <p>{entry.noteLabel}</p>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <footer class="share-dialog-actions">

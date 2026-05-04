@@ -349,6 +349,29 @@ test("share dialog: published artifacts surface an import review queue shell", a
   );
 });
 
+test("share dialog: published artifacts surface readonly permission status rows", async ({ page }) => {
+  await page.goto("/");
+  await featureTab(page, "Workbench").click();
+  const workbench = workbenchPanel(page);
+  await workbench.locator("[data-share-dialog-trigger]").click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  await dialog.locator("[data-share-dialog-publish]").click();
+
+  await expect(dialog.locator("[data-share-dialog-permissions]")).toBeVisible();
+  await expect(dialog.locator('[data-share-dialog-permission-entry="share-permission-owner"]')).toContainText(
+    "Full control",
+  );
+  await expect(dialog.locator('[data-share-dialog-permission-entry="share-permission-importer"]')).toContainText(
+    "Readonly until host approval",
+  );
+
+  await dialog.locator('[data-share-dialog-action="share-dialog-view-permissions"]').click();
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText(
+    "Permission shell opened",
+  );
+});
+
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);

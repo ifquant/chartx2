@@ -2162,6 +2162,25 @@ export function mountWorkbenchDemo(
               noteLabel: "Script execution stays blocked until the host adapter accepts this artifact.",
             },
           ],
+    permissionEntries:
+      shareDialogLink === undefined
+        ? []
+        : [
+            {
+              id: "share-permission-owner",
+              label: "Workspace owner access",
+              statusLabel: "Full control",
+              scopeLabel: "Active host + layout shell",
+              noteLabel: "The publishing host can replace versions and revoke the shared artifact.",
+            },
+            {
+              id: "share-permission-importer",
+              label: "Imported copy access",
+              statusLabel: "Readonly until host approval",
+              scopeLabel: "alpha2 import boundary",
+              noteLabel: "Imported layouts stay sandboxed until the destination host accepts them.",
+            },
+          ],
     secondaryActions:
       shareDialogLink === undefined
         ? []
@@ -2182,6 +2201,10 @@ export function mountWorkbenchDemo(
             {
               id: "share-dialog-open-review-queue",
               label: "Open import review",
+            },
+            {
+              id: "share-dialog-view-permissions",
+              label: "View permissions",
             },
           ],
     publishLabel: shareDialogLink === undefined ? "Publish link" : "Republish link",
@@ -4800,6 +4823,14 @@ export function mountWorkbenchDemo(
             message: `Import review queue opened for ${buildShareArtifactTitle()}.`,
           });
           pushLog(log, `opened share import review queue for ${buildShareArtifactId()}`);
+          publishSnapshot();
+          return;
+        case "share-dialog-view-permissions":
+          showTransientStatusNotice({
+            tone: "success",
+            message: `Permission shell opened for ${buildShareArtifactTitle()}.`,
+          });
+          pushLog(log, `opened share permission shell for ${buildShareArtifactId()}`);
           publishSnapshot();
           return;
         default:

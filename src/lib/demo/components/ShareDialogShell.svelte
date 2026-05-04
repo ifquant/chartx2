@@ -107,6 +107,29 @@
           {/if}
         </div>
       {/if}
+
+      {#if (model.historyEntries?.length ?? 0) > 0}
+        <div class="share-dialog-history" data-share-dialog-history>
+          <span class="share-dialog-label">History</span>
+          <div class="share-dialog-history-list">
+            {#each model.historyEntries ?? [] as entry}
+              <article data-share-dialog-history-entry={entry.id}>
+                <div class="share-dialog-history-head">
+                  <strong>{entry.versionLabel}</strong>
+                  <span>{entry.createdAtLabel}</span>
+                </div>
+                <div class="share-dialog-history-meta">
+                  <small>{entry.statusLabel}</small>
+                  <small>{entry.visibility}</small>
+                </div>
+                {#if entry.noteLabel}
+                  <p>{entry.noteLabel}</p>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <footer class="share-dialog-actions">
@@ -194,6 +217,38 @@
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 0.85rem;
     background: rgba(248, 250, 252, 0.9);
+  }
+
+  .share-dialog-history {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .share-dialog-history-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .share-dialog-history-list article {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 0.85rem;
+    background: rgba(248, 250, 252, 0.9);
+  }
+
+  .share-dialog-history-head,
+  .share-dialog-history-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .share-dialog-history-meta small,
+  .share-dialog-history-list p {
+    color: rgba(15, 23, 42, 0.62);
+    margin: 0;
   }
 
   .share-dialog-label {

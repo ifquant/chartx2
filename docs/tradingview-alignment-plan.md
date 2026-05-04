@@ -1075,6 +1075,7 @@ Progress checklist:
 
 - [x] The share dialog now mounts as a dedicated toolbar-triggered shell surface
 - [x] Published artifacts now expose readonly metadata rows and secondary actions through the public share contract
+- [x] Published artifacts now expose a local version/history preview shell through the same share contract
 - [x] Focused visual coverage asserts share publish, metadata surfacing, and local secondary actions without needing a backend
 
 Implementation note:
@@ -1095,6 +1096,10 @@ Implementation note:
   secondary actions, while the demo shell only performs local copy/review
   feedback instead of introducing real review queues, trust policy, or backend
   persistence.
+- `Share History Preview V2` extends the dialog with readonly version rows and
+  a local history-preview action. The shell can now show recent artifact
+  lineage without introducing backend version storage, review queues, or
+  marketplace ownership into `chartx2`.
 
 ### 6. Multi-Device Productization
 

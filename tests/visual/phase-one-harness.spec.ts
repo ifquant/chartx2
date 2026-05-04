@@ -246,6 +246,7 @@ test("command palette: Cmd/Ctrl+K toggles the palette and runs layout commands",
 
 test("share dialog: toolbar trigger opens a fixture-backed publish shell", async ({ page }) => {
   await page.goto("/");
+  await featureTab(page, "Workbench").click();
   const workbench = workbenchPanel(page);
   const trigger = workbench.locator("[data-share-dialog-trigger]");
 
@@ -281,6 +282,7 @@ test("share dialog: toolbar trigger opens a fixture-backed publish shell", async
 
 test("share dialog: published artifacts surface metadata and secondary actions", async ({ page }) => {
   await page.goto("/");
+  await featureTab(page, "Workbench").click();
   const workbench = workbenchPanel(page);
   await workbench.locator("[data-share-dialog-trigger]").click();
 
@@ -299,6 +301,29 @@ test("share dialog: published artifacts surface metadata and secondary actions",
 
   await dialog.locator('[data-share-dialog-action="share-dialog-review-shell"]').click();
   await expect(workbench.locator('[data-workbench-status="warning"]')).toContainText("Review shell opened");
+});
+
+test("share dialog: published artifacts surface version history previews", async ({ page }) => {
+  await page.goto("/");
+  await featureTab(page, "Workbench").click();
+  const workbench = workbenchPanel(page);
+  await workbench.locator("[data-share-dialog-trigger]").click();
+
+  const dialog = workbench.locator("[data-share-dialog]");
+  await dialog.locator("[data-share-dialog-publish]").click();
+
+  await expect(dialog.locator("[data-share-dialog-history]")).toBeVisible();
+  await expect(dialog.locator('[data-share-dialog-history-entry="share-v3"]')).toContainText(
+    "Version 3",
+  );
+  await expect(dialog.locator('[data-share-dialog-history-entry="share-v2"]')).toContainText(
+    "Version 2",
+  );
+
+  await dialog.locator('[data-share-dialog-action="share-dialog-history-preview"]').click();
+  await expect(workbench.locator('[data-workbench-status="success"]')).toContainText(
+    "History preview opened",
+  );
 });
 
 test("workspace tabs: switching documents changes active workspace and panel focus", async ({ page }) => {

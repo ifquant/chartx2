@@ -2122,6 +2122,27 @@ export function mountWorkbenchDemo(
       },
     ],
     link: shareDialogLink,
+    historyEntries:
+      shareDialogLink === undefined
+        ? []
+        : [
+            {
+              id: "share-v3",
+              versionLabel: "Version 3",
+              statusLabel: "Latest published shell",
+              visibility: shareDialogVisibility,
+              createdAtLabel: "Today · 09:42",
+              noteLabel: "Matches the active workspace layout and symbol shell.",
+            },
+            {
+              id: "share-v2",
+              versionLabel: "Version 2",
+              statusLabel: "Earlier published shell",
+              visibility: "unlisted",
+              createdAtLabel: "Yesterday · 18:10",
+              noteLabel: "Saved before the current split-layout adjustments.",
+            },
+          ],
     secondaryActions:
       shareDialogLink === undefined
         ? []
@@ -2134,6 +2155,10 @@ export function mountWorkbenchDemo(
             {
               id: "share-dialog-review-shell",
               label: "Review shell",
+            },
+            {
+              id: "share-dialog-history-preview",
+              label: "Preview history",
             },
           ],
     publishLabel: shareDialogLink === undefined ? "Publish link" : "Republish link",
@@ -4736,6 +4761,14 @@ export function mountWorkbenchDemo(
             message: `Review shell opened for ${buildShareArtifactTitle()}.`,
           });
           pushLog(log, `opened share review shell for ${buildShareArtifactId()}`);
+          publishSnapshot();
+          return;
+        case "share-dialog-history-preview":
+          showTransientStatusNotice({
+            tone: "success",
+            message: `History preview opened for ${buildShareArtifactTitle()}.`,
+          });
+          pushLog(log, `opened share history preview for ${buildShareArtifactId()}`);
           publishSnapshot();
           return;
         default:

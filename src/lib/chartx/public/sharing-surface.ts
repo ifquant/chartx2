@@ -28,6 +28,15 @@ export interface ShareDialogActionModel {
   tone?: "default" | "primary";
 }
 
+export interface ShareHistoryEntryModel {
+  id: string;
+  versionLabel: string;
+  statusLabel: string;
+  visibility: ShareVisibility;
+  createdAtLabel: string;
+  noteLabel?: string;
+}
+
 export interface ShareDialogModel {
   artifactType: ShareArtifactType;
   title: string;
@@ -35,6 +44,7 @@ export interface ShareDialogModel {
   visibility: ShareVisibility;
   artifactFields?: readonly ShareArtifactFieldModel[];
   link?: ShareLinkModel;
+  historyEntries?: readonly ShareHistoryEntryModel[];
   secondaryActions?: readonly ShareDialogActionModel[];
   publishLabel: string;
   state: ShareDialogStateModel;

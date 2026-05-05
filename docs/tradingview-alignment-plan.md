@@ -31,6 +31,9 @@ Current repo state should be understood as:
   a complete TradingView-like product.
 - Several host-facing workstation shells now exist as public library surfaces,
   including trading, market, sync, sharing, strategy, and chart-frame chrome.
+- The repo now also exposes a first public market chart surface component so
+  host apps can mount the phase-one chart runtime without re-owning canvas
+  lifecycle and readout chrome.
 - Platform features such as script execution, strategy testing, broker
   integration, cloud sync, publishing, and account-level services have not
   started and should not be mixed into the chart engine.

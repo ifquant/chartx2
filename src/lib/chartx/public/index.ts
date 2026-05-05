@@ -1,4 +1,5 @@
 export * from "./market";
+export * from "./market-panel-surface";
 export * from "./performance";
 export * from "./account-sync-surface";
 export * from "./host-shell-components";

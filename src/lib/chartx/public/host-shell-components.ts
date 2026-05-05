@@ -2,6 +2,7 @@ export { default as Alpha2HostIntegrationExample } from "./Alpha2HostIntegration
 export { default as AccountSyncStatusCard } from "../../demo/components/AccountSyncStatusCard.svelte";
 export { default as AccountSyncSummaryCard } from "../../demo/components/AccountSyncSummaryCard.svelte";
 export { default as HostSurfaceSummaryCard } from "../../demo/components/HostSurfaceSummaryCard.svelte";
+export { default as MarketPanelShell } from "../../demo/components/MarketPanelShell.svelte";
 export { default as ShareArtifactSummaryCard } from "../../demo/components/ShareArtifactSummaryCard.svelte";
 export { default as ShareDialogShell } from "../../demo/components/ShareDialogShell.svelte";
 export { default as StrategyTesterPanel } from "../../demo/components/StrategyTesterPanel.svelte";

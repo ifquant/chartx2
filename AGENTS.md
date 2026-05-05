@@ -107,6 +107,39 @@ Use this file especially when changing:
 - [src/lib/chartx/internal](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal): engine internals; host/demo code should not import across this boundary directly
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit): per-commit newcomer tutorials
 
+## Alpha2 Boundary
+
+`chartx2` must be treated as a chart/workbench UI library plus engine line, not as the owner of the entire trading-desktop application chrome.
+
+What belongs in `chartx2`:
+
+- chart engine internals
+- chart runtime models and persistence models
+- chart-facing public contracts
+- reusable chart/workbench shells
+- chart-context panels such as trading/strategy/share/sync shells when they are designed for host embedding
+- reusable summary strips, docks, and host-facing composition helpers that are still centered on an active chart/symbol/timeframe context
+
+What does **not** belong in `chartx2`:
+
+- the full `alpha2` desktop application shell
+- product-level menu bars
+- top-level global toolbars that orchestrate the whole trading app
+- left-side product navigation tabs
+- global workspace routing across multiple non-chart products
+- app-wide account/workspace chrome that still makes sense without any chart mounted
+
+Practical rule:
+
+- if a UI surface still makes sense when the chart is removed, it is usually `alpha2` host-app code
+- if a UI surface only makes sense when attached to active chart context, it is usually `chartx2`
+
+Implementation consequence:
+
+- do not move `alpha2` desktop shell chrome into `chartx2`
+- do keep extracting stable chart-adjacent shells and contracts out of app repos and back into `chartx2`
+- when a new reusable UI pattern appears for the second time around chart context, prefer promoting it into `chartx2` instead of letting sibling apps fork it
+
 ## 常用命令
 
 From repo root:

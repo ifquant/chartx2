@@ -7,6 +7,7 @@ export { default as ShareDialogShell } from "../../demo/components/ShareDialogSh
 export { default as StrategyTesterPanel } from "../../demo/components/StrategyTesterPanel.svelte";
 export { default as StrategyTesterSummaryCard } from "../../demo/components/StrategyTesterSummaryCard.svelte";
 export { default as TradingTicketPanel } from "../../demo/components/TradingTicketPanel.svelte";
+export { default as TradingLedgerPanel } from "../../demo/components/TradingLedgerPanel.svelte";
 export { default as TradingTicketSummaryCard } from "../../demo/components/TradingTicketSummaryCard.svelte";
 export { default as WorkbenchHostSummaryStrip } from "../../demo/components/WorkbenchHostSummaryStrip.svelte";
 export { default as WorkbenchHostSurfaceDock } from "../../demo/components/WorkbenchHostSurfaceDock.svelte";

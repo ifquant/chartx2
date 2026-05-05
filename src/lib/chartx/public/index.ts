@@ -4,6 +4,7 @@ export * from "./account-sync-surface";
 export * from "./host-shell-components";
 export * from "./sharing-surface";
 export * from "./strategy-tester";
+export * from "./trading-ledger-surface";
 export * from "./trading-surface";
 export * from "./workbench-indicators";
 export * from "./workbench";

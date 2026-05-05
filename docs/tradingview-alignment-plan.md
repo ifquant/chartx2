@@ -29,6 +29,8 @@ Current repo state should be understood as:
   coordinators.
 - The workstation shell exists, but it is still closer to a demo/workbench than
   a complete TradingView-like product.
+- Several host-facing workstation shells now exist as public library surfaces,
+  including trading, market, sync, sharing, strategy, and chart-frame chrome.
 - Platform features such as script execution, strategy testing, broker
   integration, cloud sync, publishing, and account-level services have not
   started and should not be mixed into the chart engine.

@@ -1,3 +1,4 @@
+export * from "./chart-frame-surface";
 export * from "./market";
 export * from "./market-panel-surface";
 export * from "./performance";

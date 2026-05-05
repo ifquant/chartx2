@@ -5,6 +5,7 @@
     type PhaseOneCandlestickSeriesApi,
     type PhaseOneChartApi,
     type PhaseOneCrosshairMoveEvent,
+    type PhaseOneLineSeriesApi,
     type PhaseOneVolumeSeriesApi,
   } from "../../chartx/public/market";
   import type { PhaseOneMarketChartSurfaceModel } from "../../chartx/public/market-chart-surface";
@@ -46,6 +47,7 @@
   let canvas = $state<HTMLCanvasElement | undefined>(undefined);
   let chart: PhaseOneChartApi | null = null;
   let candleSeries: PhaseOneCandlestickSeriesApi | null = null;
+  let overlaySeries: PhaseOneLineSeriesApi | null = null;
   let volumeSeries: PhaseOneVolumeSeriesApi | null = null;
   let teardownCrosshair: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
@@ -66,6 +68,7 @@
     chart?.destroy();
     chart = null;
     candleSeries = null;
+    overlaySeries = null;
     volumeSeries = null;
   }
 
@@ -106,6 +109,7 @@
     }
 
     candleSeries.setData(model.bars);
+    overlaySeries?.setData(model.overlayLine ?? []);
     volumeSeries?.setData(model.volume ?? []);
 
     if (model.bars.length > 0) {
@@ -144,6 +148,14 @@
     });
     candleSeries = chart.addCandlestickSeries();
 
+    if ((model.overlayLine?.length ?? 0) > 0) {
+      overlaySeries = chart.addLineSeries();
+      overlaySeries.applyOptions({
+        color: "#0f5964",
+        lineWidth: 2,
+      });
+    }
+
     if ((model.volume?.length ?? 0) > 0) {
       const volumePane = chart.addPane({ height: 112 });
       volumeSeries = chart.addVolumeSeries({ pane: volumePane });
@@ -164,12 +176,13 @@
 
   $effect(() => {
     const nextVolumeMode = (model.volume?.length ?? 0) > 0;
+    const nextOverlayMode = (model.overlayLine?.length ?? 0) > 0;
 
     if (!mounted) {
       return;
     }
 
-    if (chart === null || lastVolumeMode !== nextVolumeMode) {
+    if (chart === null || lastVolumeMode !== nextVolumeMode || nextOverlayMode !== (overlaySeries !== null)) {
       lastVolumeMode = nextVolumeMode;
       rebuildChart();
       return;

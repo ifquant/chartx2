@@ -34,6 +34,9 @@ Current repo state should be understood as:
 - The repo now also exposes a first public market chart surface component so
   host apps can mount the phase-one chart runtime without re-owning canvas
   lifecycle and readout chrome.
+- That public market chart surface now also supports a thin host-owned overlay
+  line and optional volume pane toggle without forcing hosts into workbench
+  policy.
 - Platform features such as script execution, strategy testing, broker
   integration, cloud sync, publishing, and account-level services have not
   started and should not be mixed into the chart engine.

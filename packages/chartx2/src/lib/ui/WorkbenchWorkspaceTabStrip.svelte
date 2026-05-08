@@ -146,7 +146,7 @@
     background: rgba(24, 24, 27, 0.06);
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 840px) {
     .workspace-tab-strip {
       gap: 0.45rem;
     }

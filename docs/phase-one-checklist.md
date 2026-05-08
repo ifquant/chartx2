@@ -133,14 +133,14 @@ Not allowed:
 
 Current phase-one boundary artifact:
 
-- [x] public entrypoint created at `src/lib/chartx/public/index.ts`
-- [x] first internal foundation module created at `src/lib/chartx/internal/foundation.ts`
+- [x] public entrypoint created at `packages/chartx2/src/lib/public/index.ts`
+- [x] first internal foundation module created at `packages/chartx2/src/lib/internal/foundation.ts`
 - [x] host shell reads boundary summary data through the public entrypoint
 
 ## Repo Hygiene Checklist
 
 - [x] Decide the engine root directory and write it down before adding files
-  - engine root: `src/lib/chartx`
+  - engine root: `packages/chartx2/src/lib`
 - [x] Add ignore rules or explicit decisions for local-only folders such as `.vscode/` and `.trae/`
 - [x] Delete, archive, or explicitly document scratch files:
   - [x] `a`

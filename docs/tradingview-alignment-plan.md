@@ -430,7 +430,7 @@ Implementation note:
 - Object tree V0 is read-only and intentionally does not implement selection,
   collapse, or click routing yet.
 - The public workbench contract includes `ObjectTreePanelModel` +
-  `WorkbenchObjectTreeNodeModel` in `src/lib/chartx/public/workbench.ts`. This is
+  `WorkbenchObjectTreeNodeModel` in `packages/chartx2/src/lib/public/workbench.ts`. This is
   a UI-facing projection, not the chart runtime graph.
 - The demo controller builds the object-tree projection in
   `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts` by deriving `nodes` from
@@ -752,7 +752,7 @@ Implementation note:
 
 - `Scripted Indicator V0` is intentionally a workbench-owned slice, not a new
   first-class chart study contract yet. The local script runtime lives in
-  `src/lib/chartx/public/workbench-scripts.ts` with a small typed expression
+  `packages/chartx2/src/lib/public/workbench-scripts.ts` with a small typed expression
   model, a bounded execution budget, and structured success/failure results.
 - The workbench indicator catalog now exposes canned scripted entries together
   with numeric input metadata. The current local library includes

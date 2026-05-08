@@ -488,7 +488,7 @@ Add heavier analysis:
 
 ## Near-Term Work Items
 
-1. Add `src/lib/chartx/internal/performance/` as a separate model namespace.
+1. Add `packages/chartx2/src/lib/internal/performance/` as a separate model namespace.
 2. Add `StrategyRunModel` and sample fixture data for one strategy run.
 3. Add `PerformanceDatasetRegistry` with closed-trade equity and PnL distribution first.
 4. Add `PerformanceReportModel` with `Overview`, `TradesAnalysis`, and `TradeList` sections.

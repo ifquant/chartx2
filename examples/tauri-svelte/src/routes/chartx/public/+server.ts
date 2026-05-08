@@ -1,10 +1,12 @@
+import { createRequire } from "node:module";
+
 import type { RequestHandler } from "./$types";
 
-const PUBLIC_ENTRY_PATH =
-  "/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts";
+const require = createRequire(import.meta.url);
+const publicEntryPath = require.resolve("@chartx2/library");
 
 export const GET: RequestHandler = async () => {
-  const moduleSource = `export * from "/@fs/${PUBLIC_ENTRY_PATH}";`;
+  const moduleSource = `export * from "/@fs/${publicEntryPath}";`;
 
   return new Response(moduleSource, {
     headers: {

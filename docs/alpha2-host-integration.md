@@ -81,7 +81,7 @@ working composition of:
 Do not import:
 
 - `src/lib/example-app/components/...`
-- `src/lib/chartx/internal/...`
+- `packages/chartx2/src/lib/internal/...`
 - example-app runtime helpers from `chartx-demo.ts`
 
 If a host needs something that is only available there, treat that as a missing
@@ -228,9 +228,10 @@ Those remain separate decisions.
 
 For now, `alpha2` should treat `chartx2` as:
 
-- public TypeScript contracts from `src/lib/chartx/public`
+- public TypeScript contracts from `@chartx2/library`
 - reusable Svelte host shells from the same barrel
 - host-owned runtime wiring everywhere else
 
-That is the intended boundary until the Rust core and broader host integration
-story are ready.
+Inside the local workspace, a host may temporarily resolve the package to
+`packages/chartx2/src/lib/public` for source-level development, but it should
+not import from `examples/tauri-svelte/src/lib/example-app`.

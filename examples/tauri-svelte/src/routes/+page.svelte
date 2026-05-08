@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import {
+    createWorkbenchTradeIntentBridge,
     getChartxFoundation,
     type PhaseOneDrawingPropertyField,
     type PhaseOneDrawingPropertyFieldSchema,
@@ -32,7 +33,6 @@
     type PerformanceDemoController,
     type PerformanceDemoSnapshot,
   } from "$lib/example-app/performance-demo";
-  import { createWorkbenchTradeIntentBridge } from "$lib/example-app/workbench-trade-intent-bridge";
   import type { TradeLocationIntent } from "@chartx2/library";
   import FeatureDemoPanel from "$lib/example-app/components/FeatureDemoPanel.svelte";
   import MarketWorkbenchPanel from "$lib/example-app/components/MarketWorkbenchPanel.svelte";

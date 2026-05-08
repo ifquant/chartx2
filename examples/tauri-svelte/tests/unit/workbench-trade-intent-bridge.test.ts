@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createWorkbenchTradeIntentBridge } from "../../src/lib/example-app/workbench-trade-intent-bridge";
+import { createWorkbenchTradeIntentBridge } from "@chartx2/library";
 
 const TRADE_INTENT = {
   kind: "locate-trade",

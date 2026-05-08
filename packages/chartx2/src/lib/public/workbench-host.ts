@@ -3,6 +3,7 @@ import type {
   PhaseOneLineData,
   PhaseOneVolumeData,
 } from "./market";
+import type { TradeLocationIntent } from "./performance";
 import type { WatchlistItemModel } from "./workbench";
 
 export type WorkbenchSymbolOpenSource = "search" | "watchlist" | "host";
@@ -35,6 +36,12 @@ export interface WorkbenchOpenSymbolIntent {
   source: WorkbenchSymbolOpenSource;
 }
 
+export interface WorkbenchTradeIntentLocator {
+  locateTrade?(intent: TradeLocationIntent): boolean;
+}
+
+export type WorkbenchTradeIntentRetryScheduler = (flush: () => void) => void;
+
 export type WorkbenchOpenSymbolResult =
   | {
       ok: true;
@@ -47,6 +54,10 @@ export type WorkbenchOpenSymbolResult =
       reason: "symbol-not-found" | "empty-bars";
       symbol: string;
     };
+
+const scheduleWorkbenchTradeIntentRetry: WorkbenchTradeIntentRetryScheduler = (flush) => {
+  queueMicrotask(flush);
+};
 
 export async function openWorkbenchSymbol(
   adapter: WorkbenchHostAdapter,
@@ -76,5 +87,74 @@ export async function openWorkbenchSymbol(
     source: intent.source,
     symbol: descriptor,
     payload,
+  };
+}
+
+export function createWorkbenchTradeIntentBridge(
+  scheduleRetry: WorkbenchTradeIntentRetryScheduler = scheduleWorkbenchTradeIntentRetry,
+) {
+  let pendingIntent: TradeLocationIntent | null = null;
+  let locator: WorkbenchTradeIntentLocator | null = null;
+  let retryScheduled = false;
+  let flushInProgress = false;
+  let rerunRequested = false;
+
+  const flush = (): boolean => {
+    if (flushInProgress) {
+      rerunRequested = true;
+      return false;
+    }
+
+    if (pendingIntent === null || locator === null) {
+      return false;
+    }
+
+    flushInProgress = true;
+    try {
+      const applied = locator.locateTrade?.(pendingIntent) ?? false;
+      if (applied) {
+        pendingIntent = null;
+        retryScheduled = false;
+      } else if (!retryScheduled) {
+        retryScheduled = true;
+        scheduleRetry(() => {
+          retryScheduled = false;
+          flush();
+        });
+      }
+
+      return applied;
+    } finally {
+      flushInProgress = false;
+      if (rerunRequested) {
+        rerunRequested = false;
+        if (pendingIntent !== null) {
+          flush();
+        }
+      }
+    }
+  };
+
+  return {
+    queue(intent: TradeLocationIntent): void {
+      pendingIntent = intent;
+      flush();
+    },
+    connect(nextLocator: WorkbenchTradeIntentLocator): void {
+      locator = nextLocator;
+      flush();
+    },
+    disconnect(): void {
+      locator = null;
+      retryScheduled = false;
+      flushInProgress = false;
+      rerunRequested = false;
+    },
+    publishSnapshot(): void {
+      flush();
+    },
+    pendingIntent(): TradeLocationIntent | null {
+      return pendingIntent;
+    },
   };
 }

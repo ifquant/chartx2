@@ -8,7 +8,10 @@ Parent rules in [../AGENTS.md](/Users/dev/workspace2/hc_apps/AGENTS.md) still ap
 
 - `chartx2` 是当前唯一活跃的 `chartx` 线路。
 - 这个项目不是普通业务后台，也不是通用内容站；它是一个面向 K 线与技术分析场景的图表套件样例程序。
-- 当前仓库里可运行的部分仍然是 `Tauri + SvelteKit` 宿主壳。
+- 当前仓库正在重组为 library-first workspace：
+  - `packages/chartx2` 负责纯图表库
+  - `examples/tauri-svelte` 负责官方 `Tauri + Svelte` 使用案例
+- 在重组完成前，root 下现有 `src/` 与 `src-tauri/` 仍然视为待迁移 legacy app 位置，而不是长期所有权归宿。
 - 已确认的实现路线是：
   - 先用 `Svelte` 实现一个接近 `lightweight-charts` 的基础图表软件
   - 再逐步把它扩展成更完整的图表系统，而不是停在轻量图库级别
@@ -87,9 +90,9 @@ These rules apply to everything under `/Users/dev/workspace2/hc_apps/chartx2`.
 
 Use this file especially when changing:
 
-- Svelte host app in `src/`
-- Tauri shell and Rust bridge in `src-tauri/`
-- chart-engine scaffolding or future chart library code under this repo
+- reusable library code in `packages/chartx2`
+- example app code in `examples/tauri-svelte`
+- legacy app locations in `src/` or `src-tauri/` during the migration window
 - docs that describe product direction, module boundaries, or implementation stages
 - commit tutorials under `tutorials/commit/`
 
@@ -99,12 +102,14 @@ Use this file especially when changing:
 - [docs/develop.md](/Users/dev/workspace2/hc_apps/chartx2/docs/develop.md): historical session notes and roadmap fragments; useful for context, but may drift from the current filesystem
 - [docs/phase-one-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/phase-one-checklist.md): historical phase-one execution floor; use it as the completed migration baseline, not as the full current capability map
 - [docs/lightweight-charts-gap-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/lightweight-charts-gap-checklist.md): current parity and next-gap tracker against `lightweight-charts`
-- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte): current demo/workbench shell; must stay on the public chart API
-- [src/routes/+layout.ts](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+layout.ts): SPA/SSR boundary for the Tauri host
-- [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs): current Tauri command registration and backend entry wiring
-- [src-tauri/src/main.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/main.rs): desktop app bootstrap
-- [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts): current public chart API entry
-- [src/lib/chartx/internal](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal): engine internals; host/demo code should not import across this boundary directly
+- [packages/chartx2](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2): target home for reusable chart library code
+- [examples/tauri-svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte): target home for the official example app
+- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte): current legacy demo/workbench shell; scheduled to move into the example app
+- [src/routes/+layout.ts](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+layout.ts): current legacy SPA/SSR boundary for the Tauri host
+- [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs): current legacy Tauri command registration and backend entry wiring
+- [src-tauri/src/main.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/main.rs): current legacy desktop app bootstrap
+- [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts): legacy public chart API entry during migration
+- [src/lib/chartx/internal](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal): legacy engine internals during migration; host/demo code should not import across this boundary directly
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit): per-commit newcomer tutorials
 
 ## Alpha2 Boundary
@@ -134,6 +139,12 @@ Practical rule:
 - if a UI surface still makes sense when the chart is removed, it is usually `alpha2` host-app code
 - if a UI surface only makes sense when attached to active chart context, it is usually `chartx2`
 
+Workspace ownership rule:
+
+- `packages/chartx2` owns reusable chart engine, public contracts, and reusable chart-adjacent UI shells
+- `examples/tauri-svelte` owns demo composition, routes, Tauri host wiring, and showcase runtime fixtures
+- do not keep public exports wired to `examples/` or legacy `src/lib/demo` paths once a library-owned home exists
+
 Implementation consequence:
 
 - do not move `alpha2` desktop shell chrome into `chartx2`
@@ -148,10 +159,15 @@ From repo root:
 pnpm check
 pnpm test
 pnpm build
-pnpm tauri dev
 ```
 
-From `src-tauri/`:
+From the official example app once it exists:
+
+```bash
+pnpm --filter @chartx2/example-tauri-svelte tauri
+```
+
+From the current legacy `src-tauri/` location during migration:
 
 ```bash
 cargo check

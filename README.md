@@ -2,7 +2,14 @@
 
 `chartx2` is the active `chartx` line in `hc_apps`.
 
-This project is not a generic frontend app. It is a charting-suite sample program built with `Svelte`, `SvelteKit`, and `Tauri`, with a long-term goal of growing from a `lightweight-charts`-class K-line engine into a more complete TradingView-like chart workstation.
+This repo is being reorganized into a library-first workspace. The product goal is unchanged: grow from a `lightweight-charts`-class K-line engine into a more complete TradingView-like chart workstation. The ownership split is changing:
+
+- `packages/chartx2`
+  - the pure reusable chart library
+- `examples/tauri-svelte`
+  - the official Tauri + Svelte example app that uses the library
+
+The repo root is no longer meant to be the app itself. It becomes the workspace shell for orchestration, docs, and verification.
 
 ## Current Direction
 
@@ -25,7 +32,14 @@ The intended first real user is the founder.
 
 The goal is not only to avoid paying for `TradingView`. The real goal is to own and modify the chart system freely, instead of being limited by a closed product boundary. `chartx2` is meant to become a chart engine and workstation that can be extended without waiting on a third-party vendor.
 
-## Repo Layout
+## Workspace Layout
+
+- [packages/chartx2](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2)
+  - reusable chart library package
+- [examples/tauri-svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte)
+  - official desktop example app using the library
+
+## Current Repo Layout
 
 - [AGENTS.md](/Users/dev/workspace2/hc_apps/chartx2/AGENTS.md)
   - local collaboration rules, commit discipline, and project boundaries
@@ -36,9 +50,9 @@ The goal is not only to avoid paying for `TradingView`. The real goal is to own 
 - [docs/tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md)
   - the three-layer plan for aligning `chartx2` with a modifiable TradingView-like workstation
 - [src](/Users/dev/workspace2/hc_apps/chartx2/src)
-  - Svelte host app
+  - legacy location of the current app shell during the reorg; scheduled to move into `examples/tauri-svelte/src`
 - [src-tauri](/Users/dev/workspace2/hc_apps/chartx2/src-tauri)
-  - Tauri desktop shell and Rust bridge
+  - legacy location of the current Tauri shell during the reorg; scheduled to move into `examples/tauri-svelte/src-tauri`
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit)
   - one newcomer-facing tutorial per non-trivial commit
 
@@ -49,10 +63,16 @@ From the repo root:
 ```bash
 pnpm check
 pnpm build
-pnpm tauri dev
+pnpm test
 ```
 
-From `src-tauri/`:
+During the transition, the official example app will own app-specific commands such as:
+
+```bash
+pnpm --filter @chartx2/example-tauri-svelte tauri
+```
+
+From the current legacy `src-tauri/` location:
 
 ```bash
 cargo check
@@ -61,7 +81,7 @@ cargo test
 
 Notes:
 
-- `pnpm check` currently depends on a complete frontend install. If local `node_modules` is incomplete, it will fail before type-checking.
+- `pnpm check` is being converted into a workspace gate across the library package and the official example app.
 - `cargo check` is the lowest-cost real validation for the Rust/Tauri side right now.
 
 ## Near-Term Priority

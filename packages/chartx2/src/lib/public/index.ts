@@ -1,2 +1,2 @@
-// library barrel placeholder; actual exports migrate in Task 3
+// Library barrel placeholder; actual exports migrate in the next reorg wave.
 export {};

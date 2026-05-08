@@ -10,8 +10,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "pnpm test:unit && pnpm test:visual",
-    "test:unit": "vitest run",
-    "test:visual": "playwright test",
+    "test:unit": "vitest run --passWithNoTests",
+    "test:visual": "playwright test --pass-with-no-tests",
     "tauri": "tauri"
   },
   "license": "MIT",

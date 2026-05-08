@@ -7,6 +7,12 @@ node_modules
 /package
 /playwright-report
 /test-results
+**/build
+**/.svelte-kit
+**/dist
+**/package
+**/playwright-report
+**/test-results
 .env
 .env.*
 !.env.example

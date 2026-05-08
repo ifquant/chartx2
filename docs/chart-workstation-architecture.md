@@ -108,7 +108,7 @@ The public contract should be explicit enough that the future host app can:
 
 The first public workstation contract lives in:
 
-- [src/lib/chartx/public/workbench.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/workbench.ts)
+- [packages/chartx2/src/lib/public/workbench.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/workbench.ts)
 
 This is a contract slice, not the full product.
 

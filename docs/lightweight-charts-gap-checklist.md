@@ -137,7 +137,7 @@ The capability categories below are intentionally practical:
 ## Done
 
 - chart mounts into one HTML canvas through a real public boundary
-  - current entrypoints: [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts)
+  - current entrypoints: [packages/chartx2/src/lib/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts)
 - one pane renders deterministic data end to end
   - current harness: [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
 - a fixed two-pane path now exists for primary series plus volume
@@ -238,7 +238,7 @@ Current state:
 
 Current references:
 
-- [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts)
+- [packages/chartx2/src/lib/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts)
 - [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
 
 Why this is still simplified:

@@ -268,7 +268,7 @@ Current references:
 
 - [packages/chartx2/src/lib/internal/model/time-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/time-scale.ts)
 - [packages/chartx2/src/lib/internal/model/price-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/price-scale.ts)
-- [tests/unit/model-core.test.ts](/Users/dev/workspace2/hc_apps/chartx2/tests/unit/model-core.test.ts)
+- [packages/chartx2/tests/unit/model-core.test.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/tests/unit/model-core.test.ts)
 
 Why this is still simplified:
 
@@ -301,7 +301,7 @@ Why this is still simplified:
 Current references:
 
 - [packages/chartx2/src/lib/internal/model/series-data.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/series-data.ts)
-- [tests/unit/upstream-parity-contracts.test.ts](/Users/dev/workspace2/hc_apps/chartx2/tests/unit/upstream-parity-contracts.test.ts)
+- [packages/chartx2/tests/unit/upstream-parity-contracts.test.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/tests/unit/upstream-parity-contracts.test.ts)
 
 Why this is still simplified:
 

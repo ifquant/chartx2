@@ -85,8 +85,7 @@ describe("chartx2 library split boundary", () => {
       "packages/chartx2/src/lib/internal/foundation.ts",
     ];
     const staleFragments = [
-      "src/lib/chartx/public",
-      "src/lib/chartx/internal",
+      "src/lib/chartx",
       "src/lib/demo",
     ];
 

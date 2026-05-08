@@ -140,7 +140,7 @@ Current phase-one boundary artifact:
 ## Repo Hygiene Checklist
 
 - [x] Decide the engine root directory and write it down before adding files
-  - engine root: `src/lib/chartx`
+  - engine root: `packages/chartx2/src/lib`
 - [x] Add ignore rules or explicit decisions for local-only folders such as `.vscode/` and `.trae/`
 - [x] Delete, archive, or explicitly document scratch files:
   - [x] `a`

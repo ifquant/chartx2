@@ -1,6 +1,7 @@
 .DS_Store
 /.vscode
 /.trae
+/.worktrees
 node_modules
 /build
 /.svelte-kit

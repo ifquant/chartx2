@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as chartxPublic from "../../src/lib/public";
 
 import type {
   AccountSyncSurfaceModel,
@@ -57,5 +58,10 @@ describe("public chartx barrel", () => {
     expect(strategyTester.state.activeTabId).toBe("overview");
     expect(tradingTicket.symbol).toBe("NQ");
     expect(accountSync.providerLabel).toBe("Workspace Sync");
+  });
+
+  it("re-exports script authoring controls through the public index", () => {
+    expect(chartxPublic).toHaveProperty("ScriptExpressionBuilder");
+    expect(chartxPublic).not.toHaveProperty("ScriptLengthInput");
   });
 });

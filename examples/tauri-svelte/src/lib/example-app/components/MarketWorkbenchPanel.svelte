@@ -13,7 +13,6 @@
   } from "@chartx2/library";
   import {
     ScriptExpressionBuilder,
-    ScriptLengthInput,
     formatWorkbenchScriptCompatibilityLabel,
     formatWorkbenchCustomScriptExpressionText,
     parseWorkbenchCustomScriptExpressionText,
@@ -2493,7 +2492,9 @@
             <p class="custom-script-preview" data-custom-script-compatibility-note>{customScriptCompatibilityNote}</p>
             <label class="script-input-field">
               <span>Default length</span>
-              <ScriptLengthInput
+              <input
+                type="text"
+                inputmode="numeric"
                 bind:value={customScriptDefaultLengthInput}
                 data-custom-script-field="default-length"
               />
@@ -2579,7 +2580,9 @@
                 </div>
                 <label class="script-input-field compact-launch-field">
                   <span>Length</span>
-                  <ScriptLengthInput
+                  <input
+                    type="text"
+                    inputmode="numeric"
                     bind:value={customScriptLaunchDrafts[script.id]}
                     data-custom-script-launch-length={script.id}
                   />
@@ -4392,25 +4395,6 @@
     margin: 0;
     font-size: 0.72rem;
     color: rgba(24, 24, 27, 0.62);
-  }
-
-  :global(.script-builder-node) {
-    display: grid;
-    gap: 8px;
-    padding: 8px;
-    border: 1px solid rgba(24, 24, 27, 0.08);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.6);
-  }
-
-  :global(.compact-builder-field) {
-    gap: 2px;
-  }
-
-  :global(.script-builder-branch) {
-    display: grid;
-    gap: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .custom-script-actions,

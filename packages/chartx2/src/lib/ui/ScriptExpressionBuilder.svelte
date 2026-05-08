@@ -75,3 +75,51 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .script-builder-node {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(24, 24, 27, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .script-input-field {
+    display: grid;
+    gap: 4px;
+  }
+
+  .script-input-field span {
+    font-size: 0.7rem;
+    text-transform: none;
+    color: rgba(24, 24, 27, 0.58);
+  }
+
+  .script-input-field select {
+    width: 100%;
+    border: 1px solid rgba(24, 24, 27, 0.12);
+    border-radius: 7px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #18181b;
+    font: inherit;
+  }
+
+  .compact-builder-field {
+    gap: 2px;
+  }
+
+  .custom-script-preview {
+    margin: 0;
+    font-size: 0.72rem;
+    color: rgba(24, 24, 27, 0.62);
+  }
+
+  .script-builder-branch {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+</style>

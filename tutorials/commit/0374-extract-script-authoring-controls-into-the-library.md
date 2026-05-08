@@ -9,20 +9,20 @@ The custom-script builder controls in the official example app had stabilized in
 ## What Changed
 
 - moved `ScriptExpressionBuilder.svelte` into `packages/chartx2/src/lib/ui`
-- moved the small `ScriptLengthInput.svelte` wrapper alongside it so the script authoring controls stay co-located
-- added a focused public `workbench-script-components` barrel and exported it through `@chartx2/library`
-- rewired `MarketWorkbenchPanel.svelte` to import both controls from the library
+- gave the moved builder its own scoped styles so it no longer depends on hidden example-only `:global(...)` rules
+- added a focused public `workbench-script-components` barrel and exported only `ScriptExpressionBuilder` through `@chartx2/library`
+- rewired `MarketWorkbenchPanel.svelte` to import the builder from the library and inlined the trivial length `<input>` fields locally instead of promoting a passthrough wrapper into the public API
 - deleted the old example-owned component files once the panel stopped using them
 
 ## Result
 
-- stable script authoring controls are now library-owned instead of example-owned
-- the example workbench panel depends only on the public library surface for these controls
-- styling and behavior stay unchanged because the moved components keep the same markup and class names
+- the stable script-expression builder is now library-owned instead of example-owned
+- the example workbench panel depends on the public library surface for the reusable builder control without growing the public API for a trivial input wrapper
+- styling and behavior stay unchanged because the builder keeps the same markup, class names, and local visual rules
 
 ## Verification
 
-- `rg -n "ScriptExpressionBuilder|ScriptLengthInput" packages/chartx2/src/lib/public packages/chartx2/src/lib/ui examples/tauri-svelte/src/lib/example-app/components/MarketWorkbenchPanel.svelte`
+- `pnpm --filter @chartx2/library exec vitest run packages/chartx2/tests/unit/public-index-contract.test.ts`
 - `pnpm test:unit`
 - `pnpm check`
 - `pnpm build`

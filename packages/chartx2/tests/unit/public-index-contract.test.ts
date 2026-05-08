@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import * as chartxPublic from "../../src/lib/public";
+import * as workbenchBottomPanels from "../../src/lib/public/workbench-bottom-panels";
 
 import type {
   AccountSyncSurfaceModel,
   ShareDialogModel,
   StrategyTesterPanelModel,
   TradingTicketModel,
-  WorkbenchReplayPanelModel,
 } from "../../src/lib/public";
+import type { WorkbenchReplayPanelModel } from "../../src/lib/public/workbench-bottom-panels";
 
 describe("public chartx barrel", () => {
   it("re-exports host integration shell contracts through the public index", () => {
@@ -81,5 +82,8 @@ describe("public chartx barrel", () => {
     expect(replay.totalSteps).toBe(64);
     expect(chartxPublic).toHaveProperty("ReplayPanel");
     expect(chartxPublic).toHaveProperty("TimePresetsPanel");
+    expect(workbenchBottomPanels).toHaveProperty("ReplayPanel");
+    expect(workbenchBottomPanels).toHaveProperty("TimePresetsPanel");
+    expect(workbenchBottomPanels).not.toHaveProperty("ScriptExpressionBuilder");
   });
 });

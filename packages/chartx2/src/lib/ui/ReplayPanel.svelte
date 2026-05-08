@@ -27,7 +27,12 @@
   </div>
   <div class="replay-controls">
     {#if !(model?.active ?? false)}
-      <button type="button" data-replay-control="enter" on:click={onEnterReplay}>
+      <button
+        type="button"
+        data-replay-control="enter"
+        disabled={!(model?.available ?? false)}
+        on:click={onEnterReplay}
+      >
         Enter replay
       </button>
     {:else}
@@ -55,6 +60,27 @@
 </section>
 
 <style>
+  .mini-card {
+    padding: 10px 12px;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .sidebar-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .sidebar-head h4 {
+    margin: 0;
+  }
+
   .replay-summary {
     display: grid;
     gap: 4px;
@@ -85,7 +111,16 @@
     cursor: pointer;
   }
 
+  .replay-controls button:disabled {
+    opacity: 0.46;
+    cursor: not-allowed;
+  }
+
   .replay-controls button:hover {
     background: rgba(24, 24, 27, 0.12);
+  }
+
+  .replay-controls button:disabled:hover {
+    background: rgba(24, 24, 27, 0.08);
   }
 </style>

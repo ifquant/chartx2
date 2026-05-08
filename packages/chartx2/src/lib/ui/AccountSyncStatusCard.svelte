@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AccountSyncSurfaceModel } from "../../chartx/public/account-sync-surface";
+  import type { AccountSyncSurfaceModel } from "../public/account-sync-surface";
 
   export let model: AccountSyncSurfaceModel | null = null;
   export let onRefresh: () => void = () => {};

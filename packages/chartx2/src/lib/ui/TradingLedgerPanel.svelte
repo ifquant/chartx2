@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TradingLedgerPanelModel, TradingLedgerRowModel } from "../../chartx/public/trading-ledger-surface";
+  import type { TradingLedgerPanelModel, TradingLedgerRowModel } from "../public/trading-ledger-surface";
 
   const EMPTY_MODEL: TradingLedgerPanelModel = {
     tabs: [],

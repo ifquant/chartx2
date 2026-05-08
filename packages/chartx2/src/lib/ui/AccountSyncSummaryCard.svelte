@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AccountSyncSummaryShellModel } from "../../chartx/public/account-sync-surface";
+  import type { AccountSyncSummaryShellModel } from "../public/account-sync-surface";
   import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: AccountSyncSummaryShellModel | null = null;

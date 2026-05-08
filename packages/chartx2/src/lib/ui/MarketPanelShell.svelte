@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MarketPanelModel, MarketPanelTone } from "../../chartx/public/market-panel-surface";
+  import type { MarketPanelModel, MarketPanelTone } from "../public/market-panel-surface";
 
   const EMPTY_MODEL: MarketPanelModel = {
     tabs: [],

@@ -7,8 +7,8 @@
     type PhaseOneCrosshairMoveEvent,
     type PhaseOneLineSeriesApi,
     type PhaseOneVolumeSeriesApi,
-  } from "../../chartx/public/market";
-  import type { PhaseOneMarketChartSurfaceModel } from "../../chartx/public/market-chart-surface";
+  } from "../public/market";
+  import type { PhaseOneMarketChartSurfaceModel } from "../public/market-chart-surface";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
     symbol: "Symbol",

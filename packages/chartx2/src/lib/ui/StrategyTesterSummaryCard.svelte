@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StrategyTesterSummaryShellModel } from "../../chartx/public/strategy-tester";
+  import type { StrategyTesterSummaryShellModel } from "../public/strategy-tester";
   import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: StrategyTesterSummaryShellModel | null = null;

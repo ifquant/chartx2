@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TradingTicketSummaryShellModel } from "../../chartx/public/trading-surface";
+  import type { TradingTicketSummaryShellModel } from "../public/trading-surface";
   import HostSurfaceSummaryCard from "./HostSurfaceSummaryCard.svelte";
 
   export let model: TradingTicketSummaryShellModel | null = null;

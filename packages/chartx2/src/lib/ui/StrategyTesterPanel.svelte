@@ -10,8 +10,8 @@
     StrategyTesterSummaryMetric,
     StrategyTesterTradeDetail,
     StrategyTesterTradeRow,
-  } from "../../chartx/public/strategy-tester";
-  import type { TradeLocationIntent } from "../../chartx/public/performance";
+  } from "../public/strategy-tester";
+  import type { TradeLocationIntent } from "../public/performance";
 
   const EMPTY_PANEL: StrategyTesterPanelModel = {
     title: "Strategy Tester",

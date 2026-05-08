@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ShareDialogModel, ShareVisibility } from "../../chartx/public/sharing-surface";
+  import type { ShareDialogModel, ShareVisibility } from "../public/sharing-surface";
 
   export let model: ShareDialogModel | null = null;
   export let open = false;

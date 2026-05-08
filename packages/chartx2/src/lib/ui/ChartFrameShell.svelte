@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ChartFrameChipModel, ChartFrameShellModel, ChartFrameToolModel } from "../../chartx/public/chart-frame-surface";
+  import type { ChartFrameChipModel, ChartFrameShellModel, ChartFrameToolModel } from "../public/chart-frame-surface";
 
   const EMPTY_MODEL: ChartFrameShellModel = {
     title: "Chart frame",

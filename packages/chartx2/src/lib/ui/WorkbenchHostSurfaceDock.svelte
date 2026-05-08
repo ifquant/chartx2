@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { AccountSyncSummaryShellModel } from "../../chartx/public/account-sync-surface";
-  import type { ShareArtifactSummaryModel } from "../../chartx/public/sharing-surface";
-  import type { StrategyTesterSummaryShellModel } from "../../chartx/public/strategy-tester";
-  import type { TradingTicketSummaryShellModel } from "../../chartx/public/trading-surface";
-  import type { WorkbenchHostSummarySurfaceModel } from "../../chartx/public/workbench";
+  import type { AccountSyncSummaryShellModel } from "../public/account-sync-surface";
+  import type { ShareArtifactSummaryModel } from "../public/sharing-surface";
+  import type { StrategyTesterSummaryShellModel } from "../public/strategy-tester";
+  import type { TradingTicketSummaryShellModel } from "../public/trading-surface";
+  import type { WorkbenchHostSummarySurfaceModel } from "../public/workbench";
   import ShareArtifactSummaryCard from "./ShareArtifactSummaryCard.svelte";
   import WorkbenchHostSummaryStrip from "./WorkbenchHostSummaryStrip.svelte";
 

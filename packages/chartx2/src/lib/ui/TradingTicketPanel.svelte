@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TradingTicketModel } from "../../chartx/public/trading-surface";
+  import type { TradingTicketModel } from "../public/trading-surface";
 
   const EMPTY_MODEL: TradingTicketModel = {
     title: "Trading Ticket",

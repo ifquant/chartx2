@@ -80,9 +80,9 @@ working composition of:
 
 Do not import:
 
-- `src/lib/demo/components/...`
+- `src/lib/example-app/components/...`
 - `src/lib/chartx/internal/...`
-- demo runtime helpers from `chartx-demo.ts`
+- example-app runtime helpers from `chartx-demo.ts`
 
 If a host needs something that is only available there, treat that as a missing
 public seam and add it deliberately.

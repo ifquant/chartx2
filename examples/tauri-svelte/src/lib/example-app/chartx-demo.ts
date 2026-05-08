@@ -128,7 +128,7 @@ import {
   createWorkbenchFixtureBarsPayload,
   createWorkbenchFixtureHostAdapter,
   loadWorkbenchInitialSymbolPayload,
-} from "$lib/demo/workbench-fixtures";
+} from "$lib/example-app/workbench-fixtures";
 
 export type DemoTabId = "workbench" | "features";
 export type FeatureTabId =

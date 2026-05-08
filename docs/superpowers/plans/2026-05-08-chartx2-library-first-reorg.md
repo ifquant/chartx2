@@ -45,7 +45,7 @@ Rules this plan locks in:
 
 - `packages/chartx2` is the only place that may own reusable chart engine, public contracts, and reusable chart-adjacent Svelte UI.
 - `examples/tauri-svelte` is allowed to own app shell, routes, Tauri host bootstrap, demo/runtime fixtures, and visual flows.
-- No reusable public component may continue exporting from a `demo/components` path after the reorg.
+- No reusable public component may continue exporting from an `example-app/components` path after the reorg.
 - `chartx2` root should stop pretending to be the app itself; it becomes a workspace/documentation root.
 
 ## Scope Check
@@ -375,7 +375,7 @@ packages/chartx2/src/lib/ui/
 
 Purpose:
 
-- reusable Svelte shells stop exporting from `demo/components`
+- reusable Svelte shells stop exporting from example-owned component paths
 - public components live in the library package beside contracts, not beside the example runtime
 
 - [ ] **Step 2: Move public host shells and summary components**
@@ -440,9 +440,9 @@ git commit -m "refactor(library-ui): move reusable host shells out of demo compo
 - Create: `examples/tauri-svelte/tsconfig.json`
 - Move: `src/routes/**/*` -> `examples/tauri-svelte/src/routes/**/*`
 - Move: `src-tauri/**/*` -> `examples/tauri-svelte/src-tauri/**/*`
-- Move: `src/lib/demo/**/*` -> `examples/tauri-svelte/src/lib/demo/**/*`
+- Move: `src/lib/demo/**/*` -> `examples/tauri-svelte/src/lib/example-app/**/*`
 - Modify: imports in `examples/tauri-svelte/src/routes/+page.svelte`
-- Modify: `examples/tauri-svelte/src/lib/demo/chartx-demo.ts`
+- Modify: `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts`
 
 - [ ] **Step 1: Create the example app package**
 
@@ -475,7 +475,7 @@ Move:
 ```text
 src/routes -> examples/tauri-svelte/src/routes
 src-tauri -> examples/tauri-svelte/src-tauri
-src/lib/demo -> examples/tauri-svelte/src/lib/demo
+src/lib/demo -> examples/tauri-svelte/src/lib/example-app
 ```
 
 Keep the current runtime behavior intact.
@@ -486,20 +486,20 @@ Example route imports should move from:
 
 ```ts
 import { getChartxFoundation } from "$lib/chartx/public/market";
-import { mountWorkbenchDemo } from "$lib/demo/chartx-demo";
+import { mountWorkbenchDemo } from "$lib/example-app/chartx-demo";
 ```
 
 to:
 
 ```ts
 import { getChartxFoundation } from "@chartx2/library";
-import { mountWorkbenchDemo } from "$lib/demo/chartx-demo";
+import { mountWorkbenchDemo } from "$lib/example-app/chartx-demo";
 ```
 
 Rule:
 
 - reusable chart contracts/components come from `@chartx2/library`
-- example runtime fixtures keep importing from example-local `src/lib/demo`
+- example runtime fixtures keep importing from example-local `src/lib/example-app`
 
 - [ ] **Step 4: Preserve Tauri-only ownership in the example**
 
@@ -534,7 +534,7 @@ The example app compiles while importing public surfaces from @chartx2/library
 - [ ] **Step 6: Commit**
 
 ```bash
-git add examples/tauri-svelte src/routes src-tauri src/lib/demo
+git add examples/tauri-svelte src/routes src-tauri src/lib/example-app
 git commit -m "refactor(example): move the current tauri svelte app into examples/tauri-svelte"
 ```
 

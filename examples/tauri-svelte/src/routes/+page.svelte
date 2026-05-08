@@ -26,17 +26,17 @@
     type FeatureExampleDescriptor,
     type FeatureTabId,
     type WorkbenchDrawingTool,
-  } from "$lib/demo/chartx-demo";
+  } from "$lib/example-app/chartx-demo";
   import {
     mountPerformanceReportDemo,
     type PerformanceDemoController,
     type PerformanceDemoSnapshot,
-  } from "$lib/demo/performance-demo";
-  import { createWorkbenchTradeIntentBridge } from "$lib/demo/workbench-trade-intent-bridge";
+  } from "$lib/example-app/performance-demo";
+  import { createWorkbenchTradeIntentBridge } from "$lib/example-app/workbench-trade-intent-bridge";
   import type { TradeLocationIntent } from "@chartx2/library";
-  import FeatureDemoPanel from "$lib/demo/components/FeatureDemoPanel.svelte";
-  import MarketWorkbenchPanel from "$lib/demo/components/MarketWorkbenchPanel.svelte";
-  import PerformanceWorkbenchPanel from "$lib/demo/components/PerformanceWorkbenchPanel.svelte";
+  import FeatureDemoPanel from "$lib/example-app/components/FeatureDemoPanel.svelte";
+  import MarketWorkbenchPanel from "$lib/example-app/components/MarketWorkbenchPanel.svelte";
+  import PerformanceWorkbenchPanel from "$lib/example-app/components/PerformanceWorkbenchPanel.svelte";
 
   type TopTabId = "workbench" | "performance" | FeatureTabId;
 

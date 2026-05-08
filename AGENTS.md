@@ -142,7 +142,7 @@ Workspace ownership rule:
 
 - `packages/chartx2` owns reusable chart engine, public contracts, and reusable chart-adjacent UI shells
 - `examples/tauri-svelte` owns demo composition, routes, Tauri host wiring, and showcase runtime fixtures
-- do not keep public exports wired to `examples/` or legacy `src/lib/demo` paths once a library-owned home exists
+- do not keep public exports wired to `examples/` or example-owned `src/lib/example-app` paths once a library-owned home exists
 
 Implementation consequence:
 

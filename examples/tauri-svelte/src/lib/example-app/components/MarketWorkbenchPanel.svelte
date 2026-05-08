@@ -26,9 +26,9 @@
     DemoCustomScriptLibraryEntry,
     DemoSnapshot,
     WorkbenchDrawingTool,
-  } from "$lib/demo/chartx-demo";
-  import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
-  import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
+  } from "$lib/example-app/chartx-demo";
+  import ScriptExpressionBuilder from "$lib/example-app/components/ScriptExpressionBuilder.svelte";
+  import ScriptLengthInput from "$lib/example-app/components/ScriptLengthInput.svelte";
   import {
     AccountSyncStatusCard,
     ShareDialogShell,
@@ -36,9 +36,9 @@
     TradingTicketPanel,
     WorkbenchHostSurfaceDock,
   } from "@chartx2/library";
-  import ActivityLogPanel from "$lib/demo/components/ActivityLogPanel.svelte";
-  import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
-  import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
+  import ActivityLogPanel from "$lib/example-app/components/ActivityLogPanel.svelte";
+  import ReplayPanel from "$lib/example-app/components/ReplayPanel.svelte";
+  import TimePresetsPanel from "$lib/example-app/components/TimePresetsPanel.svelte";
   import type { TradeLocationIntent } from "@chartx2/library";
 
   export let chartTypeActions: readonly DemoAction[] = [];

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PhaseOneReadoutDetail } from "@chartx2/library";
-  import type { DemoAction, DemoSnapshot } from "$lib/demo/chartx-demo";
+  import type { DemoAction, DemoSnapshot } from "$lib/example-app/chartx-demo";
 
   export let title: string | undefined;
   export let summary: string | undefined;

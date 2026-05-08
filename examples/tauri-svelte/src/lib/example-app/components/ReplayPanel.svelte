@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { DemoReplayState } from "$lib/demo/chartx-demo";
+  import type { DemoReplayState } from "$lib/example-app/chartx-demo";
 
   export let model: DemoReplayState | undefined = undefined;
   export let onEnterReplay: () => void;

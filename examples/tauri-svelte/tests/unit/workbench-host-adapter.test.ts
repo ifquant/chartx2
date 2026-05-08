@@ -9,7 +9,7 @@ import {
   createWorkbenchFixtureHostAdapter,
   createWorkbenchFixtureWatchlist,
   loadWorkbenchInitialSymbolPayload,
-} from "../../src/lib/demo/workbench-fixtures";
+} from "../../src/lib/example-app/workbench-fixtures";
 
 describe("workbench host adapter", () => {
   it("exposes deterministic fixture watchlist items and bar payloads", async () => {

@@ -33,7 +33,7 @@ Reason:
 - the public barrel exports them
 - the current host integration guide and example both rely on them
 - the repo now treats them as the intended public seam rather than incidental
-  demo state
+  example-app state
 
 ### Components
 
@@ -134,13 +134,13 @@ Reason:
 - it owns too much shell policy, responsive behavior, and demo wiring to be the
   recommended public host component
 
-### Demo Runtime Assembly
+### Example-App Runtime Assembly
 
 - `chartx-demo.ts`
 
 Reason:
 
-- this remains fixture and demo orchestration
+- this remains fixture and example-app orchestration
 - hosts should not depend on its model creation or callback semantics
 
 ### Script Runtime / Workbench Script Execution
@@ -160,7 +160,7 @@ The biggest remaining host-boundary gaps are:
 - a more explicit submission/request contract for trading and strategy shells
 - a package-level import/distribution story beyond repo-local barrel exports
 - a decision on whether some smaller shell components should move out of
-  `demo/components` lineage into a dedicated public-ui directory
+  `example-app/components` lineage into a dedicated public-ui directory
 
 None of these block `alpha2` from starting integration. They do block us from
 calling the host UI boundary fully mature.
@@ -178,8 +178,8 @@ calling the host UI boundary fully mature.
 `alpha2` should avoid:
 
 - importing `MarketWorkbenchPanel`
-- reusing `chartx-demo.ts`
-- depending on `internal/` or `demo/components/` paths directly
+- reusing example-app `chartx-demo.ts`
+- depending on `internal/` or `example-app/components/` paths directly
 
 ## Bottom Line
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PerformanceDemoSnapshot } from "$lib/demo/performance-demo";
+  import type { PerformanceDemoSnapshot } from "$lib/example-app/performance-demo";
   import type { OptimizationMetricKey } from "@chartx2/library";
 
   export let snapshot: PerformanceDemoSnapshot;

@@ -39,6 +39,17 @@ The goal is not only to avoid paying for `TradingView`. The real goal is to own 
 - [examples/tauri-svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte)
   - official desktop example app using the library
 
+## Consumer Boundary
+
+External hosts should import chart surfaces, models, and helpers from
+`@chartx2/library`. The source-backed package entry lives at
+`packages/chartx2/src/lib/public`, but hosts should not import the example app.
+
+The example app keeps an internal-only alias for its demo controllers:
+`@chartx2/library/internal`. That alias is for
+`examples/tauri-svelte/src/lib/example-app` fixtures and browser smoke tests,
+not for sibling products such as `alpha2`.
+
 ## Current Repo Layout
 
 - [AGENTS.md](/Users/dev/workspace2/hc_apps/chartx2/AGENTS.md)

@@ -12,6 +12,7 @@ export * from "./trading-surface";
 export * from "./workbench";
 export * from "./workbench-bottom-panels";
 export * from "./workbench-alerts";
+export * from "./workbench-drawing-inspector";
 export * from "./workbench-host";
 export * from "./workbench-indicators";
 export * from "./workbench-layout";

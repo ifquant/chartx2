@@ -9,6 +9,7 @@ import {
   StrategyTesterPanel,
   TimePresetsPanel,
   TradingTicketPanel,
+  WorkbenchDrawingInspectorPanel,
   WorkbenchHostSurfaceDock,
   WorkbenchWorkspaceTabStrip,
   createChartxPhaseOneChart,
@@ -27,6 +28,7 @@ describe("@chartx2/library public consumer boundary", () => {
     expect(TimePresetsPanel).toBeDefined();
     expect(TradingTicketPanel).toBeDefined();
     expect(AccountSyncStatusCard).toBeDefined();
+    expect(WorkbenchDrawingInspectorPanel).toBeDefined();
     expect(WorkbenchHostSurfaceDock).toBeDefined();
     expect(WorkbenchWorkspaceTabStrip).toBeDefined();
     expect(typeof getChartxFoundation).toBe("function");

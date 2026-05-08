@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as chartxPublic from "../../src/lib/public";
 import * as workbenchBottomPanels from "../../src/lib/public/workbench-bottom-panels";
+import * as workbenchDrawingInspector from "../../src/lib/public/workbench-drawing-inspector";
 import * as workbenchWorkspaceTabs from "../../src/lib/public/workbench-workspace-tabs";
 
 import type {
@@ -94,5 +95,11 @@ describe("public chartx barrel", () => {
     expect(chartxPublic).toHaveProperty("WorkbenchWorkspaceTabStrip");
     expect(workbenchWorkspaceTabs).toHaveProperty("WorkbenchWorkspaceTabStrip");
     expect(workbenchWorkspaceTabs).not.toHaveProperty("ReplayPanel");
+  });
+
+  it("re-exports the workbench drawing inspector through a focused public barrel", () => {
+    expect(chartxPublic).toHaveProperty("WorkbenchDrawingInspectorPanel");
+    expect(workbenchDrawingInspector).toHaveProperty("WorkbenchDrawingInspectorPanel");
+    expect(workbenchDrawingInspector).not.toHaveProperty("ReplayPanel");
   });
 });

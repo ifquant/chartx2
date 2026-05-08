@@ -433,16 +433,16 @@ Implementation note:
   `WorkbenchObjectTreeNodeModel` in `src/lib/chartx/public/workbench.ts`. This is
   a UI-facing projection, not the chart runtime graph.
 - The demo controller builds the object-tree projection in
-  `src/lib/demo/chartx-demo.ts` by deriving `nodes` from
+  `examples/tauri-svelte/src/lib/demo/chartx-demo.ts` by deriving `nodes` from
   `PhaseOneChartStateSnapshot` plus pane snapshots and persisted workbench
   alerts. The projection is shallow and deterministic (labels, detail labels,
   muted state, and a `depth` number), rather than exposing mutable runtime
   objects.
 - The UI renders the projection in
-  `src/lib/demo/components/MarketWorkbenchPanel.svelte` as a read-only tree
+  `examples/tauri-svelte/src/lib/demo/components/MarketWorkbenchPanel.svelte` as a read-only tree
   (`role="tree"` and `role="treeitem"` with `aria-level`), without wiring click
   handlers, selection state, or expand/collapse.
-- Visual coverage for the V0 contract lives in `tests/visual/phase-one-harness.spec.ts`
+- Visual coverage for the V0 contract lives in `examples/tauri-svelte/tests/visual/phase-one-harness.spec.ts`
   under the "object tree" workbench tests.
 
 ### 7. Multi-Chart Layout V0
@@ -504,7 +504,8 @@ Implementation note:
 
 - Bar Replay V0 is now active-chart-only in the demo workbench. The shell
   enables the replay bottom tab, but replay policy remains in
-  `src/lib/demo/chartx-demo.ts` rather than moving into `+page.svelte`.
+  `examples/tauri-svelte/src/lib/demo/chartx-demo.ts` rather than moving into
+  the example route shell.
 - The current slice supports enter, play, pause, step, and exit controls over
   local fixture/history bars for the active market chart only.
 - Replay works by truncating the displayed `bars`, `line`, and `volume` payload
@@ -609,10 +610,10 @@ Implementation note:
   a future toolbar idea. The public workbench shell carries a small
   `commandPalette` model, while the demo controller publishes deterministic
   command entries for theme, layout, layout persistence, and replay entry/exit.
-- `src/routes/+page.svelte` still does not own workstation policy. It only
+- `examples/tauri-svelte/src/routes/+page.svelte` still does not own workstation policy. It only
   keeps the open/closed state for the palette and wires `Cmd/Ctrl+K` plus
   `Escape` into the existing controller-backed command execution path.
-- `src/lib/demo/components/MarketWorkbenchPanel.svelte` renders the palette
+- `examples/tauri-svelte/src/lib/demo/components/MarketWorkbenchPanel.svelte` renders the palette
   overlay with stable selectors so browser coverage can prove that keyboard
   open/close and command execution both work against the current workbench
   shell.
@@ -652,7 +653,7 @@ Layer 2 is acceptable when:
 
 - A user can maintain watchlists, open symbols, add indicators, draw, save
   layouts, set local alerts, run replay, and use a basic screener.
-- `src/routes/+page.svelte` acts as a shell, not the owner of workstation
+- `examples/tauri-svelte/src/routes/+page.svelte` acts as a shell, not the owner of workstation
   policy.
 - Main user paths have browser or visual tests.
 - Workstation capabilities are exposed through explicit public/internal
@@ -1374,7 +1375,7 @@ Safe parallel work:
 
 Serial work:
 
-- `src/routes/+page.svelte` rewiring.
+- `examples/tauri-svelte/src/routes/+page.svelte` rewiring.
 - `chart-harness` rewiring.
 - Public API shape changes.
 - Layout snapshot schema changes.

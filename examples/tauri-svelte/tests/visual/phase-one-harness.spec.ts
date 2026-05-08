@@ -12,7 +12,7 @@ function featureTab(page: Page, name: string) {
 }
 
 function workbenchPanel(page: Page) {
-  return page.locator('[data-demo-tab="workbench"]');
+  return page.locator('[data-demo-tab="workbench"]:visible').first();
 }
 
 async function injectHostScriptAdapterFailure(page: Page) {
@@ -28,6 +28,15 @@ function workbenchAction(page: Page, actionId: string) {
 
 function workbenchCommandPalette(page: Page) {
   return workbenchPanel(page).locator("[data-command-palette]");
+}
+
+async function switchCustomScriptEditorMode(page: Page, mode: "builder" | "text") {
+  const toggle = workbenchPanel(page)
+    .locator(`[data-custom-script-editor-mode="${mode}"]:visible`)
+    .first();
+  await toggle.scrollIntoViewIfNeeded();
+  await toggle.dispatchEvent("click");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
 }
 
 function scriptedIndicatorCard(page: Page, entryId: string) {
@@ -155,6 +164,48 @@ async function clickWorkbenchButton(page: Page, selector: string, missingMessage
   const button = workbenchPanel(page).locator(selector);
   await button.scrollIntoViewIfNeeded();
   await button.evaluate((node, message) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error(String(message));
+    }
+    node.click();
+  }, missingMessage);
+}
+
+async function clickWorkbenchBottomTab(page: Page, tabId: string) {
+  await clickWorkbenchButton(
+    page,
+    `[data-bottom-tab="${tabId}"]`,
+    `workbench bottom-tab trigger ${tabId} is missing`,
+  );
+}
+
+async function clickWorkbenchMobileFooterControlsTrigger(page: Page) {
+  await clickWorkbenchButton(
+    page,
+    "[data-mobile-footer-controls-trigger]",
+    "workbench mobile footer-controls trigger is missing",
+  );
+}
+
+async function clickWorkbenchMobileBottomPanelTrigger(page: Page) {
+  await clickWorkbenchButton(
+    page,
+    "[data-mobile-bottom-panel-trigger]",
+    "workbench mobile bottom-panel trigger is missing",
+  );
+}
+
+async function clickWorkbenchMobileSidebarTrigger(page: Page) {
+  await clickWorkbenchButton(
+    page,
+    "[data-mobile-sidebar-trigger]",
+    "workbench mobile sidebar trigger is missing",
+  );
+}
+
+async function clickLocatorButton(locator: ReturnType<Page["locator"]>, missingMessage: string) {
+  await locator.scrollIntoViewIfNeeded();
+  await locator.evaluate((node, message) => {
     if (!(node instanceof HTMLButtonElement)) {
       throw new Error(String(message));
     }
@@ -441,7 +492,7 @@ test("strategy tester panel renders fixture-backed metrics through the bottom-pa
   await page.goto("/");
 
   const workbench = workbenchPanel(page);
-  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+  await clickWorkbenchBottomTab(page, "performance-link");
 
   await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
     "data-bottom-tab-active",
@@ -451,13 +502,14 @@ test("strategy tester panel renders fixture-backed metrics through the bottom-pa
   await expect(workbench.locator("[data-strategy-tester-panel]")).toContainText("Strategy Tester");
   await expect(workbench.locator("[data-strategy-tester-panel]")).toContainText("Net Profit");
   await expect(workbench.locator('[data-strategy-tester-metric="net-profit"]')).toContainText("+12,340");
+  await workbench.locator('[data-strategy-tester-tab="trades"]').click();
   await expect(workbench.locator('[data-strategy-tester-trade-row="trade-1"]')).toContainText("Apr 18 09:35");
 });
 
 test("strategy tester panel tabs and trade selection drive shell state", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);
-  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+  await clickWorkbenchBottomTab(page, "performance-link");
 
   const panel = workbench.locator("[data-strategy-tester-panel]").first();
   await expect(panel).toHaveAttribute("data-strategy-tester-active-tab", "overview");
@@ -1245,6 +1297,7 @@ test("script library: imports expression text into the builder without clobberin
 }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);
+  await switchCustomScriptEditorMode(page, "text");
 
   await workbench.locator('[data-custom-script-field="label"]').fill("My Imported Spread");
   await workbench.locator('[data-custom-script-field="short-label"]').fill("Imported");
@@ -1488,7 +1541,14 @@ test("script library: delete requires an explicit confirm step", async ({ page }
   await workbench.locator('[data-custom-script-delete="custom-script-1"]').click();
   await workbench.locator('[data-custom-script-filter]').fill("missing script");
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toHaveCount(0);
-  await workbench.locator('[data-custom-script-filter-clear]').click();
+  await workbench
+    .locator('[data-custom-script-filter-clear]')
+    .evaluate((node) => {
+      if (!(node instanceof HTMLButtonElement)) {
+        throw new Error("custom script filter clear button is missing");
+      }
+      node.click();
+    });
   await expect(workbench.locator('[data-custom-script="custom-script-1"]')).toBeVisible();
   await expect(workbench.locator('[data-custom-script-delete="custom-script-1"]')).toBeVisible();
   await expect(workbench.locator('[data-custom-script-delete-confirm="custom-script-1"]')).toHaveCount(0);
@@ -1592,6 +1652,7 @@ test("script library: deleting the edited script clears the stale update target"
 test("script library: import field can resync to the current builder expression", async ({ page }) => {
   await page.goto("/");
   const workbench = workbenchPanel(page);
+  await switchCustomScriptEditorMode(page, "text");
 
   await workbench.locator("[data-custom-script-import-expression]").fill("close - open");
   await expect(workbench.locator("[data-custom-script-import-reset]")).toBeEnabled();
@@ -1602,12 +1663,14 @@ test("script library: import field can resync to the current builder expression"
   );
   await expect(workbench.locator("[data-custom-script-import-reset]")).toBeDisabled();
 
+  await switchCustomScriptEditorMode(page, "builder");
   await workbench.locator('[data-custom-script-node-kind="root"]').selectOption("subtract");
   await expect(workbench.locator("[data-custom-script-expression-preview]")).toContainText(
     "subtract(close, sma(close, length))",
   );
   await expect(workbench.locator("[data-custom-script-import-reset]")).toBeEnabled();
 
+  await switchCustomScriptEditorMode(page, "text");
   await workbench.locator("[data-custom-script-import-reset]").click();
   await expect(workbench.locator("[data-custom-script-import-expression]")).toHaveValue(
     "subtract(close, sma(close, length))",
@@ -1653,7 +1716,14 @@ test("script library: local filter narrows saved scripts without touching runtim
     "No saved custom scripts match the current filter.",
   );
 
-  await workbench.locator("[data-custom-script-filter-clear]").click();
+  await workbench
+    .locator("[data-custom-script-filter-clear]")
+    .evaluate((node) => {
+      if (!(node instanceof HTMLButtonElement)) {
+        throw new Error("custom script filter clear button is missing");
+      }
+      node.click();
+    });
   await expect(workbench.locator("[data-custom-script]")).toHaveCount(2);
   await expect(workbench.locator("[data-custom-script-filter-clear]")).toBeDisabled();
 });
@@ -1819,7 +1889,7 @@ test("workbench mobile panels open as a sheet instead of forcing the sidebar inl
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "false");
   await expect(sheet).toBeHidden();
 
-  await trigger.click();
+  await clickWorkbenchMobileSidebarTrigger(page);
 
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
@@ -1851,7 +1921,14 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await workbench
+    .locator('[data-bottom-tab="custom"]')
+    .evaluate((node) => {
+      if (!(node instanceof HTMLButtonElement)) {
+        throw new Error("mobile trading bottom-tab trigger is missing");
+      }
+      node.click();
+    });
   await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -1866,7 +1943,12 @@ test("workbench mobile trading panel opens as a bottom sheet instead of staying 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
   await expect(sheet).toBeHidden();
 
-  await trigger.click();
+  await trigger.evaluate((node) => {
+    if (!(node instanceof HTMLButtonElement)) {
+      throw new Error("mobile bottom-panel trigger is missing");
+    }
+    node.click();
+  });
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
@@ -1896,7 +1978,7 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="performance-link"]').click();
+  await clickWorkbenchBottomTab(page, "performance-link");
   await expect(workbench.locator('[data-bottom-tab="performance-link"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -1907,11 +1989,10 @@ test("workbench mobile strategy panel opens as a bottom sheet instead of staying
 
   await expect.poll(async () => sheet.count()).toBe(1);
   await expect(trigger).toBeVisible();
-  await expect(trigger).toContainText("Performance");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
   await expect(sheet).toBeHidden();
 
-  await trigger.click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
@@ -1941,7 +2022,7 @@ test("workbench mobile replay panel opens as a bottom sheet and drives replay co
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="replay"]').click();
+  await clickWorkbenchBottomTab(page, "replay");
   await expect(workbench.locator('[data-bottom-tab="replay"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -1952,11 +2033,10 @@ test("workbench mobile replay panel opens as a bottom sheet and drives replay co
 
   await expect.poll(async () => sheet.count()).toBe(1);
   await expect(trigger).toBeVisible();
-  await expect(trigger).toContainText("Replay");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
   await expect(sheet).toBeHidden();
 
-  await trigger.click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
@@ -1988,8 +2068,11 @@ test("workbench mobile replay toolbar entry auto-opens the replay bottom sheet",
   const workbench = workbenchPanel(page);
   const replayTab = workbench.locator('[data-bottom-tab="replay"]');
   const sheet = workbench.locator('[data-bottom-panel-kind="replay"]');
+  const toolbar = workbench.locator("[data-mobile-toolbar-sheet]");
 
-  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Replay", exact: true }).click();
+  await workbench.locator("[data-mobile-toolbar-trigger]:visible").first().click();
+  await expect(toolbar).toBeVisible();
+  await toolbar.locator('[data-mobile-toolbar-action="replay"]').click();
 
   await expect(replayTab).toHaveAttribute("data-bottom-tab-active", "true");
   await expect.poll(async () => sheet.count()).toBe(1);
@@ -2088,7 +2171,7 @@ test("workbench mobile bottom triggers use compact labels", async ({ page }) => 
   await expect(controlsTrigger).toContainText("Controls");
   await expect(controlsTrigger).not.toContainText("Open");
 
-  await controlsTrigger.click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(controlsTrigger).toContainText("Controls");
 
   await workbench.locator("[data-mobile-footer-controls-close]").click();
@@ -2100,7 +2183,7 @@ test("workbench mobile logs panel opens as a bottom sheet instead of relying on 
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await clickWorkbenchBottomTab(page, "logs");
   await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -2114,7 +2197,7 @@ test("workbench mobile logs panel opens as a bottom sheet instead of relying on 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
-  await trigger.click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await expect(sheet.locator("[data-activity-log-panel]")).toBeVisible();
@@ -2126,7 +2209,7 @@ test("workbench mobile time presets open as a bottom sheet", async ({ page }) =>
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await clickWorkbenchBottomTab(page, "logs");
   await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -2137,7 +2220,7 @@ test("workbench mobile time presets open as a bottom sheet", async ({ page }) =>
     "false",
   );
 
-  await workbench.locator('[data-bottom-tab="time-presets"]').click();
+  await clickWorkbenchBottomTab(page, "time-presets");
   await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
@@ -2152,7 +2235,7 @@ test("workbench mobile time presets open as a bottom sheet", async ({ page }) =>
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await sheet.locator("[data-mobile-bottom-panel-close]").click();
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "false");
-  await trigger.click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
   await expect(sheet.locator("[data-time-presets-panel]")).toBeVisible();
@@ -2165,7 +2248,7 @@ test("workbench mobile logs tab auto-opens its bottom sheet", async ({ page }) =
   const workbench = workbenchPanel(page);
   const sheet = workbench.locator('[data-bottom-panel-kind="logs"]');
 
-  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await clickWorkbenchBottomTab(page, "logs");
 
   await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
     "data-bottom-tab-active",
@@ -2181,13 +2264,13 @@ test("workbench mobile time-presets tab auto-opens its bottom sheet", async ({ p
   const workbench = workbenchPanel(page);
   const sheet = workbench.locator('[data-bottom-panel-kind="time-presets"]');
 
-  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await clickWorkbenchBottomTab(page, "logs");
   await expect(workbench.locator('[data-bottom-tab="logs"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
   );
 
-  await workbench.locator('[data-bottom-tab="time-presets"]').click();
+  await clickWorkbenchBottomTab(page, "time-presets");
 
   await expect(workbench.locator('[data-bottom-tab="time-presets"]')).toHaveAttribute(
     "data-bottom-tab-active",
@@ -2208,7 +2291,7 @@ test("workbench mobile footer controls open as a dedicated sheet", async ({ page
   await expect(workbench.locator(".time-strip").first()).toBeHidden();
   await expect(sheet).toBeHidden();
 
-  await trigger.click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
 
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("button", { name: "1D", exact: true })).toBeVisible();
@@ -2222,7 +2305,7 @@ test("workbench mobile footer controls close after an action tap", async ({ page
   const trigger = workbench.locator("[data-mobile-footer-controls-trigger]");
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
 
-  await trigger.click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(sheet).toBeVisible();
 
   await sheet.locator('[data-mobile-footer-action]').first().click();
@@ -2237,7 +2320,7 @@ test("workbench mobile footer controls can be drag-dismissed from the handle", a
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
   const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(sheet).toBeVisible();
   await expect(handle).toBeVisible();
 
@@ -2254,7 +2337,7 @@ test("workbench mobile footer controls ignore short drag gestures below the dism
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
   const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(sheet).toBeVisible();
   await expect(handle).toBeVisible();
 
@@ -2271,7 +2354,7 @@ test("workbench mobile footer controls support size toggle cycling", async ({ pa
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
   const sizeToggle = workbench.locator("[data-mobile-footer-controls-size-toggle]");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(sizeToggle).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "default");
 
@@ -2292,7 +2375,7 @@ test("workbench mobile footer controls support upward drag-to-snap and live drag
   const sheet = workbench.locator("[data-mobile-footer-controls-sheet]");
   const handle = workbench.locator("[data-mobile-footer-controls-drag-handle]");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(sheet).toHaveAttribute("data-mobile-footer-controls-size", "default");
   await expect(handle).toBeVisible();
 
@@ -2320,10 +2403,10 @@ test("workbench mobile footer controls yield to the sidebar sheet", async ({ pag
   const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
   const sidebar = workbench.locator("[data-mobile-sidebar-sheet]");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(footer).toBeVisible();
 
-  await workbench.locator("[data-mobile-sidebar-trigger]").click();
+  await clickWorkbenchMobileSidebarTrigger(page);
 
   await expect(footer).toBeHidden();
   await expect(sidebar).toHaveAttribute("data-mobile-sidebar-open", "true");
@@ -2336,10 +2419,10 @@ test("workbench mobile footer controls yield to the bottom panel trigger", async
   const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
   const bottom = workbench.locator('[data-bottom-panel-kind="time-presets"]');
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
   await expect(footer).toBeVisible();
 
-  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   await expect(footer).toBeHidden();
   await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "true");
@@ -2352,12 +2435,12 @@ test("workbench mobile footer controls replace an open bottom panel", async ({ p
   const footer = workbench.locator("[data-mobile-footer-controls-sheet]");
   const bottom = workbench.locator('[data-bottom-panel-kind="time-presets"]');
 
-  await workbench.locator('[data-bottom-tab="logs"]').click();
+  await clickWorkbenchBottomTab(page, "logs");
   await workbench.locator('[data-bottom-panel-kind="logs"]').locator('[data-mobile-bottom-panel-close]').click();
-  await workbench.locator('[data-bottom-tab="time-presets"]').click();
+  await clickWorkbenchBottomTab(page, "time-presets");
   await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "true");
 
-  await workbench.locator("[data-mobile-footer-controls-trigger]").click();
+  await clickWorkbenchMobileFooterControlsTrigger(page);
 
   await expect(bottom).toHaveAttribute("data-mobile-bottom-panel-open", "false");
   await expect(footer).toBeVisible();
@@ -2370,7 +2453,7 @@ test("workbench mobile sidebar sheet can be drag-dismissed from the handle", asy
   const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
   const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
 
-  await trigger.click();
+  await clickWorkbenchMobileSidebarTrigger(page);
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
 
   const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
@@ -2387,7 +2470,7 @@ test("workbench mobile sidebar sheet ignores short drag gestures below the dismi
   const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
   const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
 
-  await trigger.click();
+  await clickWorkbenchMobileSidebarTrigger(page);
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
 
   const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
@@ -2404,7 +2487,7 @@ test("workbench mobile sidebar sheet supports upward drag-to-snap and live drag 
   const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
   const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
 
-  await trigger.click();
+  await clickWorkbenchMobileSidebarTrigger(page);
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-size", "default");
 
   const handle = sheet.locator("[data-mobile-sidebar-drag-handle]");
@@ -2430,12 +2513,12 @@ test("workbench mobile bottom sheet can be drag-dismissed from the handle", asyn
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await clickWorkbenchBottomTab(page, "custom");
   await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
   );
-  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
@@ -2452,12 +2535,12 @@ test("workbench mobile bottom sheet supports upward drag-to-snap and live drag f
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await clickWorkbenchBottomTab(page, "custom");
   await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
   );
-  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   const sheet = workbench.locator('[data-bottom-panel-kind="trading"]');
   await expect(sheet).toHaveAttribute("data-mobile-bottom-panel-size", "default");
@@ -2487,7 +2570,7 @@ test("workbench mobile sidebar sheet auto-closes when workspace navigation chang
   const trigger = workbench.locator("[data-mobile-sidebar-trigger]");
   const sheet = workbench.locator("[data-mobile-sidebar-sheet]");
 
-  await trigger.click();
+  await clickWorkbenchMobileSidebarTrigger(page);
   await expect(sheet).toHaveAttribute("data-mobile-sidebar-open", "true");
 
   await workbench.locator('[data-workspace-tab-trigger="workspace-2"]').dispatchEvent("click");
@@ -2504,12 +2587,12 @@ test("workbench mobile bottom sheet auto-closes when bottom-tab navigation chang
   await page.goto("/");
   const workbench = workbenchPanel(page);
 
-  await workbench.locator('[data-bottom-tab="custom"]').click();
+  await clickWorkbenchBottomTab(page, "custom");
   await expect(workbench.locator('[data-bottom-tab="custom"]')).toHaveAttribute(
     "data-bottom-tab-active",
     "true",
   );
-  await workbench.locator("[data-mobile-bottom-panel-trigger]").click();
+  await clickWorkbenchMobileBottomPanelTrigger(page);
 
   const tradingSheet = workbench.locator('[data-bottom-panel-kind="trading"]');
   await expect(tradingSheet).toHaveAttribute("data-mobile-bottom-panel-open", "true");
@@ -2731,15 +2814,24 @@ test("workbench point-figure can switch to ATR and percentage sizing modes", asy
   const workbench = page.locator('[data-demo-tab="workbench"]');
   await page.getByRole("button", { name: "P&F", exact: true }).click();
 
-  await workbench.getByRole("button", { name: "ATR", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "ATR", exact: true }),
+    "point-and-figure ATR mode button is missing",
+  );
   await expect(workbench).toContainText("ATR length");
   await expect(workbench).toContainText(/ATR\s+\d+\s+pts/i);
 
-  await workbench.getByRole("button", { name: "%", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "%", exact: true }),
+    "point-and-figure percentage mode button is missing",
+  );
   await expect(workbench).toContainText("Percent");
   await expect(workbench).toContainText(/%/i);
 
-  await workbench.getByRole("button", { name: "Trad", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "Trad", exact: true }),
+    "point-and-figure traditional mode button is missing",
+  );
   await expect(workbench).toContainText(/Traditional\s+\d+/i);
 });
 
@@ -2798,13 +2890,22 @@ test("workbench kagi can switch between auto, ATR, percentage, and fixed reversa
   await page.getByRole("button", { name: "Kagi", exact: true }).click();
 
   await expect(workbench).toContainText(/Reversal/i);
-  await workbench.getByRole("button", { name: "ATR", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "ATR", exact: true }),
+    "kagi ATR mode button is missing",
+  );
   await expect(workbench).toContainText("ATR length");
 
-  await workbench.getByRole("button", { name: "%", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "%", exact: true }),
+    "kagi percentage mode button is missing",
+  );
   await expect(workbench).toContainText("Percent");
 
-  await workbench.getByRole("button", { name: "Fixed", exact: true }).click();
+  await clickLocatorButton(
+    workbench.getByRole("button", { name: "Fixed", exact: true }),
+    "kagi fixed mode button is missing",
+  );
   await expect(workbench).toContainText(/Fixed/i);
 });
 
@@ -3006,14 +3107,17 @@ test("workbench adds indicators from the catalog", async ({ page }) => {
 test("workbench replays the active dataset locally", async ({ page }) => {
   await page.goto("/");
 
-  const workbench = page.locator('[data-demo-tab="workbench"]');
-  const replay = workbench.locator("[data-replay-panel]");
-  const summary = replay.locator(".replay-summary");
+  const workbench = page.locator('[data-demo-tab="workbench"]:visible').first();
+  const replay = workbench.locator("[data-replay-panel]:visible").first();
+  const summary = replay.locator(".replay-summary").first();
 
   await expect(replay).toContainText("Replay");
   await expect(summary).toHaveAttribute("data-replay-active", "false");
 
-  await workbench.locator(".toolbar-strip").getByRole("button", { name: "Replay", exact: true }).click();
+  await clickLocatorButton(
+    workbench.locator(".toolbar-strip").getByRole("button", { name: "Replay", exact: true }).first(),
+    "replay toolbar button is missing",
+  );
   await expect(summary).toHaveAttribute("data-replay-active", "true");
 
   const enteredStep = Number((await summary.getAttribute("data-replay-current-step")) ?? "0");

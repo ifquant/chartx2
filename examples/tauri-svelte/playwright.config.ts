@@ -11,7 +11,7 @@ export default defineConfig({
   webServer: {
     command: "pnpm exec vite dev --host 127.0.0.1 --port 4173",
     port: 4173,
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120_000,
   },
 });

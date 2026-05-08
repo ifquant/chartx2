@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const PUBLIC_ENTRY = "/src/lib/chartx/public/index.ts";
+const PUBLIC_ENTRY = "/chartx/public";
 
 test("phase-one chart keeps 2k and 5k bar flows within the local smoke budget", async ({
   page,

@@ -1,8 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+function performanceTopTab(page: Page) {
+  return page.getByLabel("chartx2 demo tabs").getByRole("button", {
+    name: "Performance",
+    exact: true,
+  });
+}
 
 test("performance report renders the first-slice canvas board", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await performanceTopTab(page).click();
 
   const report = page.locator('[data-demo-tab="performance"]');
   await expect(report).toBeVisible();
@@ -17,7 +24,7 @@ test("optimization heatmap selection switches the performance report to the sele
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await performanceTopTab(page).click();
   await page.getByLabel("View").selectOption("heatmap");
 
   const canvas = page.getByLabel("chartx2 optimization surface canvas");
@@ -47,7 +54,7 @@ test("optimization heatmap selection switches the performance report to the sele
 
 test("optimization surface can switch into 3d scatter mode", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await performanceTopTab(page).click();
 
   await page.getByLabel("View").selectOption("scatter-3d");
 
@@ -60,7 +67,7 @@ test("performance trade row selection auto-switches to the workbench with the se
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await performanceTopTab(page).click();
 
   const canvas = page.getByLabel("chartx2 performance report canvas");
   const box = await canvas.boundingBox();
@@ -79,7 +86,7 @@ test("performance trade intent auto-switches to the workbench and locates the tr
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
+  await performanceTopTab(page).click();
 
   const canvas = page.getByLabel("chartx2 performance report canvas");
   const box = await canvas.boundingBox();

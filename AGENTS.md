@@ -11,7 +11,6 @@ Parent rules in [../AGENTS.md](/Users/dev/workspace2/hc_apps/AGENTS.md) still ap
 - 当前仓库正在重组为 library-first workspace：
   - `packages/chartx2` 负责纯图表库
   - `examples/tauri-svelte` 负责官方 `Tauri + Svelte` 使用案例
-- 在重组完成前，root 下现有 `src/` 与 `src-tauri/` 仍然视为待迁移 legacy app 位置，而不是长期所有权归宿。
 - 已确认的实现路线是：
   - 先用 `Svelte` 实现一个接近 `lightweight-charts` 的基础图表软件
   - 再逐步把它扩展成更完整的图表系统，而不是停在轻量图库级别
@@ -92,7 +91,6 @@ Use this file especially when changing:
 
 - reusable library code in `packages/chartx2`
 - example app code in `examples/tauri-svelte`
-- legacy app locations in `src/` or `src-tauri/` during the migration window
 - docs that describe product direction, module boundaries, or implementation stages
 - commit tutorials under `tutorials/commit/`
 
@@ -104,12 +102,13 @@ Use this file especially when changing:
 - [docs/lightweight-charts-gap-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/lightweight-charts-gap-checklist.md): current parity and next-gap tracker against `lightweight-charts`
 - [packages/chartx2](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2): target home for reusable chart library code
 - [examples/tauri-svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte): target home for the official example app
-- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte): current legacy demo/workbench shell; scheduled to move into the example app
-- [src/routes/+layout.ts](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+layout.ts): current legacy SPA/SSR boundary for the Tauri host
-- [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs): current legacy Tauri command registration and backend entry wiring
-- [src-tauri/src/main.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/main.rs): current legacy desktop app bootstrap
-- [src/lib/chartx/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/index.ts): legacy public chart API entry during migration
-- [src/lib/chartx/internal](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal): legacy engine internals during migration; host/demo code should not import across this boundary directly
+- [packages/chartx2/src/lib/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts): public library barrel for `@chartx2/library`
+- [packages/chartx2/src/lib/internal](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal): chart engine internals; example/demo code should not cross this boundary casually
+- [packages/chartx2/src/lib/ui](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/ui): reusable host-facing and chart-adjacent Svelte shells
+- [examples/tauri-svelte/src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+page.svelte): official example app shell that composes the library surfaces
+- [examples/tauri-svelte/src/routes/+layout.ts](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+layout.ts): SPA boundary for the example app host
+- [examples/tauri-svelte/src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src-tauri/src/lib.rs): Tauri command registration and backend entry wiring for the example app
+- [examples/tauri-svelte/src-tauri/src/main.rs](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src-tauri/src/main.rs): example desktop app bootstrap
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit): per-commit newcomer tutorials
 
 ## Alpha2 Boundary
@@ -161,17 +160,17 @@ pnpm test
 pnpm build
 ```
 
-From the official example app once it exists:
+From the official example app:
 
 ```bash
 pnpm --filter @chartx2/example-tauri-svelte tauri
 ```
 
-From the current legacy `src-tauri/` location during migration:
+From the example app's Tauri host:
 
 ```bash
-cargo check
-cargo test
+cargo check --manifest-path examples/tauri-svelte/src-tauri/Cargo.toml
+cargo test --manifest-path examples/tauri-svelte/src-tauri/Cargo.toml
 ```
 
 Notes:
@@ -202,7 +201,7 @@ Notes:
 
 - Current frontend stack is `Svelte 5 + SvelteKit + TypeScript + Vite`.
 - Current desktop shell is `Tauri 2`.
-- Keep `src/routes/+page.svelte` from becoming a permanent dumping ground for chart internals. Once chart logic stops being trivial, extract it into dedicated modules.
+- Keep [examples/tauri-svelte/src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+page.svelte) from becoming a permanent dumping ground for chart internals. Once chart logic stops being trivial, extract it into dedicated modules.
 - Avoid coupling future chart primitives to Tauri-only APIs unless the feature is genuinely desktop-specific.
 - Keep public chart concepts explicit and stable when they appear:
   - time scale
@@ -235,7 +234,7 @@ Notes:
 - Do not describe the goal as merely matching current `lightweight-charts` features; the intended direction is a broader charting system.
 - When making architecture or scope decisions, prefer choices that keep the path open toward the explicitly stated end-state feature set above, even if the current slice only lands a much smaller subset.
 - Do not silently treat the demo shell as the chart object model:
-  - `src/routes/+page.svelte` is a showcase host, not the owner of chart runtime state
+  - `examples/tauri-svelte/src/routes/+page.svelte` is a showcase host, not the owner of chart runtime state
   - toolbar/readout/watchlist panels are UI composition, not substitutes for engine entities
 - Do not blur runtime models and persistence models:
   - runtime source state is not a layout snapshot
@@ -351,8 +350,8 @@ Unless the user explicitly says not to commit yet:
 - [docs/develop.md](/Users/dev/workspace2/hc_apps/chartx2/docs/develop.md)
 - [docs/phase-one-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/phase-one-checklist.md)
 - [docs/lightweight-charts-gap-checklist.md](/Users/dev/workspace2/hc_apps/chartx2/docs/lightweight-charts-gap-checklist.md)
-- [src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/routes/+page.svelte)
-- [src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/src-tauri/src/lib.rs)
+- [examples/tauri-svelte/src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+page.svelte)
+- [examples/tauri-svelte/src-tauri/src/lib.rs](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src-tauri/src/lib.rs)
 
 ## 子目录约定
 

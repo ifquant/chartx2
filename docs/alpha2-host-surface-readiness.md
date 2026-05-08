@@ -169,7 +169,7 @@ calling the host UI boundary fully mature.
 
 `alpha2` should start from:
 
-- public contracts in `src/lib/chartx/public`
+- public contracts in [packages/chartx2/src/lib/public](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public)
 - public host shell components from the same barrel
 - `Alpha2HostIntegrationExample.svelte` as the minimal compiled reference
 - [alpha2-host-integration.md](/Users/dev/workspace2/hc_apps/chartx2/docs/alpha2-host-integration.md)

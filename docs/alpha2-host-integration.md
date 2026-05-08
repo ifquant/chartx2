@@ -15,7 +15,7 @@ The goal is not to reuse the whole demo app. The goal is to consume:
 - the workstation-facing public models
 - the reusable host-facing Svelte shells
 
-through the public `chartx` barrel.
+through the public `@chartx2/library` barrel.
 
 ## What `chartx2` Owns
 
@@ -49,7 +49,7 @@ import type {
   StrategyTesterPanelModel,
   TradingTicketModel,
   AccountSyncSurfaceModel,
-} from "$lib/chartx/public";
+} from "@chartx2/library";
 
 import {
   ShareDialogShell,
@@ -62,12 +62,12 @@ import {
   AccountSyncSummaryCard,
   WorkbenchHostSummaryStrip,
   WorkbenchHostSurfaceDock,
-} from "$lib/chartx/public";
+} from "@chartx2/library";
 ```
 
 There is also a checked-in minimal example component at:
 
-- [Alpha2HostIntegrationExample.svelte](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/public/Alpha2HostIntegrationExample.svelte)
+- [Alpha2HostIntegrationExample.svelte](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/Alpha2HostIntegrationExample.svelte)
 
 That file is intended to be copied or adapted by a host that wants the smallest
 working composition of:
@@ -152,8 +152,8 @@ Example:
     TradingTicketSummaryShellModel,
     AccountSyncSummaryShellModel,
     WorkbenchHostSummarySurfaceModel,
-  } from "$lib/chartx/public";
-  import { WorkbenchHostSurfaceDock } from "$lib/chartx/public";
+  } from "@chartx2/library";
+  import { WorkbenchHostSurfaceDock } from "@chartx2/library";
 
   export let shareDialog: ShareDialogModel | null = null;
   export let hostSummarySurfaces: readonly WorkbenchHostSummarySurfaceModel[] = [];

@@ -10,7 +10,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "pnpm test:unit && pnpm test:visual",
-    "test:unit": "vitest run --passWithNoTests",
+    "test:unit": "vitest run tests/unit --passWithNoTests",
     "test:visual": "playwright test --pass-with-no-tests",
     "tauri": "tauri"
   },

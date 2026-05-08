@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   openWorkbenchSymbol,
   type WorkbenchHostAdapter,
-} from "../../src/lib/chartx/public/workbench-host";
+} from "@chartx2/library";
 import {
   createWorkbenchFixtureBarsPayload,
   createWorkbenchFixtureHostAdapter,

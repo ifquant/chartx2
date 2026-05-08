@@ -49,10 +49,12 @@ The goal is not only to avoid paying for `TradingView`. The real goal is to own 
   - the current post-harness roadmap for what is actually next versus what is already done
 - [docs/tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md)
   - the three-layer plan for aligning `chartx2` with a modifiable TradingView-like workstation
-- [src](/Users/dev/workspace2/hc_apps/chartx2/src)
-  - legacy location of the current app shell during the reorg; scheduled to move into `examples/tauri-svelte/src`
-- [src-tauri](/Users/dev/workspace2/hc_apps/chartx2/src-tauri)
-  - legacy location of the current Tauri shell during the reorg; scheduled to move into `examples/tauri-svelte/src-tauri`
+- [packages/chartx2/src/lib](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib)
+  - reusable chart engine internals, public contracts, and reusable Svelte shells
+- [examples/tauri-svelte/src](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src)
+  - official example app routes, demo composition, and example-local runtime fixtures
+- [examples/tauri-svelte/src-tauri](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src-tauri)
+  - Tauri host for the official example app
 - [tutorials/commit](/Users/dev/workspace2/hc_apps/chartx2/tutorials/commit)
   - one newcomer-facing tutorial per non-trivial commit
 
@@ -66,22 +68,22 @@ pnpm build
 pnpm test
 ```
 
-During the transition, the official example app will own app-specific commands such as:
+From the official example app:
 
 ```bash
 pnpm --filter @chartx2/example-tauri-svelte tauri
 ```
 
-From the current legacy `src-tauri/` location:
+From the example app's Tauri host:
 
 ```bash
-cargo check
-cargo test
+cargo check --manifest-path examples/tauri-svelte/src-tauri/Cargo.toml
+cargo test --manifest-path examples/tauri-svelte/src-tauri/Cargo.toml
 ```
 
 Notes:
 
-- `pnpm check` is being converted into a workspace gate across the library package and the official example app.
+- `pnpm check` is the workspace gate across the library package and the official example app.
 - `cargo check` is the lowest-cost real validation for the Rust/Tauri side right now.
 
 ## Near-Term Priority
@@ -94,7 +96,7 @@ Before chasing the full TradingView feature surface, establish a clean engine-fi
 - K-line series behavior
 - interaction primitives such as crosshair, pan, and zoom
 
-The project should avoid turning `src/routes/+page.svelte` into the permanent home of chart internals. As chart logic grows, it should move into dedicated modules with clear boundaries.
+The project should avoid turning [examples/tauri-svelte/src/routes/+page.svelte](/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+page.svelte) into the permanent home of chart internals. As chart logic grows, it should move into dedicated library or example-specific modules with clear boundaries.
 
 The full long-range alignment plan is tracked in
 [docs/tradingview-alignment-plan.md](/Users/dev/workspace2/hc_apps/chartx2/docs/tradingview-alignment-plan.md).

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const PUBLIC_ENTRY = "/src/lib/chartx/public/index.ts";
+const PUBLIC_ENTRY = "/chartx/public";
 const API_DATA = [
   { time: 1, open: 120, high: 132, low: 118, close: 128 },
   { time: 2, open: 128, high: 136, low: 124, close: 133 },

@@ -12,6 +12,8 @@
     WorkbenchWorkspaceTabId,
   } from "@chartx2/library";
   import {
+    ScriptExpressionBuilder,
+    ScriptLengthInput,
     formatWorkbenchScriptCompatibilityLabel,
     formatWorkbenchCustomScriptExpressionText,
     parseWorkbenchCustomScriptExpressionText,
@@ -27,8 +29,6 @@
     DemoSnapshot,
     WorkbenchDrawingTool,
   } from "$lib/example-app/chartx-demo";
-  import ScriptExpressionBuilder from "$lib/example-app/components/ScriptExpressionBuilder.svelte";
-  import ScriptLengthInput from "$lib/example-app/components/ScriptLengthInput.svelte";
   import {
     AccountSyncStatusCard,
     ShareDialogShell,

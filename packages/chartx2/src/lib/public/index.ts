@@ -14,4 +14,5 @@ export * from "./workbench-alerts";
 export * from "./workbench-host";
 export * from "./workbench-indicators";
 export * from "./workbench-layout";
+export * from "./workbench-script-components";
 export * from "./workbench-scripts";

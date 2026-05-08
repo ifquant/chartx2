@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { WorkbenchScriptExpression, WorkbenchScriptField } from "@chartx2/library";
+  import type { WorkbenchScriptExpression, WorkbenchScriptField } from "../public/workbench-scripts";
 
   type BuilderPathSegment = "input" | "left" | "right";
 

@@ -8,6 +8,11 @@
       "types": "./src/lib/public/index.ts",
       "svelte": "./src/lib/public/index.ts",
       "default": "./src/lib/public/index.ts"
+    },
+    "./workbench-drawing-inspector": {
+      "types": "./src/lib/public/workbench-drawing-inspector.ts",
+      "svelte": "./src/lib/public/workbench-drawing-inspector.ts",
+      "default": "./src/lib/public/workbench-drawing-inspector.ts"
     }
   },
   "scripts": {

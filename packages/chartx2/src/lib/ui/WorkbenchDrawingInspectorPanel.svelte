@@ -119,6 +119,12 @@
     margin: 0;
   }
 
+  @media (max-width: 840px) {
+    .sidebar-head {
+      flex-wrap: wrap;
+    }
+  }
+
   .inspector-empty {
     margin: 10px 0 0;
     color: rgba(24, 24, 27, 0.58);

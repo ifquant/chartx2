@@ -17,6 +17,7 @@ import {
   openWorkbenchSymbol,
   type WorkbenchHostAdapter,
 } from "@chartx2/library";
+import { WorkbenchDrawingInspectorPanel as FocusedWorkbenchDrawingInspectorPanel } from "@chartx2/library/workbench-drawing-inspector";
 
 describe("@chartx2/library public consumer boundary", () => {
   it("exports reusable shells and chart helpers from the package barrel", () => {
@@ -29,6 +30,7 @@ describe("@chartx2/library public consumer boundary", () => {
     expect(TradingTicketPanel).toBeDefined();
     expect(AccountSyncStatusCard).toBeDefined();
     expect(WorkbenchDrawingInspectorPanel).toBeDefined();
+    expect(FocusedWorkbenchDrawingInspectorPanel).toBe(WorkbenchDrawingInspectorPanel);
     expect(WorkbenchHostSurfaceDock).toBeDefined();
     expect(WorkbenchWorkspaceTabStrip).toBeDefined();
     expect(typeof getChartxFoundation).toBe("function");

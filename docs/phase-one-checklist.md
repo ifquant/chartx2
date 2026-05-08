@@ -134,7 +134,7 @@ Not allowed:
 Current phase-one boundary artifact:
 
 - [x] public entrypoint created at `packages/chartx2/src/lib/public/index.ts`
-- [x] first internal foundation module created at `src/lib/chartx/internal/foundation.ts`
+- [x] first internal foundation module created at `packages/chartx2/src/lib/internal/foundation.ts`
 - [x] host shell reads boundary summary data through the public entrypoint
 
 ## Repo Hygiene Checklist

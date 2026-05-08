@@ -61,20 +61,32 @@ function listTextFiles(relativeRoot: string): string[] {
   return files.sort();
 }
 
+function listTopLevelMarkdownFiles(relativeRoot: string): string[] {
+  const absoluteRoot = repoPath(relativeRoot);
+  if (!existsSync(absoluteRoot)) {
+    return [];
+  }
+
+  return readdirSync(absoluteRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && path.extname(entry.name) === ".md")
+    .map((entry) => `${relativeRoot}/${entry.name}`)
+    .sort();
+}
+
 describe("chartx2 library split boundary", () => {
   it("keeps active docs and source free of stale pre-split public paths", () => {
+    // This is intentionally a repo-level boundary guard, even though it runs in
+    // the example package unit suite, so active docs fail with stale split paths.
     const activeBoundaryFiles = [
       "AGENTS.md",
       "README.md",
-      "docs/alpha2-host-integration.md",
-      "docs/chart-workstation-architecture.md",
-      "docs/phase-one-checklist.md",
-      "docs/lightweight-charts-gap-checklist.md",
+      ...listTopLevelMarkdownFiles("docs"),
       "examples/tauri-svelte/src/routes/chartx/public/+server.ts",
       "packages/chartx2/src/lib/internal/foundation.ts",
     ];
     const staleFragments = [
       "src/lib/chartx/public",
+      "src/lib/chartx/internal",
       "src/lib/demo",
     ];
 

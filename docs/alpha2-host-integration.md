@@ -81,7 +81,7 @@ working composition of:
 Do not import:
 
 - `src/lib/example-app/components/...`
-- `src/lib/chartx/internal/...`
+- `packages/chartx2/src/lib/internal/...`
 - example-app runtime helpers from `chartx-demo.ts`
 
 If a host needs something that is only available there, treat that as a missing

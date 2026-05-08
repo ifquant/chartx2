@@ -139,7 +139,7 @@ The capability categories below are intentionally practical:
 - chart mounts into one HTML canvas through a real public boundary
   - current entrypoints: [packages/chartx2/src/lib/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts)
 - one pane renders deterministic data end to end
-  - current harness: [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
+  - current harness: [packages/chartx2/src/lib/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/views/chart-harness.ts)
 - a fixed two-pane path now exists for primary series plus volume
   - shared time scale
   - pane-local price scales
@@ -239,7 +239,7 @@ Current state:
 Current references:
 
 - [packages/chartx2/src/lib/public/index.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/index.ts)
-- [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
+- [packages/chartx2/src/lib/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/views/chart-harness.ts)
 
 Why this is still simplified:
 
@@ -266,8 +266,8 @@ Why this is still simplified:
 
 Current references:
 
-- [src/lib/chartx/internal/model/time-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/model/time-scale.ts)
-- [src/lib/chartx/internal/model/price-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/model/price-scale.ts)
+- [packages/chartx2/src/lib/internal/model/time-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/time-scale.ts)
+- [packages/chartx2/src/lib/internal/model/price-scale.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/price-scale.ts)
 - [tests/unit/model-core.test.ts](/Users/dev/workspace2/hc_apps/chartx2/tests/unit/model-core.test.ts)
 
 Why this is still simplified:
@@ -284,8 +284,8 @@ Why this is still simplified:
 
 Current references:
 
-- [src/lib/chartx/internal/renderers](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/renderers)
-- [src/lib/chartx/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/views/chart-harness.ts)
+- [packages/chartx2/src/lib/internal/renderers](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/renderers)
+- [packages/chartx2/src/lib/internal/views/chart-harness.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/views/chart-harness.ts)
 
 Why this is still simplified:
 
@@ -300,7 +300,7 @@ Why this is still simplified:
 
 Current references:
 
-- [src/lib/chartx/internal/model/series-data.ts](/Users/dev/workspace2/hc_apps/chartx2/src/lib/chartx/internal/model/series-data.ts)
+- [packages/chartx2/src/lib/internal/model/series-data.ts](/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/internal/model/series-data.ts)
 - [tests/unit/upstream-parity-contracts.test.ts](/Users/dev/workspace2/hc_apps/chartx2/tests/unit/upstream-parity-contracts.test.ts)
 
 Why this is still simplified:

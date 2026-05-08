@@ -12,5 +12,9 @@
     "sourceMap": true,
     "strict": true
   },
-  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "tests/**/*.ts"],
+  "exclude": [
+    "src/lib/public/host-shell-components.ts",
+    "src/lib/public/Alpha2HostIntegrationExample.svelte"
+  ]
 }

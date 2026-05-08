@@ -1,2 +1,16 @@
-// Library barrel placeholder; actual exports migrate in the next reorg wave.
-export {};
+export * from "./chart-frame-surface";
+export * from "./market";
+export * from "./market-chart-surface";
+export * from "./market-panel-surface";
+export * from "./performance";
+export * from "./account-sync-surface";
+export * from "./sharing-surface";
+export * from "./strategy-tester";
+export * from "./trading-ledger-surface";
+export * from "./trading-surface";
+export * from "./workbench";
+export * from "./workbench-alerts";
+export * from "./workbench-host";
+export * from "./workbench-indicators";
+export * from "./workbench-layout";
+export * from "./workbench-scripts";

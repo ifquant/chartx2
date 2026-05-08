@@ -5,6 +5,8 @@ import {
   createRunLocationIntent,
   createSampleParameterSweep,
   createSampleStrategyRunFromSummary,
+  OptimizationCanvasHarness,
+  PerformanceCanvasHarness,
   OptimizationDatasetRegistry,
   type OptimizationMetricKey,
   type OptimizationSurfaceView,
@@ -17,10 +19,6 @@ import {
   type ThresholdPlane,
   type TradeLocationIntent,
 } from "@chartx2/library";
-import {
-  OptimizationCanvasHarness,
-  PerformanceCanvasHarness,
-} from "@chartx2/library/internal/performance";
 
 type OptimizationCrossSectionPoint = {
   label: string;

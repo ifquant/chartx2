@@ -3,7 +3,12 @@ import {
   type EngineBoundarySummary,
 } from "../internal/foundation";
 import {
+  buildKagiData,
+  buildLineBreakData,
+  buildPointFigureData,
+  buildRenkoData,
   inferAverageTrueRange,
+  inferKagiReversalSize,
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
   inferTraditionalPointFigureBoxSize,
@@ -20,6 +25,11 @@ import type {
   PhaseOneTradeLocationState,
   PhaseOneTradeOverlayOptions,
 } from "../internal/model";
+import {
+  createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
+} from "../internal/model/chart-bar-sequence";
+import { createPlotRows } from "../internal/model/series-data";
 import {
   createPhaseOneChart,
   mountPhaseOneChartHarness,
@@ -190,7 +200,15 @@ export function createChartxPhaseOneChart(canvas: HTMLCanvasElement): PhaseOneCh
 }
 
 export {
+  buildKagiData,
+  buildLineBreakData,
+  buildPointFigureData,
+  buildRenkoData,
+  createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
+  createPlotRows,
   inferAverageTrueRange,
+  inferKagiReversalSize,
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
   inferTraditionalPointFigureBoxSize,

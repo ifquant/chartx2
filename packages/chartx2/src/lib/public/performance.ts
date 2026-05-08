@@ -1,8 +1,10 @@
 export {
   computeRobustnessField,
   deriveOptimizationThresholdPlane,
+  OptimizationCanvasHarness,
   OptimizationDatasetRegistry,
   optimizationMetricLabel,
+  PerformanceCanvasHarness,
   PerformanceReportModel,
   createPerformanceReportModel,
   createRunLocationIntent,

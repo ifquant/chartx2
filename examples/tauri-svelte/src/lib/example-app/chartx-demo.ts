@@ -1,6 +1,14 @@
 import {
+  buildKagiData,
+  buildLineBreakData,
+  buildPointFigureData,
+  buildRenkoData,
   createChartxPhaseOneChart,
+  createCompressedPriceBasedChartBarSequence,
+  createDirectionColumnPriceBasedChartBarSequence,
+  createPlotRows,
   inferAverageTrueRange,
+  inferKagiReversalSize,
   inferPercentageBoxSize,
   inferPointFigureBoxSize,
   inferTraditionalPointFigureBoxSize,
@@ -109,18 +117,6 @@ import {
   type WorkbenchSymbolOpenSource,
 } from "@chartx2/library";
 import type { TradeLocationIntent } from "@chartx2/library";
-import {
-  createCompressedPriceBasedChartBarSequence,
-  createDirectionColumnPriceBasedChartBarSequence,
-} from "@chartx2/library/internal/model/chart-bar-sequence";
-import {
-  buildKagiData,
-  buildLineBreakData,
-  buildPointFigureData,
-  buildRenkoData,
-  inferKagiReversalSize,
-} from "@chartx2/library/internal/model/main-series-builders";
-import { createPlotRows } from "@chartx2/library/internal/model/series-data";
 import {
   createLineData,
   createVolumeData,

@@ -6,6 +6,7 @@ import type {
   ShareDialogModel,
   StrategyTesterPanelModel,
   TradingTicketModel,
+  WorkbenchReplayPanelModel,
 } from "../../src/lib/public";
 
 describe("public chartx barrel", () => {
@@ -63,5 +64,22 @@ describe("public chartx barrel", () => {
   it("re-exports script authoring controls through the public index", () => {
     expect(chartxPublic).toHaveProperty("ScriptExpressionBuilder");
     expect(chartxPublic).not.toHaveProperty("ScriptLengthInput");
+  });
+
+  it("re-exports workbench bottom-panel primitives through the public index", () => {
+    const replay: WorkbenchReplayPanelModel = {
+      available: true,
+      active: true,
+      playing: false,
+      currentStep: 12,
+      totalSteps: 64,
+      currentTimeLabel: "2026-05-08 10:30",
+      startTimeLabel: "2026-05-08 09:00",
+      endTimeLabel: "2026-05-08 15:00",
+    };
+
+    expect(replay.totalSteps).toBe(64);
+    expect(chartxPublic).toHaveProperty("ReplayPanel");
+    expect(chartxPublic).toHaveProperty("TimePresetsPanel");
   });
 });

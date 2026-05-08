@@ -139,6 +139,17 @@ export interface BottomPanelModel {
   tabs: readonly BottomPanelTabModel[];
 }
 
+export interface WorkbenchReplayPanelModel {
+  available: boolean;
+  active: boolean;
+  playing: boolean;
+  currentStep: number;
+  totalSteps: number;
+  currentTimeLabel: string;
+  startTimeLabel: string;
+  endTimeLabel: string;
+}
+
 export interface ChartHostModel {
   id: ChartHostId;
   family: ChartFamily;

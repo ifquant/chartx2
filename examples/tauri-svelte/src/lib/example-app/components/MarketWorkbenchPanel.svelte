@@ -30,14 +30,14 @@
   } from "$lib/example-app/chartx-demo";
   import {
     AccountSyncStatusCard,
+    ReplayPanel,
     ShareDialogShell,
     StrategyTesterPanel,
+    TimePresetsPanel,
     TradingTicketPanel,
     WorkbenchHostSurfaceDock,
   } from "@chartx2/library";
   import ActivityLogPanel from "$lib/example-app/components/ActivityLogPanel.svelte";
-  import ReplayPanel from "$lib/example-app/components/ReplayPanel.svelte";
-  import TimePresetsPanel from "$lib/example-app/components/TimePresetsPanel.svelte";
   import type { TradeLocationIntent } from "@chartx2/library";
 
   export let chartTypeActions: readonly DemoAction[] = [];

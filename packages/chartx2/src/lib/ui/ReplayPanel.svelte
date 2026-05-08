@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { DemoReplayState } from "$lib/example-app/chartx-demo";
+  import type { WorkbenchReplayPanelModel } from "../public/workbench";
 
-  export let model: DemoReplayState | undefined = undefined;
+  export let model: WorkbenchReplayPanelModel | undefined = undefined;
   export let onEnterReplay: () => void;
   export let onPlayReplay: () => void;
   export let onPauseReplay: () => void;

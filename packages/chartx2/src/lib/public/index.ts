@@ -10,6 +10,7 @@ export * from "./strategy-tester";
 export * from "./trading-ledger-surface";
 export * from "./trading-surface";
 export * from "./workbench";
+export * from "./workbench-bottom-panels";
 export * from "./workbench-alerts";
 export * from "./workbench-host";
 export * from "./workbench-indicators";

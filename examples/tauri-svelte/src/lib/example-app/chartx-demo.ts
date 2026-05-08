@@ -47,6 +47,7 @@ import {
   type WorkbenchObjectTreeNodeModel,
   type WorkbenchSidebarPanelId,
   type WorkbenchHostSummarySurfaceModel,
+  type WorkbenchReplayPanelModel,
   type WorkbenchStatusNoticeModel,
   type WorkbenchWorkspaceTabId,
   type WorkbenchWorkspaceTabModel,
@@ -183,17 +184,6 @@ export type DemoCustomScriptLibraryEntry = {
   inUse?: boolean;
 };
 
-export type DemoReplayState = {
-  available: boolean;
-  active: boolean;
-  playing: boolean;
-  currentStep: number;
-  totalSteps: number;
-  currentTimeLabel: string;
-  startTimeLabel: string;
-  endTimeLabel: string;
-};
-
 export type DemoSnapshot = {
   title: string;
   summary: string;
@@ -210,7 +200,7 @@ export type DemoSnapshot = {
   strategyTesterSummary?: StrategyTesterSummaryShellModel | null;
   tradingTicket?: TradingTicketModel | null;
   tradingTicketSummary?: TradingTicketSummaryShellModel | null;
-  replay?: DemoReplayState;
+  replay?: WorkbenchReplayPanelModel;
   note?: string;
   featureGap?: string;
   drawingTool?: {
@@ -2387,7 +2377,7 @@ export function mountWorkbenchDemo(
     };
   };
 
-  const buildReplaySnapshot = (): DemoReplayState => {
+  const buildReplaySnapshot = (): WorkbenchReplayPanelModel => {
     const totalSteps = activeBarsPayload.bars.length;
     const currentBar = replayActive ? displayedBarsPayload().bars.at(-1) : activeBarsPayload.bars.at(-1);
     return {
@@ -2404,7 +2394,7 @@ export function mountWorkbenchDemo(
   };
 
   const buildWorkbenchCommandPalette = (
-    replayState: DemoReplayState,
+    replayState: WorkbenchReplayPanelModel,
   ): WorkbenchCommandPaletteModel => ({
     title: "Workbench Commands",
     entries: [
@@ -2493,7 +2483,7 @@ export function mountWorkbenchDemo(
     statusNotice = notice;
   };
 
-  const buildWorkspaceTabs = (replayState: DemoReplayState): readonly WorkbenchWorkspaceTabModel[] =>
+  const buildWorkspaceTabs = (replayState: WorkbenchReplayPanelModel): readonly WorkbenchWorkspaceTabModel[] =>
     workspaceDocuments.map((document) => {
       const focus = workspaceFocusForView(document.viewId, replayState.active && document.id === activeWorkspaceTabId);
       return {
@@ -2510,7 +2500,7 @@ export function mountWorkbenchDemo(
       } satisfies WorkbenchWorkspaceTabModel;
     });
 
-  const buildLayoutTransferModel = (replayState: DemoReplayState): WorkbenchLayoutTransferModel => ({
+  const buildLayoutTransferModel = (replayState: WorkbenchReplayPanelModel): WorkbenchLayoutTransferModel => ({
     importLabel: "Import layout",
     exportLabel: "Export layout",
     importEnabled: !replayState.active,

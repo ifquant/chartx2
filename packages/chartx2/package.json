@@ -1,0 +1,19 @@
+{
+  "name": "@chartx2/library",
+  "version": "0.1.0",
+  "type": "module",
+  "svelte": "./src/lib/public/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/lib/public/index.ts",
+      "svelte": "./src/lib/public/index.ts",
+      "default": "./src/lib/public/index.ts"
+    }
+  },
+  "scripts": {
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "build": "vite build",
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run tests/unit"
+  }
+}

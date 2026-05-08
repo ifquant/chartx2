@@ -37,6 +37,7 @@
     TimePresetsPanel,
     TradingTicketPanel,
     WorkbenchHostSurfaceDock,
+    WorkbenchWorkspaceTabStrip,
   } from "@chartx2/library";
   import type { TradeLocationIntent } from "@chartx2/library";
 
@@ -1128,59 +1129,18 @@
       </div>
       <span class="mobile-workspace-summary-view">{activeWorkspaceTab?.viewId ?? "--"}</span>
     </div>
-    <div class="workspace-tab-strip" data-workspace-tabs>
-      {#each workbench?.workspaceTabs ?? [] as tab (tab.id)}
-        <div
-          class="workspace-tab-chip"
-          class:active={tab.active}
-          data-workspace-tab={tab.id}
-          data-workspace-active={tab.active ? "true" : "false"}
-          data-workspace-panel={tab.sidebarPanel}
-          data-workspace-view={tab.viewId}
-        >
-          <button
-            type="button"
-            class="workspace-tab-main"
-            data-workspace-tab-trigger={tab.id}
-            disabled={!tab.enabled}
-            aria-disabled={!tab.enabled}
-            on:click={() => {
-              if (!tab.enabled) {
-                return;
-              }
-              void handleSetWorkspaceTab(tab.id);
-            }}
-          >
-            <strong>{tab.label}</strong>
-            <span class="workspace-tab-detail" data-workspace-tab-detail
-              >{tab.symbolLabel ?? "--"} · {tab.timeframeLabel ?? "--"}</span
-            >
-          </button>
-          {#if tab.closeable}
-            <button
-              type="button"
-              class="workspace-tab-close"
-              aria-label={`Close ${tab.label}`}
-              data-workspace-tab-close={tab.id}
-              on:click={(event) => {
-                event.stopPropagation();
-                closeMobileSheetsForNavigation();
-                void onCloseWorkspaceTab(tab.id);
-              }}
-            >×</button>
-          {/if}
-        </div>
-      {/each}
-      <button
-        type="button"
-        class="workspace-tab-create"
-        data-workspace-tab-create
-        on:click={() => {
-          closeMobileSheetsForNavigation();
-          void onCreateWorkspaceTab();
-        }}
-      >＋</button>
-    </div>
+    <WorkbenchWorkspaceTabStrip
+      tabs={workbench?.workspaceTabs ?? []}
+      onSelectTab={(tabId) => handleSetWorkspaceTab(tabId)}
+      onCloseTab={(tabId) => {
+        closeMobileSheetsForNavigation();
+        return onCloseWorkspaceTab(tabId);
+      }}
+      onCreateTab={() => {
+        closeMobileSheetsForNavigation();
+        return onCreateWorkspaceTab();
+      }}
+    />
   </div>
 
   {#if commandPaletteOpen}
@@ -3261,14 +3221,12 @@
   .action-strip::-webkit-scrollbar,
   .mode-strip::-webkit-scrollbar,
   .time-strip::-webkit-scrollbar,
-  .workspace-tab-strip::-webkit-scrollbar,
   .bottom-tab-strip::-webkit-scrollbar {
     display: none;
   }
 
   .toolbar-strip button,
   .time-strip button,
-  .workspace-tab-strip button,
   .bottom-tab-strip button,
   .sidebar-head button {
     flex: 0 0 auto;
@@ -3357,7 +3315,6 @@
     font-size: 0.74rem;
   }
 
-  .workspace-tab-strip,
   .bottom-tab-strip {
     display: flex;
     gap: 6px;
@@ -3367,55 +3324,9 @@
     scrollbar-width: none;
   }
 
-  .workspace-tab-chip.active,
   .bottom-tab-strip button.active {
     background: #18181b;
     color: #fffdf8;
-  }
-
-  .workspace-tab-chip {
-    display: inline-flex;
-    align-items: stretch;
-    min-width: 0;
-    border-radius: 10px;
-    background: rgba(24, 24, 27, 0.06);
-  }
-
-  .workspace-tab-main {
-    display: grid;
-    gap: 2px;
-    min-width: 112px;
-    padding: 8px 10px;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .workspace-tab-main strong {
-    font-size: 0.82rem;
-  }
-
-  .workspace-tab-main span {
-    font-size: 0.72rem;
-    opacity: 0.72;
-  }
-
-  .workspace-tab-close,
-  .workspace-tab-create {
-    width: 30px;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .workspace-tab-create {
-    border-radius: 10px;
-    background: rgba(24, 24, 27, 0.06);
   }
 
   .workbench-shell {
@@ -4750,29 +4661,6 @@
     .chart-meta-ohlc,
     .chart-meta-pane {
       display: none;
-    }
-
-    .workspace-tab-strip {
-      gap: 0.45rem;
-    }
-
-    .workspace-tab-chip {
-      border-radius: 0.85rem;
-    }
-
-    .workspace-tab-main {
-      min-width: 0;
-      padding: 0.58rem 0.7rem;
-    }
-
-    .workspace-tab-detail {
-      display: none;
-    }
-
-    .workspace-tab-close,
-    .workspace-tab-create {
-      width: 26px;
-      padding: 0;
     }
 
     .tool-rail {

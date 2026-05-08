@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as chartxPublic from "../../src/lib/public";
 import * as workbenchBottomPanels from "../../src/lib/public/workbench-bottom-panels";
+import * as workbenchWorkspaceTabs from "../../src/lib/public/workbench-workspace-tabs";
 
 import type {
   AccountSyncSurfaceModel,
@@ -87,5 +88,11 @@ describe("public chartx barrel", () => {
     expect(workbenchBottomPanels).toHaveProperty("ReplayPanel");
     expect(workbenchBottomPanels).toHaveProperty("TimePresetsPanel");
     expect(workbenchBottomPanels).not.toHaveProperty("ScriptExpressionBuilder");
+  });
+
+  it("re-exports the workbench workspace tab strip through a focused public barrel", () => {
+    expect(chartxPublic).toHaveProperty("WorkbenchWorkspaceTabStrip");
+    expect(workbenchWorkspaceTabs).toHaveProperty("WorkbenchWorkspaceTabStrip");
+    expect(workbenchWorkspaceTabs).not.toHaveProperty("ReplayPanel");
   });
 });

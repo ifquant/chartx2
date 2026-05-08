@@ -10,6 +10,7 @@ import {
   TimePresetsPanel,
   TradingTicketPanel,
   WorkbenchHostSurfaceDock,
+  WorkbenchWorkspaceTabStrip,
   createChartxPhaseOneChart,
   getChartxFoundation,
   openWorkbenchSymbol,
@@ -27,6 +28,7 @@ describe("@chartx2/library public consumer boundary", () => {
     expect(TradingTicketPanel).toBeDefined();
     expect(AccountSyncStatusCard).toBeDefined();
     expect(WorkbenchHostSurfaceDock).toBeDefined();
+    expect(WorkbenchWorkspaceTabStrip).toBeDefined();
     expect(typeof getChartxFoundation).toBe("function");
     expect(typeof createChartxPhaseOneChart).toBe("function");
   });

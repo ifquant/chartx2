@@ -100,14 +100,20 @@ describe("chartx2 library split boundary", () => {
     }
   });
 
-  it("keeps internal library imports inside example-owned demo controllers", () => {
+  it("limits internal library imports to example-owned demo controllers", () => {
+    const allowedInternalImportFiles = new Set([
+      "examples/tauri-svelte/src/lib/example-app/chartx-demo.ts",
+      "examples/tauri-svelte/src/lib/example-app/performance-demo.ts",
+    ]);
     const internalImportFiles = listTextFiles("examples/tauri-svelte/src").filter(
       (relativePath) => readRepoFile(relativePath).includes("@chartx2/library/internal"),
     );
 
-    expect(internalImportFiles).toEqual([
-      "examples/tauri-svelte/src/lib/example-app/chartx-demo.ts",
-      "examples/tauri-svelte/src/lib/example-app/performance-demo.ts",
-    ]);
+    for (const relativePath of internalImportFiles) {
+      expect(
+        allowedInternalImportFiles.has(relativePath),
+        `${relativePath} must not import @chartx2/library/internal`,
+      ).toBe(true);
+    }
   });
 });

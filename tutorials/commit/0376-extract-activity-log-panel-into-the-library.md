@@ -24,6 +24,7 @@ The workbench activity log had already collapsed into a thin, reusable bottom-pa
 ## Verification
 
 - `rg -n "ActivityLogPanel|\\$lib/example-app/components/ActivityLogPanel|workbench-bottom-panels" /Users/dev/workspace2/hc_apps/chartx2`
+- `pnpm --filter @chartx2/example-tauri-svelte exec vitest run examples/tauri-svelte/tests/unit/library-public-consumer.test.ts`
 - `pnpm test:unit`
 - `pnpm check`
 - `pnpm build`

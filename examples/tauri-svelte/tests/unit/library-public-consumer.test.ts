@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ActivityLogPanel,
   AccountSyncStatusCard,
   ChartFrameShell,
   PhaseOneMarketChartSurface,
+  ReplayPanel,
   StrategyTesterPanel,
+  TimePresetsPanel,
   TradingTicketPanel,
   WorkbenchHostSurfaceDock,
   createChartxPhaseOneChart,
@@ -15,9 +18,12 @@ import {
 
 describe("@chartx2/library public consumer boundary", () => {
   it("exports reusable shells and chart helpers from the package barrel", () => {
+    expect(ActivityLogPanel).toBeDefined();
     expect(ChartFrameShell).toBeDefined();
     expect(PhaseOneMarketChartSurface).toBeDefined();
+    expect(ReplayPanel).toBeDefined();
     expect(StrategyTesterPanel).toBeDefined();
+    expect(TimePresetsPanel).toBeDefined();
     expect(TradingTicketPanel).toBeDefined();
     expect(AccountSyncStatusCard).toBeDefined();
     expect(WorkbenchHostSurfaceDock).toBeDefined();

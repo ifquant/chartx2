@@ -80,8 +80,10 @@ describe("public chartx barrel", () => {
     };
 
     expect(replay.totalSteps).toBe(64);
+    expect(chartxPublic).toHaveProperty("ActivityLogPanel");
     expect(chartxPublic).toHaveProperty("ReplayPanel");
     expect(chartxPublic).toHaveProperty("TimePresetsPanel");
+    expect(workbenchBottomPanels).toHaveProperty("ActivityLogPanel");
     expect(workbenchBottomPanels).toHaveProperty("ReplayPanel");
     expect(workbenchBottomPanels).toHaveProperty("TimePresetsPanel");
     expect(workbenchBottomPanels).not.toHaveProperty("ScriptExpressionBuilder");

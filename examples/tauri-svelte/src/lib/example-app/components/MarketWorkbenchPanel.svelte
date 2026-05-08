@@ -29,6 +29,7 @@
     WorkbenchDrawingTool,
   } from "$lib/example-app/chartx-demo";
   import {
+    ActivityLogPanel,
     AccountSyncStatusCard,
     ReplayPanel,
     ShareDialogShell,
@@ -37,7 +38,6 @@
     TradingTicketPanel,
     WorkbenchHostSurfaceDock,
   } from "@chartx2/library";
-  import ActivityLogPanel from "$lib/example-app/components/ActivityLogPanel.svelte";
   import type { TradeLocationIntent } from "@chartx2/library";
 
   export let chartTypeActions: readonly DemoAction[] = [];

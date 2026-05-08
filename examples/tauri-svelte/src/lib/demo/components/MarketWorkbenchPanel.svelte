@@ -3,14 +3,14 @@
     PhaseOneDrawingPropertyField,
     PhaseOneDrawingPropertyFieldSchema,
     PhaseOneReadoutDetail,
-  } from "$lib/chartx/public/market";
+  } from "@chartx2/library";
   import type {
     BottomPanelTabId,
     ChartWorkbenchModel,
     WorkbenchHostSummarySurfaceModel,
     WorkbenchCommandPaletteModel,
     WorkbenchWorkspaceTabId,
-  } from "$lib/chartx/public/workbench";
+  } from "@chartx2/library";
   import {
     formatWorkbenchScriptCompatibilityLabel,
     formatWorkbenchCustomScriptExpressionText,
@@ -20,7 +20,7 @@
     type WorkbenchScriptAuthoringSurface,
     type WorkbenchScriptExpression,
     type WorkbenchScriptField,
-  } from "$lib/chartx/public/workbench-scripts";
+  } from "@chartx2/library";
   import type {
     DemoAction,
     DemoCustomScriptLibraryEntry,
@@ -29,15 +29,17 @@
   } from "$lib/demo/chartx-demo";
   import ScriptExpressionBuilder from "$lib/demo/components/ScriptExpressionBuilder.svelte";
   import ScriptLengthInput from "$lib/demo/components/ScriptLengthInput.svelte";
-  import AccountSyncStatusCard from "$lib/demo/components/AccountSyncStatusCard.svelte";
+  import {
+    AccountSyncStatusCard,
+    ShareDialogShell,
+    StrategyTesterPanel,
+    TradingTicketPanel,
+    WorkbenchHostSurfaceDock,
+  } from "@chartx2/library";
   import ActivityLogPanel from "$lib/demo/components/ActivityLogPanel.svelte";
   import ReplayPanel from "$lib/demo/components/ReplayPanel.svelte";
-  import StrategyTesterPanel from "$lib/demo/components/StrategyTesterPanel.svelte";
   import TimePresetsPanel from "$lib/demo/components/TimePresetsPanel.svelte";
-  import TradingTicketPanel from "$lib/demo/components/TradingTicketPanel.svelte";
-  import ShareDialogShell from "$lib/demo/components/ShareDialogShell.svelte";
-  import WorkbenchHostSurfaceDock from "$lib/demo/components/WorkbenchHostSurfaceDock.svelte";
-  import type { TradeLocationIntent } from "$lib/chartx/public/performance";
+  import type { TradeLocationIntent } from "@chartx2/library";
 
   export let chartTypeActions: readonly DemoAction[] = [];
   export let lineBreakActions: readonly DemoAction[] = [];

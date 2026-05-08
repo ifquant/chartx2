@@ -2,14 +2,14 @@ import type {
   PhaseOneCandlestickData,
   PhaseOneLineData,
   PhaseOneVolumeData,
-} from "$lib/chartx/public/market";
-import type { WatchlistItemModel } from "$lib/chartx/public/workbench";
+} from "@chartx2/library";
+import type { WatchlistItemModel } from "@chartx2/library";
 import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
   type WorkbenchHostAdapter,
   type WorkbenchSymbolDescriptor,
-} from "../chartx/public/workbench-host";
+} from "@chartx2/library";
 
 const BASE_TIME = Date.UTC(2026, 2, 2, 1, 30, 0);
 const BAR_INTERVAL_MS = 60_000;

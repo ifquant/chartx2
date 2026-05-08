@@ -1,17 +1,1309 @@
+<script lang="ts">
+  import { onMount, tick } from "svelte";
+  import {
+    getChartxFoundation,
+    type PhaseOneDrawingPropertyField,
+    type PhaseOneDrawingPropertyFieldSchema,
+    type PhaseOneReadoutDetail,
+  } from "@chartx2/library";
+  import {
+    createLocalStorageWorkbenchAlertsProvider,
+    type WorkbenchAlertsPersistenceProvider,
+  } from "@chartx2/library";
+  import {
+    createLocalStorageWorkbenchLayoutProvider,
+    type WorkbenchLayoutPersistenceProvider,
+  } from "@chartx2/library";
+  import type { BottomPanelTabId } from "@chartx2/library";
+  import type { WorkbenchScriptExecutionAdapter } from "@chartx2/library";
+  import {
+    FEATURE_TABS,
+    mountFeatureDemo,
+    mountWorkbenchDemo,
+    type DemoAction,
+    type DemoController,
+    type DemoSnapshot,
+    type FeatureExampleDescriptor,
+    type FeatureTabId,
+    type WorkbenchDrawingTool,
+  } from "$lib/demo/chartx-demo";
+  import {
+    mountPerformanceReportDemo,
+    type PerformanceDemoController,
+    type PerformanceDemoSnapshot,
+  } from "$lib/demo/performance-demo";
+  import { createWorkbenchTradeIntentBridge } from "$lib/demo/workbench-trade-intent-bridge";
+  import type { TradeLocationIntent } from "@chartx2/library";
+  import FeatureDemoPanel from "$lib/demo/components/FeatureDemoPanel.svelte";
+  import MarketWorkbenchPanel from "$lib/demo/components/MarketWorkbenchPanel.svelte";
+  import PerformanceWorkbenchPanel from "$lib/demo/components/PerformanceWorkbenchPanel.svelte";
+
+  type TopTabId = "workbench" | "performance" | FeatureTabId;
+
+  const foundation = getChartxFoundation();
+  const topTabs: Array<{ id: TopTabId; label: string; available: boolean }> = [
+    { id: "workbench", label: "Workbench", available: true },
+    { id: "performance", label: "Performance", available: true },
+    ...FEATURE_TABS.map((tab) => ({ id: tab.id, label: tab.label, available: tab.available })),
+  ];
+
+  const emptyReadout = (): PhaseOneReadoutDetail => ({
+    active: false,
+    paneIndex: null,
+    time: null,
+    open: null,
+    high: null,
+    low: null,
+    close: null,
+    price: null,
+    formatted: {
+      time: "--",
+      open: "--",
+      high: "--",
+      low: "--",
+      close: "--",
+      price: "--",
+    },
+    series: [],
+  });
+
+  const emptySnapshot = (title: string, summary: string): DemoSnapshot => ({
+    title,
+    summary,
+    metrics: [],
+    eventLog: [],
+  });
+  const emptyPerformanceSnapshot = (): PerformanceDemoSnapshot => ({
+    title: "Performance Report",
+    summary: "Mounting the strategy performance report.",
+    metrics: [],
+    eventLog: [],
+    selectedTradeId: null,
+    selectedTradeIntent: null,
+    optimization: {
+      title: "Parameter Surface",
+      summary: "Mounting the optimization surface.",
+      selectedRunId: null,
+      selectedRunIntent: null,
+      renderMode: "surface-zero-3d",
+      colorMetric: "robustness",
+      thresholdPlaneMode: "auto",
+      xParam: "fastLength",
+      yParam: "slowLength",
+      zMetric: "netProfit",
+      filterKey: "threshold",
+      filterValue: null,
+      filterOptions: [],
+      runLabel: "--",
+      xLabel: "Fast length",
+      yLabel: "Slow length",
+      zLabel: "Net profit",
+      colorLabel: "Robustness (green=stable, red=sensitive)",
+      floorHint: "Floor contours show net profit bands.",
+      planeLabel: null,
+      selectedPoint: null,
+      crossSections: {
+        xSlice: null,
+        ySlice: null,
+      },
+    },
+  });
+  const workbenchDrawingTools: Array<{
+    id: WorkbenchDrawingTool;
+    label: string;
+    icon: string;
+    enabled: boolean;
+  }> = [
+    { id: "horizontal-line", label: "Horizontal line", icon: "—", enabled: true },
+    { id: "trend-line", label: "Trend line", icon: "／", enabled: true },
+    { id: "none", label: "Clear drawing tool", icon: "⌖", enabled: true },
+    { id: "none", label: "Pitchfork", icon: "⌗", enabled: false },
+    { id: "none", label: "Text", icon: "T", enabled: false },
+    { id: "none", label: "Emoji", icon: "☺", enabled: false },
+    { id: "none", label: "Circle", icon: "⊕", enabled: false },
+    { id: "none", label: "Brush", icon: "⌂", enabled: false },
+  ];
+
+  let activeTopTab: TopTabId = "workbench";
+
+  let workbenchCanvas: HTMLCanvasElement | undefined;
+  let performanceCanvas: HTMLCanvasElement | undefined;
+  let optimizationCanvas: HTMLCanvasElement | undefined;
+  let featureCanvas: HTMLCanvasElement | undefined;
+
+  let workbenchController: DemoController | null = null;
+  let performanceController: PerformanceDemoController | null = null;
+  let featureController: DemoController | null = null;
+  let mountingWorkbench = false;
+  let mountingPerformance = false;
+  let mountingFeature = false;
+  const workbenchTradeIntentBridge = createWorkbenchTradeIntentBridge();
+  let workbenchAlertsProvider: WorkbenchAlertsPersistenceProvider | undefined;
+  let workbenchPersistenceProvider: WorkbenchLayoutPersistenceProvider | undefined;
+
+  let workbenchReadout = emptyReadout();
+  let featureReadout = emptyReadout();
+
+  let workbenchSnapshot = emptySnapshot(
+    "Workbench",
+    "Mounting the default workstation example.",
+  );
+  let performanceSnapshot = emptyPerformanceSnapshot();
+  let featureSnapshot = emptySnapshot("Feature", "Mounting the focused example.");
+
+  let workbenchActions: readonly DemoAction[] = [];
+  let featureActions: readonly DemoAction[] = [];
+  let workbenchCommandPaletteOpen = false;
+  let workbenchLayoutImportInput: HTMLInputElement | null = null;
+  let lastWorkbenchLayoutExportRaw = "";
+
+  let workbenchError = "";
+  let featureError = "";
+  let teardownWorkbenchReadout: (() => void) | null = null;
+  let teardownFeatureReadout: (() => void) | null = null;
+  let workbenchInspectorErrors: Partial<Record<PhaseOneDrawingPropertyField, string>> = {};
+  let workbenchToolPointer: { x: number; y: number } | null = null;
+
+  type ScriptAdapterMode = "host-fail";
+
+  onMount(() => {
+    try {
+      const storage = window.localStorage;
+      workbenchAlertsProvider = createLocalStorageWorkbenchAlertsProvider(storage);
+      workbenchPersistenceProvider = createLocalStorageWorkbenchLayoutProvider(storage);
+    } catch {
+      workbenchAlertsProvider = undefined;
+      workbenchPersistenceProvider = undefined;
+    }
+    void mountWorkbenchWhenReady();
+
+    return () => {
+      teardownWorkbench();
+      teardownPerformance();
+      teardownFeature();
+    };
+  });
+
+  function resolveScriptExecutionAdapterForTests(): WorkbenchScriptExecutionAdapter | undefined {
+    const mode = (window as Window & { __chartxScriptAdapterMode?: ScriptAdapterMode })
+      .__chartxScriptAdapterMode;
+    if (mode !== "host-fail") {
+      return undefined;
+    }
+    return {
+      owner: "host-adapter",
+      label: "Host execution adapter",
+      detailLabel: "Fixture host adapter injected by the visual harness.",
+      async executeIndicator(input) {
+        return {
+          ok: false,
+          message: `Host adapter rejected ${input.scriptId} for ${input.symbol} ${input.timeframe}.`,
+        };
+      },
+    };
+  }
+
+  function featureDescriptor(tabId: FeatureTabId): FeatureExampleDescriptor | undefined {
+    return FEATURE_TABS.find((tab) => tab.id === tabId);
+  }
+
+  function bindReadout(
+    canvas: HTMLCanvasElement,
+    assign: (detail: PhaseOneReadoutDetail) => void,
+  ): () => void {
+    const handleReadout = (event: Event) => {
+      assign((event as CustomEvent<PhaseOneReadoutDetail>).detail);
+    };
+
+    canvas.addEventListener("chartx:readout", handleReadout);
+    return () => canvas.removeEventListener("chartx:readout", handleReadout);
+  }
+
+  function showTopTab(tabId: TopTabId): void {
+    if (activeTopTab === tabId) {
+      return;
+    }
+
+    workbenchCommandPaletteOpen = false;
+
+    if (tabId === "workbench") {
+      teardownPerformance();
+      teardownFeature();
+      activeTopTab = "workbench";
+      void mountWorkbenchWhenReady();
+      return;
+    }
+
+    if (tabId === "performance") {
+      teardownWorkbench();
+      teardownFeature();
+      activeTopTab = "performance";
+      void mountPerformanceWhenReady();
+      return;
+    }
+
+    const descriptor = featureDescriptor(tabId);
+    if (!descriptor?.available) {
+      return;
+    }
+
+    teardownWorkbench();
+    teardownPerformance();
+    activeTopTab = tabId;
+    void mountFeatureWhenReady(tabId);
+  }
+
+  async function mountWorkbenchWhenReady(attempt = 0): Promise<void> {
+    if (activeTopTab !== "workbench" || workbenchController !== null || mountingWorkbench) {
+      return;
+    }
+    await tick();
+    if (activeTopTab !== "workbench" || workbenchController !== null || mountingWorkbench) {
+      return;
+    }
+    if (!workbenchCanvas || !workbenchCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountWorkbenchWhenReady(attempt + 1);
+      }
+      return;
+    }
+    mountWorkbench();
+  }
+
+  async function mountPerformanceWhenReady(attempt = 0): Promise<void> {
+    if (activeTopTab !== "performance" || performanceController !== null || mountingPerformance) {
+      return;
+    }
+    await tick();
+    if (activeTopTab !== "performance" || performanceController !== null || mountingPerformance) {
+      return;
+    }
+    if (!performanceCanvas || !optimizationCanvas || !performanceCanvas.isConnected || !optimizationCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountPerformanceWhenReady(attempt + 1);
+      }
+      return;
+    }
+    mountPerformance();
+  }
+
+  async function mountFeatureWhenReady(featureId: FeatureTabId, attempt = 0): Promise<void> {
+    if (activeTopTab !== featureId || featureController !== null || mountingFeature) {
+      return;
+    }
+    await tick();
+    if (activeTopTab !== featureId || featureController !== null || mountingFeature) {
+      return;
+    }
+    if (!featureCanvas || !featureCanvas.isConnected) {
+      if (attempt < 4) {
+        await mountFeatureWhenReady(featureId, attempt + 1);
+      }
+      return;
+    }
+    mountFeature(featureId);
+  }
+
+  function teardownWorkbench(): void {
+    teardownWorkbenchReadout?.();
+    teardownWorkbenchReadout = null;
+    workbenchController?.destroy();
+    workbenchController = null;
+    workbenchTradeIntentBridge.disconnect();
+    workbenchCommandPaletteOpen = false;
+  }
+
+  function teardownPerformance(): void {
+    performanceController?.destroy();
+    performanceController = null;
+  }
+
+  function teardownFeature(): void {
+    teardownFeatureReadout?.();
+    teardownFeatureReadout = null;
+    featureController?.destroy();
+    featureController = null;
+  }
+
+  function mountWorkbench(): void {
+    if (mountingWorkbench) {
+      return;
+    }
+    mountingWorkbench = true;
+    teardownWorkbench();
+    workbenchError = "";
+    workbenchReadout = emptyReadout();
+    workbenchInspectorErrors = {};
+
+    if (!workbenchCanvas || !workbenchCanvas.isConnected) {
+      mountingWorkbench = false;
+      return;
+    }
+
+    teardownWorkbenchReadout = bindReadout(workbenchCanvas, (detail) => {
+      workbenchReadout = detail;
+    });
+
+    try {
+      workbenchController = mountWorkbenchDemo(workbenchCanvas, (snapshot) => {
+        workbenchSnapshot = snapshot;
+        workbenchTradeIntentBridge.publishSnapshot();
+      }, {
+        alertsProvider: workbenchAlertsProvider,
+        persistenceProvider: workbenchPersistenceProvider,
+        scriptExecutionAdapter: resolveScriptExecutionAdapterForTests(),
+      });
+      workbenchTradeIntentBridge.connect(workbenchController);
+      workbenchActions = workbenchController.actions();
+    } catch (error) {
+      workbenchError =
+        error instanceof Error ? error.message : "Unknown workbench init failure";
+      teardownWorkbenchReadout?.();
+      teardownWorkbenchReadout = null;
+    } finally {
+      mountingWorkbench = false;
+    }
+  }
+
+  function mountFeature(featureId: FeatureTabId): void {
+    if (mountingFeature) {
+      return;
+    }
+    mountingFeature = true;
+    teardownFeature();
+    featureError = "";
+    featureReadout = emptyReadout();
+
+    if (!featureCanvas || !featureCanvas.isConnected) {
+      mountingFeature = false;
+      return;
+    }
+
+    teardownFeatureReadout = bindReadout(featureCanvas, (detail) => {
+      featureReadout = detail;
+    });
+
+    try {
+      featureController = mountFeatureDemo(featureCanvas, featureId, (snapshot) => {
+        featureSnapshot = snapshot;
+      });
+      featureActions = featureController.actions();
+    } catch (error) {
+      featureError =
+        error instanceof Error ? error.message : "Unknown feature demo init failure";
+      teardownFeatureReadout?.();
+      teardownFeatureReadout = null;
+    } finally {
+      mountingFeature = false;
+    }
+  }
+
+  function mountPerformance(): void {
+    if (mountingPerformance) {
+      return;
+    }
+    mountingPerformance = true;
+    teardownPerformance();
+    performanceSnapshot = emptyPerformanceSnapshot();
+
+    if (!performanceCanvas || !optimizationCanvas || !performanceCanvas.isConnected || !optimizationCanvas.isConnected) {
+      mountingPerformance = false;
+      return;
+    }
+
+    try {
+      performanceController = mountPerformanceReportDemo(
+        optimizationCanvas,
+        performanceCanvas,
+        (snapshot) => {
+          performanceSnapshot = snapshot;
+        },
+        (intent) => {
+          workbenchTradeIntentBridge.queue(intent);
+          if (activeTopTab === "workbench") {
+            return;
+          }
+          void showTopTab("workbench");
+        },
+      );
+    } finally {
+      mountingPerformance = false;
+    }
+  }
+
+  function runWorkbenchAction(actionId: string): void {
+    workbenchController?.runAction(actionId);
+    workbenchActions = workbenchController?.actions() ?? [];
+  }
+
+  function toggleWorkbenchCommandPalette(): void {
+    if (activeTopTab !== "workbench") {
+      return;
+    }
+    workbenchCommandPaletteOpen = !workbenchCommandPaletteOpen;
+  }
+
+  function closeWorkbenchCommandPalette(): void {
+    workbenchCommandPaletteOpen = false;
+  }
+
+  async function executeWorkbenchCommand(commandId: string): Promise<void> {
+    const executed = await workbenchController?.executeCommand?.(commandId);
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (executed) {
+      workbenchCommandPaletteOpen = false;
+    }
+  }
+
+  function runFeatureAction(actionId: string): void {
+    featureController?.runAction(actionId);
+    featureActions = featureController?.actions() ?? [];
+  }
+
+  function setWorkbenchDrawingTool(tool: WorkbenchDrawingTool): void {
+    workbenchController?.setDrawingTool?.(tool);
+    workbenchActions = workbenchController?.actions() ?? [];
+  }
+
+  async function openWorkbenchSymbol(symbol: string): Promise<void> {
+    const opened = await workbenchController?.openSymbol?.(symbol);
+    if (opened) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function addWorkbenchIndicator(entryId: string, inputValues?: Record<string, number>): Promise<void> {
+    const added = await workbenchController?.addIndicatorFromCatalog?.(entryId, inputValues);
+    if (added) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function addWorkbenchCustomScript(scriptId: string, inputValues?: Record<string, number>): Promise<void> {
+    const added = await workbenchController?.addCustomScriptToChart?.(scriptId, inputValues);
+    if (added) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function removeWorkbenchActiveScriptIndicator(paneIndex: number): void {
+    const removed = workbenchController?.removeActiveScriptIndicator?.(paneIndex);
+    if (removed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function saveWorkbenchCatalogScriptAsCustom(entryId: string): void {
+    const saved = workbenchController?.saveCatalogScriptAsCustom?.(entryId);
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function saveWorkbenchCustomScript(
+    scriptId: string | null,
+    draft: {
+      label: string;
+      shortLabel: string;
+      description: string;
+      expressionText: string;
+      placement: "overlay" | "separate-pane";
+      defaultLength: number;
+    },
+  ): boolean {
+    const saved = workbenchController?.saveCustomScript?.(scriptId, draft);
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+    return saved ?? false;
+  }
+
+  function deleteWorkbenchCustomScript(scriptId: string): boolean {
+    const deleted = workbenchController?.deleteCustomScript?.(scriptId);
+    if (deleted) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+    return deleted ?? false;
+  }
+
+  function duplicateWorkbenchCustomScript(scriptId: string): void {
+    const duplicated = workbenchController?.duplicateCustomScript?.(scriptId);
+    if (duplicated) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function createWorkbenchPriceAlert(): Promise<void> {
+    const created = await workbenchController?.createPriceAlert?.();
+    if (created) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function saveWorkbenchLayout(): Promise<void> {
+    const saved = await workbenchController?.saveLayout?.();
+    if (saved) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function restoreWorkbenchLayout(): Promise<void> {
+    const restored = await workbenchController?.restoreLayout?.();
+    if (restored) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function resetWorkbenchLayout(): Promise<void> {
+    const reset = await workbenchController?.resetLayout?.();
+    if (reset) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function setWorkbenchWorkspaceTab(tabId: string): Promise<void> {
+    const changed = await workbenchController?.setWorkspaceTab?.(tabId);
+    if (changed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function setWorkbenchBottomTab(tabId: BottomPanelTabId): Promise<void> {
+    const changed = await workbenchController?.setActiveBottomTab?.(tabId);
+    if (changed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function createWorkbenchWorkspaceTab(): Promise<void> {
+    const created = await workbenchController?.createWorkspaceTab?.();
+    if (created) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  async function closeWorkbenchWorkspaceTab(tabId: string): Promise<void> {
+    const closed = await workbenchController?.closeWorkspaceTab?.(tabId);
+    if (closed) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function requestWorkbenchLayoutImport(): void {
+    workbenchLayoutImportInput?.click();
+  }
+
+  async function handleWorkbenchLayoutImport(event: Event): Promise<void> {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    if (file === null) {
+      return;
+    }
+    const raw = await file.text();
+    const imported = await workbenchController?.importLayout?.(raw);
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (input !== null) {
+      input.value = "";
+    }
+    if (imported) {
+      workbenchCommandPaletteOpen = false;
+    }
+  }
+
+  async function exportWorkbenchLayout(): Promise<void> {
+    const raw = await workbenchController?.exportLayout?.();
+    workbenchActions = workbenchController?.actions() ?? [];
+    if (raw === null || raw === undefined) {
+      return;
+    }
+    lastWorkbenchLayoutExportRaw = raw;
+    const blob = new Blob([raw], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const symbol = workbenchSnapshot.workbench?.toolbar.activeSymbol ?? "layout";
+    link.href = url;
+    link.download = `${symbol.toLowerCase()}-layout.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function enterWorkbenchReplay(): void {
+    const entered = workbenchController?.enterReplay?.();
+    if (entered) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function playWorkbenchReplay(): void {
+    const playing = workbenchController?.playReplay?.();
+    if (playing) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function pauseWorkbenchReplay(): void {
+    const paused = workbenchController?.pauseReplay?.();
+    if (paused) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function stepWorkbenchReplay(): void {
+    const stepped = workbenchController?.stepReplay?.();
+    if (stepped) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function exitWorkbenchReplay(): void {
+    const exited = workbenchController?.exitReplay?.();
+    if (exited) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function locateWorkbenchTrade(intent: TradeLocationIntent): void {
+    const located = workbenchController?.locateTrade?.(intent);
+    if (located) {
+      workbenchActions = workbenchController?.actions() ?? [];
+    }
+  }
+
+  function setPointFigureAutoScale(value: number): void {
+    workbenchController?.setPointFigureAutoScale?.(value);
+  }
+
+  function setPointFigureMode(value: "auto" | "fixed" | "atr" | "percentage" | "traditional"): void {
+    workbenchController?.setPointFigureMode?.(value);
+  }
+
+  function setPointFigureAtrLength(value: number): void {
+    workbenchController?.setPointFigureAtrLength?.(value);
+  }
+
+  function setPointFigurePercentageValue(value: number): void {
+    workbenchController?.setPointFigurePercentageValue?.(value);
+  }
+
+  function setKagiMode(value: "auto" | "fixed" | "atr" | "percentage"): void {
+    workbenchController?.setKagiMode?.(value);
+  }
+
+  function setKagiFixedReversalSize(value: number): void {
+    workbenchController?.setKagiFixedReversalSize?.(value);
+  }
+
+  function setKagiAutoScale(value: number): void {
+    workbenchController?.setKagiAutoScale?.(value);
+  }
+
+  function setKagiAtrLength(value: number): void {
+    workbenchController?.setKagiAtrLength?.(value);
+  }
+
+  function setKagiPercentageValue(value: number): void {
+    workbenchController?.setKagiPercentageValue?.(value);
+  }
+
+  function handleWorkbenchChartPointerMove(event: PointerEvent): void {
+    const frame = event.currentTarget;
+    if (!(frame instanceof HTMLElement)) {
+      return;
+    }
+    const bounds = frame.getBoundingClientRect();
+    workbenchToolPointer = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+  }
+
+  function clearWorkbenchToolPointer(): void {
+    workbenchToolPointer = null;
+  }
+
+  function handleWindowKeyDown(event: KeyboardEvent): void {
+    if (activeTopTab !== "workbench") {
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      toggleWorkbenchCommandPalette();
+      event.preventDefault();
+      return;
+    }
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (workbenchCommandPaletteOpen) {
+      closeWorkbenchCommandPalette();
+      event.preventDefault();
+      return;
+    }
+    if ((workbenchSnapshot.drawingTool?.activeTool ?? "none") === "none") {
+      return;
+    }
+    setWorkbenchDrawingTool("none");
+    event.preventDefault();
+  }
+
+  function formatValue(value: number | null, digits = 2): string {
+    return value === null
+      ? "--"
+      : value.toLocaleString("en-US", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: digits,
+        });
+  }
+
+  function formatPointFigureBoxSize(value: number | null): string {
+    if (value === null) {
+      return "--";
+    }
+    return Math.abs(value - Math.round(value)) < 0.05 ? String(Math.round(value)) : value.toFixed(1);
+  }
+
+  function formatIntentTime(value: number): string {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(value));
+  }
+
+  function selectedDrawingFieldValue(field: PhaseOneDrawingPropertyField): string | number | boolean {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return "";
+    }
+
+    const options = selected.state.options as Record<string, unknown>;
+    if (field.startsWith("magnetSources.")) {
+      const key = field.slice("magnetSources.".length) as "open" | "high" | "low" | "close";
+      return Boolean((options.magnetSources as Record<string, unknown> | undefined)?.[key]);
+    }
+
+    return (options[field] as string | number | boolean | undefined) ?? "";
+  }
+
+  function selectedDrawingFieldSchema(
+    field: PhaseOneDrawingPropertyField,
+  ): PhaseOneDrawingPropertyFieldSchema | null {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return null;
+    }
+
+    for (const section of selected.schema.sections) {
+      const match = section.fields.find((entry) => entry.key === field);
+      if (match !== undefined) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  function mergeSelectedDrawingOptionsPatch(
+    patch: Record<string, unknown>,
+  ): Record<string, unknown> | null {
+    const selected = workbenchSnapshot.selectedDrawing;
+    if (selected === null || selected === undefined) {
+      return null;
+    }
+
+    const current = selected.state.options as Record<string, unknown>;
+    return {
+      ...current,
+      ...patch,
+      magnetSources: {
+        ...((current.magnetSources as Record<string, unknown> | undefined) ?? {}),
+        ...((patch.magnetSources as Record<string, unknown> | undefined) ?? {}),
+      },
+    };
+  }
+
+  function clearInspectorFieldErrors(fields: readonly PhaseOneDrawingPropertyField[]): void {
+    const nextErrors = { ...workbenchInspectorErrors };
+    for (const field of fields) {
+      nextErrors[field] = undefined;
+    }
+    workbenchInspectorErrors = nextErrors;
+  }
+
+  function validateTrendLineCrossFieldOptions(nextOptions: Record<string, unknown>): boolean {
+    const startTime = Number(nextOptions.startTime);
+    const endTime = Number(nextOptions.endTime);
+    const startPrice = Number(nextOptions.startPrice);
+    const endPrice = Number(nextOptions.endPrice);
+
+    if (startTime === endTime && startPrice === endPrice) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        startTime: "Trend-line endpoints must not overlap.",
+        endTime: "Trend-line endpoints must not overlap.",
+        startPrice: "Trend-line endpoints must not overlap.",
+        endPrice: "Trend-line endpoints must not overlap.",
+      };
+      return false;
+    }
+
+    if (startTime >= endTime) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        startTime: "Start time must be before end time.",
+        endTime: "End time must be after start time.",
+      };
+      return false;
+    }
+
+    clearInspectorFieldErrors(["startTime", "endTime", "startPrice", "endPrice"]);
+    return true;
+  }
+
+  function updateSelectedDrawingField(
+    field: PhaseOneDrawingPropertyField,
+    control: PhaseOneDrawingPropertyFieldSchema["control"],
+    event: Event,
+  ): void {
+    if (activeTopTab !== "workbench" || workbenchSnapshot.selectedDrawing == null) {
+      return;
+    }
+
+    const target = event.currentTarget as HTMLInputElement | HTMLSelectElement | null;
+    if (target === null) {
+      return;
+    }
+
+    const fieldSchema = selectedDrawingFieldSchema(field);
+    let nextValue: string | number | boolean;
+    if (control === "toggle") {
+      nextValue = (target as HTMLInputElement).checked;
+    } else if (control === "number" || control === "time") {
+      const parsed = Number(target.value);
+      if (!Number.isFinite(parsed)) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: "Enter a valid number.",
+        };
+        return;
+      }
+      if (fieldSchema?.min !== undefined && parsed < fieldSchema.min) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: `Must be at least ${fieldSchema.min}.`,
+        };
+        return;
+      }
+      if (fieldSchema?.max !== undefined && parsed > fieldSchema.max) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: `Must be at most ${fieldSchema.max}.`,
+        };
+        return;
+      }
+      nextValue = parsed;
+    } else {
+      nextValue = target.value;
+      if (fieldSchema?.required && String(nextValue).trim().length === 0) {
+        workbenchInspectorErrors = {
+          ...workbenchInspectorErrors,
+          [field]: "This field is required.",
+        };
+        return;
+      }
+    }
+
+    if (fieldSchema?.options !== undefined && !fieldSchema.options.some((option) => option.value === String(nextValue))) {
+      workbenchInspectorErrors = {
+        ...workbenchInspectorErrors,
+        [field]: "Select a valid option.",
+      };
+      return;
+    }
+
+    const nextOptions: Record<string, unknown> = field.startsWith("magnetSources.")
+      ? {
+          magnetSources: {
+            [field.slice("magnetSources.".length)]: nextValue,
+          },
+        }
+      : { [field]: nextValue };
+
+    const mergedOptions = mergeSelectedDrawingOptionsPatch(nextOptions);
+    if (mergedOptions === null) {
+      return;
+    }
+
+    if (
+      workbenchSnapshot.selectedDrawing.state.type === "trend-line"
+      && !validateTrendLineCrossFieldOptions(mergedOptions)
+    ) {
+      return;
+    }
+
+    workbenchInspectorErrors = {
+      ...workbenchInspectorErrors,
+      [field]: undefined,
+    };
+    workbenchController?.applySelectedDrawingOptions?.(nextOptions);
+  }
+
+  $: activeSnapshot = activeTopTab === "workbench" ? workbenchSnapshot : featureSnapshot;
+  $: if (activeTopTab === "workbench" && workbenchSnapshot.selectedDrawing == null && Object.keys(workbenchInspectorErrors).length > 0) {
+    workbenchInspectorErrors = {};
+  }
+  $: activeFeatureSummary =
+    activeTopTab === "workbench" || activeTopTab === "performance"
+      ? null
+      : featureDescriptor(activeTopTab);
+  $: completedPhaseOneSteps = foundation.phaseOneSteps.filter(
+    (step) => step.status === "complete",
+  ).length;
+  $: workbenchChartTypeActions = workbenchActions.filter(
+    (action) => action.group === "chart-type",
+  );
+  $: workbenchLineBreakActions = workbenchActions.filter(
+    (action) => action.group === "line-break-option",
+  );
+  $: workbenchRenkoActions = workbenchActions.filter(
+    (action) => action.group === "renko-option",
+  );
+  $: workbenchChartActions = workbenchActions.filter(
+    (action) => action.group === "chart-action" || action.group === undefined,
+  );
+  $: activeWorkbenchDrawingTool = workbenchSnapshot.drawingTool?.activeTool ?? "none";
+  $: workbenchTrendLinePreviewAnchor = workbenchSnapshot.drawingTool?.pendingTrendLineStartPoint ?? null;
+  $: showWorkbenchHorizontalLinePreview =
+    activeTopTab === "workbench"
+    && activeWorkbenchDrawingTool === "horizontal-line"
+    && workbenchToolPointer !== null;
+  $: showWorkbenchTrendLinePreview =
+    activeTopTab === "workbench"
+    && activeWorkbenchDrawingTool === "trend-line"
+    && workbenchTrendLinePreviewAnchor !== null
+    && workbenchToolPointer !== null;
+  $: workbenchHorizontalPreviewY = showWorkbenchHorizontalLinePreview ? workbenchToolPointer?.y ?? null : null;
+  $: workbenchTrendPreviewX1 = showWorkbenchTrendLinePreview ? workbenchTrendLinePreviewAnchor?.x ?? null : null;
+  $: workbenchTrendPreviewY1 = showWorkbenchTrendLinePreview ? workbenchTrendLinePreviewAnchor?.y ?? null : null;
+  $: workbenchTrendPreviewX2 = showWorkbenchTrendLinePreview ? workbenchToolPointer?.x ?? null : null;
+  $: workbenchTrendPreviewY2 = showWorkbenchTrendLinePreview ? workbenchToolPointer?.y ?? null : null;
+</script>
+
+<svelte:window on:keydown={handleWindowKeyDown} />
+
 <svelte:head>
-  <title>chartx2 example</title>
+  <title>chartx2 | Demo Shell</title>
 </svelte:head>
 
-<div class="example-placeholder">
-  <h1>chartx2 example app skeleton</h1>
-  <p>The current Tauri + Svelte app will migrate into this package in the next wave.</p>
-</div>
+<main class="app-shell">
+  <header class="topbar">
+    <div class="brand-block">
+      <span class="app-mark">chartx2</span>
+    </div>
+
+    <nav class="top-tabs" aria-label="chartx2 demo tabs">
+      {#each topTabs as tab}
+        <button
+          class:active={tab.id === activeTopTab}
+          class:disabled={!tab.available}
+          aria-disabled={!tab.available}
+          on:click={() => showTopTab(tab.id)}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </nav>
+
+    <div class="status-chip">
+      <span>{completedPhaseOneSteps}</span>
+    </div>
+  </header>
+
+  <section class="layout-grid">
+    <section class="main-column">
+      {#if activeTopTab === "workbench"}
+        <input
+          bind:this={workbenchLayoutImportInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          on:change={(event) => {
+            void handleWorkbenchLayoutImport(event);
+          }}
+        />
+        <textarea data-layout-export-raw hidden readonly value={lastWorkbenchLayoutExportRaw}></textarea>
+        <MarketWorkbenchPanel
+          bind:canvasElement={workbenchCanvas}
+          chartTypeActions={workbenchChartTypeActions}
+          lineBreakActions={workbenchLineBreakActions}
+          renkoActions={workbenchRenkoActions}
+          chartActions={workbenchChartActions}
+          drawingTools={workbenchDrawingTools}
+          activeDrawingTool={activeWorkbenchDrawingTool}
+          readout={workbenchReadout}
+          snapshot={workbenchSnapshot}
+          workbench={workbenchSnapshot.workbench ?? null}
+          commandPalette={workbenchSnapshot.workbench?.commandPalette ?? null}
+          commandPaletteOpen={workbenchCommandPaletteOpen}
+          error={workbenchError}
+          inspectorErrors={workbenchInspectorErrors}
+          showHorizontalPreview={showWorkbenchHorizontalLinePreview}
+          showTrendPreview={showWorkbenchTrendLinePreview}
+          horizontalPreviewY={workbenchHorizontalPreviewY}
+          trendPreviewX1={workbenchTrendPreviewX1}
+          trendPreviewY1={workbenchTrendPreviewY1}
+          trendPreviewX2={workbenchTrendPreviewX2}
+          trendPreviewY2={workbenchTrendPreviewY2}
+          onRunAction={runWorkbenchAction}
+          onSetDrawingTool={setWorkbenchDrawingTool}
+          onSetWorkspaceTab={setWorkbenchWorkspaceTab}
+          onSetBottomTab={setWorkbenchBottomTab}
+          onCreateWorkspaceTab={createWorkbenchWorkspaceTab}
+          onCloseWorkspaceTab={closeWorkbenchWorkspaceTab}
+          onToggleCommandPalette={toggleWorkbenchCommandPalette}
+          onCloseCommandPalette={closeWorkbenchCommandPalette}
+          onExecuteCommand={(commandId) => {
+            void executeWorkbenchCommand(commandId);
+          }}
+          onOpenWatchlistSymbol={(symbol) => {
+            void openWorkbenchSymbol(symbol);
+          }}
+          onOpenScreenerSymbol={(symbol) => {
+            void openWorkbenchSymbol(symbol);
+          }}
+          onAddIndicator={addWorkbenchIndicator}
+          onAddCustomScriptToChart={addWorkbenchCustomScript}
+          onRemoveActiveScriptIndicator={removeWorkbenchActiveScriptIndicator}
+          onSaveCatalogScriptAsCustom={saveWorkbenchCatalogScriptAsCustom}
+          onSaveCustomScript={saveWorkbenchCustomScript}
+          onDeleteCustomScript={deleteWorkbenchCustomScript}
+          onDuplicateCustomScript={duplicateWorkbenchCustomScript}
+          onCreatePriceAlert={() => {
+            void createWorkbenchPriceAlert();
+          }}
+          onSaveLayout={() => {
+            void saveWorkbenchLayout();
+          }}
+          onRestoreLayout={() => {
+            void restoreWorkbenchLayout();
+          }}
+          onResetLayout={() => {
+            void resetWorkbenchLayout();
+          }}
+          onImportLayout={requestWorkbenchLayoutImport}
+          onExportLayout={() => {
+            void exportWorkbenchLayout();
+          }}
+          onEnterReplay={enterWorkbenchReplay}
+          onPlayReplay={playWorkbenchReplay}
+          onPauseReplay={pauseWorkbenchReplay}
+          onStepReplay={stepWorkbenchReplay}
+          onExitReplay={exitWorkbenchReplay}
+          onLocateTrade={locateWorkbenchTrade}
+          onPointerMove={handleWorkbenchChartPointerMove}
+          onPointerLeave={clearWorkbenchToolPointer}
+          onSetPointFigureAutoScale={setPointFigureAutoScale}
+          onSetPointFigureMode={setPointFigureMode}
+          onSetPointFigureAtrLength={setPointFigureAtrLength}
+          onSetPointFigurePercentageValue={setPointFigurePercentageValue}
+          onSetKagiMode={setKagiMode}
+          onSetKagiFixedReversalSize={setKagiFixedReversalSize}
+          onSetKagiAutoScale={setKagiAutoScale}
+          onSetKagiAtrLength={setKagiAtrLength}
+          onSetKagiPercentageValue={setKagiPercentageValue}
+          {selectedDrawingFieldValue}
+          {updateSelectedDrawingField}
+          {formatPointFigureBoxSize}
+        />
+      {:else if activeTopTab === "performance"}
+        <PerformanceWorkbenchPanel
+          bind:reportCanvasElement={performanceCanvas}
+          bind:optimizationCanvasElement={optimizationCanvas}
+          snapshot={performanceSnapshot}
+          {formatValue}
+          {formatIntentTime}
+              onOptimizationRenderModeChange={(value) => performanceController?.setOptimizationRenderMode(value)}
+              onOptimizationColorMetricChange={(value) => performanceController?.setOptimizationColorMetric(value)}
+              onOptimizationThresholdPlaneModeChange={(value) => performanceController?.setOptimizationThresholdPlaneMode(value)}
+              onOptimizationXAxisChange={(value) => performanceController?.setOptimizationXAxis(value)}
+          onOptimizationYAxisChange={(value) => performanceController?.setOptimizationYAxis(value)}
+          onOptimizationZMetricChange={(value) => performanceController?.setOptimizationZMetric(value)}
+          onOptimizationFilterValueChange={(value) => performanceController?.setOptimizationFilterValue(value)}
+        />
+      {:else}
+        <FeatureDemoPanel
+          bind:canvasElement={featureCanvas}
+          title={activeFeatureSummary?.label}
+          summary={activeFeatureSummary?.summary}
+          error={featureError}
+          readout={featureReadout}
+          actions={featureActions}
+          snapshot={activeSnapshot}
+          onRunAction={runFeatureAction}
+        />
+      {/if}
+    </section>
+  </section>
+</main>
 
 <style>
-  .example-placeholder {
+  :global(html),
+  :global(body) {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #f5f2eb;
+    color: #18181b;
+    font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+
+  .app-shell {
+    --topbar-height: 46px;
+    --card-head-height: 38px;
+    --readout-height: 36px;
+    --action-strip-height: 40px;
+    --feature-console-height: clamp(110px, 13vh, 144px);
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
     display: grid;
-    gap: 0.75rem;
-    padding: 2rem;
-    font-family: sans-serif;
+    grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+    gap: 0;
+    background: #f3f0e8;
+  }
+
+  .topbar,
+  .layout-grid {
+    box-sizing: border-box;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    height: 100%;
+    min-height: 0;
+    padding: 0 10px 0 12px;
+    border-bottom: 1px solid rgba(24, 24, 27, 0.08);
+    background: linear-gradient(180deg, #f8f5ee 0%, #f2eee6 100%);
+    overflow: hidden;
+  }
+
+  .brand-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .app-mark {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(24, 24, 27, 0.42);
+  }
+
+  .top-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 0;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .top-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-tabs button {
+    border: 0;
+    cursor: pointer;
+    transition:
+      transform 120ms ease,
+      background 120ms ease,
+      color 120ms ease;
+  }
+
+  .top-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 7px;
+    background: transparent;
+    color: rgba(24, 24, 27, 0.64);
+    font: inherit;
+    font-size: 0.94rem;
+    font-weight: 600;
+  }
+
+  .top-tabs button.active {
+    background: #18181b;
+    color: #fffdf8;
+  }
+
+  .top-tabs button.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 0 8px;
+    border-left: 1px solid rgba(24, 24, 27, 0.08);
+    white-space: nowrap;
+    height: 100%;
+  }
+
+  .status-chip span {
+    color: rgba(24, 24, 27, 0.74);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    align-items: stretch;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .main-column {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  @media (max-width: 1180px) {
+  }
+
+  @media (max-width: 840px) {
+    .app-shell {
+      --topbar-height: auto;
+      --card-head-height: auto;
+      --feature-console-height: auto;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .topbar {
+      grid-template-columns: 1fr;
+      height: auto;
+      min-height: auto;
+      padding: 10px 12px;
+    }
+
   }
 </style>

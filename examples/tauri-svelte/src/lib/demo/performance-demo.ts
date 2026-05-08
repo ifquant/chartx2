@@ -16,8 +16,11 @@ import {
   type StrategyRunSummary,
   type ThresholdPlane,
   type TradeLocationIntent,
-} from "$lib/chartx/public/performance";
-import { OptimizationCanvasHarness, PerformanceCanvasHarness } from "$lib/chartx/internal/performance";
+} from "@chartx2/library";
+import {
+  OptimizationCanvasHarness,
+  PerformanceCanvasHarness,
+} from "@chartx2/library/internal/performance";
 
 type OptimizationCrossSectionPoint = {
   label: string;

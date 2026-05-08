@@ -24,7 +24,7 @@ import {
   type PhaseOnePaneState,
   type PhaseOneTradeLocationRequest,
   type PhaseOneTrendLineDrawingOptions,
-} from "$lib/chartx/public/market";
+} from "@chartx2/library";
 import {
   createChartWorkbenchModel,
   type AlertSummaryModel,
@@ -43,7 +43,7 @@ import {
   type WorkbenchWorkspaceTabId,
   type WorkbenchWorkspaceTabModel,
   type WorkbenchWorkspaceViewId,
-} from "$lib/chartx/public/workbench";
+} from "@chartx2/library";
 import {
   createWorkbenchLayoutScriptedIndicatorDescriptor,
   createWorkbenchLayoutState,
@@ -55,17 +55,17 @@ import {
   type WorkbenchLayoutScriptedIndicatorDescriptor,
   type WorkbenchLayoutScriptedStudyDescriptor,
   type WorkbenchLayoutState,
-} from "$lib/chartx/public/workbench-layout";
+} from "@chartx2/library";
 import {
   createWorkbenchAlertsState,
   toAlertSummaryModel,
   type WorkbenchAlertsPersistenceProvider,
   type WorkbenchAlertStateV1,
-} from "$lib/chartx/public/workbench-alerts";
+} from "@chartx2/library";
 import {
   createWorkbenchIndicatorCatalog,
   type WorkbenchIndicatorCatalogEntry,
-} from "$lib/chartx/public/workbench-indicators";
+} from "@chartx2/library";
 import {
   buildWorkbenchScriptLibrary,
   createWorkbenchRuntimeScriptExecutionAdapter,
@@ -80,20 +80,20 @@ import {
   type WorkbenchScriptCompatibilityInfo,
   type WorkbenchScriptDefinition,
   type WorkbenchScriptNumericInputValueMap,
-} from "$lib/chartx/public/workbench-scripts";
+} from "@chartx2/library";
 import type {
   TradingTicketModel,
   TradingTicketSummaryShellModel,
-} from "$lib/chartx/public/trading-surface";
+} from "@chartx2/library";
 import type {
   StrategyTesterPanelModel,
   StrategyTesterSummaryShellModel,
-} from "$lib/chartx/public/strategy-tester";
+} from "@chartx2/library";
 import type {
   AccountSyncRefreshResult,
   AccountSyncSurfaceHostAdapter,
   AccountSyncSurfaceModel,
-} from "$lib/chartx/public/account-sync-surface";
+} from "@chartx2/library";
 import type {
   ShareDialogModel,
   ShareDialogStateModel,
@@ -101,26 +101,26 @@ import type {
   SharePublishRequest,
   ShareVisibility,
   SharingSurfaceHostAdapter,
-} from "$lib/chartx/public/sharing-surface";
+} from "@chartx2/library";
 import {
   openWorkbenchSymbol,
   type WorkbenchBarsPayload,
   type WorkbenchHostAdapter,
   type WorkbenchSymbolOpenSource,
-} from "$lib/chartx/public/workbench-host";
-import type { TradeLocationIntent } from "$lib/chartx/public/performance";
+} from "@chartx2/library";
+import type { TradeLocationIntent } from "@chartx2/library";
 import {
   createCompressedPriceBasedChartBarSequence,
   createDirectionColumnPriceBasedChartBarSequence,
-} from "$lib/chartx/internal/model/chart-bar-sequence";
+} from "@chartx2/library/internal/model/chart-bar-sequence";
 import {
   buildKagiData,
   buildLineBreakData,
   buildPointFigureData,
   buildRenkoData,
   inferKagiReversalSize,
-} from "$lib/chartx/internal/model/main-series-builders";
-import { createPlotRows } from "$lib/chartx/internal/model/series-data";
+} from "@chartx2/library/internal/model/main-series-builders";
+import { createPlotRows } from "@chartx2/library/internal/model/series-data";
 import {
   createLineData,
   createVolumeData,

@@ -1,4 +1,4 @@
-import type { TradeLocationIntent } from "$lib/chartx/public/performance";
+import type { TradeLocationIntent } from "@chartx2/library";
 
 type TradeLocator = {
   locateTrade?(intent: TradeLocationIntent): boolean;

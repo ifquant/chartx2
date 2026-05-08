@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PhaseOneReadoutDetail } from "$lib/chartx/public/market";
+  import type { PhaseOneReadoutDetail } from "@chartx2/library";
   import type { DemoAction, DemoSnapshot } from "$lib/demo/chartx-demo";
 
   export let title: string | undefined;

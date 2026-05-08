@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PerformanceDemoSnapshot } from "$lib/demo/performance-demo";
-  import type { OptimizationMetricKey } from "$lib/chartx/public/performance";
+  import type { OptimizationMetricKey } from "@chartx2/library";
 
   export let snapshot: PerformanceDemoSnapshot;
   export let reportCanvasElement: HTMLCanvasElement | undefined = undefined;

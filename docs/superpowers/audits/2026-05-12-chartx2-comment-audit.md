@@ -78,7 +78,7 @@ Date: 2026-05-12
 
 ## Suggested Remediation Order
 
-1. Rewrite the stale or missing example-host ownership comments in `+page.svelte`, `chartx-demo.ts`, and `workbench-fixtures.ts` so lifecycle, persistence, and fixture seams stop reading like demo-era scaffolding.
+1. Rewrite the missing example-host ownership notes in `+page.svelte` and `workbench-fixtures.ts`, and rewrite the stale demo-era wording in `chartx-demo.ts`, so the host lifecycle, persistence, and fixture seams read as durable example-app boundaries.
 2. Add narrow boundary comments to `pane-model.ts`, `source-registry.ts`, and `drawing-registry.ts`, where the files are already small and stable enough for durable inline notes.
 3. Add lifecycle comments to `chart-drawing-runtime.ts` and `PhaseOneMarketChartSurface.svelte` before touching the larger render and restore coordinators.
 4. Defer `chart-model.ts`, `chart-state-coordinator.ts`, and `chart-render-coordinator.ts` comment rewrites until their ownership and staging seams are split more explicitly.

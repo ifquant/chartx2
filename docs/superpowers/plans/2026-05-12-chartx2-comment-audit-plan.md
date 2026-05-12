@@ -307,6 +307,10 @@ Expected: one docs-only commit created with public/UI findings.
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/tests/visual/phase-one-harness.spec.ts`
 - Modify: `/Users/dev/workspace2/hc_apps/chartx2/docs/superpowers/audits/2026-05-12-chartx2-comment-audit.md`
 
+Execution note:
+- this pass recorded explicit findings for `+layout.ts`, `+page.svelte`, `chartx-demo.ts`, `workbench-fixtures.ts`, and `tests/unit/library-split-boundary.test.ts`
+- the other listed Task 4 files were inventoried during execution but did not produce standalone comment findings worth separate audit rows in this pass
+
 - [x] **Step 1: Inventory example-host comments**
 
 Run:

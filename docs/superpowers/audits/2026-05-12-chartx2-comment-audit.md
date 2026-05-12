@@ -64,7 +64,11 @@ Date: 2026-05-12
 
 | File | Finding | Action | Note |
 | --- | --- | --- | --- |
+| `examples/tauri-svelte/src/routes/+layout.ts` | The top-of-file SPA/SSR note still accurately explains why the Tauri example host disables SSR and links the reader to the correct SvelteKit and Tauri docs. | `KEEP` | This is high-signal environment context, not throwaway setup narration. |
+| `examples/tauri-svelte/src/routes/+page.svelte` | The route shell owns top-tab orchestration, mount retries, teardown, and visual-harness script-adapter injection without any orienting comment that explains why those lifecycle decisions stay in the example host instead of the package. | `REWRITE-NOW` | A short ownership note near the top-level mount/orchestration flow would make this file much easier to audit after the library split. |
 | `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts` | The inline `Demo note` above `saveLayout()` still uses demo-era and slice-local wording even though the example host now wires package-owned layout persistence helpers through an explicit host adapter boundary. | `REWRITE-NOW` | Rewrite the comment in terms of durable example-host ownership: layout persistence is still scoped to the active example host, while multi-host save/restore remains intentionally unimplemented. |
+| `examples/tauri-svelte/src/lib/example-app/workbench-fixtures.ts` | The fixture watchlist, bars payload builders, and example host adapter wrapper have no boundary note explaining that they are showcase data seams, not part of the package truth surface. | `REWRITE-NOW` | This is one of the most important example-owned helper files, so the missing ownership comment should be queued explicitly. |
+| `examples/tauri-svelte/tests/unit/library-split-boundary.test.ts` | The repo-level boundary-guard note correctly explains why a split-boundary assertion lives in the example unit suite instead of pretending to be a package-local test. | `KEEP` | This is one of the few test comments that materially explains repo structure and should survive. |
 
 ## Cross-Cutting Risks
 
@@ -73,7 +77,7 @@ Date: 2026-05-12
 
 ## Suggested Remediation Order
 
-1. Rewrite the stale example-host ownership comment in `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts` so layout persistence stops reading like demo-era slice scaffolding.
+1. Rewrite the stale or missing example-host ownership comments in `+page.svelte`, `chartx-demo.ts`, and `workbench-fixtures.ts` so lifecycle, persistence, and fixture seams stop reading like demo-era scaffolding.
 2. Add narrow boundary comments to `pane-model.ts`, `source-registry.ts`, and `drawing-registry.ts`, where the files are already small and stable enough for durable inline notes.
 3. Add lifecycle comments to `chart-drawing-runtime.ts` and `PhaseOneMarketChartSurface.svelte` before touching the larger render and restore coordinators.
 4. Defer `chart-model.ts`, `chart-state-coordinator.ts`, and `chart-render-coordinator.ts` comment rewrites until their ownership and staging seams are split more explicitly.

@@ -1,3 +1,7 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 import * as chartxPublic from "../../src/lib/public";
 import * as workbenchBottomPanels from "../../src/lib/public/workbench-bottom-panels";
@@ -11,6 +15,11 @@ import type {
   TradingTicketModel,
 } from "../../src/lib/public";
 import type { WorkbenchReplayPanelModel } from "../../src/lib/public/workbench-bottom-panels";
+
+const packageRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 describe("public chartx barrel", () => {
   it("re-exports host integration shell contracts through the public index", () => {
@@ -101,5 +110,22 @@ describe("public chartx barrel", () => {
     expect(chartxPublic).toHaveProperty("WorkbenchDrawingInspectorPanel");
     expect(workbenchDrawingInspector).toHaveProperty("WorkbenchDrawingInspectorPanel");
     expect(workbenchDrawingInspector).not.toHaveProperty("ReplayPanel");
+  });
+});
+
+describe("package-facing source entries", () => {
+  it("keeps package root shims separate from the public implementation folder", () => {
+    const rootEntry = path.join(packageRoot, "src/lib/index.ts");
+    const drawingInspectorEntry = path.join(
+      packageRoot,
+      "src/lib/workbench-drawing-inspector.ts",
+    );
+
+    expect(existsSync(rootEntry)).toBe(true);
+    expect(existsSync(drawingInspectorEntry)).toBe(true);
+    expect(readFileSync(rootEntry, "utf8")).toContain("./public/index");
+    expect(readFileSync(drawingInspectorEntry, "utf8")).toContain(
+      "./public/workbench-drawing-inspector",
+    );
   });
 });

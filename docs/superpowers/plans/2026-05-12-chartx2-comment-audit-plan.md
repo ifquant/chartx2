@@ -301,9 +301,11 @@ Expected: one docs-only commit created with public/UI findings.
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/lib/example-app/workbench-fixtures.ts`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/lib/example-app/performance-demo.ts`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/lib/example-app/components/MarketWorkbenchPanel.svelte`
+- Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+layout.ts`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/+page.svelte`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/src/routes/chartx/public/+server.ts`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/tests/unit/library-public-consumer.test.ts`
+- Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/tests/unit/library-split-boundary.test.ts`
 - Read: `/Users/dev/workspace2/hc_apps/chartx2/examples/tauri-svelte/tests/visual/phase-one-harness.spec.ts`
 - Modify: `/Users/dev/workspace2/hc_apps/chartx2/docs/superpowers/audits/2026-05-12-chartx2-comment-audit.md`
 

@@ -3,7 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import * as chartxPackage from "../../src/lib";
 import * as chartxPublic from "../../src/lib/public";
+import * as packageDrawingInspector from "../../src/lib/workbench-drawing-inspector";
 import * as workbenchBottomPanels from "../../src/lib/public/workbench-bottom-panels";
 import * as workbenchDrawingInspector from "../../src/lib/public/workbench-drawing-inspector";
 import * as workbenchWorkspaceTabs from "../../src/lib/public/workbench-workspace-tabs";
@@ -127,5 +129,15 @@ describe("package-facing source entries", () => {
     expect(readFileSync(drawingInspectorEntry, "utf8")).toContain(
       "./public/workbench-drawing-inspector",
     );
+  });
+
+  it("re-exports representative symbols through the package-facing module boundary", () => {
+    expect(chartxPackage).toHaveProperty("ScriptExpressionBuilder");
+    expect(chartxPackage).toHaveProperty("WorkbenchWorkspaceTabStrip");
+    expect(chartxPackage).toHaveProperty("WorkbenchDrawingInspectorPanel");
+    expect(packageDrawingInspector).toHaveProperty(
+      "WorkbenchDrawingInspectorPanel",
+    );
+    expect(packageDrawingInspector).not.toHaveProperty("ReplayPanel");
   });
 });

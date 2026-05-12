@@ -36,11 +36,22 @@ Date: 2026-05-12
 
 | File | Finding | Action | Note |
 | --- | --- | --- | --- |
+| `packages/chartx2/src/lib/public/index.ts` | The top-level barrel has no orienting note about when consumers should use the root export surface versus the narrower feature barrels. | `REWRITE-NOW` | The file is intentionally simple, but one export-surface comment would make the library-first public contract explicit and reduce future `internal/*` drift. |
+| `packages/chartx2/src/lib/public/market.ts` | The market barrel exposes the phase-one chart API and helper builders without any boundary comment explaining that this is the package-owned market surface. | `REWRITE-NOW` | The inventory pass found no existing comment lines here; the highest-value fix is a short header note that keeps callers out of `internal/` imports. |
+| `packages/chartx2/src/lib/public/workbench.ts` | The workbench contract file lacks a boundary note separating library-owned presentation models from host-provided adapter and persistence interfaces. | `REWRITE-NOW` | The types are readable, but the host-versus-library ownership seam is still implicit across the file. |
+| `packages/chartx2/src/lib/public/host-shell-components.ts` | This barrel mixes reusable host-shell exports with `Alpha2HostIntegrationExample` and has no comment explaining whether the example-named component is a stable public contract or a transitional bridge. | `DEFER-UNTIL-REFACTOR` | The missing comment is real, but the deeper issue is export naming and boundary clarity; a durable fix likely needs the surface renamed or split before prose will stay accurate. |
+| `packages/chartx2/src/lib/public/workbench-bottom-panels.ts` | The bottom-panel barrel has no note that these exports are reusable shells whose runtime state still comes from host-owned workbench models and callbacks. | `REWRITE-NOW` | This is an export-surface gap rather than stale language; one short header would clarify the ownership boundary. |
+| `packages/chartx2/src/lib/public/workbench-drawing-inspector.ts` | The drawing-inspector barrel does not explain that `null` means “no selected drawing” and that the schema comes from the market drawing contract rather than a host-local form model. | `REWRITE-NOW` | The audited file is self-explanatory at a type level, but the boundary note is still missing. |
+| `packages/chartx2/src/lib/public/workbench-workspace-tabs.ts` | The workspace-tab barrel lacks any note that the strip is package-owned UI while tab lifecycle, closeability, and workspace orchestration remain host decisions. | `REWRITE-NOW` | This is a small file, so a focused export comment would be durable. |
 
 ### 3. Reusable UI
 
 | File | Finding | Action | Note |
 | --- | --- | --- | --- |
+| `packages/chartx2/src/lib/ui/ChartFrameShell.svelte` | The shell has no orienting comment that it only provides frame chrome and delegates tool actions, chip actions, and inner content ownership to the host. | `REWRITE-NOW` | The file has no existing comments, so the gap is missing boundary context rather than stale demo prose. |
+| `packages/chartx2/src/lib/ui/PhaseOneMarketChartSurface.svelte` | The mount, rebuild, and crosshair-subscription flow has no stage-level comment explaining when the chart is rebuilt from scratch versus patched in place. | `REWRITE-NOW` | This is the highest-value reusable-UI comment gap because the lifecycle is not obvious from a quick audit. |
+| `packages/chartx2/src/lib/ui/TradingLedgerPanel.svelte` | The panel does not document why it falls back to the first row when no selection is provided or how much of the detail card is expected to stay host-owned. | `REWRITE-NOW` | A short note near `selectedRow` would make the fallback and ownership contract easier to audit. |
+| `packages/chartx2/src/lib/ui/WorkbenchDrawingInspectorPanel.svelte` | The schema-driven control switch has no comment explaining that the library renders generic controls while validation and mutation stay with the host callback layer. | `REWRITE-NOW` | The control branching is readable, but the cross-layer responsibility split is still implicit. |
 
 ### 4. Example Host
 
@@ -50,6 +61,7 @@ Date: 2026-05-12
 ## Cross-Cutting Risks
 
 - Internal runtime comments are mostly sparse; the highest-value missing context is around render invalidation, state restore, and drawing lifecycle.
+- Public barrels and reusable UI shells are mostly comment-free; the main risk is missing export-boundary notes rather than stale demo-era prose.
 
 ## Suggested Remediation Order
 

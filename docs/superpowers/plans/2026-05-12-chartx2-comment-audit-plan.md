@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Execution record note:** this file was checked in after the audit finished so the repo keeps a durable plan-plus-execution artifact. The checked boxes reflect work reconstructed from the landed audit commits, not a still-open execution prompt.
+
 **Goal:** audit `chartx2` comments and inline documentation against the current library-first workspace boundary, then land one checked-in audit report that identifies which comments should be kept, rewritten, deleted, or deferred.
 
 **Architecture:** this is a documentation-and-audit pass, not a refactor pass. The implementation should create one durable audit artifact under `docs/superpowers/audits/`, inspect the library internals, public surface, reusable UI, and example app host separately, and classify findings by action type so later remediation can happen in narrow commits.
@@ -16,7 +18,7 @@
   - single source of truth for the audit findings
   - contains rubric, subsystem findings, concrete file-level observations, and remediation queue
 - Modify: `/Users/dev/workspace2/hc_apps/chartx2/docs/superpowers/plans/2026-05-12-chartx2-comment-audit-plan.md`
-  - mark completed checkboxes only if the audit is executed from this plan
+  - if this file is tracked after execution, checkbox state should reflect the landed audit commits explicitly rather than pretending it is still a fresh prompt
 
 No source files are meant to change during the audit pass itself unless the user explicitly broadens scope from “审查” to “顺手修”.
 
@@ -432,11 +434,3 @@ Expected: one final docs-only commit with the completed audit report.
 - Spec coverage: this plan covers audit artifact creation, internal engine review, public/UI review, example-host review, and final closeout. It does not include comment rewrites because the user asked for an audit plan first.
 - Placeholder scan: no `TBD`, `TODO`, or “similar to above” placeholders remain; all tasks use exact file paths and exact commands.
 - Type consistency: the plan does not invent new runtime APIs. It only introduces one audit report path and uses that path consistently in every task.
-
-Plan complete and saved to `docs/superpowers/plans/2026-05-12-chartx2-comment-audit-plan.md`. Two execution options:
-
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-Which approach?

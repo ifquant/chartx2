@@ -74,7 +74,7 @@ Date: 2026-05-12
 
 - Internal runtime comments are mostly sparse; the highest-value missing context is around render invalidation, state restore, and drawing lifecycle.
 - Public barrels and reusable UI shells are mostly comment-free; the main risk is missing export-boundary notes on both the barrels and the concrete library-owned shells, not stale demo-era prose.
-- Example-host comments are the main stale-language hotspot; the remaining fixes should replace demo-era wording with durable example-host ownership notes before any broader runtime cleanup starts.
+- Example-host findings are mostly missing ownership notes plus one stale demo-era wording hotspot; the next pass should fix the boundary comments first and clean up the stale wording in the same slice.
 
 ## Suggested Remediation Order
 

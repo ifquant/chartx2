@@ -1,1 +1,1 @@
-export * from "./public/workbench-drawing-inspector";
+export * from "./public/workbench-drawing-inspector.js";

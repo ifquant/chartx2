@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import * as builtChartxPackage from "../../dist/index.js";
+import * as builtFocusedInspectorPackage from "../../dist/workbench-drawing-inspector.js";
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -50,5 +52,12 @@ describe("built package contract", () => {
     expect(
       existsSync(path.join(packageRoot, "dist/workbench-drawing-inspector.d.ts")),
     ).toBe(true);
+
+    expect(builtChartxPackage).toHaveProperty("ScriptExpressionBuilder");
+    expect(builtChartxPackage).toHaveProperty("WorkbenchDrawingInspectorPanel");
+    expect(builtFocusedInspectorPackage).toHaveProperty(
+      "WorkbenchDrawingInspectorPanel",
+    );
+    expect(builtFocusedInspectorPackage).not.toHaveProperty("ReplayPanel");
   });
 });

@@ -1,4 +1,12 @@
-import { cpSync, mkdirSync, readdirSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,3 +36,54 @@ function copyTypes(sourceDirectory, targetDirectory) {
 }
 
 copyTypes(generatedRoot, distRoot);
+
+function rewriteRelativeJsSpecifiers(directory) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      rewriteRelativeJsSpecifiers(entryPath);
+      continue;
+    }
+
+    if (!entry.name.endsWith(".js")) {
+      continue;
+    }
+
+    const source = readFileSync(entryPath, "utf8");
+    const rewriteSpecifier = (specifier) => {
+      if (path.extname(specifier) || specifier.endsWith("/")) {
+        return specifier;
+      }
+
+      const absoluteBase = path.resolve(path.dirname(entryPath), specifier);
+      if (existsSync(`${absoluteBase}.js`)) {
+        return `${specifier}.js`;
+      }
+      if (existsSync(path.join(absoluteBase, "index.js"))) {
+        return `${specifier}/index.js`;
+      }
+      return `${specifier}.js`;
+    };
+
+    const rewritten = source.replace(
+      /((?:import|export)\s+(?:[^'"]*?\s+from\s+)?["'])(\.{1,2}\/[^"'?]+)(["'])/g,
+      (_match, prefix, specifier, suffix) => {
+        return `${prefix}${rewriteSpecifier(specifier)}${suffix}`;
+      },
+    ).replace(
+      /(import\s*\(\s*["'])(\.{1,2}\/[^"'?]+)(["']\s*\))/g,
+      (_match, prefix, specifier, suffix) => {
+        return `${prefix}${rewriteSpecifier(specifier)}${suffix}`;
+      },
+    );
+
+    if (rewritten !== source) {
+      writeFileSync(entryPath, rewritten);
+    }
+  }
+}
+
+if (statSync(distRoot).isDirectory()) {
+  rewriteRelativeJsSpecifiers(distRoot);
+}

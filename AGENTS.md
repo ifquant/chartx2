@@ -94,6 +94,29 @@ Use this file especially when changing:
 - docs that describe product direction, module boundaries, or implementation stages
 - commit tutorials under `tutorials/commit/`
 
+## Local Release Flow
+
+`chartx2` is expected to publish local package releases for sibling apps under
+`/Users/dev/workspace2/hc_apps`.
+
+Default workflow:
+
+- run `pnpm release:local` from
+  [/Users/dev/workspace2/hc_apps/chartx2](/Users/dev/workspace2/hc_apps/chartx2)
+- collect the generated tarballs from
+  [/Users/dev/workspace2/hc_apps/releases/chartx2](/Users/dev/workspace2/hc_apps/releases/chartx2)
+- have sibling apps consume those `file:../releases/chartx2/*.tgz` artifacts as
+  their default dependency form
+
+Boundary rule:
+
+- prefer released tarballs over long-lived source links
+- use source links only for short-lived debugging or integration diagnosis
+- if a sibling app needs a new stable seam, export it from `@chartx2/library`
+  and cut a new local release
+- do not route sibling apps through `examples/tauri-svelte` or
+  `@chartx2/library/internal` to bypass the public package boundary
+
 ## 目录导航
 
 - [README.md](/Users/dev/workspace2/hc_apps/chartx2/README.md): current starter-template readme; not the final product spec
@@ -143,6 +166,8 @@ Workspace ownership rule:
 - `packages/chartx2` owns reusable chart engine, public contracts, and reusable chart-adjacent UI shells
 - `examples/tauri-svelte` owns demo composition, routes, Tauri host wiring, and showcase runtime fixtures
 - do not keep public exports wired to `examples/` or example-owned `src/lib/example-app` paths once a library-owned home exists
+- sibling apps should consume those stable exports through released package
+  artifacts by default
 
 Implementation consequence:
 
@@ -158,6 +183,7 @@ From repo root:
 pnpm check
 pnpm test
 pnpm build
+pnpm release:local
 ```
 
 From the official example app:
@@ -178,6 +204,30 @@ Notes:
 - `pnpm-lock.yaml` is checked in. Keep dependency and script changes aligned with it.
 - `pnpm test` exists and should be the default verification path for chart-engine behavior, unit coverage, and browser visual baselines.
 - Do not claim `pnpm lint`, Storybook, or benchmark commands exist unless they are actually present on disk.
+- `pnpm release:local` is the default local packaging flow. It writes a tarball release under `/Users/dev/workspace2/hc_apps/releases/chartx2/`.
+
+## Package Release Boundary
+
+`packages/chartx2` is the publishable library surface. Sibling apps should
+consume `chartx2` through a released package artifact by default, not through a
+long-lived workspace source link.
+
+Preferred local integration flow:
+
+- run `pnpm release:local` in `/Users/dev/workspace2/hc_apps/chartx2`
+- consume the generated tarball from `/Users/dev/workspace2/hc_apps/releases/chartx2/`
+- update the consuming app only after the package boundary has been rebuilt and re-verified
+
+Allowed exception:
+
+- a direct `link:` or workspace-path dependency is acceptable only for short-lived debugging
+- do not leave that source-link integration in committed sibling-app state once the package boundary is stable enough to pack
+
+Practical consequence:
+
+- if a sibling app needs a new chartx2 capability, first add or adjust the public seam in `packages/chartx2`
+- rebuild and repack the library
+- then upgrade the sibling app to the new tarball instead of importing raw source paths or example-owned modules
 
 ## 开发原则
 

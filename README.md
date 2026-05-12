@@ -45,6 +45,17 @@ External hosts should import chart surfaces, models, and helpers from
 `@chartx2/library`. The source-backed package entry lives at
 `packages/chartx2/src/lib/public`, but hosts should not import the example app.
 
+For stable sibling-app integration, prefer the packaged library boundary over a
+long-lived workspace source link:
+
+- build and pack a local release tarball with `pnpm release:local`
+- consume the generated artifact from
+  `/Users/dev/workspace2/hc_apps/releases/chartx2/`
+- use `file:../releases/chartx2/chartx2-library-0.1.0.tgz`-style dependencies
+  in sibling apps instead of pinning them to source paths
+- treat direct workspace links as short-lived debugging shortcuts, not the
+  default integration mode
+
 The example app keeps an internal-only alias for its demo controllers:
 `@chartx2/library/internal`. That alias is for
 `examples/tauri-svelte/src/lib/example-app` fixtures and browser smoke tests,
@@ -96,6 +107,39 @@ Notes:
 
 - `pnpm check` is the workspace gate across the library package and the official example app.
 - `cargo check` is the lowest-cost real validation for the Rust/Tauri side right now.
+
+## Local Package Release
+
+When another local app such as `alpha2` needs to consume `chartx2`, use the
+packaged library artifact instead of importing the workspace source tree
+directly.
+
+Create or refresh the local release tarball from the repo root:
+
+```bash
+pnpm release:local
+```
+
+This writes the current package output into:
+
+```text
+/Users/dev/workspace2/hc_apps/releases/chartx2/
+```
+
+The resulting file is intended to be consumed through a `file:` dependency such
+as:
+
+```json
+{
+  "@chartx2/library": "file:../releases/chartx2/chartx2-library-0.1.0.tgz"
+}
+```
+
+Why this is the preferred default:
+
+- the consumer sees the same built package boundary that a real publish would expose
+- uncommitted workspace source edits in `chartx2` do not silently leak into sibling apps
+- version bumps and package refreshes become explicit integration steps instead of implicit local state
 
 ## Near-Term Priority
 

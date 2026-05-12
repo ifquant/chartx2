@@ -9,6 +9,7 @@ Date: 2026-05-12
 - `packages/chartx2/src/lib/ui`
 - `examples/tauri-svelte/src/lib/example-app`
 - `examples/tauri-svelte/src/routes`
+- `examples/tauri-svelte/tests`
 
 ## Audit Rubric
 

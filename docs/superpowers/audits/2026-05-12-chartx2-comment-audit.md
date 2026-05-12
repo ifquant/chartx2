@@ -64,6 +64,7 @@ Date: 2026-05-12
 
 | File | Finding | Action | Note |
 | --- | --- | --- | --- |
+| `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts` | The inline `Demo note` above `saveLayout()` still uses demo-era and slice-local wording even though the example host now wires package-owned layout persistence helpers through an explicit host adapter boundary. | `REWRITE-NOW` | Rewrite the comment in terms of durable example-host ownership: layout persistence is still scoped to the active example host, while multi-host save/restore remains intentionally unimplemented. |
 
 ## Cross-Cutting Risks
 
@@ -72,6 +73,7 @@ Date: 2026-05-12
 
 ## Suggested Remediation Order
 
-1. Add narrow boundary comments to `pane-model.ts`, `source-registry.ts`, and `drawing-registry.ts`, where the files are already small and stable enough for durable inline notes.
-2. Add lifecycle comments to `chart-drawing-runtime.ts` before touching the larger render and restore coordinators.
-3. Defer `chart-model.ts`, `chart-state-coordinator.ts`, and `chart-render-coordinator.ts` comment rewrites until their ownership and staging seams are split more explicitly.
+1. Rewrite the stale example-host ownership comment in `examples/tauri-svelte/src/lib/example-app/chartx-demo.ts` so layout persistence stops reading like demo-era slice scaffolding.
+2. Add narrow boundary comments to `pane-model.ts`, `source-registry.ts`, and `drawing-registry.ts`, where the files are already small and stable enough for durable inline notes.
+3. Add lifecycle comments to `chart-drawing-runtime.ts` and `PhaseOneMarketChartSurface.svelte` before touching the larger render and restore coordinators.
+4. Defer `chart-model.ts`, `chart-state-coordinator.ts`, and `chart-render-coordinator.ts` comment rewrites until their ownership and staging seams are split more explicitly.

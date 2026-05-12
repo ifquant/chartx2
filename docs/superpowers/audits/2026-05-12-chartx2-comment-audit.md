@@ -24,6 +24,9 @@ Date: 2026-05-12
 
 | File | Finding | Action | Note |
 | --- | --- | --- | --- |
+| `packages/chartx2/src/lib/internal/model/chart-model.ts` | No orienting comment explains which ownership stays in `ChartContext` vs `SourceRegistry` vs pane/scale collections. | `DEFER-UNTIL-REFACTOR` | The boundary matters for main-series binding and secondary-scale cleanup, but the stronger fix is to document it when the model facade is split or renamed more explicitly. |
+| `packages/chartx2/src/lib/internal/views/chart-state-coordinator.ts` | The snapshot, clear, restore, and finalize stages run without any durable comment describing the required ordering. | `DEFER-UNTIL-REFACTOR` | This file is a large adapter around multiple restore use-cases; local comments would still leave ownership and restore sequencing hard to audit until the coordinator is broken into clearer phases. |
+| `packages/chartx2/src/lib/internal/views/chart-render-coordinator.ts` | The render pipeline has no stage-level comment coverage for pane layout, primary/secondary divergence, or readout publication. | `DEFER-UNTIL-REFACTOR` | The missing context is highest-risk around render invalidation and readout flow, but an 800-line coordinator needs structural staging before comments will stay durable. |
 
 ### 2. Public Surface
 
@@ -42,7 +45,7 @@ Date: 2026-05-12
 
 ## Cross-Cutting Risks
 
-- None recorded yet.
+- Internal runtime comments are mostly sparse; the highest-value missing context is around render invalidation, state restore, and drawing lifecycle.
 
 ## Suggested Remediation Order
 

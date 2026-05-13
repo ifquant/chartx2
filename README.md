@@ -120,6 +120,12 @@ Create or refresh the local release tarball from the repo root:
 pnpm release:local
 ```
 
+Rebuild the tarball and verify it from a temporary consumer outside this workspace:
+
+```bash
+pnpm release:local:verify
+```
+
 This writes the current package output into:
 
 ```text

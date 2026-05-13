@@ -9,6 +9,7 @@
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter @chartx2/library test:unit && pnpm --filter @chartx2/example-tauri-svelte test:unit",
     "test:visual": "pnpm --filter @chartx2/example-tauri-svelte test:visual",
-    "release:local": "node ./scripts/pack-chartx2-local-release.mjs"
+    "release:local": "node ./scripts/pack-chartx2-local-release.mjs",
+    "release:local:verify": "node ./scripts/verify-chartx2-local-release-consumer.mjs"
   }
 }

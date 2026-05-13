@@ -11,15 +11,15 @@
 ## 主要目标
 
 - 说明本地发布命令是 `pnpm release:local`
-- 说明 tarball 输出目录是 `/Users/dev/workspace2/hc_apps/releases/chartx2/`
-- 说明 sibling app 默认应消费 `file:../releases/chartx2/*.tgz`
+- 说明 tarball 输出目录是 `/Users/dev/workspace2/hc_apps/build/chartx2/`
+- 说明 sibling app 默认应消费 `file:../build/chartx2/*.tgz`
 - 说明 source link 只适合短期调试，不适合作为长期 committed 依赖
 
 ## 改动概览
 
 - 更新 [README.md](/Users/dev/workspace2/hc_apps/chartx2/README.md)
   - 增加本地 release tarball 的消费说明
-  - 明确给出 `file:../releases/chartx2/chartx2-library-0.1.0.tgz` 这种依赖形态示例
+  - 明确给出 `file:../build/chartx2/chartx2-library-0.1.0.tgz` 这种依赖形态示例
 - 更新 [AGENTS.md](/Users/dev/workspace2/hc_apps/chartx2/AGENTS.md)
   - 把 `pnpm release:local` 和 release 目录写成协作规则
   - 明确 sibling app 应优先消费 released package

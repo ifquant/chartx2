@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = path.join(repoRoot, "packages/chartx2");
-const releaseRoot = "/Users/dev/workspace2/hc_apps/releases/chartx2";
+const releaseRoot = "/Users/dev/workspace2/hc_apps/build/chartx2";
 
 mkdirSync(releaseRoot, { recursive: true });
 const stagingRoot = mkdtempSync(path.join(releaseRoot, ".pack-"));

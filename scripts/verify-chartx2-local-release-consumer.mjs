@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const releaseRoot = "/Users/dev/workspace2/hc_apps/releases/chartx2";
+const releaseRoot = "/Users/dev/workspace2/hc_apps/build/chartx2";
 
 function newestLocalTarball() {
   const tarballs = readdirSync(releaseRoot)

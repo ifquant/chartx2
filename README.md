@@ -50,8 +50,8 @@ long-lived workspace source link:
 
 - build and pack a local release tarball with `pnpm release:local`
 - consume the generated artifact from
-  `/Users/dev/workspace2/hc_apps/releases/chartx2/`
-- use `file:../releases/chartx2/chartx2-library-0.1.0.tgz`-style dependencies
+  `/Users/dev/workspace2/hc_apps/build/chartx2/`
+- use `file:../build/chartx2/chartx2-library-0.1.0.tgz`-style dependencies
   in sibling apps instead of pinning them to source paths
 - treat direct workspace links as short-lived debugging shortcuts, not the
   default integration mode
@@ -129,7 +129,7 @@ pnpm release:local:verify
 This writes the current package output into:
 
 ```text
-/Users/dev/workspace2/hc_apps/releases/chartx2/
+/Users/dev/workspace2/hc_apps/build/chartx2/
 ```
 
 The resulting file is intended to be consumed through a `file:` dependency such
@@ -137,7 +137,7 @@ as:
 
 ```json
 {
-  "@chartx2/library": "file:../releases/chartx2/chartx2-library-0.1.0.tgz"
+  "@chartx2/library": "file:../build/chartx2/chartx2-library-0.1.0.tgz"
 }
 ```
 

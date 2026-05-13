@@ -27,20 +27,20 @@ The local release flow is:
 4. The generated tarball lands under:
 
 ```text
-/Users/dev/workspace2/hc_apps/releases/chartx2/
+/Users/dev/workspace2/hc_apps/build/chartx2/
 ```
 
 The current local artifact is:
 
 ```text
-/Users/dev/workspace2/hc_apps/releases/chartx2/chartx2-library-0.1.0.tgz
+/Users/dev/workspace2/hc_apps/build/chartx2/chartx2-library-0.1.0.tgz
 ```
 
 `alpha2` now consumes that artifact with:
 
 ```json
 {
-  "@chartx2/library": "file:../releases/chartx2/chartx2-library-0.1.0.tgz"
+  "@chartx2/library": "file:../build/chartx2/chartx2-library-0.1.0.tgz"
 }
 ```
 
@@ -89,7 +89,7 @@ The current local artifact is:
 ### Alpha2 Consumption
 
 - Switched `alpha2/package.json` from `link:../chartx2/packages/chartx2` to the
-  local tarball under `../releases/chartx2/`.
+  local tarball under `../build/chartx2/`.
 - Refreshed `alpha2/pnpm-lock.yaml`.
 - Updated the alpha2 chartx2 boundary test to accept local tarball dependencies.
 - Kept `alpha2` imports restricted to `@chartx2/library` public exports.

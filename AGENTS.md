@@ -104,8 +104,8 @@ Default workflow:
 - before treating a local release as ready, run `pnpm release:local:check` from
   [/Users/dev/workspace2/hc_apps/chartx2](/Users/dev/workspace2/hc_apps/chartx2)
 - collect the generated tarballs from
-  [/Users/dev/workspace2/hc_apps/releases/chartx2](/Users/dev/workspace2/hc_apps/releases/chartx2)
-- have sibling apps consume those `file:../releases/chartx2/*.tgz` artifacts as
+  [/Users/dev/workspace2/hc_apps/build/chartx2](/Users/dev/workspace2/hc_apps/build/chartx2)
+- have sibling apps consume those `file:../build/chartx2/*.tgz` artifacts as
   their default dependency form
 
 Boundary rule:
@@ -207,7 +207,7 @@ Notes:
 - `pnpm-lock.yaml` is checked in. Keep dependency and script changes aligned with it.
 - `pnpm test` exists and should be the default verification path for chart-engine behavior, unit coverage, and browser visual baselines.
 - Do not claim `pnpm lint`, Storybook, or benchmark commands exist unless they are actually present on disk.
-- `pnpm release:local` is the lower-level local packaging command. It writes a tarball release under `/Users/dev/workspace2/hc_apps/releases/chartx2/`.
+- `pnpm release:local` is the lower-level local packaging command. It writes a tarball release under `/Users/dev/workspace2/hc_apps/build/chartx2/`.
 - `pnpm release:local:check` is the default pre-release gate before handing a local tarball to sibling apps.
 
 ## Package Release Boundary
@@ -219,7 +219,7 @@ long-lived workspace source link.
 Preferred local integration flow:
 
 - run `pnpm release:local:check` in `/Users/dev/workspace2/hc_apps/chartx2`
-- consume the generated tarball from `/Users/dev/workspace2/hc_apps/releases/chartx2/`
+- consume the generated tarball from `/Users/dev/workspace2/hc_apps/build/chartx2/`
 - update the consuming app only after the package boundary has been rebuilt and re-verified
 
 Allowed exception:

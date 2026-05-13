@@ -101,7 +101,7 @@ Use this file especially when changing:
 
 Default workflow:
 
-- run `pnpm release:local` from
+- before treating a local release as ready, run `pnpm release:local:check` from
   [/Users/dev/workspace2/hc_apps/chartx2](/Users/dev/workspace2/hc_apps/chartx2)
 - collect the generated tarballs from
   [/Users/dev/workspace2/hc_apps/releases/chartx2](/Users/dev/workspace2/hc_apps/releases/chartx2)
@@ -110,6 +110,8 @@ Default workflow:
 
 Boundary rule:
 
+- `pnpm release:local:check` is the canonical pre-release gate; it runs
+  `pnpm check`, `pnpm test:unit`, and `pnpm release:local:verify` in order
 - prefer released tarballs over long-lived source links
 - use source links only for short-lived debugging or integration diagnosis
 - if a sibling app needs a new stable seam, export it from `@chartx2/library`
@@ -184,6 +186,7 @@ pnpm check
 pnpm test
 pnpm build
 pnpm release:local
+pnpm release:local:check
 ```
 
 From the official example app:
@@ -204,7 +207,8 @@ Notes:
 - `pnpm-lock.yaml` is checked in. Keep dependency and script changes aligned with it.
 - `pnpm test` exists and should be the default verification path for chart-engine behavior, unit coverage, and browser visual baselines.
 - Do not claim `pnpm lint`, Storybook, or benchmark commands exist unless they are actually present on disk.
-- `pnpm release:local` is the default local packaging flow. It writes a tarball release under `/Users/dev/workspace2/hc_apps/releases/chartx2/`.
+- `pnpm release:local` is the lower-level local packaging command. It writes a tarball release under `/Users/dev/workspace2/hc_apps/releases/chartx2/`.
+- `pnpm release:local:check` is the default pre-release gate before handing a local tarball to sibling apps.
 
 ## Package Release Boundary
 
@@ -214,7 +218,7 @@ long-lived workspace source link.
 
 Preferred local integration flow:
 
-- run `pnpm release:local` in `/Users/dev/workspace2/hc_apps/chartx2`
+- run `pnpm release:local:check` in `/Users/dev/workspace2/hc_apps/chartx2`
 - consume the generated tarball from `/Users/dev/workspace2/hc_apps/releases/chartx2/`
 - update the consuming app only after the package boundary has been rebuilt and re-verified
 

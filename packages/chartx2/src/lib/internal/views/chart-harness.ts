@@ -66,7 +66,6 @@ import {
   MAX_BAR_SPACING,
   MIN_BAR_SPACING,
   PANE_DIVIDER_HIT_SLOP,
-  PANE_GAP,
   createDefaultAreaOptions,
   createDefaultBarOptions,
   createDefaultBaselineOptions,
@@ -167,6 +166,9 @@ export class PhaseOneChartHarness {
       ...DEFAULT_LAYOUT,
       ...this.chartOptions.plotInsets,
     };
+  }
+  private paneGap(): number {
+    return this.chartOptions.paneGap;
   }
   private readonly priceLineManager = createPriceLineManager({
     defaultOptions: this.defaultPriceLineOptions,
@@ -312,7 +314,7 @@ export class PhaseOneChartHarness {
           fitContainerHeight: this.chartOptions.fitContainerHeight,
         });
     },
-    gap: PANE_GAP,
+    gap: () => this.paneGap(),
     getCrosshair: () => this.viewState.crosshair(),
     setCrosshair: (point) => {
       this.viewState.setCrosshair(point);
@@ -362,7 +364,7 @@ export class PhaseOneChartHarness {
   });
   private readonly drawingInteractionOwner = createChartDrawingInteractionOwner<ChartDrawingDescriptor>({
     listPanes: () => this.runtime.listPanes(),
-    paneGap: PANE_GAP,
+    paneGap: this.paneGap(),
     getPrimaryPriceScale: () => this.runtime.primaryPriceScale(),
     getSecondaryPriceScale: (paneId) => this.runtime.getSecondaryScale(paneId),
     getAxisBars: () => this.runtime.contextSnapshot().barSequence.axisBars,
@@ -445,7 +447,7 @@ export class PhaseOneChartHarness {
   });
   private readonly scaleOwner = createChartScaleOwner({
     defaultLayout: DEFAULT_LAYOUT,
-    paneGap: PANE_GAP,
+    paneGap: this.paneGap(),
     minBarSpacing: MIN_BAR_SPACING,
     maxBarSpacing: MAX_BAR_SPACING,
     getCanvas: () => this.adapterState.canvas(),
@@ -677,7 +679,7 @@ export class PhaseOneChartHarness {
   private readonly stateCoordinator = this.stateShellOwner.coordinator();
   private readonly interactionShellOwner = createChartInteractionShellOwner({
     defaultLayout: DEFAULT_LAYOUT,
-    paneGap: PANE_GAP,
+    paneGap: this.paneGap(),
     paneDividerHitSlop: PANE_DIVIDER_HIT_SLOP,
     barSpacingBounds: BAR_SPACING_BOUNDS,
     getCanvas: () => this.adapterState.canvas(),

@@ -60,13 +60,15 @@ export function createChartPaneLayoutRuntimeOwner(deps: {
   hasCanvas(): boolean;
   getLayout(): LayoutLike;
   listPanes(): readonly PaneLike[];
-  gap: number;
+  gap: number | (() => number);
   emitPaneResize(paneId: string): void;
   emitPaneEvent(type: "options" | "resized", paneId: string): void;
   render(): void;
   getCrosshair(): PanePointLike;
   setCrosshair(point: PanePointLike): void;
 }) {
+  const gap = (): number => (typeof deps.gap === "function" ? deps.gap() : deps.gap);
+
   const setPaneHeight = (paneId: string, height: number): void => {
     setPaneHeightUseCase(paneId, height, {
       getPaneById: deps.getPaneById,
@@ -83,7 +85,7 @@ export function createChartPaneLayoutRuntimeOwner(deps: {
         hasCanvas: deps.hasCanvas,
         getLayout: deps.getLayout,
         listPanes: deps.listPanes,
-        gap: deps.gap,
+        gap: gap(),
       });
     },
 
@@ -117,7 +119,7 @@ export function createChartPaneLayoutRuntimeOwner(deps: {
         emitPaneEvent: (type, nextPaneId) => deps.emitPaneEvent(type, nextPaneId),
         hasCanvas: deps.hasCanvas,
         listPanes: deps.listPanes,
-        gap: deps.gap,
+        gap: gap(),
         getCrosshair: deps.getCrosshair,
         setCrosshair: deps.setCrosshair,
       });

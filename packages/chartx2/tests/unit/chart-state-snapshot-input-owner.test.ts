@@ -17,6 +17,7 @@ describe("chart state snapshot input owner", () => {
         paneBackgroundColor: "#111111",
         gridColor: "#222222",
         frameColor: "#333333",
+        paneGap: 10,
         axisTextColor: "#444444",
         axisLabelBackground: "#555555",
         axisLabelBorder: "#666666",

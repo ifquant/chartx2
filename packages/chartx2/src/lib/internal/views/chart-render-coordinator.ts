@@ -138,6 +138,7 @@ type ChartLayoutOptions = {
   paneBackgroundColor: string;
   gridColor: string;
   frameColor: string;
+  paneGap: number;
   axisTextColor: string;
   axisLabelBackground: string;
   axisLabelBorder: string;
@@ -265,7 +266,7 @@ export function createChartRenderCoordinator(deps: {
 } {
   const paneLayoutOwner = createChartPaneLayoutOwner({
     listPanes: () => deps.getPaneSpecs(),
-    paneGap: 16,
+    paneGap: deps.getChartOptions().paneGap,
   });
   const owner = {
     renderSeriesSource(
@@ -413,7 +414,7 @@ export function createChartRenderCoordinator(deps: {
       const renderState = buildChartRenderStateUseCase({
         paneSpecs: deps.getPaneSpecs(),
         plotHeight,
-        paneGap: 16,
+        paneGap: chartOptions.paneGap,
         paneWidth,
         crosshair,
         mainSourceId: mainSource?.id ?? null,

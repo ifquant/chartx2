@@ -123,7 +123,7 @@ export function createChartPaneOwner(deps: {
   addSecondaryPane(options?: PhaseOnePaneOptions): { id: string };
   hasCanvas(): boolean;
   getLayout(): LayoutLike;
-  gap: number;
+  gap: number | (() => number);
   getCrosshair(): PanePointLike;
   setCrosshair(point: PanePointLike): void;
   getSeriesCount(paneId: string): number;

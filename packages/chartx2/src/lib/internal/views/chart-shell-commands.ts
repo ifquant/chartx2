@@ -40,6 +40,7 @@ export function applyChartOptions(
   if (options.layout?.gridColor !== undefined) deps.setLayoutOption("gridColor", options.layout.gridColor);
   if (options.layout?.frameColor !== undefined) deps.setLayoutOption("frameColor", options.layout.frameColor);
   if (options.layout?.fitContainerHeight !== undefined) deps.setLayoutOption("fitContainerHeight", options.layout.fitContainerHeight);
+  if (options.layout?.paneGap !== undefined) deps.setLayoutOption("paneGap", Math.max(0, options.layout.paneGap));
   if (options.layout?.plotInsets !== undefined) deps.setLayoutOption("plotInsets", {
     top: Math.max(0, options.layout.plotInsets.top ?? 0),
     right: Math.max(0, options.layout.plotInsets.right ?? 0),

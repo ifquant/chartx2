@@ -22,6 +22,7 @@ describe("chart render input owner", () => {
         paneBackgroundColor: "#f8f8f8",
         gridColor: "#dddddd",
         frameColor: "#333333",
+        paneGap: 10,
         axisTextColor: "#111111",
         axisLabelBackground: "#ffffff",
         axisLabelBorder: "#cccccc",

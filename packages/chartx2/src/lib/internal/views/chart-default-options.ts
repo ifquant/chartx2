@@ -68,6 +68,7 @@ export function createDefaultLayoutOptions(): Required<NonNullable<PhaseOneChart
     gridColor: GRID_COLOR,
     frameColor: FRAME_COLOR,
     fitContainerHeight: false,
+    paneGap: PANE_GAP,
     plotInsets: {
       top: DEFAULT_LAYOUT.top,
       right: DEFAULT_LAYOUT.right,

@@ -27,6 +27,7 @@ function createCoordinator(overrides: Partial<Parameters<typeof createChartRende
       paneBackgroundColor: "#f8f8f8",
       gridColor: "#ddd",
       frameColor: "#333",
+      paneGap: 10,
       axisTextColor: "#111",
       axisLabelBackground: "#fff",
       axisLabelBorder: "#ccc",

@@ -159,6 +159,7 @@ export type PhaseOneChartOptions = {
     gridColor?: string;
     frameColor?: string;
     fitContainerHeight?: boolean;
+    paneGap?: number;
     plotInsets?: Partial<{
       top: number;
       right: number;

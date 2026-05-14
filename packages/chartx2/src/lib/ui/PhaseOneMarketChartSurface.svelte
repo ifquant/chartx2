@@ -5,10 +5,15 @@
     type PhaseOneCandlestickSeriesApi,
     type PhaseOneChartApi,
     type PhaseOneCrosshairMoveEvent,
+    type PhaseOneHistogramSeriesApi,
     type PhaseOneLineSeriesApi,
     type PhaseOneVolumeSeriesApi,
   } from "../public/market";
-  import type { PhaseOneMarketChartSurfaceModel } from "../public/market-chart-surface";
+  import {
+    resolvePhaseOneMarketChartIndicatorPanes,
+    type PhaseOneMarketChartSurfaceModel,
+    type PhaseOneMarketChartSurfaceResolvedIndicatorPane,
+  } from "../public/market-chart-surface";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
     symbol: "Symbol",
@@ -49,10 +54,12 @@
   let candleSeries: PhaseOneCandlestickSeriesApi | null = null;
   let overlaySeries: PhaseOneLineSeriesApi | null = null;
   let volumeSeries: PhaseOneVolumeSeriesApi | null = null;
+  let indicatorSeries = $state<Array<PhaseOneVolumeSeriesApi | PhaseOneHistogramSeriesApi | PhaseOneLineSeriesApi>>([]);
   let teardownCrosshair: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let mounted = false;
   let lastVolumeMode: boolean | null = null;
+  let lastIndicatorSignature: string | null = null;
 
   let readout = $state({
     time: "--",
@@ -70,6 +77,7 @@
     candleSeries = null;
     overlaySeries = null;
     volumeSeries = null;
+    indicatorSeries = [];
   }
 
   function resizeChart(): void {
@@ -111,6 +119,14 @@
     candleSeries.setData(model.bars);
     overlaySeries?.setData(model.overlayLine ?? []);
     volumeSeries?.setData(model.volume ?? []);
+    const indicatorPanes = resolvePhaseOneMarketChartIndicatorPanes(model);
+    let nextSeriesIndex = 0;
+    for (const pane of indicatorPanes) {
+      for (const series of pane.series) {
+        indicatorSeries[nextSeriesIndex]?.setData(series.data as never);
+        nextSeriesIndex += 1;
+      }
+    }
 
     if (model.bars.length > 0) {
       const lastLogical = model.bars.length - 1;
@@ -139,6 +155,7 @@
       ...model.chartOptions,
       layout: {
         ...DEFAULT_OPTIONS.layout,
+        paneGap: 1,
         ...(model.chartOptions?.layout ?? {}),
       },
       crosshair: {
@@ -149,7 +166,7 @@
     candleSeries = chart.addCandlestickSeries();
 
     if ((model.overlayLine?.length ?? 0) > 0) {
-      overlaySeries = chart.addLineSeries();
+      overlaySeries = chart.addOverlaySeries();
       overlaySeries.applyOptions({
         color: "#0f5964",
         lineWidth: 2,
@@ -160,6 +177,38 @@
       const volumePane = chart.addPane({ height: 112 });
       volumeSeries = chart.addVolumeSeries({ pane: volumePane });
     }
+
+    const nextIndicatorSeries: Array<PhaseOneVolumeSeriesApi | PhaseOneHistogramSeriesApi | PhaseOneLineSeriesApi> = [];
+    for (const pane of resolvePhaseOneMarketChartIndicatorPanes(model)) {
+      const chartPane = chart.addPane({ height: pane.height });
+      for (const series of pane.series) {
+        if (series.kind === "volume") {
+          const nextSeries = chart.addVolumeSeries({ pane: chartPane });
+          nextSeries.applyOptions({
+            upColor: series.color ?? "#64748b",
+            downColor: series.color ?? "#64748b",
+          });
+          nextIndicatorSeries.push(nextSeries);
+          continue;
+        }
+        if (series.kind === "histogram") {
+          const nextSeries = chart.addHistogramSeries({ pane: chartPane });
+          nextSeries.applyOptions({
+            upColor: series.color ?? "#dc2626",
+            downColor: series.color ?? "#16a34a",
+          });
+          nextIndicatorSeries.push(nextSeries);
+          continue;
+        }
+        const nextSeries = chart.addLineSeries({ pane: chartPane });
+        nextSeries.applyOptions({
+          color: series.color ?? "#2563eb",
+          lineWidth: 1,
+        });
+        nextIndicatorSeries.push(nextSeries);
+      }
+    }
+    indicatorSeries = nextIndicatorSeries;
 
     const handleCrosshair = (event: PhaseOneCrosshairMoveEvent) => {
       applyReadout(event);
@@ -177,13 +226,22 @@
   $effect(() => {
     const nextVolumeMode = (model.volume?.length ?? 0) > 0;
     const nextOverlayMode = (model.overlayLine?.length ?? 0) > 0;
+    const nextIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
+      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
+      .join("|");
 
     if (!mounted) {
       return;
     }
 
-    if (chart === null || lastVolumeMode !== nextVolumeMode || nextOverlayMode !== (overlaySeries !== null)) {
+    if (
+      chart === null ||
+      lastVolumeMode !== nextVolumeMode ||
+      nextOverlayMode !== (overlaySeries !== null) ||
+      lastIndicatorSignature !== nextIndicatorSignature
+    ) {
       lastVolumeMode = nextVolumeMode;
+      lastIndicatorSignature = nextIndicatorSignature;
       rebuildChart();
       return;
     }
@@ -194,6 +252,9 @@
   onMount(() => {
     mounted = true;
     lastVolumeMode = (model.volume?.length ?? 0) > 0;
+    lastIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
+      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
+      .join("|");
     rebuildChart();
 
     if (canvasHost !== undefined) {
@@ -218,6 +279,24 @@
   {:else}
     <div class="canvas-host" bind:this={canvasHost}>
       <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
+      {#if resolvePhaseOneMarketChartIndicatorPanes(model).length > 0}
+        <div class="indicator-readout-stack" aria-label="Attached indicator pane readouts">
+          {#each resolvePhaseOneMarketChartIndicatorPanes(model) as pane}
+            <div class="indicator-readout" data-phase-one-market-chart-indicator-pane={pane.id}>
+              <strong>{pane.title}</strong>
+              {#if pane.subtitle}
+                <span>{pane.subtitle}</span>
+              {/if}
+              {#each pane.readouts as readout}
+                <span style={`--series-color: ${readout.color ?? "#33434b"}`}>
+                  {readout.label}
+                  <b>{readout.valueLabel}</b>
+                </span>
+              {/each}
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -250,6 +329,44 @@
     min-height: 0;
     position: relative;
     overflow: hidden;
+  }
+
+  .indicator-readout-stack {
+    position: absolute;
+    z-index: 2;
+    right: 62px;
+    bottom: 4px;
+    left: 8px;
+    display: grid;
+    gap: 2px;
+    pointer-events: none;
+  }
+
+  .indicator-readout {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 18px;
+    color: #33434b;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86);
+  }
+
+  .indicator-readout strong {
+    color: #0f172a;
+  }
+
+  .indicator-readout span {
+    color: #607279;
+  }
+
+  .indicator-readout b {
+    color: var(--series-color);
+    font-weight: 700;
   }
 
   canvas {

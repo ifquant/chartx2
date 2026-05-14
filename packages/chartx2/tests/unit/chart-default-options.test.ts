@@ -37,6 +37,7 @@ describe("chart default options", () => {
 
     expect(secondLayout.backgroundColor).toBe("#fffdf7");
     expect(secondLayout.fitContainerHeight).toBe(false);
+    expect(secondLayout.paneGap).toBe(PANE_GAP);
     expect(secondLayout.plotInsets).toEqual({
       top: DEFAULT_LAYOUT.top,
       right: DEFAULT_LAYOUT.right,

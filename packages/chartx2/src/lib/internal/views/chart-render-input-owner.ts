@@ -37,6 +37,7 @@ type ChartLayoutOptions = {
   paneBackgroundColor: string;
   gridColor: string;
   frameColor: string;
+  paneGap: number;
   axisTextColor: string;
   axisLabelBackground: string;
   axisLabelBorder: string;

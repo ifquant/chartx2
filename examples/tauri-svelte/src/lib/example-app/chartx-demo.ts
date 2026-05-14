@@ -1843,6 +1843,7 @@ const WARM_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisActiveBackground: "#101010",
   axisActiveText: "#fffdf7",
   fitContainerHeight: false,
+  paneGap: 10,
   plotInsets: {
     top: 28,
     right: 18,
@@ -1865,6 +1866,7 @@ const INK_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisActiveBackground: "#0f172a",
   axisActiveText: "#f8fafc",
   fitContainerHeight: false,
+  paneGap: 10,
   plotInsets: {
     top: 28,
     right: 18,

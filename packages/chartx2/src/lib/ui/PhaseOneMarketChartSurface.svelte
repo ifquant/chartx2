@@ -279,24 +279,6 @@
   {:else}
     <div class="canvas-host" bind:this={canvasHost}>
       <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
-      {#if resolvePhaseOneMarketChartIndicatorPanes(model).length > 0}
-        <div class="indicator-readout-stack" aria-label="Attached indicator pane readouts">
-          {#each resolvePhaseOneMarketChartIndicatorPanes(model) as pane}
-            <div class="indicator-readout" data-phase-one-market-chart-indicator-pane={pane.id}>
-              <strong>{pane.title}</strong>
-              {#if pane.subtitle}
-                <span>{pane.subtitle}</span>
-              {/if}
-              {#each pane.readouts as readout}
-                <span style={`--series-color: ${readout.color ?? "#33434b"}`}>
-                  {readout.label}
-                  <b>{readout.valueLabel}</b>
-                </span>
-              {/each}
-            </div>
-          {/each}
-        </div>
-      {/if}
     </div>
   {/if}
 
@@ -316,6 +298,7 @@
   .market-chart-surface {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     display: grid;
     grid-template-rows: minmax(0, 1fr) 26px;
     border: 1px solid #c3cdd2;
@@ -329,44 +312,6 @@
     min-height: 0;
     position: relative;
     overflow: hidden;
-  }
-
-  .indicator-readout-stack {
-    position: absolute;
-    z-index: 2;
-    right: 62px;
-    bottom: 4px;
-    left: 8px;
-    display: grid;
-    gap: 2px;
-    pointer-events: none;
-  }
-
-  .indicator-readout {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    height: 18px;
-    color: #33434b;
-    font-size: 11px;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.86);
-  }
-
-  .indicator-readout strong {
-    color: #0f172a;
-  }
-
-  .indicator-readout span {
-    color: #607279;
-  }
-
-  .indicator-readout b {
-    color: var(--series-color);
-    font-weight: 700;
   }
 
   canvas {

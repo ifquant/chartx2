@@ -59,6 +59,8 @@ describe("chart state shell owner", () => {
           axisLabelBorder: "#666666",
           axisActiveBackground: "#777777",
           axisActiveText: "#888888",
+          fitContainerHeight: true,
+          plotInsets: { top: 0, right: 0, bottom: 0, left: 0 },
         }),
         getCrosshairOptions: () => ({
           lineColor: "#999999",
@@ -150,6 +152,8 @@ describe("chart state shell owner", () => {
           axisLabelBorder: "#666666",
           axisActiveBackground: "#777777",
           axisActiveText: "#888888",
+          fitContainerHeight: true,
+          plotInsets: { top: 0, right: 0, bottom: 0, left: 0 },
         },
         crosshair: {
           lineColor: "#999999",

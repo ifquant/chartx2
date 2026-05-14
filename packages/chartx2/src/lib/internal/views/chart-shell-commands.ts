@@ -39,6 +39,13 @@ export function applyChartOptions(
   if (options.layout?.paneBackgroundColor !== undefined) deps.setLayoutOption("paneBackgroundColor", options.layout.paneBackgroundColor);
   if (options.layout?.gridColor !== undefined) deps.setLayoutOption("gridColor", options.layout.gridColor);
   if (options.layout?.frameColor !== undefined) deps.setLayoutOption("frameColor", options.layout.frameColor);
+  if (options.layout?.fitContainerHeight !== undefined) deps.setLayoutOption("fitContainerHeight", options.layout.fitContainerHeight);
+  if (options.layout?.plotInsets !== undefined) deps.setLayoutOption("plotInsets", {
+    top: Math.max(0, options.layout.plotInsets.top ?? 0),
+    right: Math.max(0, options.layout.plotInsets.right ?? 0),
+    bottom: Math.max(0, options.layout.plotInsets.bottom ?? 0),
+    left: Math.max(0, options.layout.plotInsets.left ?? 0),
+  });
   if (options.layout?.axisTextColor !== undefined) deps.setLayoutOption("axisTextColor", options.layout.axisTextColor);
   if (options.layout?.axisLabelBackground !== undefined) deps.setLayoutOption("axisLabelBackground", options.layout.axisLabelBackground);
   if (options.layout?.axisLabelBorder !== undefined) deps.setLayoutOption("axisLabelBorder", options.layout.axisLabelBorder);

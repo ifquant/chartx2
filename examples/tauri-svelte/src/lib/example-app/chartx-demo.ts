@@ -1842,6 +1842,13 @@ const WARM_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisLabelBorder: "rgba(16, 16, 16, 0.14)",
   axisActiveBackground: "#101010",
   axisActiveText: "#fffdf7",
+  fitContainerHeight: false,
+  plotInsets: {
+    top: 28,
+    right: 18,
+    bottom: 34,
+    left: 18,
+  },
   lineColor: "rgba(16, 16, 16, 0.48)",
   pointColor: "#101010",
 };
@@ -1857,6 +1864,13 @@ const INK_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisLabelBorder: "rgba(15, 23, 42, 0.12)",
   axisActiveBackground: "#0f172a",
   axisActiveText: "#f8fafc",
+  fitContainerHeight: false,
+  plotInsets: {
+    top: 28,
+    right: 18,
+    bottom: 34,
+    left: 18,
+  },
   lineColor: "rgba(15, 23, 42, 0.42)",
   pointColor: "#0f172a",
 };

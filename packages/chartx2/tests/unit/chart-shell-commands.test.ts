@@ -19,6 +19,8 @@ describe("chart shell commands use-case", () => {
       layout: {
         backgroundColor: "#111",
         axisTextColor: "#222",
+        fitContainerHeight: true,
+        plotInsets: { top: -1, right: 2, bottom: 3, left: 4 },
       },
       crosshair: {
         lineColor: "#333",
@@ -44,6 +46,13 @@ describe("chart shell commands use-case", () => {
 
     expect(setLayoutOption).toHaveBeenCalledWith("backgroundColor", "#111");
     expect(setLayoutOption).toHaveBeenCalledWith("axisTextColor", "#222");
+    expect(setLayoutOption).toHaveBeenCalledWith("fitContainerHeight", true);
+    expect(setLayoutOption).toHaveBeenCalledWith("plotInsets", {
+      top: 0,
+      right: 2,
+      bottom: 3,
+      left: 4,
+    });
     expect(setCrosshairOption).toHaveBeenCalledWith("lineColor", "#333");
     expect(setDrawingOption).toHaveBeenCalledWith("magnetEnabled", false);
     expect(setDrawingOption).toHaveBeenCalledWith("timeMagnetGuideVisible", false);

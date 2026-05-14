@@ -102,6 +102,8 @@ describe("chart state coordinator", () => {
           axisLabelBorder: "#666666",
           axisActiveBackground: "#777777",
           axisActiveText: "#888888",
+          fitContainerHeight: true,
+          plotInsets: { top: 0, right: 0, bottom: 0, left: 0 },
         },
         crosshair: {
           lineColor: "#999999",
@@ -178,6 +180,8 @@ describe("chart state coordinator", () => {
           axisLabelBorder: "#666666",
           axisActiveBackground: "#777777",
           axisActiveText: "#888888",
+          fitContainerHeight: true,
+          plotInsets: { top: 0, right: 0, bottom: 0, left: 0 },
         },
         crosshair: {
           lineColor: "#999999",
@@ -230,6 +234,8 @@ describe("chart state coordinator", () => {
           axisLabelBorder: "#060606",
           axisActiveBackground: "#070707",
           axisActiveText: "#080808",
+          fitContainerHeight: false,
+          plotInsets: { top: 28, right: 18, bottom: 34, left: 18 },
         },
         crosshair: {
           lineColor: "#090909",
@@ -470,6 +476,8 @@ describe("chart state coordinator", () => {
           axisLabelBorder: "#d4d4d4",
           axisActiveBackground: "#171717",
           axisActiveText: "#fafafa",
+          fitContainerHeight: false,
+          plotInsets: { top: 28, right: 18, bottom: 34, left: 18 },
         },
         crosshair: {
           lineColor: "#0f172a",

@@ -67,6 +67,13 @@ export function createDefaultLayoutOptions(): Required<NonNullable<PhaseOneChart
     paneBackgroundColor: PANE_BACKGROUND,
     gridColor: GRID_COLOR,
     frameColor: FRAME_COLOR,
+    fitContainerHeight: false,
+    plotInsets: {
+      top: DEFAULT_LAYOUT.top,
+      right: DEFAULT_LAYOUT.right,
+      bottom: DEFAULT_LAYOUT.bottom,
+      left: DEFAULT_LAYOUT.left,
+    },
     axisTextColor: AXIS_TEXT_COLOR,
     axisLabelBackground: AXIS_LABEL_BACKGROUND,
     axisLabelBorder: AXIS_LABEL_BORDER,

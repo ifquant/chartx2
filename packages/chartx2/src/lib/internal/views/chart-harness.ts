@@ -161,6 +161,13 @@ export class PhaseOneChartHarness {
       this.render(canvas);
     },
   });
+
+  private layoutGeometry() {
+    return {
+      ...DEFAULT_LAYOUT,
+      ...this.chartOptions.plotInsets,
+    };
+  }
   private readonly priceLineManager = createPriceLineManager({
     defaultOptions: this.defaultPriceLineOptions,
     render: () => {
@@ -299,7 +306,11 @@ export class PhaseOneChartHarness {
     hasCanvas: () => this.adapterState.canvas() !== null,
     getLayout: () => {
       const canvas = this.adapterState.canvas();
-      return canvas === null ? DEFAULT_LAYOUT : measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout());
+      return canvas === null
+        ? this.layoutGeometry()
+        : measureLayout(canvas, this.layoutGeometry(), this.viewState.manualLayout(), {
+          fitContainerHeight: this.chartOptions.fitContainerHeight,
+        });
     },
     gap: PANE_GAP,
     getCrosshair: () => this.viewState.crosshair(),
@@ -372,7 +383,9 @@ export class PhaseOneChartHarness {
     PhaseOneTradeLocationState
   >({
     dpr: () => window.devicePixelRatio || 1,
-    getLayout: (canvas) => measureLayout(canvas, DEFAULT_LAYOUT, this.viewState.manualLayout()),
+    getLayout: (canvas) => measureLayout(canvas, this.layoutGeometry(), this.viewState.manualLayout(), {
+      fitContainerHeight: this.chartOptions.fitContainerHeight,
+    }),
     getChartOptions: () => this.chartOptions,
     getCrosshairOptions: () => this.crosshairOptions,
     getDrawingOptions: () => this.drawingOptions,

@@ -22,6 +22,8 @@ describe("chart state snapshot input owner", () => {
         axisLabelBorder: "#666666",
         axisActiveBackground: "#777777",
         axisActiveText: "#888888",
+        fitContainerHeight: true,
+        plotInsets: { top: 0, right: 0, bottom: 0, left: 0 },
       }),
       getCrosshairOptions: () => ({
         lineColor: "#999999",

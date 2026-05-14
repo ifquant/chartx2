@@ -29,12 +29,20 @@ describe("chart default options", () => {
     const firstLayout = createDefaultLayoutOptions();
     const secondLayout = createDefaultLayoutOptions();
     firstLayout.backgroundColor = "#000000";
+    firstLayout.plotInsets.left = 0;
 
     const firstDrawing = createDefaultDrawingOptions();
     const secondDrawing = createDefaultDrawingOptions();
     firstDrawing.magnetSources.open = false;
 
     expect(secondLayout.backgroundColor).toBe("#fffdf7");
+    expect(secondLayout.fitContainerHeight).toBe(false);
+    expect(secondLayout.plotInsets).toEqual({
+      top: DEFAULT_LAYOUT.top,
+      right: DEFAULT_LAYOUT.right,
+      bottom: DEFAULT_LAYOUT.bottom,
+      left: DEFAULT_LAYOUT.left,
+    });
     expect(secondDrawing.magnetSources.open).toBe(true);
   });
 

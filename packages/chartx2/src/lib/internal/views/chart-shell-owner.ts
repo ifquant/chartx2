@@ -25,7 +25,7 @@ export function createChartShellOwner(deps: {
     applyOptions(options: PhaseOneChartOptions): void {
       applyChartOptions(options, {
         setLayoutOption: (key, value) => {
-          deps.layoutOptions[key] = value;
+          (deps.layoutOptions as Record<string, unknown>)[key] = value;
         },
         setCrosshairOption: (key, value) => {
           deps.crosshairOptions[key] = value;
@@ -49,4 +49,3 @@ export function createChartShellOwner(deps: {
     },
   };
 }
-

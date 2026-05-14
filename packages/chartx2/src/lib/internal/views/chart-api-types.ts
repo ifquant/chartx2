@@ -158,6 +158,13 @@ export type PhaseOneChartOptions = {
     paneBackgroundColor?: string;
     gridColor?: string;
     frameColor?: string;
+    fitContainerHeight?: boolean;
+    plotInsets?: Partial<{
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    }>;
     axisTextColor?: string;
     axisLabelBackground?: string;
     axisLabelBorder?: string;

@@ -13,6 +13,9 @@ export type PanePoint = {
 };
 
 type ManualLayout = Pick<LayoutGeometry, "width" | "height">;
+type LayoutMeasureOptions = {
+  fitContainerHeight?: boolean;
+};
 
 type PaneFrameLike = {
   top: number;
@@ -72,6 +75,7 @@ export function measureLayout<LayoutType extends LayoutGeometry>(
   canvas: HTMLCanvasElement,
   defaultLayout: LayoutType,
   manualLayout: ManualLayout | null = null,
+  options: LayoutMeasureOptions = {},
 ): LayoutType {
   if (manualLayout !== null) {
     return {
@@ -89,14 +93,17 @@ export function measureLayout<LayoutType extends LayoutGeometry>(
   const styles = window.getComputedStyle(container);
   const horizontalPadding =
     parseFloat(styles.paddingLeft || "0") + parseFloat(styles.paddingRight || "0");
+  const verticalPadding =
+    parseFloat(styles.paddingTop || "0") + parseFloat(styles.paddingBottom || "0");
   const availableWidth = Math.floor(container.clientWidth - horizontalPadding);
+  const availableHeight = Math.floor(container.clientHeight - verticalPadding);
   const width = Math.max(480, availableWidth);
   const aspectHeight = Math.round((width / defaultLayout.width) * defaultLayout.height);
 
   return {
     ...defaultLayout,
     width,
-    height: Math.max(320, aspectHeight),
+    height: Math.max(120, options.fitContainerHeight ? availableHeight : Math.max(320, aspectHeight)),
   };
 }
 

@@ -68,11 +68,13 @@ export interface PhaseOneMarketChartSurfaceModel {
 export type PhaseOneMarketChartSurfaceChrome = "card" | "integrated";
 export type PhaseOneMarketChartSurfaceDensity = "default" | "compact";
 export type PhaseOneMarketChartSurfaceReadoutPosition = "bottom" | "top";
+export type PhaseOneMarketChartSurfaceRightDockMode = "none" | "overlay";
 
 export interface PhaseOneMarketChartSurfaceLayout {
   chrome?: PhaseOneMarketChartSurfaceChrome;
   density?: PhaseOneMarketChartSurfaceDensity;
   readoutPosition?: PhaseOneMarketChartSurfaceReadoutPosition;
+  rightDockMode?: PhaseOneMarketChartSurfaceRightDockMode;
 }
 
 export function normalizePhaseOneMarketChartSurfaceLayout(
@@ -82,6 +84,7 @@ export function normalizePhaseOneMarketChartSurfaceLayout(
     chrome: layout.chrome ?? "card",
     density: layout.density ?? "default",
     readoutPosition: layout.readoutPosition ?? "bottom",
+    rightDockMode: layout.rightDockMode ?? "none",
   };
 }
 

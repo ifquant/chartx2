@@ -92,6 +92,7 @@ describe("phase one market chart surface model", () => {
       chrome: "card",
       density: "default",
       readoutPosition: "bottom",
+      rightDockMode: "none",
     });
 
     expect(
@@ -99,11 +100,13 @@ describe("phase one market chart surface model", () => {
         chrome: "integrated",
         density: "compact",
         readoutPosition: "top",
+        rightDockMode: "overlay",
       }),
     ).toEqual({
       chrome: "integrated",
       density: "compact",
       readoutPosition: "top",
+      rightDockMode: "overlay",
     });
   });
 });

@@ -17,6 +17,7 @@
     type PhaseOneMarketChartSurfaceDensity,
     type PhaseOneMarketChartSurfaceModel,
     type PhaseOneMarketChartSurfaceReadoutPosition,
+    type PhaseOneMarketChartSurfaceRightDockMode,
   } from "../public/market-chart-surface";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
@@ -51,7 +52,11 @@
     chrome?: PhaseOneMarketChartSurfaceChrome;
     density?: PhaseOneMarketChartSurfaceDensity;
     readoutPosition?: PhaseOneMarketChartSurfaceReadoutPosition;
+    rightDockMode?: PhaseOneMarketChartSurfaceRightDockMode;
+    rightDockOpen?: boolean;
+    rightDockWidth?: string;
     readoutActions?: Snippet;
+    rightDock?: Snippet;
   };
 
   let {
@@ -59,7 +64,11 @@
     chrome = "card",
     density = "default",
     readoutPosition = "bottom",
+    rightDockMode = "none",
+    rightDockOpen = false,
+    rightDockWidth = "260px",
     readoutActions,
+    rightDock,
   }: Props = $props();
 
   let canvasHost = $state<HTMLDivElement | undefined>(undefined);
@@ -82,7 +91,7 @@
     low: "--",
     close: "--",
   });
-  const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition }));
+  const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition, rightDockMode }));
 
   function destroyChart(): void {
     teardownCrosshair?.();
@@ -297,6 +306,7 @@
   data-phase-one-market-chart-surface-chrome={layout.chrome}
   data-phase-one-market-chart-surface-density={layout.density}
   data-phase-one-market-chart-surface-readout-position={layout.readoutPosition}
+  data-phase-one-market-chart-surface-right-dock-mode={layout.rightDockMode}
 >
   <div class="readout" aria-label="Chart readout" data-phase-one-market-chart-readout>
     <strong>{model.symbol}</strong>
@@ -314,13 +324,26 @@
     {/if}
   </div>
 
-  {#if model.bars.length === 0}
-    <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
-  {:else}
-    <div class="canvas-host" bind:this={canvasHost}>
-      <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
-    </div>
-  {/if}
+  <div class="surface-body" data-phase-one-market-chart-body>
+    {#if model.bars.length === 0}
+      <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
+    {:else}
+      <div class="canvas-host" bind:this={canvasHost}>
+        <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
+      </div>
+    {/if}
+
+    {#if rightDock && rightDockOpen && layout.rightDockMode === "overlay"}
+      <aside
+        class="right-dock"
+        aria-label="Chart right dock"
+        data-phase-one-market-chart-right-dock
+        style:width={rightDockWidth}
+      >
+        {@render rightDock()}
+      </aside>
+    {/if}
+  </div>
 </section>
 
 <style>
@@ -333,6 +356,18 @@
     border: 1px solid #c3cdd2;
     border-radius: 10px;
     background: #ffffff;
+    overflow: hidden;
+  }
+
+  .market-chart-surface > .readout {
+    grid-row: 2;
+  }
+
+  .surface-body {
+    position: relative;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -361,7 +396,8 @@
   }
 
   .market-chart-surface.readout-top .canvas-host,
-  .market-chart-surface.readout-top .empty-state {
+  .market-chart-surface.readout-top .empty-state,
+  .market-chart-surface.readout-top .surface-body {
     grid-row: 2;
   }
 
@@ -448,5 +484,19 @@
   :global([data-phase-one-market-chart-readout-actions] button:hover) {
     background: #e7f2f4;
     color: #0f5964;
+  }
+
+  .right-dock {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    min-width: 0;
+    max-width: min(42%, 320px);
+    border-left: 1px solid #9faeb5;
+    background: #f8fafb;
+    box-shadow: -1px 0 0 rgba(255, 255, 255, 0.62);
+    overflow: hidden;
   }
 </style>

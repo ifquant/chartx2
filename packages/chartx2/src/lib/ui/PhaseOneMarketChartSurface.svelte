@@ -391,6 +391,7 @@
   .canvas-host {
     min-width: 0;
     min-height: 0;
+    height: 100%;
     position: relative;
     overflow: hidden;
   }

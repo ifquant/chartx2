@@ -68,7 +68,7 @@ export interface PhaseOneMarketChartSurfaceModel {
 export type PhaseOneMarketChartSurfaceChrome = "card" | "integrated";
 export type PhaseOneMarketChartSurfaceDensity = "default" | "compact";
 export type PhaseOneMarketChartSurfaceReadoutPosition = "bottom" | "top";
-export type PhaseOneMarketChartSurfaceRightDockMode = "none" | "overlay";
+export type PhaseOneMarketChartSurfaceRightDockMode = "none" | "overlay" | "inline";
 
 export interface PhaseOneMarketChartSurfaceLayout {
   chrome?: PhaseOneMarketChartSurfaceChrome;

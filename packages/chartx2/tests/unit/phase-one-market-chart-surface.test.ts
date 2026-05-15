@@ -100,13 +100,13 @@ describe("phase one market chart surface model", () => {
         chrome: "integrated",
         density: "compact",
         readoutPosition: "top",
-        rightDockMode: "overlay",
+        rightDockMode: "inline",
       }),
     ).toEqual({
       chrome: "integrated",
       density: "compact",
       readoutPosition: "top",
-      rightDockMode: "overlay",
+      rightDockMode: "inline",
     });
   });
 });

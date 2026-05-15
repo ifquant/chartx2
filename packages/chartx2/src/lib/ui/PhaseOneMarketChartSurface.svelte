@@ -324,7 +324,12 @@
     {/if}
   </div>
 
-  <div class="surface-body" data-phase-one-market-chart-body>
+  <div
+    class="surface-body"
+    class:dock-inline-open={rightDock && rightDockOpen && layout.rightDockMode === "inline"}
+    data-phase-one-market-chart-body
+    style={`--chartx2-right-dock-width: ${rightDockWidth};`}
+  >
     {#if model.bars.length === 0}
       <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
     {:else}
@@ -333,9 +338,10 @@
       </div>
     {/if}
 
-    {#if rightDock && rightDockOpen && layout.rightDockMode === "overlay"}
+    {#if rightDock && rightDockOpen && layout.rightDockMode !== "none"}
       <aside
         class="right-dock"
+        class:inline={layout.rightDockMode === "inline"}
         aria-label="Chart right dock"
         data-phase-one-market-chart-right-dock
         style:width={rightDockWidth}
@@ -371,6 +377,17 @@
     overflow: hidden;
   }
 
+  .surface-body.dock-inline-open {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--chartx2-right-dock-width, 260px));
+  }
+
+  .surface-body.dock-inline-open .canvas-host,
+  .surface-body.dock-inline-open .empty-state {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .market-chart-surface.readout-top {
     grid-template-rows: 26px minmax(0, 1fr);
   }
@@ -396,8 +413,6 @@
     overflow: hidden;
   }
 
-  .market-chart-surface.readout-top .canvas-host,
-  .market-chart-surface.readout-top .empty-state,
   .market-chart-surface.readout-top .surface-body {
     grid-row: 2;
   }
@@ -499,5 +514,19 @@
     background: #f8fafb;
     box-shadow: -1px 0 0 rgba(255, 255, 255, 0.62);
     overflow: hidden;
+  }
+
+  .right-dock.inline {
+    position: relative;
+    z-index: 1;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: auto !important;
+    max-width: none;
+    height: 100%;
+    box-shadow: none;
+    grid-column: 2;
+    grid-row: 1;
   }
 </style>

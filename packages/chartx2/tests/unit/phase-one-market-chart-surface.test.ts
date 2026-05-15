@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  normalizePhaseOneMarketChartSurfaceLayout,
   resolvePhaseOneMarketChartIndicatorPanes,
   type PhaseOneMarketChartSurfaceModel,
 } from "../../src/lib/public/market-chart-surface";
@@ -83,6 +84,26 @@ describe("phase one market chart surface model", () => {
         { id: "hist", label: "HIST", valueLabel: "0.11", color: "#94a3b8" },
         { id: "dif", label: "DIF", valueLabel: "0.20", color: "#2563eb" },
       ],
+    });
+  });
+
+  it("normalizes integrated terminal layout options independently from chart data", () => {
+    expect(normalizePhaseOneMarketChartSurfaceLayout()).toEqual({
+      chrome: "card",
+      density: "default",
+      readoutPosition: "bottom",
+    });
+
+    expect(
+      normalizePhaseOneMarketChartSurfaceLayout({
+        chrome: "integrated",
+        density: "compact",
+        readoutPosition: "top",
+      }),
+    ).toEqual({
+      chrome: "integrated",
+      density: "compact",
+      readoutPosition: "top",
     });
   });
 });

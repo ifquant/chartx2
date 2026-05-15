@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import type { Snippet } from "svelte";
   import {
     createChartxPhaseOneChart,
     type PhaseOneCandlestickSeriesApi,
@@ -10,9 +11,12 @@
     type PhaseOneVolumeSeriesApi,
   } from "../public/market";
   import {
+    normalizePhaseOneMarketChartSurfaceLayout,
     resolvePhaseOneMarketChartIndicatorPanes,
+    type PhaseOneMarketChartSurfaceChrome,
+    type PhaseOneMarketChartSurfaceDensity,
     type PhaseOneMarketChartSurfaceModel,
-    type PhaseOneMarketChartSurfaceResolvedIndicatorPane,
+    type PhaseOneMarketChartSurfaceReadoutPosition,
   } from "../public/market-chart-surface";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
@@ -44,9 +48,19 @@
 
   type Props = {
     model?: PhaseOneMarketChartSurfaceModel;
+    chrome?: PhaseOneMarketChartSurfaceChrome;
+    density?: PhaseOneMarketChartSurfaceDensity;
+    readoutPosition?: PhaseOneMarketChartSurfaceReadoutPosition;
+    readoutActions?: Snippet;
   };
 
-  let { model = EMPTY_MODEL }: Props = $props();
+  let {
+    model = EMPTY_MODEL,
+    chrome = "card",
+    density = "default",
+    readoutPosition = "bottom",
+    readoutActions,
+  }: Props = $props();
 
   let canvasHost = $state<HTMLDivElement | undefined>(undefined);
   let canvas = $state<HTMLCanvasElement | undefined>(undefined);
@@ -68,6 +82,7 @@
     low: "--",
     close: "--",
   });
+  const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition }));
 
   function destroyChart(): void {
     teardownCrosshair?.();
@@ -273,16 +288,17 @@
   });
 </script>
 
-<section class="market-chart-surface" data-phase-one-market-chart-surface>
-  {#if model.bars.length === 0}
-    <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
-  {:else}
-    <div class="canvas-host" bind:this={canvasHost}>
-      <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
-    </div>
-  {/if}
-
-  <div class="readout" aria-label="Chart readout">
+<section
+  class="market-chart-surface"
+  class:integrated={layout.chrome === "integrated"}
+  class:compact={layout.density === "compact"}
+  class:readout-top={layout.readoutPosition === "top"}
+  data-phase-one-market-chart-surface
+  data-phase-one-market-chart-surface-chrome={layout.chrome}
+  data-phase-one-market-chart-surface-density={layout.density}
+  data-phase-one-market-chart-surface-readout-position={layout.readoutPosition}
+>
+  <div class="readout" aria-label="Chart readout" data-phase-one-market-chart-readout>
     <strong>{model.symbol}</strong>
     <span>{model.timeframeLabel}</span>
     <span>T {readout.time}</span>
@@ -291,7 +307,20 @@
     <span>L {readout.low}</span>
     <span>C {readout.close}</span>
     <span class="status">{model.statusLabel ?? "Mounted through chartx2 public market surface."}</span>
+    {#if readoutActions}
+      <span class="readout-actions" data-phase-one-market-chart-readout-actions>
+        {@render readoutActions()}
+      </span>
+    {/if}
   </div>
+
+  {#if model.bars.length === 0}
+    <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
+  {:else}
+    <div class="canvas-host" bind:this={canvasHost}>
+      <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -307,11 +336,33 @@
     overflow: hidden;
   }
 
+  .market-chart-surface.readout-top {
+    grid-template-rows: 26px minmax(0, 1fr);
+  }
+
+  .market-chart-surface.integrated {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .market-chart-surface.compact {
+    grid-template-rows: minmax(0, 1fr) 24px;
+  }
+
+  .market-chart-surface.integrated.compact.readout-top {
+    grid-template-rows: 24px minmax(0, 1fr);
+  }
+
   .canvas-host {
     min-width: 0;
     min-height: 0;
     position: relative;
     overflow: hidden;
+  }
+
+  .market-chart-surface.readout-top .canvas-host,
+  .market-chart-surface.readout-top .empty-state {
+    grid-row: 2;
   }
 
   canvas {
@@ -347,6 +398,19 @@
     overflow: hidden;
   }
 
+  .market-chart-surface.readout-top .readout {
+    grid-row: 1;
+    border-top: 0;
+    border-bottom: 1px solid #d9e2e6;
+  }
+
+  .market-chart-surface.compact .readout {
+    gap: 8px;
+    min-height: 0;
+    padding: 0 0 0 8px;
+    font-size: 11px;
+  }
+
   .readout strong,
   .status {
     min-width: 0;
@@ -357,5 +421,32 @@
   .status {
     margin-left: auto;
     color: #607279;
+  }
+
+  .readout-actions {
+    flex: 0 0 auto;
+    align-self: stretch;
+    display: flex;
+    align-items: stretch;
+    margin-left: 4px;
+  }
+
+  :global([data-phase-one-market-chart-readout-actions] button) {
+    min-width: 24px;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 0 5px;
+    border: 0;
+    border-left: 1px solid #d9e2e6;
+    background: transparent;
+    color: #607279;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :global([data-phase-one-market-chart-readout-actions] button:hover) {
+    background: #e7f2f4;
+    color: #0f5964;
   }
 </style>

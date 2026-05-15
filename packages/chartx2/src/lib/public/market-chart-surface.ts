@@ -65,6 +65,26 @@ export interface PhaseOneMarketChartSurfaceModel {
   chartOptions?: PhaseOneChartOptions;
 }
 
+export type PhaseOneMarketChartSurfaceChrome = "card" | "integrated";
+export type PhaseOneMarketChartSurfaceDensity = "default" | "compact";
+export type PhaseOneMarketChartSurfaceReadoutPosition = "bottom" | "top";
+
+export interface PhaseOneMarketChartSurfaceLayout {
+  chrome?: PhaseOneMarketChartSurfaceChrome;
+  density?: PhaseOneMarketChartSurfaceDensity;
+  readoutPosition?: PhaseOneMarketChartSurfaceReadoutPosition;
+}
+
+export function normalizePhaseOneMarketChartSurfaceLayout(
+  layout: PhaseOneMarketChartSurfaceLayout = {},
+): Required<PhaseOneMarketChartSurfaceLayout> {
+  return {
+    chrome: layout.chrome ?? "card",
+    density: layout.density ?? "default",
+    readoutPosition: layout.readoutPosition ?? "bottom",
+  };
+}
+
 function latestValueLabel(series: PhaseOneMarketChartSurfaceIndicatorSeries): string {
   if (series.latestLabel !== undefined) {
     return series.latestLabel;

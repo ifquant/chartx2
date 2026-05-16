@@ -53,10 +53,30 @@ export interface PhaseOneMarketChartSurfaceResolvedIndicatorPane
   readouts: readonly PhaseOneMarketChartSurfaceIndicatorReadout[];
 }
 
+export type PhaseOneMarketChartDisplayMode = "candlestick" | "intraday-timeshare";
+export type PhaseOneMarketChartReadoutMode = "ohlc" | "timeshare";
+
+export interface PhaseOneIntradayTimesharePoint {
+  time: number;
+  price: number;
+  averagePrice?: number;
+  volume?: number;
+  openInterest?: number;
+}
+
+export interface PhaseOneIntradayTimeshareModel {
+  points: readonly PhaseOneIntradayTimesharePoint[];
+  previousClose?: number;
+  settlementPrice?: number;
+  sessionLabel?: string;
+}
+
 export interface PhaseOneMarketChartSurfaceModel {
   symbol: string;
   timeframeLabel: string;
+  displayMode?: PhaseOneMarketChartDisplayMode;
   bars: readonly PhaseOneCandlestickData[];
+  intradayTimeshare?: PhaseOneIntradayTimeshareModel;
   volume?: readonly PhaseOneVolumeData[];
   overlayLine?: readonly PhaseOneLineData[];
   indicatorPanes?: readonly PhaseOneMarketChartSurfaceIndicatorPane[];
@@ -86,6 +106,27 @@ export function normalizePhaseOneMarketChartSurfaceLayout(
     readoutPosition: layout.readoutPosition ?? "bottom",
     rightDockMode: layout.rightDockMode ?? "none",
   };
+}
+
+export function resolvePhaseOneMarketChartDisplayMode(
+  model: PhaseOneMarketChartSurfaceModel,
+): PhaseOneMarketChartDisplayMode {
+  return model.displayMode ?? "candlestick";
+}
+
+export function resolvePhaseOneMarketChartReadoutMode(
+  model: PhaseOneMarketChartSurfaceModel,
+): PhaseOneMarketChartReadoutMode {
+  return resolvePhaseOneMarketChartDisplayMode(model) === "intraday-timeshare" ? "timeshare" : "ohlc";
+}
+
+export function resolvePhaseOneMarketChartActiveDataLength(
+  model: PhaseOneMarketChartSurfaceModel,
+): number {
+  if (resolvePhaseOneMarketChartDisplayMode(model) === "intraday-timeshare") {
+    return model.intradayTimeshare?.points.length ?? 0;
+  }
+  return model.bars.length;
 }
 
 function latestValueLabel(series: PhaseOneMarketChartSurfaceIndicatorSeries): string {

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   normalizePhaseOneMarketChartSurfaceLayout,
+  resolvePhaseOneMarketChartActiveDataLength,
+  resolvePhaseOneMarketChartDisplayMode,
   resolvePhaseOneMarketChartIndicatorPanes,
+  resolvePhaseOneMarketChartReadoutMode,
   type PhaseOneMarketChartSurfaceModel,
 } from "../../src/lib/public/market-chart-surface";
 
@@ -108,5 +111,53 @@ describe("phase one market chart surface model", () => {
       readoutPosition: "top",
       rightDockMode: "inline",
     });
+  });
+
+  it("defaults legacy market chart models to candlestick mode", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "5m",
+      bars: [{ time: 1, open: 3700, high: 3710, low: 3690, close: 3708 }],
+    };
+
+    expect(resolvePhaseOneMarketChartDisplayMode(model)).toBe("candlestick");
+    expect(resolvePhaseOneMarketChartReadoutMode(model)).toBe("ohlc");
+    expect(resolvePhaseOneMarketChartActiveDataLength(model)).toBe(1);
+  });
+
+  it("resolves intraday-timeshare models from timeshare points instead of bars", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "分时",
+      displayMode: "intraday-timeshare",
+      bars: [],
+      intradayTimeshare: {
+        points: [
+          { time: 1, price: 3710, averagePrice: 3708, volume: 40 },
+          { time: 2, price: 3718, averagePrice: 3711, volume: 58 },
+        ],
+        previousClose: 3700,
+        sessionLabel: "day",
+      },
+    };
+
+    expect(resolvePhaseOneMarketChartReadoutMode(model)).toBe("timeshare");
+    expect(resolvePhaseOneMarketChartActiveDataLength(model)).toBe(2);
+  });
+
+  it("keeps intraday-timeshare volume optional so live ticks can arrive before volume", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "分时",
+      displayMode: "intraday-timeshare",
+      bars: [],
+      intradayTimeshare: {
+        points: [{ time: 1, price: 3718, averagePrice: 3711 }],
+        previousClose: 3700,
+      },
+    };
+
+    expect(resolvePhaseOneMarketChartActiveDataLength(model)).toBe(1);
+    expect(resolvePhaseOneMarketChartReadoutMode(model)).toBe("timeshare");
   });
 });

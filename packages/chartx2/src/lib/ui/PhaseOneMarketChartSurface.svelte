@@ -12,7 +12,10 @@
   } from "../public/market";
   import {
     normalizePhaseOneMarketChartSurfaceLayout,
+    resolvePhaseOneMarketChartActiveDataLength,
+    resolvePhaseOneMarketChartDisplayMode,
     resolvePhaseOneMarketChartIndicatorPanes,
+    resolvePhaseOneMarketChartReadoutMode,
     type PhaseOneMarketChartSurfaceChrome,
     type PhaseOneMarketChartSurfaceDensity,
     type PhaseOneMarketChartSurfaceModel,
@@ -76,22 +79,49 @@
   let chart: PhaseOneChartApi | null = null;
   let candleSeries: PhaseOneCandlestickSeriesApi | null = null;
   let overlaySeries: PhaseOneLineSeriesApi | null = null;
+  let timesharePriceSeries: PhaseOneLineSeriesApi | null = null;
+  let timeshareAverageSeries: PhaseOneLineSeriesApi | null = null;
+  let timeshareBaselineSeries: PhaseOneLineSeriesApi | null = null;
   let volumeSeries: PhaseOneVolumeSeriesApi | null = null;
   let indicatorSeries = $state<Array<PhaseOneVolumeSeriesApi | PhaseOneHistogramSeriesApi | PhaseOneLineSeriesApi>>([]);
   let teardownCrosshair: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let mounted = false;
+  let lastDisplayMode: ReturnType<typeof resolvePhaseOneMarketChartDisplayMode> | null = null;
+  let lastTimeshareBaselineMode: boolean | null = null;
   let lastVolumeMode: boolean | null = null;
   let lastIndicatorSignature: string | null = null;
 
+  type ReadoutState = {
+    time: string;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    price: string;
+    averagePrice: string;
+    volume: string;
+  };
+
+  function createEmptyReadout(): ReadoutState {
+    return {
+      time: "--",
+      open: "--",
+      high: "--",
+      low: "--",
+      close: "--",
+      price: "--",
+      averagePrice: "--",
+      volume: "--",
+    };
+  }
+
   let readout = $state({
-    time: "--",
-    open: "--",
-    high: "--",
-    low: "--",
-    close: "--",
+    ...createEmptyReadout(),
   });
   const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition, rightDockMode }));
+  const readoutMode = $derived(resolvePhaseOneMarketChartReadoutMode(model));
+  const activeDataLength = $derived(resolvePhaseOneMarketChartActiveDataLength(model));
 
   function destroyChart(): void {
     teardownCrosshair?.();
@@ -100,6 +130,9 @@
     chart = null;
     candleSeries = null;
     overlaySeries = null;
+    timesharePriceSeries = null;
+    timeshareAverageSeries = null;
+    timeshareBaselineSeries = null;
     volumeSeries = null;
     indicatorSeries = [];
   }
@@ -117,13 +150,7 @@
 
   function applyReadout(event: PhaseOneCrosshairMoveEvent): void {
     if (!event.active) {
-      readout = {
-        time: "--",
-        open: "--",
-        high: "--",
-        low: "--",
-        close: "--",
-      };
+      readout = createEmptyReadout();
       return;
     }
     readout = {
@@ -132,14 +159,53 @@
       high: event.formatted.high,
       low: event.formatted.low,
       close: event.formatted.close,
+      price: event.formatted.price,
+      averagePrice: "--",
+      volume: "--",
     };
   }
 
   function applyChartData(): void {
-    if (chart === null || candleSeries === null) {
+    if (chart === null) {
       return;
     }
 
+    if (resolvePhaseOneMarketChartDisplayMode(model) === "intraday-timeshare") {
+      if (timesharePriceSeries === null) {
+        return;
+      }
+      const points = model.intradayTimeshare?.points ?? [];
+      const previousClose = model.intradayTimeshare?.previousClose;
+
+      timesharePriceSeries.setData(points.map(({ time, price }) => ({ time, value: price })));
+      timeshareAverageSeries?.setData(
+        points.flatMap((point) =>
+          point.averagePrice === undefined ? [] : [{ time: point.time, value: point.averagePrice }],
+        ),
+      );
+      timeshareBaselineSeries?.setData(
+        previousClose === undefined ? [] : points.map(({ time }) => ({ time, value: previousClose })),
+      );
+      volumeSeries?.setData(
+        points.flatMap((point) =>
+          point.volume === undefined ? [] : [{ time: point.time, value: point.volume, up: true }],
+        ),
+      );
+
+      if (points.length > 0) {
+        const lastLogical = points.length - 1;
+        const visibleBars = Math.max(42, Math.min(240, points.length));
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(-0.5, lastLogical - visibleBars + 1 - 0.5),
+          to: lastLogical + 6.5,
+        });
+      }
+      return;
+    }
+
+    if (candleSeries === null) {
+      return;
+    }
     candleSeries.setData(model.bars);
     overlaySeries?.setData(model.overlayLine ?? []);
     volumeSeries?.setData(model.volume ?? []);
@@ -169,7 +235,7 @@
 
     destroyChart();
 
-    if (model.bars.length === 0) {
+    if (resolvePhaseOneMarketChartActiveDataLength(model) === 0) {
       return;
     }
 
@@ -187,53 +253,83 @@
         ...(model.chartOptions?.crosshair ?? {}),
       },
     });
-    candleSeries = chart.addCandlestickSeries();
 
-    if ((model.overlayLine?.length ?? 0) > 0) {
-      overlaySeries = chart.addOverlaySeries();
-      overlaySeries.applyOptions({
+    if (resolvePhaseOneMarketChartDisplayMode(model) === "intraday-timeshare") {
+      const points = model.intradayTimeshare?.points ?? [];
+      timesharePriceSeries = chart.addLineSeries();
+      timesharePriceSeries.applyOptions({
         color: "#0f5964",
         lineWidth: 2,
       });
-    }
 
-    if ((model.volume?.length ?? 0) > 0) {
-      const volumePane = chart.addPane({ height: 112 });
-      volumeSeries = chart.addVolumeSeries({ pane: volumePane });
-    }
-
-    const nextIndicatorSeries: Array<PhaseOneVolumeSeriesApi | PhaseOneHistogramSeriesApi | PhaseOneLineSeriesApi> = [];
-    for (const pane of resolvePhaseOneMarketChartIndicatorPanes(model)) {
-      const chartPane = chart.addPane({ height: pane.height });
-      for (const series of pane.series) {
-        if (series.kind === "volume") {
-          const nextSeries = chart.addVolumeSeries({ pane: chartPane });
-          nextSeries.applyOptions({
-            upColor: series.color ?? "#64748b",
-            downColor: series.color ?? "#64748b",
-          });
-          nextIndicatorSeries.push(nextSeries);
-          continue;
-        }
-        if (series.kind === "histogram") {
-          const nextSeries = chart.addHistogramSeries({ pane: chartPane });
-          nextSeries.applyOptions({
-            upColor: series.color ?? "#dc2626",
-            downColor: series.color ?? "#16a34a",
-          });
-          nextIndicatorSeries.push(nextSeries);
-          continue;
-        }
-        const nextSeries = chart.addLineSeries({ pane: chartPane });
-        nextSeries.applyOptions({
-          color: series.color ?? "#2563eb",
+      if (points.some((point) => point.averagePrice !== undefined)) {
+        timeshareAverageSeries = chart.addOverlaySeries();
+        timeshareAverageSeries.applyOptions({
+          color: "#d97706",
           lineWidth: 1,
         });
-        nextIndicatorSeries.push(nextSeries);
       }
-    }
-    indicatorSeries = nextIndicatorSeries;
 
+      if (model.intradayTimeshare?.previousClose !== undefined) {
+        timeshareBaselineSeries = chart.addOverlaySeries();
+        timeshareBaselineSeries.applyOptions({
+          color: "#94a3b8",
+          lineWidth: 1,
+        });
+      }
+
+      if (points.some((point) => point.volume !== undefined)) {
+        const volumePane = chart.addPane({ height: 112 });
+        volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+      }
+    } else {
+      candleSeries = chart.addCandlestickSeries();
+
+      if ((model.overlayLine?.length ?? 0) > 0) {
+        overlaySeries = chart.addOverlaySeries();
+        overlaySeries.applyOptions({
+          color: "#0f5964",
+          lineWidth: 2,
+        });
+      }
+
+      if ((model.volume?.length ?? 0) > 0) {
+        const volumePane = chart.addPane({ height: 112 });
+        volumeSeries = chart.addVolumeSeries({ pane: volumePane });
+      }
+
+      const nextIndicatorSeries: Array<PhaseOneVolumeSeriesApi | PhaseOneHistogramSeriesApi | PhaseOneLineSeriesApi> = [];
+      for (const pane of resolvePhaseOneMarketChartIndicatorPanes(model)) {
+        const chartPane = chart.addPane({ height: pane.height });
+        for (const series of pane.series) {
+          if (series.kind === "volume") {
+            const nextSeries = chart.addVolumeSeries({ pane: chartPane });
+            nextSeries.applyOptions({
+              upColor: series.color ?? "#64748b",
+              downColor: series.color ?? "#64748b",
+            });
+            nextIndicatorSeries.push(nextSeries);
+            continue;
+          }
+          if (series.kind === "histogram") {
+            const nextSeries = chart.addHistogramSeries({ pane: chartPane });
+            nextSeries.applyOptions({
+              upColor: series.color ?? "#dc2626",
+              downColor: series.color ?? "#16a34a",
+            });
+            nextIndicatorSeries.push(nextSeries);
+            continue;
+          }
+          const nextSeries = chart.addLineSeries({ pane: chartPane });
+          nextSeries.applyOptions({
+            color: series.color ?? "#2563eb",
+            lineWidth: 1,
+          });
+          nextIndicatorSeries.push(nextSeries);
+        }
+      }
+      indicatorSeries = nextIndicatorSeries;
+    }
     const handleCrosshair = (event: PhaseOneCrosshairMoveEvent) => {
       applyReadout(event);
     };
@@ -248,8 +344,17 @@
   }
 
   $effect(() => {
-    const nextVolumeMode = (model.volume?.length ?? 0) > 0;
-    const nextOverlayMode = (model.overlayLine?.length ?? 0) > 0;
+    const nextDisplayMode = resolvePhaseOneMarketChartDisplayMode(model);
+    const timesharePoints = model.intradayTimeshare?.points ?? [];
+    const nextVolumeMode =
+      nextDisplayMode === "intraday-timeshare"
+        ? timesharePoints.some((point) => point.volume !== undefined)
+        : (model.volume?.length ?? 0) > 0;
+    const nextCandlestickOverlayMode = nextDisplayMode === "candlestick" && (model.overlayLine?.length ?? 0) > 0;
+    const nextTimeshareAverageMode =
+      nextDisplayMode === "intraday-timeshare" && timesharePoints.some((point) => point.averagePrice !== undefined);
+    const nextBaselineMode =
+      nextDisplayMode === "intraday-timeshare" && model.intradayTimeshare?.previousClose !== undefined;
     const nextIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
       .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
       .join("|");
@@ -260,11 +365,16 @@
 
     if (
       chart === null ||
+      lastDisplayMode !== nextDisplayMode ||
       lastVolumeMode !== nextVolumeMode ||
-      nextOverlayMode !== (overlaySeries !== null) ||
+      nextCandlestickOverlayMode !== (overlaySeries !== null) ||
+      nextTimeshareAverageMode !== (timeshareAverageSeries !== null) ||
+      lastTimeshareBaselineMode !== nextBaselineMode ||
       lastIndicatorSignature !== nextIndicatorSignature
     ) {
+      lastDisplayMode = nextDisplayMode;
       lastVolumeMode = nextVolumeMode;
+      lastTimeshareBaselineMode = nextBaselineMode;
       lastIndicatorSignature = nextIndicatorSignature;
       rebuildChart();
       return;
@@ -275,7 +385,15 @@
 
   onMount(() => {
     mounted = true;
-    lastVolumeMode = (model.volume?.length ?? 0) > 0;
+    const nextDisplayMode = resolvePhaseOneMarketChartDisplayMode(model);
+    const timesharePoints = model.intradayTimeshare?.points ?? [];
+    lastDisplayMode = nextDisplayMode;
+    lastVolumeMode =
+      nextDisplayMode === "intraday-timeshare"
+        ? timesharePoints.some((point) => point.volume !== undefined)
+        : (model.volume?.length ?? 0) > 0;
+    lastTimeshareBaselineMode =
+      nextDisplayMode === "intraday-timeshare" && model.intradayTimeshare?.previousClose !== undefined;
     lastIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
       .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
       .join("|");
@@ -312,10 +430,16 @@
     <strong>{model.symbol}</strong>
     <span>{model.timeframeLabel}</span>
     <span>T {readout.time}</span>
-    <span>O {readout.open}</span>
-    <span>H {readout.high}</span>
-    <span>L {readout.low}</span>
-    <span>C {readout.close}</span>
+    {#if readoutMode === "timeshare"}
+      <span>现 {readout.price}</span>
+      <span>均 {readout.averagePrice}</span>
+      <span>量 {readout.volume}</span>
+    {:else}
+      <span>O {readout.open}</span>
+      <span>H {readout.high}</span>
+      <span>L {readout.low}</span>
+      <span>C {readout.close}</span>
+    {/if}
     <span class="status">{model.statusLabel ?? "Mounted through chartx2 public market surface."}</span>
     {#if readoutActions}
       <span class="readout-actions" data-phase-one-market-chart-readout-actions>
@@ -330,7 +454,7 @@
     data-phase-one-market-chart-body
     style={`--chartx2-right-dock-width: ${rightDockWidth};`}
   >
-    {#if model.bars.length === 0}
+    {#if activeDataLength === 0}
       <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
     {:else}
       <div class="canvas-host" bind:this={canvasHost}>

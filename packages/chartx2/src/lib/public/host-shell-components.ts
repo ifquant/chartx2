@@ -4,6 +4,7 @@ export { default as AccountSyncSummaryCard } from "../ui/AccountSyncSummaryCard.
 export { default as ChartFrameShell } from "../ui/ChartFrameShell.svelte";
 export { default as HostSurfaceSummaryCard } from "../ui/HostSurfaceSummaryCard.svelte";
 export { default as MarketPanelShell } from "../ui/MarketPanelShell.svelte";
+export { default as OrderBookLadderSurface } from "../ui/OrderBookLadderSurface.svelte";
 export { default as PhaseOneMarketChartSurface } from "../ui/PhaseOneMarketChartSurface.svelte";
 export { default as ShareArtifactSummaryCard } from "../ui/ShareArtifactSummaryCard.svelte";
 export { default as ShareDialogShell } from "../ui/ShareDialogShell.svelte";

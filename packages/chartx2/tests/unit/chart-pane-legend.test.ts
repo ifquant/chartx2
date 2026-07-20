@@ -13,6 +13,7 @@ describe("chart pane legend use-case", () => {
       crosshair: { x: 20, y: 30 },
       primarySources: ["main-1"],
       primaryRowSets: new Map([["main-1", "rows"]]),
+      secondaryRows: new Map(),
       getSecondarySeriesForPane: () => {
         throw new Error("should not request secondary series for primary pane");
       },
@@ -40,6 +41,7 @@ describe("chart pane legend use-case", () => {
       crosshair: { x: 40, y: 145 },
       primarySources: [],
       primaryRowSets: new Map(),
+      secondaryRows: new Map([["study-1", ["rows"]]]),
       getSecondarySeriesForPane: (paneId) => {
         calls.push(`secondary:${paneId}`);
         return ["study-1"];
@@ -47,13 +49,13 @@ describe("chart pane legend use-case", () => {
       buildReadoutSeriesForPrimary: () => {
         throw new Error("should not build primary legend entries for secondary pane");
       },
-      buildReadoutSeriesForPane: (paneSeries, crosshair) => {
-        calls.push(`pane:${paneSeries[0]}:${crosshair?.y}`);
+      buildReadoutSeriesForPane: (paneSeries, rowSets, crosshair) => {
+        calls.push(`pane:${paneSeries[0]}:${String(rowSets.get("study-1"))}:${crosshair?.y}`);
         return [{ id: "study-1", label: "Study", kind: "line", value: 2, formattedValue: "2", color: "#111" }];
       },
     });
 
-    expect(calls).toEqual(["secondary:pane-2", "pane:study-1:45"]);
+    expect(calls).toEqual(["secondary:pane-2", "pane:study-1:rows:45"]);
     expect(entries).toEqual([
       { id: "study-1", label: "Study", kind: "line", value: 2, formattedValue: "2", color: "#111" },
     ]);

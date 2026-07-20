@@ -1,7 +1,8 @@
-import { PriceScale, type PriceRangeImpl } from "../model";
+import { PriceRangeImpl, PriceScale } from "../model";
 
 type RowWithIndex = {
   index: number;
+  value?: readonly number[];
 };
 
 type RowSet = readonly RowWithIndex[];
@@ -118,5 +119,30 @@ function resolveSourceRangeFromEdges(
   if (rows.length === 0) {
     return null;
   }
+  const rowRange = resolveRowsRange(rows);
+  if (rowRange !== null) {
+    return rowRange;
+  }
   return source.store.priceRange(rows[0]!.index, rows[rows.length - 1]!.index);
+}
+
+function resolveRowsRange(rows: RowSet): PriceRangeImpl | null {
+  let min: number | null = null;
+  let max: number | null = null;
+
+  for (const row of rows) {
+    const values = row.value;
+    if (values === undefined) {
+      return null;
+    }
+    for (const value of values) {
+      if (!Number.isFinite(value)) {
+        continue;
+      }
+      min = min === null ? value : Math.min(min, value);
+      max = max === null ? value : Math.max(max, value);
+    }
+  }
+
+  return min === null || max === null ? null : new PriceRangeImpl(min, max);
 }

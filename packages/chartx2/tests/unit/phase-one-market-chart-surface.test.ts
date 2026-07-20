@@ -5,7 +5,10 @@ import {
   resolvePhaseOneMarketChartActiveDataLength,
   resolvePhaseOneMarketChartDisplayMode,
   resolvePhaseOneMarketChartIndicatorPanes,
+  resolvePhaseOneMarketChartOverlayLines,
+  resolvePhaseOneMarketChartSurfaceMarkers,
   resolvePhaseOneMarketChartReadoutMode,
+  resolvePhaseOneMarketChartVirtualRange,
   type PhaseOneMarketChartSurfaceModel,
 } from "../../src/lib/public/market-chart-surface";
 
@@ -125,6 +128,113 @@ describe("phase one market chart surface model", () => {
     expect(resolvePhaseOneMarketChartActiveDataLength(model)).toBe(1);
   });
 
+  it("allows hosts to provide a product-specific price formatter", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "Tick",
+      displayMode: "intraday-timeshare",
+      bars: [],
+      intradayTimeshare: {
+        points: [{ time: 1, price: 1804 }],
+      },
+      priceFormatter: (value) => value.toFixed(0),
+    };
+
+    expect(model.priceFormatter?.(1_829.67)).toBe("1830");
+  });
+
+  it("allows hosts to override the visible price range", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "Tick",
+      displayMode: "intraday-timeshare",
+      bars: [],
+      intradayTimeshare: {
+        points: [{ time: 1, price: 1804 }],
+      },
+      visiblePriceRange: { minValue: 1798, maxValue: 1810 },
+    };
+
+    expect(model.visiblePriceRange).toEqual({ minValue: 1798, maxValue: 1810 });
+  });
+
+  it("exposes host-provided trade markers for the primary price series", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "Tick",
+      displayMode: "intraday-timeshare",
+      bars: [],
+      intradayTimeshare: {
+        points: [{ time: 1, price: 1804 }],
+      },
+      markers: [
+        {
+          time: 1,
+          position: "belowBar",
+          shape: "arrowUp",
+          color: "#0f9f6e",
+          text: "开多 1804",
+        },
+      ],
+    };
+
+    expect(resolvePhaseOneMarketChartSurfaceMarkers(model)).toEqual(model.markers);
+  });
+
+  it("resolves multi-overlay lines while preserving the legacy overlay field", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "5m",
+      bars: [{ time: 1, open: 3700, high: 3710, low: 3690, close: 3708 }],
+      overlayLine: [{ time: 1, value: 3705 }],
+      overlayLines: [
+        {
+          id: "short1",
+          label: "Short 1",
+          color: "#2563eb",
+          lineWidth: 1,
+          data: [{ time: 1, value: 3707 }],
+        },
+        {
+          id: "long2",
+          label: "Long 2",
+          color: "#7c3aed",
+          lineWidth: 2,
+          data: [{ time: 1, value: 3698 }],
+        },
+      ],
+    };
+
+    expect(resolvePhaseOneMarketChartOverlayLines(model)).toEqual([
+      {
+        id: "overlay",
+        label: "Overlay",
+        color: "#0f5964",
+        lineWidth: 2,
+        data: [{ time: 1, value: 3705 }],
+      },
+      ...model.overlayLines!,
+    ]);
+  });
+
+  it("does not duplicate the legacy overlay when a host already owns the overlay id", () => {
+    const model: PhaseOneMarketChartSurfaceModel = {
+      symbol: "rb2605",
+      timeframeLabel: "5m",
+      bars: [{ time: 1, open: 3700, high: 3710, low: 3690, close: 3708 }],
+      overlayLine: [{ time: 1, value: 3705 }],
+      overlayLines: [
+        {
+          id: "overlay",
+          label: "Host Overlay",
+          data: [{ time: 1, value: 3711 }],
+        },
+      ],
+    };
+
+    expect(resolvePhaseOneMarketChartOverlayLines(model)).toEqual(model.overlayLines);
+  });
+
   it("resolves intraday-timeshare models from timeshare points instead of bars", () => {
     const model: PhaseOneMarketChartSurfaceModel = {
       symbol: "rb2605",
@@ -159,5 +269,31 @@ describe("phase one market chart surface model", () => {
 
     expect(resolvePhaseOneMarketChartActiveDataLength(model)).toBe(1);
     expect(resolvePhaseOneMarketChartReadoutMode(model)).toBe("timeshare");
+  });
+
+  it("resolves virtual range edge pressure for host-side lazy loading", () => {
+    expect(
+      resolvePhaseOneMarketChartVirtualRange(
+        { from: 92.4, to: 105.1 },
+        108,
+        { enabled: true, edgeThreshold: 8 },
+      ),
+    ).toEqual({
+      from: 92.4,
+      to: 105.1,
+      dataLength: 108,
+      visibleCount: 14,
+      nearStart: false,
+      nearEnd: true,
+    });
+
+    expect(
+      resolvePhaseOneMarketChartVirtualRange(
+        { from: 3, to: 46 },
+        108,
+        { enabled: true, edgeThreshold: 8 },
+      )?.nearStart,
+    ).toBe(true);
+    expect(resolvePhaseOneMarketChartVirtualRange({ from: 0, to: 10 }, 20, { enabled: false })).toBeNull();
   });
 });

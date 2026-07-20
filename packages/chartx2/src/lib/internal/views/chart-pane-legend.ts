@@ -7,6 +7,8 @@ type PanePoint = {
   y: number;
 };
 
+type RowSet = readonly unknown[];
+
 export function buildPaneLegendEntries<
   PrimarySource,
   PaneSource,
@@ -16,6 +18,7 @@ export function buildPaneLegendEntries<
   crosshair: PanePoint | null;
   primarySources: readonly PrimarySource[];
   primaryRowSets: ReadonlyMap<string, unknown>;
+  secondaryRows: ReadonlyMap<string, RowSet>;
   getSecondarySeriesForPane(paneId: string): readonly PaneSource[];
   buildReadoutSeriesForPrimary(
     primarySources: readonly PrimarySource[],
@@ -24,6 +27,7 @@ export function buildPaneLegendEntries<
   ): readonly PhaseOneReadoutSeriesDetail[];
   buildReadoutSeriesForPane(
     paneSeries: readonly PaneSource[],
+    rowSets: ReadonlyMap<string, RowSet>,
     crosshair: PanePoint | null,
   ): readonly PhaseOneReadoutSeriesDetail[];
 }): readonly PhaseOneReadoutSeriesDetail[] {
@@ -40,6 +44,7 @@ export function buildPaneLegendEntries<
       )
     : params.buildReadoutSeriesForPane(
         params.getSecondarySeriesForPane(params.pane.id),
+        params.secondaryRows,
         paneCrosshair,
       );
 }

@@ -107,6 +107,20 @@ export function measureLayout<LayoutType extends LayoutGeometry>(
   };
 }
 
+export function reservePriceAxisInset<LayoutType extends LayoutGeometry>(
+  layout: LayoutType,
+  position: "left" | "right",
+  leftMinimum: number,
+): LayoutType {
+  if (position !== "left" || layout.left >= leftMinimum) {
+    return layout;
+  }
+  return {
+    ...layout,
+    left: leftMinimum,
+  };
+}
+
 export function resolvePanePoint(
   canvas: HTMLCanvasElement,
   event: Pick<MouseEvent, "clientX" | "clientY">,

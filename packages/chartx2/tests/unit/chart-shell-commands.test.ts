@@ -19,6 +19,7 @@ describe("chart shell commands use-case", () => {
       layout: {
         backgroundColor: "#111",
         axisTextColor: "#222",
+        priceAxisPosition: "left",
         fitContainerHeight: true,
         plotInsets: { top: -1, right: 2, bottom: 3, left: 4 },
       },
@@ -46,6 +47,7 @@ describe("chart shell commands use-case", () => {
 
     expect(setLayoutOption).toHaveBeenCalledWith("backgroundColor", "#111");
     expect(setLayoutOption).toHaveBeenCalledWith("axisTextColor", "#222");
+    expect(setLayoutOption).toHaveBeenCalledWith("priceAxisPosition", "left");
     expect(setLayoutOption).toHaveBeenCalledWith("fitContainerHeight", true);
     expect(setLayoutOption).toHaveBeenCalledWith("plotInsets", {
       top: 0,

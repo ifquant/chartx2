@@ -33,6 +33,7 @@ function createCoordinator(overrides: Partial<Parameters<typeof createChartRende
       axisLabelBorder: "#ccc",
       axisActiveBackground: "#111",
       axisActiveText: "#fff",
+      priceAxisPosition: "right",
     }),
     getCrosshairOptions: () => ({ lineColor: "#111", pointColor: "#222" }),
     getDrawingOptions: () => ({ magnetLabelVisible: true, timeMagnetLabelVisible: true }),

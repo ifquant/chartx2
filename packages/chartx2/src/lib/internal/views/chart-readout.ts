@@ -2,6 +2,7 @@ import { type PaneFrame, type PlotRow } from "../model";
 import { PriceScale, TimeScale } from "../model";
 import { buildCrosshairReadout } from "./chart-crosshair-readout";
 import { resolveActivePane, resolveLocalPanePoint } from "./chart-layout-geometry";
+import { projectRowsToTimeAxis } from "./chart-render-state";
 import type {
   PhaseOneCandlestickData,
   PhaseOneReadoutSeriesDetail,
@@ -52,6 +53,7 @@ export function buildRawReadout<
   paneFrames: readonly PaneFrame[];
   mainSourceId: string | null;
   primaryRows: RowSet;
+  timeAxisRows: RowSet;
   primaryStudies: readonly PrimaryStudyState[];
   primarySources: readonly PrimarySource[];
   timeScale: TimeScale;
@@ -65,6 +67,7 @@ export function buildRawReadout<
   ): readonly PhaseOneReadoutSeriesDetail[];
   buildReadoutSeriesForPane(
     paneSeries: readonly PaneSource[],
+    rowSets: ReadonlyMap<string, RowSet>,
     crosshair: PanePoint | null,
   ): readonly PhaseOneReadoutSeriesDetail[];
 }): ReadoutBody {
@@ -73,7 +76,10 @@ export function buildRawReadout<
     primaryRowSets.set(params.mainSourceId, params.primaryRows);
   }
   for (const study of params.primaryStudies) {
-    primaryRowSets.set(study.id, study.store.setData(study.data));
+    primaryRowSets.set(
+      study.id,
+      projectRowsToTimeAxis(study.store.setData(study.data), params.timeAxisRows),
+    );
   }
 
   const activePane = params.point === null ? null : resolveActivePane(params.paneFrames, params.point.y);
@@ -95,11 +101,12 @@ export function buildRawReadout<
 
     if (activePane !== null && activePane.kind === "secondary" && logicalPoint !== null) {
       const paneSeries = params.getSecondarySeriesForPane(activePane.id);
+      const paneRowSets = buildPaneRowSets(paneSeries, params.timeAxisRows);
       const state = paneSeries[0];
       if (state !== undefined) {
-        const paneSeriesReadout = params.buildReadoutSeriesForPane(paneSeries, logicalPoint);
+        const paneSeriesReadout = params.buildReadoutSeriesForPane(paneSeries, paneRowSets, logicalPoint);
         if (state.kind === "candlestick" || state.kind === "bar") {
-          const rows = state.store.setData(state.data);
+          const rows = paneRowSets.get(state.id) ?? [];
           return {
             ...buildCrosshairReadout(
               rows,
@@ -129,9 +136,10 @@ export function buildRawReadout<
 
   if (activePane !== null && activePane.kind === "secondary") {
     const paneSeries = params.getSecondarySeriesForPane(activePane.id);
+    const paneRowSets = buildPaneRowSets(paneSeries, params.timeAxisRows);
     const state = paneSeries[0];
     if (state !== undefined) {
-      const rows = state.store.setData(state.data);
+      const rows = paneRowSets.get(state.id) ?? [];
       return {
         ...buildCrosshairReadout(
           rows,
@@ -140,7 +148,7 @@ export function buildRawReadout<
           state.priceScale,
         ),
         paneIndex: activePaneIndex,
-        series: params.buildReadoutSeriesForPane(paneSeries, logicalPoint),
+        series: params.buildReadoutSeriesForPane(paneSeries, paneRowSets, logicalPoint),
       };
     }
   }
@@ -156,4 +164,15 @@ export function buildRawReadout<
     price: null,
     series: [],
   };
+}
+
+function buildPaneRowSets<PaneSource extends PaneSeriesState>(
+  paneSeries: readonly PaneSource[],
+  timeAxisRows: RowSet,
+): ReadonlyMap<string, RowSet> {
+  const rowSets = new Map<string, RowSet>();
+  for (const state of paneSeries) {
+    rowSets.set(state.id, projectRowsToTimeAxis(state.store.setData(state.data), timeAxisRows));
+  }
+  return rowSets;
 }

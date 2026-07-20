@@ -51,6 +51,7 @@ describe("chart readout use-case", () => {
       paneFrames: [{ id: "primary", kind: "primary", top: 0, height: 100 } satisfies PaneFrame],
       mainSourceId: "main-1",
       primaryRows,
+      timeAxisRows: primaryRows,
       primaryStudies: [],
       primarySources: [{
         id: "main-1",
@@ -112,6 +113,9 @@ describe("chart readout use-case", () => {
       primaryRows: [
         createRow(0, 1, [10, 12, 9, 11]),
       ],
+      timeAxisRows: [
+        createRow(0, 1, [10, 12, 9, 11]),
+      ],
       primaryStudies: [],
       primarySources: [],
       timeScale,
@@ -151,5 +155,46 @@ describe("chart readout use-case", () => {
         color: "#3b82f6",
       },
     ]);
+  });
+
+  it("projects primary study readout rows onto the supplied time axis", () => {
+    const timeScale = createTimeScale();
+    const primaryPriceScale = createPriceScale(10, 50);
+    const primaryRows = [
+      createRow(0, 10, [10, 12, 9, 11]),
+      createRow(1, 20, [11, 13, 10, 12]),
+      createRow(2, 30, [30, 30, 30, 30]),
+      createRow(3, 40, [40, 40, 40, 40]),
+    ] as const;
+    const studyRows = [
+      createRow(0, 30, [30, 30, 30, 30]),
+      createRow(1, 40, [40, 40, 40, 40]),
+    ] as const;
+    let capturedStudyIndices: readonly number[] = [];
+
+    buildRawReadout({
+      point: { x: 90, y: 50 },
+      paneFrames: [{ id: "primary", kind: "primary", top: 0, height: 100 } satisfies PaneFrame],
+      mainSourceId: "main-1",
+      primaryRows,
+      timeAxisRows: primaryRows,
+      primaryStudies: [{
+        id: "study-warmup",
+        data: [],
+        store: { setData: () => studyRows },
+      }],
+      primarySources: [],
+      timeScale,
+      primaryPriceScale,
+      getPaneIndex: () => 0,
+      getSecondarySeriesForPane: () => [],
+      buildReadoutSeriesForPrimary: (_sources, rowSets) => {
+        capturedStudyIndices = rowSets.get("study-warmup")?.map((row) => row.index) ?? [];
+        return [];
+      },
+      buildReadoutSeriesForPane: () => [],
+    });
+
+    expect(capturedStudyIndices).toEqual([2, 3]);
   });
 });

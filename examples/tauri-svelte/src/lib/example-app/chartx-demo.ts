@@ -1842,6 +1842,7 @@ const WARM_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisLabelBorder: "rgba(16, 16, 16, 0.14)",
   axisActiveBackground: "#101010",
   axisActiveText: "#fffdf7",
+  priceAxisPosition: "right",
   fitContainerHeight: false,
   paneGap: 10,
   plotInsets: {
@@ -1865,6 +1866,7 @@ const INK_THEME: Required<NonNullable<PhaseOneChartOptions["layout"]>> &
   axisLabelBorder: "rgba(15, 23, 42, 0.12)",
   axisActiveBackground: "#0f172a",
   axisActiveText: "#f8fafc",
+  priceAxisPosition: "right",
   fitContainerHeight: false,
   paneGap: 10,
   plotInsets: {

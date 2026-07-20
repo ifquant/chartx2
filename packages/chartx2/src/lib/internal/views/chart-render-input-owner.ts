@@ -43,6 +43,7 @@ type ChartLayoutOptions = {
   axisLabelBorder: string;
   axisActiveBackground: string;
   axisActiveText: string;
+  priceAxisPosition: "left" | "right";
 };
 
 type ChartCrosshairOptions = {

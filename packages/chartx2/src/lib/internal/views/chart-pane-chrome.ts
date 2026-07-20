@@ -19,6 +19,7 @@ export function renderPaneChrome<
   crosshair: PanePoint | null;
   primarySources: readonly PrimarySource[];
   primaryRowSets: ReadonlyMap<string, RowSet>;
+  secondaryRows: ReadonlyMap<string, RowSet>;
   getSecondarySeriesForPane(paneId: string): readonly PaneSeries[];
   buildReadoutSeriesForPrimary(
     primarySources: readonly PrimarySource[],
@@ -27,6 +28,7 @@ export function renderPaneChrome<
   ): readonly PhaseOneReadoutSeriesDetail[];
   buildReadoutSeriesForPane(
     paneSeries: readonly PaneSeries[],
+    rowSets: ReadonlyMap<string, RowSet>,
     crosshair: PanePoint | null,
   ): readonly PhaseOneReadoutSeriesDetail[];
   drawLegend(entries: readonly PhaseOneReadoutSeriesDetail[]): void;
@@ -39,6 +41,7 @@ export function renderPaneChrome<
     crosshair: params.crosshair,
     primarySources: params.primarySources,
     primaryRowSets: params.primaryRowSets,
+    secondaryRows: params.secondaryRows,
     getSecondarySeriesForPane: params.getSecondarySeriesForPane,
     buildReadoutSeriesForPrimary: params.buildReadoutSeriesForPrimary,
     buildReadoutSeriesForPane: params.buildReadoutSeriesForPane,

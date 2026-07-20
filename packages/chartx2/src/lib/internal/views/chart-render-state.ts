@@ -22,6 +22,34 @@ type StudySourceState = {
   };
 };
 
+export function projectRowsToTimeAxis(
+  rows: RowSet,
+  timeAxisRows: readonly PlotRow<number>[],
+): RowSet {
+  if (rows.length === 0 || timeAxisRows.length === 0) {
+    return rows;
+  }
+
+  const indexByTime = new Map(timeAxisRows.map((row) => [row.time, row.index] as const));
+  const projected: PlotRow<number>[] = [];
+
+  for (const row of rows) {
+    const axisIndex = indexByTime.get(row.time);
+    if (axisIndex === undefined) {
+      // Studies can include warm-up or stale points outside the loaded primary
+      // window. Those points have no valid logical coordinate in this chart and
+      // must not force the remaining rows back onto study-local indices.
+      continue;
+    }
+    projected.push({
+      ...row,
+      index: axisIndex,
+    });
+  }
+
+  return projected;
+}
+
 export type ChartRenderState<PrimarySource, StudySource extends StudySourceState> = {
   primaryRows: readonly PlotRow<number>[];
   primaryTimeAxisRows: readonly PlotRow<number>[];
@@ -55,7 +83,10 @@ export function buildChartRenderState<
     primaryRowSets.set(params.mainSourceId, params.mainSequence.bars);
   }
   for (const state of params.primaryStudies) {
-    primaryRowSets.set(state.id, state.store.setData(state.data));
+    primaryRowSets.set(
+      state.id,
+      projectRowsToTimeAxis(state.store.setData(state.data), params.mainSequence.axisBars),
+    );
   }
 
   const secondaryRows = new Map<string, RowSet>();
@@ -64,9 +95,10 @@ export function buildChartRenderState<
     const rows = state.paneId === "primary"
       ? (primaryRowSets.get(state.id) ?? state.store.setData(state.data))
       : state.store.setData(state.data);
-    secondaryRows.set(state.id, rows);
+    const projectedRows = projectRowsToTimeAxis(rows, params.mainSequence.axisBars);
+    secondaryRows.set(state.id, projectedRows);
     const rowLogicalLength =
-      rows.length === 0 ? 0 : Math.ceil(rows[rows.length - 1]?.index ?? 0) + 1;
+      projectedRows.length === 0 ? 0 : Math.ceil(projectedRows[projectedRows.length - 1]?.index ?? 0) + 1;
     pointCount = Math.max(pointCount, rowLogicalLength);
   }
 

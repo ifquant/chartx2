@@ -17,6 +17,7 @@ import { createChartHandlerRegistry } from "./chart-handler-registry";
 import { createChartEventSubscriptionOwner } from "./chart-event-subscription-owner";
 import {
   measureLayout,
+  reservePriceAxisInset,
   resolveBarSpacing,
 } from "./chart-layout-geometry";
 import {
@@ -63,6 +64,7 @@ import {
   DEFAULT_RIGHT_OFFSET,
   DRAWING_HIT_TOLERANCE,
   LINE_COLOR,
+  LEFT_PRICE_AXIS_MIN_INSET,
   MAX_BAR_SPACING,
   MIN_BAR_SPACING,
   PANE_DIVIDER_HIT_SLOP,
@@ -162,10 +164,15 @@ export class PhaseOneChartHarness {
   });
 
   private layoutGeometry() {
-    return {
+    const layout = {
       ...DEFAULT_LAYOUT,
       ...this.chartOptions.plotInsets,
     };
+    return reservePriceAxisInset(
+      layout,
+      this.chartOptions.priceAxisPosition,
+      LEFT_PRICE_AXIS_MIN_INSET,
+    );
   }
   private paneGap(): number {
     return this.chartOptions.paneGap;

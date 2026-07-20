@@ -15,6 +15,7 @@ type MarkerState = {
   time: number;
   position: "aboveBar" | "belowBar" | "inBar";
   shape: "circle" | "square" | "arrowUp" | "arrowDown";
+  fill?: "solid" | "hollow";
   color: string;
   text: string;
 };
@@ -132,7 +133,7 @@ export function drawSeriesMarkers(
       continue;
     }
 
-    drawMarkerShape(context, x, y, marker.shape, marker.color);
+    drawMarkerShape(context, x, y, marker.shape, marker.color, marker.fill ?? "solid");
     if (marker.text !== "") {
       const textY = marker.position === "belowBar" ? y + 13 : y - 13;
       context.fillStyle = marker.color;
@@ -271,6 +272,7 @@ function drawMarkerShape(
   y: number,
   shape: MarkerState["shape"],
   color: string,
+  fill: "solid" | "hollow" = "solid",
 ): void {
   context.save();
   context.fillStyle = color;
@@ -280,13 +282,21 @@ function drawMarkerShape(
   if (shape === "circle") {
     context.beginPath();
     context.arc(x, y, 4, 0, Math.PI * 2);
-    context.fill();
+    if (fill === "hollow") {
+      context.stroke();
+    } else {
+      context.fill();
+    }
     context.restore();
     return;
   }
 
   if (shape === "square") {
-    context.fillRect(x - 4, y - 4, 8, 8);
+    if (fill === "hollow") {
+      context.strokeRect(x - 4, y - 4, 8, 8);
+    } else {
+      context.fillRect(x - 4, y - 4, 8, 8);
+    }
     context.restore();
     return;
   }
@@ -310,7 +320,11 @@ function drawMarkerShape(
     context.lineTo(x - 6, y - 4);
   }
   context.closePath();
-  context.fill();
+  if (fill === "hollow") {
+    context.stroke();
+  } else {
+    context.fill();
+  }
   context.restore();
 }
 

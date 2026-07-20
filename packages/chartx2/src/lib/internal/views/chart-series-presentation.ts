@@ -4,21 +4,26 @@ type FormatterOptions = {
 
 type MarkerPosition = "aboveBar" | "belowBar" | "inBar";
 type MarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
+type MarkerFill = "solid" | "hollow";
 
 type MarkerInput = {
   time: number;
   position?: MarkerPosition;
   shape?: MarkerShape;
+  fill?: MarkerFill;
   color?: string;
   text?: string;
+  tooltip?: string;
 };
 
 export type SeriesMarkerState = {
   time: number;
   position: MarkerPosition;
   shape: MarkerShape;
+  fill?: MarkerFill;
   color: string;
   text: string;
+  tooltip?: string;
 };
 
 type ReadoutState = {
@@ -50,13 +55,20 @@ export function setSeriesMarkers<State>(
 }
 
 export function normalizeSeriesMarkers(markers: readonly MarkerInput[]): readonly SeriesMarkerState[] {
-  return markers.map((marker) => ({
-    time: marker.time,
-    position: marker.position ?? "aboveBar",
-    shape: marker.shape ?? "circle",
-    color: marker.color ?? "#2563eb",
-    text: marker.text ?? "",
-  })).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
+  return markers.map((marker) => {
+    const normalized = {
+      time: marker.time,
+      position: marker.position ?? "aboveBar",
+      shape: marker.shape ?? "circle",
+      ...(marker.fill === "hollow" ? { fill: marker.fill } : {}),
+      color: marker.color ?? "#2563eb",
+      text: marker.text ?? "",
+    };
+    const tooltip = marker.tooltip?.trim();
+    return tooltip === undefined || tooltip === ""
+      ? normalized
+      : { ...normalized, tooltip };
+  }).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
 }
 
 export function formatSeriesReadoutValue(

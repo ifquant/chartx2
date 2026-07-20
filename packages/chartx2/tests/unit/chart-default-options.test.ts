@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LAYOUT,
   DEFAULT_RIGHT_OFFSET,
+  LEFT_PRICE_AXIS_MIN_INSET,
   PANE_DIVIDER_HIT_SLOP,
   PANE_GAP,
   createDefaultChartOptionBundle,
   createDefaultDrawingOptions,
   createDefaultLayoutOptions,
 } from "../../src/lib/internal/views/chart-default-options";
+import { reservePriceAxisInset } from "../../src/lib/internal/views/chart-layout-geometry";
 
 describe("chart default options", () => {
   it("keeps immutable viewport defaults stable", () => {
@@ -38,6 +40,7 @@ describe("chart default options", () => {
     expect(secondLayout.backgroundColor).toBe("#fffdf7");
     expect(secondLayout.fitContainerHeight).toBe(false);
     expect(secondLayout.paneGap).toBe(PANE_GAP);
+    expect(secondLayout.priceAxisPosition).toBe("right");
     expect(secondLayout.plotInsets).toEqual({
       top: DEFAULT_LAYOUT.top,
       right: DEFAULT_LAYOUT.right,
@@ -56,5 +59,13 @@ describe("chart default options", () => {
 
     expect(secondBundle.candlestickOptions.upColor).toBe("#0c8f62");
     expect(secondBundle.defaultCompareOptions.mergePolicy).toBe("carry-forward");
+  });
+
+  it("reserves enough plot inset for the public left price axis default", () => {
+    expect(reservePriceAxisInset(DEFAULT_LAYOUT, "left", LEFT_PRICE_AXIS_MIN_INSET)).toEqual({
+      ...DEFAULT_LAYOUT,
+      left: LEFT_PRICE_AXIS_MIN_INSET,
+    });
+    expect(reservePriceAxisInset(DEFAULT_LAYOUT, "right", LEFT_PRICE_AXIS_MIN_INSET)).toBe(DEFAULT_LAYOUT);
   });
 });

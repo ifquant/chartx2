@@ -15,6 +15,7 @@ describe("chart shell owner", () => {
       axisLabelBorder: "#eee",
       axisActiveBackground: "#111",
       axisActiveText: "#fff",
+      priceAxisPosition: "right" as const,
       fitContainerHeight: false,
       plotInsets: {
         top: 28,
@@ -92,6 +93,7 @@ describe("chart shell owner", () => {
       axisLabelBorder: "#eee",
       axisActiveBackground: "#111",
       axisActiveText: "#fff",
+      priceAxisPosition: "right" as const,
       fitContainerHeight: false,
       plotInsets: {
         top: 28,

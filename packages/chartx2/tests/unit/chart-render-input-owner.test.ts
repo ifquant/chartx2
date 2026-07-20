@@ -28,6 +28,7 @@ describe("chart render input owner", () => {
         axisLabelBorder: "#cccccc",
         axisActiveBackground: "#111111",
         axisActiveText: "#ffffff",
+        priceAxisPosition: "right",
       }),
       getCrosshairOptions: () => ({ lineColor: "#111111", pointColor: "#222222" }),
       getDrawingOptions: () => ({ magnetLabelVisible: true, timeMagnetLabelVisible: true }),

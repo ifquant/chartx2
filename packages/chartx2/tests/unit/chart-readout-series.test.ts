@@ -92,6 +92,7 @@ describe("chart readout series use-case", () => {
         visuals: new Map([[2, { color: "#f59e0b", isUp: true }]]),
         store: { setData: () => rows },
       }],
+      new Map([["vol-1", rows]]),
       { x: 90, y: 50 },
       {
         timeScale,

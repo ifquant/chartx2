@@ -62,6 +62,7 @@ export function buildReadoutSeriesForPane<
   State extends ReadoutSeriesState,
 >(
   paneSeries: readonly State[],
+  rowSets: ReadonlyMap<string, RowSet>,
   crosshair: PanePoint | null,
   deps: {
     timeScale: TimeScale;
@@ -69,7 +70,7 @@ export function buildReadoutSeriesForPane<
   },
 ): readonly PhaseOneReadoutSeriesDetail[] {
   return paneSeries.map((state) => {
-    const rows = state.store.setData(state.data);
+    const rows = rowSets.get(state.id) ?? state.store.setData(state.data);
     const value = resolveSeriesReadoutValue(rows, crosshair, deps.timeScale);
     return {
       id: state.id,

@@ -36,6 +36,7 @@ export const DRAWING_PRICE_SNAP_TOLERANCE = 8;
 export const DRAWING_TIME_SNAP_TOLERANCE = 10;
 export const PANE_GAP = 10;
 export const PANE_DIVIDER_HIT_SLOP = 6;
+export const LEFT_PRICE_AXIS_MIN_INSET = 112;
 
 export const DEFAULT_LAYOUT = {
   width: 960,
@@ -80,6 +81,7 @@ export function createDefaultLayoutOptions(): Required<NonNullable<PhaseOneChart
     axisLabelBorder: AXIS_LABEL_BORDER,
     axisActiveBackground: AXIS_ACTIVE_BACKGROUND,
     axisActiveText: AXIS_ACTIVE_TEXT,
+    priceAxisPosition: "right",
   };
 }
 

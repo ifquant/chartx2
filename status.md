@@ -1,6 +1,6 @@
 # chartx2 status
 
-Last updated: 2026-05-30
+Last updated: 2026-07-20
 
 This file is the handoff entrypoint for a fresh session. It records the current
 repo state, the project boundaries already agreed on, and the practical next
@@ -12,13 +12,17 @@ snapshot.
 - Repo: `/Users/dev/workspace2/hc_apps/chartx2`
 - Branch: `main`
 - Remote: `origin/main`
-- Latest observed state: `main...origin/main` with no ahead/behind marker and
-  no uncommitted changes reported by `git status --short --branch`
-- Latest pushed commit observed locally:
-  - `cfc21b6 feat(chartx2-timeshare): add intraday market chart mode`
+- This handoff accompanies the market-chart host-control slice. Use live
+  `git status --short --branch` and `git log` output for ahead/behind state and
+  exact commit hashes instead of treating this dated snapshot as Git authority.
+- The price-alert visual test now follows the shared Activity bottom-panel
+  owner instead of the retired action-card selector.
 
 Recent relevant commits on main:
 
+- `feat(chartx2-market-surface): add host-driven chart controls` (this handoff)
+- `1bd538b test(chartx2-shell): follow activity log panel ownership`
+- `d23d8d7 docs(chartx2): add status handoff snapshot`
 - `cfc21b6 feat(chartx2-timeshare): add intraday market chart mode`
 - `8a5d2d1 feat(chartx2-orderbook): export compact ladder surface`
 - `89352db feat(market-chart-surface): add inline right dock mode`
@@ -210,6 +214,13 @@ The library already has more than a starter shell:
   - integrated readout layout
   - right-dock and inline right-dock modes
   - intraday timeshare market chart mode
+  - host-provided price/time formatters and visible price range
+  - left/right price-axis placement with edge-clamped labels
+  - multiple overlay lines and solid/hollow markers with hover reasons
+  - inline or cursor tooltip OHLC/volume readout
+  - host-observable virtual range with viewport preservation and keyboard/wheel navigation
+- study and pane rows project onto the shared chart time axis before rendering,
+  readout and autoscale so warm-up gaps do not shift indicators to the newest bars
 - compact order book ladder surface exported through the public package
 - canonical local release scripts and external consumer verification
 

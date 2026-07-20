@@ -16,6 +16,35 @@ function createRangeSource(id: string, min: number, max: number) {
 }
 
 describe("chart pane scale use-case", () => {
+  it("computes the primary range from projected rows instead of compact store indices", () => {
+    const priceScale = new PriceScale();
+
+    const result = applyPrimaryPaneScale({
+      mainSource: createRangeSource("main", 1, 2),
+      primaryStudies: [{
+        ...createRangeSource("study", 1, 2),
+        studyKind: "overlay",
+      }],
+      primaryRowSets: new Map([
+        ["main", [
+          { index: 0, value: [10, 12, 9, 11] },
+          { index: 1, value: [11, 13, 10, 12] },
+        ]],
+        ["study", [
+          { index: 2, value: [30, 30, 30, 30] },
+          { index: 3, value: [40, 40, 40, 40] },
+        ]],
+      ]),
+      primaryScaleSeriesOnly: false,
+      priceRangeOverride: null,
+      paneHeight: 180,
+      priceScale,
+    });
+
+    expect(result.range?.minValue()).toBe(9);
+    expect(result.range?.maxValue()).toBe(40);
+  });
+
   it("applies the merged primary-pane range while skipping compare studies that should not affect the main scale", () => {
     const priceScale = new PriceScale();
     const mainSource = createRangeSource("main", 10, 20);

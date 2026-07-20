@@ -8,19 +8,26 @@
     type PhaseOneCrosshairMoveEvent,
     type PhaseOneHistogramSeriesApi,
     type PhaseOneLineSeriesApi,
+    type PhaseOneVolumeData,
     type PhaseOneVolumeSeriesApi,
   } from "../public/market";
+  import { formatVolumeAxisLabel } from "../internal/views/chart-axis-format";
   import {
     normalizePhaseOneMarketChartSurfaceLayout,
     resolvePhaseOneMarketChartActiveDataLength,
     resolvePhaseOneMarketChartDisplayMode,
     resolvePhaseOneMarketChartIndicatorPanes,
+    resolvePhaseOneMarketChartOverlayLines,
     resolvePhaseOneMarketChartReadoutMode,
+    resolvePhaseOneMarketChartSurfaceMarkers,
+    resolvePhaseOneMarketChartVirtualRange,
     type PhaseOneMarketChartSurfaceChrome,
     type PhaseOneMarketChartSurfaceDensity,
     type PhaseOneMarketChartSurfaceModel,
+    type PhaseOneMarketChartSurfaceReadoutDisplay,
     type PhaseOneMarketChartSurfaceReadoutPosition,
     type PhaseOneMarketChartSurfaceRightDockMode,
+    type PhaseOneMarketChartSurfaceVirtualRange,
   } from "../public/market-chart-surface";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
@@ -55,9 +62,11 @@
     chrome?: PhaseOneMarketChartSurfaceChrome;
     density?: PhaseOneMarketChartSurfaceDensity;
     readoutPosition?: PhaseOneMarketChartSurfaceReadoutPosition;
+    readoutDisplay?: PhaseOneMarketChartSurfaceReadoutDisplay;
     rightDockMode?: PhaseOneMarketChartSurfaceRightDockMode;
     rightDockOpen?: boolean;
     rightDockWidth?: string;
+    onVirtualRangeChange?: (range: PhaseOneMarketChartSurfaceVirtualRange) => void;
     readoutActions?: Snippet;
     rightDock?: Snippet;
   };
@@ -67,9 +76,11 @@
     chrome = "card",
     density = "default",
     readoutPosition = "bottom",
+    readoutDisplay = "inline",
     rightDockMode = "none",
     rightDockOpen = false,
     rightDockWidth = "260px",
+    onVirtualRangeChange,
     readoutActions,
     rightDock,
   }: Props = $props();
@@ -78,7 +89,7 @@
   let canvas = $state<HTMLCanvasElement | undefined>(undefined);
   let chart: PhaseOneChartApi | null = null;
   let candleSeries: PhaseOneCandlestickSeriesApi | null = null;
-  let overlaySeries: PhaseOneLineSeriesApi | null = null;
+  let overlaySeries = $state<PhaseOneLineSeriesApi[]>([]);
   let timesharePriceSeries: PhaseOneLineSeriesApi | null = null;
   let timeshareAverageSeries: PhaseOneLineSeriesApi | null = null;
   let timeshareBaselineSeries: PhaseOneLineSeriesApi | null = null;
@@ -90,7 +101,12 @@
   let lastDisplayMode: ReturnType<typeof resolvePhaseOneMarketChartDisplayMode> | null = null;
   let lastTimeshareBaselineMode: boolean | null = null;
   let lastVolumeMode: boolean | null = null;
+  let lastOverlaySignature: string | null = null;
   let lastIndicatorSignature: string | null = null;
+  let lastAutoRangeModelKey: string | null = null;
+  let lastVirtualRangeSignature: string | null = null;
+  let virtualRangeMonitorFrame: number | null = null;
+  let virtualRangeMonitorRemaining = 0;
 
   type ReadoutState = {
     time: string;
@@ -101,6 +117,11 @@
     price: string;
     averagePrice: string;
     volume: string;
+  };
+  type MarkerTooltipState = {
+    label: string;
+    detail: string;
+    color?: string;
   };
 
   function createEmptyReadout(): ReadoutState {
@@ -119,6 +140,12 @@
   let readout = $state({
     ...createEmptyReadout(),
   });
+  let readoutTooltip = $state({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
+  let markerTooltip = $state<MarkerTooltipState | null>(null);
   const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition, rightDockMode }));
   const readoutMode = $derived(resolvePhaseOneMarketChartReadoutMode(model));
   const activeDataLength = $derived(resolvePhaseOneMarketChartActiveDataLength(model));
@@ -129,7 +156,7 @@
     chart?.destroy();
     chart = null;
     candleSeries = null;
-    overlaySeries = null;
+    overlaySeries = [];
     timesharePriceSeries = null;
     timeshareAverageSeries = null;
     timeshareBaselineSeries = null;
@@ -148,9 +175,209 @@
     }
   }
 
+  function applyModelPriceFormatter(): void {
+    chart?.priceScale().applyOptions({
+      priceFormatter: model.priceFormatter ?? null,
+    });
+  }
+
+  function applyModelPriceRange(): void {
+    chart?.priceScale().setVisibleRange(model.visiblePriceRange ?? null);
+  }
+
+  function applyModelTimeFormatter(): void {
+    chart?.timeScale().applyOptions({
+      tickMarkFormatter: model.timeFormatter ?? null,
+    });
+  }
+
+  function applyModelPriceScale(): void {
+    applyModelPriceFormatter();
+    applyModelPriceRange();
+  }
+
+  function resolveModelRangeKey(): string {
+    return [
+      resolvePhaseOneMarketChartDisplayMode(model),
+      model.symbol,
+      model.timeframeLabel,
+    ].join("|");
+  }
+
+  function shouldAutoFitData(): boolean {
+    const modelRangeKey = resolveModelRangeKey();
+    if (model.virtualRange?.preserveVisibleRangeOnDataUpdate !== true) {
+      lastAutoRangeModelKey = modelRangeKey;
+      return true;
+    }
+    if (lastAutoRangeModelKey !== modelRangeKey) {
+      lastAutoRangeModelKey = modelRangeKey;
+      return true;
+    }
+    return chart?.timeScale().getVisibleLogicalRange() === null;
+  }
+
+  function resolveOverlaySignature(): string {
+    if (resolvePhaseOneMarketChartDisplayMode(model) !== "candlestick") {
+      return "";
+    }
+    return resolvePhaseOneMarketChartOverlayLines(model)
+      .map((line) => `${line.id}:${line.color ?? ""}:${line.lineWidth ?? ""}`)
+      .join("|");
+  }
+
+  function setVisibleLogicalRange(range: { from: number; to: number }): void {
+    chart?.timeScale().setVisibleLogicalRange(range);
+    scheduleVirtualRangeReport();
+  }
+
+  function reportVirtualRangeIfChanged(): void {
+    if (chart === null || onVirtualRangeChange === undefined) {
+      return;
+    }
+    const virtualRange = resolvePhaseOneMarketChartVirtualRange(
+      chart.timeScale().getVisibleLogicalRange(),
+      activeDataLength,
+      model.virtualRange,
+    );
+    if (virtualRange === null) {
+      return;
+    }
+    const signature = [
+      virtualRange.from.toFixed(3),
+      virtualRange.to.toFixed(3),
+      virtualRange.dataLength,
+      virtualRange.nearStart ? "start" : "",
+      virtualRange.nearEnd ? "end" : "",
+    ].join("|");
+    if (signature === lastVirtualRangeSignature) {
+      return;
+    }
+    lastVirtualRangeSignature = signature;
+    onVirtualRangeChange(virtualRange);
+  }
+
+  function scheduleVirtualRangeReport(): void {
+    if (typeof requestAnimationFrame !== "function") {
+      reportVirtualRangeIfChanged();
+      return;
+    }
+    requestAnimationFrame(() => {
+      reportVirtualRangeIfChanged();
+    });
+  }
+
+  function startVirtualRangeMonitor(frameCount = 16): void {
+    virtualRangeMonitorRemaining = Math.max(virtualRangeMonitorRemaining, frameCount);
+    if (virtualRangeMonitorFrame !== null || typeof requestAnimationFrame !== "function") {
+      return;
+    }
+    const tick = () => {
+      virtualRangeMonitorFrame = null;
+      reportVirtualRangeIfChanged();
+      virtualRangeMonitorRemaining -= 1;
+      if (virtualRangeMonitorRemaining > 0) {
+        virtualRangeMonitorFrame = requestAnimationFrame(tick);
+      }
+    };
+    virtualRangeMonitorFrame = requestAnimationFrame(tick);
+  }
+
+  function panLogicalRange(deltaBars: number): void {
+    const range = chart?.timeScale().getVisibleLogicalRange();
+    if (range === undefined || range === null || !Number.isFinite(deltaBars) || deltaBars === 0) {
+      return;
+    }
+    setVisibleLogicalRange({
+      from: range.from + deltaBars,
+      to: range.to + deltaBars,
+    });
+  }
+
+  function zoomLogicalRange(direction: "in" | "out"): void {
+    const range = chart?.timeScale().getVisibleLogicalRange();
+    if (range === undefined || range === null) {
+      return;
+    }
+    const width = Math.max(6, range.to - range.from);
+    const nextWidth = direction === "in" ? Math.max(6, width / 1.18) : width * 1.18;
+    const center = (range.from + range.to) / 2;
+    setVisibleLogicalRange({
+      from: center - nextWidth / 2,
+      to: center + nextWidth / 2,
+    });
+  }
+
+  function handleCanvasHostPointerDown(): void {
+    canvasHost?.focus({ preventScroll: true });
+    startVirtualRangeMonitor();
+  }
+
+  function handleCanvasHostWheel(event: WheelEvent): void {
+    if (model.virtualRange?.enabled !== true) {
+      return;
+    }
+    event.preventDefault();
+    // The chart canvas owns its normal wheel zoom. Virtual-range mode replaces
+    // that behavior, so capture the event before it reaches the canvas instead
+    // of applying a second viewport transform during bubbling.
+    event.stopPropagation();
+    const range = chart?.timeScale().getVisibleLogicalRange();
+    if (range === undefined || range === null) {
+      return;
+    }
+    const width = Math.max(1, range.to - range.from + 1);
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      zoomLogicalRange(event.deltaY <= 0 ? "in" : "out");
+      startVirtualRangeMonitor(10);
+      return;
+    }
+    const rawDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    const deltaBars = Math.sign(rawDelta) * Math.max(1, Math.round(width * 0.08));
+    panLogicalRange(deltaBars);
+    startVirtualRangeMonitor(10);
+  }
+
+  function handleCanvasHostKeydown(event: KeyboardEvent): void {
+    if (model.virtualRange?.enabled !== true) {
+      return;
+    }
+    const range = chart?.timeScale().getVisibleLogicalRange();
+    if (range === undefined || range === null) {
+      return;
+    }
+    const width = Math.max(1, range.to - range.from + 1);
+    const step = Math.max(1, Math.round(width * 0.12));
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      panLogicalRange(-step);
+      startVirtualRangeMonitor();
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      panLogicalRange(step);
+      startVirtualRangeMonitor();
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      zoomLogicalRange("in");
+      startVirtualRangeMonitor();
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      zoomLogicalRange("out");
+      startVirtualRangeMonitor();
+    }
+  }
+
   function applyReadout(event: PhaseOneCrosshairMoveEvent): void {
     if (!event.active) {
       readout = createEmptyReadout();
+      readoutTooltip = { visible: false, x: 0, y: 0 };
+      markerTooltip = null;
       return;
     }
     readout = {
@@ -161,8 +388,63 @@
       close: event.formatted.close,
       price: event.formatted.price,
       averagePrice: "--",
-      volume: "--",
+      volume: resolveReadoutVolume(event),
     };
+    readoutTooltip = event.point === null
+      ? { visible: false, x: 0, y: 0 }
+      : { visible: true, x: event.point.x, y: event.point.y };
+    markerTooltip = resolveMarkerTooltip(event);
+  }
+
+  function resolveMarkerTooltip(event: PhaseOneCrosshairMoveEvent): MarkerTooltipState | null {
+    if (event.time === null || event.point === null) {
+      return null;
+    }
+    const matched = resolvePhaseOneMarketChartSurfaceMarkers(model).find((marker) =>
+      marker.time === event.time && typeof marker.tooltip === "string" && marker.tooltip.trim() !== "",
+    );
+    if (matched === undefined) {
+      return null;
+    }
+    return {
+      label: matched.text?.trim() || "标记",
+      detail: matched.tooltip?.trim() ?? "",
+      color: matched.color,
+    };
+  }
+
+  function resolveReadoutVolume(event: PhaseOneCrosshairMoveEvent): string {
+    const seriesVolume = event.series.find((entry) => entry.kind === "volume");
+    if (seriesVolume !== undefined) {
+      return seriesVolume.formattedValue;
+    }
+
+    if (event.time === null) {
+      return "--";
+    }
+
+    const modelVolume = findVolumeAtTime(model.volume ?? [], event.time);
+    if (modelVolume !== null) {
+      return formatVolumeAxisLabel(modelVolume);
+    }
+
+    const timeshareVolume = model.intradayTimeshare?.points.find((point) => point.time === event.time)?.volume;
+    return timeshareVolume === undefined ? "--" : formatVolumeAxisLabel(timeshareVolume);
+  }
+
+  function findVolumeAtTime(volume: readonly PhaseOneVolumeData[], time: number): number | null {
+    for (const item of volume) {
+      if (item.time === time) {
+        return item.value;
+      }
+    }
+    return null;
+  }
+
+  function readoutTooltipStyle(): string {
+    const left = Math.max(0, Math.round(readoutTooltip.x + 12));
+    const top = Math.max(0, Math.round(readoutTooltip.y + 12));
+    return `left: clamp(8px, ${left}px, calc(100% - 132px)); top: clamp(8px, ${top}px, calc(100% - 168px));`;
   }
 
   function applyChartData(): void {
@@ -178,6 +460,7 @@
       const previousClose = model.intradayTimeshare?.previousClose;
 
       timesharePriceSeries.setData(points.map(({ time, price }) => ({ time, value: price })));
+      timesharePriceSeries.setMarkers(resolvePhaseOneMarketChartSurfaceMarkers(model));
       timeshareAverageSeries?.setData(
         points.flatMap((point) =>
           point.averagePrice === undefined ? [] : [{ time: point.time, value: point.averagePrice }],
@@ -195,10 +478,14 @@
       if (points.length > 0) {
         const lastLogical = points.length - 1;
         const visibleBars = Math.max(42, Math.min(240, points.length));
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(-0.5, lastLogical - visibleBars + 1 - 0.5),
-          to: lastLogical + 6.5,
-        });
+        if (shouldAutoFitData()) {
+          setVisibleLogicalRange({
+            from: Math.max(-0.5, lastLogical - visibleBars + 1 - 0.5),
+            to: lastLogical + 6.5,
+          });
+        } else {
+          scheduleVirtualRangeReport();
+        }
       }
       return;
     }
@@ -207,7 +494,10 @@
       return;
     }
     candleSeries.setData(model.bars);
-    overlaySeries?.setData(model.overlayLine ?? []);
+    candleSeries.setMarkers(resolvePhaseOneMarketChartSurfaceMarkers(model));
+    for (const [index, line] of resolvePhaseOneMarketChartOverlayLines(model).entries()) {
+      overlaySeries[index]?.setData(line.data);
+    }
     volumeSeries?.setData(model.volume ?? []);
     const indicatorPanes = resolvePhaseOneMarketChartIndicatorPanes(model);
     let nextSeriesIndex = 0;
@@ -221,10 +511,14 @@
     if (model.bars.length > 0) {
       const lastLogical = model.bars.length - 1;
       const visibleBars = Math.max(42, Math.min(84, model.bars.length));
-      chart.timeScale().setVisibleLogicalRange({
-        from: Math.max(-0.5, lastLogical - visibleBars + 1 - 0.5),
-        to: lastLogical + 6.5,
-      });
+      if (shouldAutoFitData()) {
+        setVisibleLogicalRange({
+          from: Math.max(-0.5, lastLogical - visibleBars + 1 - 0.5),
+          to: lastLogical + 6.5,
+        });
+      } else {
+        scheduleVirtualRangeReport();
+      }
     }
   }
 
@@ -253,6 +547,8 @@
         ...(model.chartOptions?.crosshair ?? {}),
       },
     });
+    applyModelPriceScale();
+    applyModelTimeFormatter();
 
     if (resolvePhaseOneMarketChartDisplayMode(model) === "intraday-timeshare") {
       const points = model.intradayTimeshare?.points ?? [];
@@ -285,13 +581,16 @@
     } else {
       candleSeries = chart.addCandlestickSeries();
 
-      if ((model.overlayLine?.length ?? 0) > 0) {
-        overlaySeries = chart.addOverlaySeries();
-        overlaySeries.applyOptions({
-          color: "#0f5964",
-          lineWidth: 2,
+      const nextOverlaySeries: PhaseOneLineSeriesApi[] = [];
+      for (const overlayLine of resolvePhaseOneMarketChartOverlayLines(model)) {
+        const nextSeries = chart.addOverlaySeries();
+        nextSeries.applyOptions({
+          color: overlayLine.color ?? "#0f5964",
+          lineWidth: overlayLine.lineWidth ?? 1,
         });
+        nextOverlaySeries.push(nextSeries);
       }
+      overlaySeries = nextOverlaySeries;
 
       if ((model.volume?.length ?? 0) > 0) {
         const volumePane = chart.addPane({ height: 112 });
@@ -350,13 +649,13 @@
       nextDisplayMode === "intraday-timeshare"
         ? timesharePoints.some((point) => point.volume !== undefined)
         : (model.volume?.length ?? 0) > 0;
-    const nextCandlestickOverlayMode = nextDisplayMode === "candlestick" && (model.overlayLine?.length ?? 0) > 0;
+    const nextOverlaySignature = resolveOverlaySignature();
     const nextTimeshareAverageMode =
       nextDisplayMode === "intraday-timeshare" && timesharePoints.some((point) => point.averagePrice !== undefined);
     const nextBaselineMode =
       nextDisplayMode === "intraday-timeshare" && model.intradayTimeshare?.previousClose !== undefined;
     const nextIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
-      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
+      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}:${series.color ?? ""}`).join(",")}`)
       .join("|");
 
     if (!mounted) {
@@ -367,19 +666,22 @@
       chart === null ||
       lastDisplayMode !== nextDisplayMode ||
       lastVolumeMode !== nextVolumeMode ||
-      nextCandlestickOverlayMode !== (overlaySeries !== null) ||
+      lastOverlaySignature !== nextOverlaySignature ||
       nextTimeshareAverageMode !== (timeshareAverageSeries !== null) ||
       lastTimeshareBaselineMode !== nextBaselineMode ||
       lastIndicatorSignature !== nextIndicatorSignature
     ) {
       lastDisplayMode = nextDisplayMode;
       lastVolumeMode = nextVolumeMode;
+      lastOverlaySignature = nextOverlaySignature;
       lastTimeshareBaselineMode = nextBaselineMode;
       lastIndicatorSignature = nextIndicatorSignature;
       rebuildChart();
       return;
     }
 
+    applyModelPriceScale();
+    applyModelTimeFormatter();
     applyChartData();
   });
 
@@ -392,10 +694,11 @@
       nextDisplayMode === "intraday-timeshare"
         ? timesharePoints.some((point) => point.volume !== undefined)
         : (model.volume?.length ?? 0) > 0;
+    lastOverlaySignature = resolveOverlaySignature();
     lastTimeshareBaselineMode =
       nextDisplayMode === "intraday-timeshare" && model.intradayTimeshare?.previousClose !== undefined;
     lastIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
-      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}`).join(",")}`)
+      .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}:${series.color ?? ""}`).join(",")}`)
       .join("|");
     rebuildChart();
 
@@ -410,6 +713,10 @@
       mounted = false;
       resizeObserver?.disconnect();
       resizeObserver = null;
+      if (virtualRangeMonitorFrame !== null) {
+        cancelAnimationFrame(virtualRangeMonitorFrame);
+        virtualRangeMonitorFrame = null;
+      }
       destroyChart();
     };
   });
@@ -429,16 +736,19 @@
   <div class="readout" aria-label="Chart readout" data-phase-one-market-chart-readout>
     <strong>{model.symbol}</strong>
     <span>{model.timeframeLabel}</span>
-    <span>T {readout.time}</span>
-    {#if readoutMode === "timeshare"}
-      <span>现 {readout.price}</span>
-      <span>均 {readout.averagePrice}</span>
-      <span>量 {readout.volume}</span>
-    {:else}
-      <span>O {readout.open}</span>
-      <span>H {readout.high}</span>
-      <span>L {readout.low}</span>
-      <span>C {readout.close}</span>
+    {#if readoutDisplay === "inline"}
+      <span>T {readout.time}</span>
+      {#if readoutMode === "timeshare"}
+        <span>现 {readout.price}</span>
+        <span>均 {readout.averagePrice}</span>
+        <span>量 {readout.volume}</span>
+      {:else}
+        <span>开 {readout.open}</span>
+        <span>高 {readout.high}</span>
+        <span>低 {readout.low}</span>
+        <span>收 {readout.close}</span>
+        <span>量 {readout.volume}</span>
+      {/if}
     {/if}
     <span class="status">{model.statusLabel ?? "Mounted through chartx2 public market surface."}</span>
     {#if readoutActions}
@@ -457,8 +767,45 @@
     {#if activeDataLength === 0}
       <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
     {:else}
-      <div class="canvas-host" bind:this={canvasHost}>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+      <div
+        class="canvas-host"
+        bind:this={canvasHost}
+        tabindex="0"
+        role="application"
+        aria-label={`${model.symbol} ${model.timeframeLabel} chart viewport`}
+        onpointerdown={handleCanvasHostPointerDown}
+        onwheelcapture={handleCanvasHostWheel}
+        onkeydown={handleCanvasHostKeydown}
+      >
         <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
+        {#if readoutDisplay === "tooltip" && readoutTooltip.visible}
+          <div
+            class="readout-tooltip"
+            aria-label="Chart hover readout"
+            data-phase-one-market-chart-readout-tooltip
+            style={readoutTooltipStyle()}
+          >
+            <div><span>时间</span><strong>{readout.time}</strong></div>
+            {#if readoutMode === "timeshare"}
+              <div><span>现价</span><strong>{readout.price}</strong></div>
+              <div><span>均价</span><strong>{readout.averagePrice}</strong></div>
+              <div><span>成交量</span><strong>{readout.volume}</strong></div>
+            {:else}
+              <div><span>开</span><strong>{readout.open}</strong></div>
+              <div><span>高</span><strong>{readout.high}</strong></div>
+              <div><span>低</span><strong>{readout.low}</strong></div>
+              <div><span>收</span><strong>{readout.close}</strong></div>
+              <div><span>成交量</span><strong>{readout.volume}</strong></div>
+            {/if}
+            {#if markerTooltip}
+              <div class="marker-tooltip-row">
+                <span style={`color: ${markerTooltip.color ?? "#607279"}`}>{markerTooltip.label}</span>
+                <strong>{markerTooltip.detail}</strong>
+              </div>
+            {/if}
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -545,6 +892,56 @@
     width: 100%;
     height: 100%;
     display: block;
+  }
+
+  .readout-tooltip {
+    position: absolute;
+    z-index: 12;
+    width: max-content;
+    min-width: 112px;
+    max-width: 210px;
+    display: grid;
+    gap: 2px;
+    padding: 6px 7px;
+    border: 1px solid rgba(91, 107, 115, 0.42);
+    background: rgba(248, 250, 249, 0.94);
+    box-shadow: 0 2px 8px rgba(15, 28, 34, 0.16);
+    color: #33434b;
+    font-size: 11px;
+    line-height: 1.25;
+    pointer-events: none;
+  }
+
+  .readout-tooltip div {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 6px;
+  }
+
+  .readout-tooltip span {
+    color: #607279;
+  }
+
+  .readout-tooltip strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #17252b;
+    font-weight: 760;
+    text-align: right;
+    text-overflow: ellipsis;
+  }
+
+  .readout-tooltip .marker-tooltip-row {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 2px;
+    border-top: 1px solid rgba(96, 114, 121, 0.18);
+    padding-top: 4px;
+  }
+
+  .readout-tooltip .marker-tooltip-row strong {
+    white-space: normal;
+    text-align: left;
   }
 
   .empty-state {

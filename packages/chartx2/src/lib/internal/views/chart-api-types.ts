@@ -134,13 +134,16 @@ export type PhaseOneDrawingSelectionChangeHandler = (selection: PhaseOneSelected
 
 export type PhaseOneSeriesMarkerPosition = "aboveBar" | "belowBar" | "inBar";
 export type PhaseOneSeriesMarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
+export type PhaseOneSeriesMarkerFill = "solid" | "hollow";
 
 export type PhaseOneSeriesMarker = {
   time: number;
   position?: PhaseOneSeriesMarkerPosition;
   shape?: PhaseOneSeriesMarkerShape;
+  fill?: PhaseOneSeriesMarkerFill;
   color?: string;
   text?: string;
+  tooltip?: string;
 };
 
 export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
@@ -171,6 +174,7 @@ export type PhaseOneChartOptions = {
     axisLabelBorder?: string;
     axisActiveBackground?: string;
     axisActiveText?: string;
+    priceAxisPosition?: "left" | "right";
   };
   crosshair?: {
     lineColor?: string;

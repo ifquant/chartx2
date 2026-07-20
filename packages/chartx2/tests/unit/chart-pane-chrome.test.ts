@@ -45,6 +45,7 @@ describe("chart pane chrome use-case", () => {
       crosshair: { x: 30, y: 64 },
       primarySources: ["main-1"],
       primaryRowSets: new Map([["main-1", []]]),
+      secondaryRows: new Map(),
       getSecondarySeriesForPane: () => {
         throw new Error("should not request secondary series for primary pane chrome");
       },
@@ -78,6 +79,7 @@ describe("chart pane chrome use-case", () => {
       crosshair: { x: 50, y: 120 },
       primarySources: [],
       primaryRowSets: new Map(),
+      secondaryRows: new Map([["study-1", []]]),
       getSecondarySeriesForPane: (paneId) => {
         calls.push(`secondary:${paneId}`);
         return ["study-1"];
@@ -85,7 +87,7 @@ describe("chart pane chrome use-case", () => {
       buildReadoutSeriesForPrimary: () => {
         throw new Error("should not build primary legend entries for secondary pane chrome");
       },
-      buildReadoutSeriesForPane: (series, crosshair) => {
+      buildReadoutSeriesForPane: (series, _rowSets, crosshair) => {
         calls.push(`pane:${series[0]}:${String(crosshair)}`);
         return [{ id: "study-1", label: "Study", kind: "line", value: 2, formattedValue: "2", color: "#111" }];
       },

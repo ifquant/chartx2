@@ -114,4 +114,31 @@ describe("chart pane decoration render helpers", () => {
     expect(context.fillRect).toHaveBeenCalled();
     expect(context.fillText).toHaveBeenCalled();
   });
+
+  it("renders hollow series markers with strokes instead of filled shapes", () => {
+    const context = createMockContext();
+    const timeScale = new TimeScale();
+    timeScale.applyOptions({
+      width: 300,
+      barSpacing: 10,
+      pointCount: 10,
+    });
+    const priceScale = new PriceScale();
+    priceScale.setHeight(200);
+    priceScale.setPriceRange(new PriceRangeImpl(100, 200));
+
+    drawSeriesMarkers(
+      context,
+      [{ time: 10, index: 5 as never, value: [110, 120, 105, 118] }],
+      [{ time: 10, position: "aboveBar", shape: "circle", fill: "hollow", color: "#2563eb", text: "" }],
+      timeScale,
+      priceScale,
+      200,
+      "candlestick",
+    );
+
+    expect(context.arc).toHaveBeenCalled();
+    expect(context.stroke).toHaveBeenCalled();
+    expect(context.fill).not.toHaveBeenCalled();
+  });
 });

@@ -52,6 +52,9 @@ export function applyChartOptions(
   if (options.layout?.axisLabelBorder !== undefined) deps.setLayoutOption("axisLabelBorder", options.layout.axisLabelBorder);
   if (options.layout?.axisActiveBackground !== undefined) deps.setLayoutOption("axisActiveBackground", options.layout.axisActiveBackground);
   if (options.layout?.axisActiveText !== undefined) deps.setLayoutOption("axisActiveText", options.layout.axisActiveText);
+  if (options.layout?.priceAxisPosition === "left" || options.layout?.priceAxisPosition === "right") {
+    deps.setLayoutOption("priceAxisPosition", options.layout.priceAxisPosition);
+  }
 
   if (options.crosshair?.lineColor !== undefined) deps.setCrosshairOption("lineColor", options.crosshair.lineColor);
   if (options.crosshair?.pointColor !== undefined) deps.setCrosshairOption("pointColor", options.crosshair.pointColor);

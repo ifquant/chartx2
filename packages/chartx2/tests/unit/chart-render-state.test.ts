@@ -71,10 +71,10 @@ describe("chart render state use-case", () => {
     expect(state.primaryRows).toEqual(primaryRows);
     expect(state.primaryTimeAxisRows).toEqual(primaryRows);
     expect(state.primaryRowSets.get("main-1")).toEqual(primaryRows);
-    expect(state.primaryRowSets.get("study-primary")).toEqual(primaryStudyRows);
-    expect(state.secondaryRows.get("study-primary")).toEqual(primaryStudyRows);
-    expect(state.secondaryRows.get("study-secondary")).toEqual(secondaryStudyRows);
-    expect(state.pointCount).toBe(4);
+    expect(state.primaryRowSets.get("study-primary")).toEqual(primaryStudyRows.slice(0, 2));
+    expect(state.secondaryRows.get("study-primary")).toEqual(primaryStudyRows.slice(0, 2));
+    expect(state.secondaryRows.get("study-secondary")).toEqual(secondaryStudyRows.slice(0, 2));
+    expect(state.pointCount).toBe(2);
     expect(state.activePane?.id).toBe("pane-1");
     expect(state.barWidth).toBeCloseTo(240 / Math.max(4 * 1.8, 24));
   });
@@ -102,5 +102,83 @@ describe("chart render state use-case", () => {
     expect(state.pointCount).toBe(0);
     expect(state.activePane).toBeNull();
     expect(state.barWidth).toBeCloseTo(200 / 24);
+  });
+
+  it("projects sparse primary study rows onto the main time axis", () => {
+    const panes = [
+      { id: "primary", kind: "primary", preferredHeight: null, resizable: false },
+    ] satisfies PaneModelState[];
+    const primaryRows = [
+      createRow(0, 10),
+      createRow(1, 20),
+      createRow(2, 30),
+      createRow(3, 40),
+    ];
+    const warmupStudyRows = [
+      createRow(0, 30),
+      createRow(1, 40),
+    ];
+    const warmupStudy = {
+      id: "study-warmup",
+      paneId: "primary",
+      data: ["warmup-study-data"],
+      store: {
+        setData: () => warmupStudyRows,
+      },
+    };
+
+    const state = buildChartRenderState({
+      paneSpecs: panes,
+      plotHeight: 240,
+      paneGap: 12,
+      paneWidth: 200,
+      crosshair: null,
+      mainSourceId: "main-1",
+      mainSequence: createTimeBasedChartBarSequence(primaryRows),
+      primaryStudies: [warmupStudy],
+      primarySources: ["main-1"],
+      studySources: [warmupStudy],
+    });
+
+    expect(state.primaryRowSets.get("study-warmup")?.map((row) => row.index)).toEqual([2, 3]);
+    expect(state.secondaryRows.get("study-warmup")?.map((row) => row.index)).toEqual([2, 3]);
+    expect(state.pointCount).toBe(4);
+  });
+
+  it("drops study rows outside the main time axis without misaligning matched rows", () => {
+    const panes = [
+      { id: "primary", kind: "primary", preferredHeight: null, resizable: false },
+    ] satisfies PaneModelState[];
+    const primaryRows = [createRow(0, 10), createRow(1, 20), createRow(2, 30)];
+    const studyRows = [createRow(0, 5), createRow(1, 20), createRow(2, 30), createRow(3, 40)];
+    const study = {
+      id: "study-window",
+      paneId: "primary",
+      data: [],
+      store: { setData: () => studyRows },
+    };
+
+    const state = buildChartRenderState({
+      paneSpecs: panes,
+      plotHeight: 240,
+      paneGap: 12,
+      paneWidth: 200,
+      crosshair: null,
+      mainSourceId: "main-1",
+      mainSequence: createTimeBasedChartBarSequence(primaryRows),
+      primaryStudies: [study],
+      primarySources: ["main-1"],
+      studySources: [study],
+    });
+
+    expect(state.primaryRowSets.get("study-window")?.map((row) => [row.time, row.index])).toEqual([
+      [20, 1],
+      [30, 2],
+    ]);
+    expect(state.secondaryRows.get("study-window")?.map((row) => [row.time, row.index])).toEqual([
+      [20, 1],
+      [30, 2],
+    ]);
+    expect(state.pointCount).toBe(3);
   });
 });

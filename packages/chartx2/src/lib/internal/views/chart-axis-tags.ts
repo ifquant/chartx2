@@ -28,7 +28,7 @@ type DrawingSnapGuideState = {
   time: number | null;
 };
 
-type LayoutOptions = {
+type AxisStyleOptions = {
   axisLabelBackground: string;
   axisLabelBorder: string;
   axisTextColor: string;
@@ -36,10 +36,17 @@ type LayoutOptions = {
   axisActiveText: string;
 };
 
+type LayoutOptions = AxisStyleOptions & {
+  priceAxisPosition: "left" | "right";
+};
+
+const AXIS_TAG_HEIGHT = 18;
+
 export type AxisTag = {
   text: string;
   x: number;
   y: number;
+  maxWidth?: number;
   active?: boolean;
   backgroundColor?: string;
   borderColor?: string;
@@ -63,23 +70,27 @@ export function drawPriceAxis(
     return;
   }
 
-  const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
-  const labels: AxisTag[] = Array.from({ length: tickCount }, (_, index) => {
-    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
-    const price = range.maxValue() - range.length() * ratio;
-    return {
-      text:
-        axisType === "volume"
-          ? formatVolumeAxisLabel(price)
-          : formatPriceAxisLabel(price, formatter),
-      x: layout.width - layout.right + 6,
-      y: layout.top + paneTop + paneHeight * ratio - 9,
-    };
-  });
-
   context.save();
   context.font = '11px "SF Mono", "Menlo", monospace';
   context.textBaseline = "middle";
+
+  const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
+  const paneLabelTop = layout.top + paneTop;
+  const paneLabelBottom = paneLabelTop + paneHeight - AXIS_TAG_HEIGHT;
+  const labels: AxisTag[] = Array.from({ length: tickCount }, (_, index) => {
+    const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
+    const price = range.maxValue() - range.length() * ratio;
+    const text =
+      axisType === "volume"
+        ? formatVolumeAxisLabel(price)
+        : formatPriceAxisLabel(price, formatter);
+    return {
+      text,
+      x: resolvePriceAxisTagX(context, layout, options, text),
+      y: resolvePriceAxisTagY(layout.top + paneTop + paneHeight * ratio, paneLabelTop, paneLabelBottom),
+      maxWidth: options.priceAxisPosition === "left" ? resolveLeftPriceAxisTagMaxWidth(layout) : undefined,
+    };
+  });
 
   for (const label of labels) {
     drawAxisTag(context, label, options);
@@ -88,13 +99,15 @@ export function drawPriceAxis(
   if (crosshair !== null) {
     const price = priceScale.coordinateToPrice(crosshair.y);
     if (price !== null) {
+      const text =
+        axisType === "volume"
+          ? formatVolumeAxisLabel(price)
+          : formatPriceAxisLabel(price, formatter);
       drawAxisTag(context, {
-        text:
-          axisType === "volume"
-            ? formatVolumeAxisLabel(price)
-            : formatPriceAxisLabel(price, formatter),
-        x: layout.width - layout.right + 6,
-        y: layout.top + paneTop + crosshair.y - 9,
+        text,
+        x: resolvePriceAxisTagX(context, layout, options, text),
+        y: resolvePriceAxisTagY(layout.top + paneTop + crosshair.y, paneLabelTop, paneLabelBottom),
+        maxWidth: options.priceAxisPosition === "left" ? resolveLeftPriceAxisTagMaxWidth(layout) : undefined,
         active: true,
       }, options);
     }
@@ -113,6 +126,7 @@ export function buildMagnetAxisTag(
   priceScale: PriceScale,
   guide: DrawingSnapGuideState,
   formatter: ((value: number) => string) | null,
+  axisPosition: "left" | "right" = "right",
 ): AxisTag | null {
   if (guide.price === null) {
     return null;
@@ -124,8 +138,9 @@ export function buildMagnetAxisTag(
 
   return {
     text: `MAG ${guide.source?.toUpperCase() ?? "PRICE"} ${formatPriceAxisLabel(guide.price, formatter)}`,
-    x: layout.width - layout.right + 6,
+    x: axisPosition === "left" ? 4 : layout.width - layout.right + 6,
     y: layout.top + paneTop + y - 9,
+    maxWidth: axisPosition === "left" ? resolveLeftPriceAxisTagMaxWidth(layout) : undefined,
     backgroundColor: guide.color,
     borderColor: guide.color,
     textColor: "#fffdf7",
@@ -219,11 +234,12 @@ export function buildMagnetTimeAxisTag(
 export function drawAxisTag(
   context: CanvasRenderingContext2D,
   tag: AxisTag,
-  options: LayoutOptions,
+  options: AxisStyleOptions,
 ): void {
-  const textWidth = context.measureText(tag.text).width;
-  const boxWidth = Math.ceil(textWidth + 12);
-  const boxHeight = 18;
+  const displayText = fitAxisTagText(context, tag.text, tag.maxWidth);
+  const textWidth = context.measureText(displayText).width;
+  const boxWidth = Math.min(Math.ceil(textWidth + 12), tag.maxWidth ?? Number.POSITIVE_INFINITY);
+  const boxHeight = AXIS_TAG_HEIGHT;
 
   context.fillStyle = tag.backgroundColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBackground);
   context.strokeStyle = tag.borderColor ?? (tag.active ? options.axisActiveBackground : options.axisLabelBorder);
@@ -232,10 +248,14 @@ export function drawAxisTag(
   context.strokeRect(tag.x + 0.5, tag.y + 0.5, boxWidth - 1, boxHeight - 1);
   context.fillStyle = tag.textColor ?? (tag.active ? options.axisActiveText : options.axisTextColor);
   context.fillText(
-    tag.text,
+    displayText,
     tag.x + 6,
     tag.y + (context.textBaseline === "middle" ? boxHeight / 2 : 4),
   );
+}
+
+function resolvePriceAxisTagY(centerY: number, minTop: number, maxTop: number): number {
+  return clamp(centerY - AXIS_TAG_HEIGHT / 2, minTop, Math.max(minTop, maxTop));
 }
 
 function collectVisibleTimeAnchors(
@@ -276,6 +296,49 @@ function clampCenterTag(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function resolvePriceAxisTagX(
+  context: CanvasRenderingContext2D,
+  layout: Layout,
+  options: Pick<LayoutOptions, "priceAxisPosition">,
+  text: string,
+): number {
+  if (options.priceAxisPosition === "right") {
+    return layout.width - layout.right + 6;
+  }
+  const boxWidth = Math.ceil(context.measureText(text).width + 12);
+  return Math.max(4, layout.left - boxWidth - 6);
+}
+
+function resolveLeftPriceAxisTagMaxWidth(layout: Layout): number {
+  return Math.max(18, layout.left - 10);
+}
+
+function fitAxisTagText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number | undefined,
+): string {
+  if (maxWidth === undefined || context.measureText(text).width + 12 <= maxWidth) {
+    return text;
+  }
+  const availableTextWidth = Math.max(0, maxWidth - 12);
+  const ellipsis = "...";
+  if (context.measureText(ellipsis).width > availableTextWidth) {
+    return "";
+  }
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (context.measureText(`${text.slice(0, middle)}${ellipsis}`).width <= availableTextWidth) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return `${text.slice(0, low)}${ellipsis}`;
 }
 
 function toCoordinate(value: Coordinate | null): Coordinate {

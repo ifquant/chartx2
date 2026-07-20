@@ -144,6 +144,7 @@ type ChartLayoutOptions = {
   axisLabelBorder: string;
   axisActiveBackground: string;
   axisActiveText: string;
+  priceAxisPosition: "left" | "right";
 };
 
 type ChartCrosshairOptions = {
@@ -256,6 +257,7 @@ export function createChartRenderCoordinator(deps: {
   ): readonly PhaseOneReadoutSeriesDetail[];
   buildReadoutSeriesForPane(
     paneSeries: readonly SeriesSourceLike[],
+    rowSets: ReadonlyMap<string, RowSet>,
     crosshair: PanePoint,
   ): readonly PhaseOneReadoutSeriesDetail[];
   buildMainBarSequence(source: MainSeriesSourceLike | null): ChartBarSequence<number>;
@@ -314,9 +316,10 @@ export function createChartRenderCoordinator(deps: {
 
     buildReadoutSeriesForPane(
       paneSeries: readonly SeriesSourceLike[],
+      rowSets: ReadonlyMap<string, RowSet>,
       crosshair: PanePoint,
     ): readonly PhaseOneReadoutSeriesDetail[] {
-      return buildReadoutSeriesForPaneUseCase(paneSeries as never, crosshair, {
+      return buildReadoutSeriesForPaneUseCase(paneSeries as never, rowSets, crosshair, {
         timeScale: deps.getTimeScale(),
         formatValue: (state, value) =>
           owner.formatSeriesReadoutValueForState(state as unknown as SeriesSourceLike, value),
@@ -344,6 +347,7 @@ export function createChartRenderCoordinator(deps: {
         paneFrames: paneLayoutOwner.paneFrames(layout.height - layout.top - layout.bottom),
         mainSourceId: mainSource?.id ?? null,
         primaryRows: mainSequence.bars,
+        timeAxisRows: mainSequence.axisBars,
         primaryStudies: deps.getPrimaryStudies() as never,
         primarySources: deps.buildPrimaryPaneSeries(mainSource) as never,
         timeScale: deps.getTimeScale(),
@@ -356,9 +360,10 @@ export function createChartRenderCoordinator(deps: {
             rowSets,
             crosshair,
           ),
-        buildReadoutSeriesForPane: (paneSeries, crosshair) =>
+        buildReadoutSeriesForPane: (paneSeries, rowSets, crosshair) =>
           owner.buildReadoutSeriesForPane(
             paneSeries as unknown as readonly SeriesSourceLike[],
+            rowSets as ReadonlyMap<string, RowSet>,
             crosshair,
           ),
       });
@@ -668,6 +673,7 @@ export function createChartRenderCoordinator(deps: {
           crosshair,
           primarySources,
           primaryRowSets,
+          secondaryRows,
           getSecondarySeriesForPane: (paneId) => deps.getSecondarySeriesForPane(paneId),
           buildReadoutSeriesForPrimary: (nextPrimarySources, rowSets, nextCrosshair) =>
             owner.buildReadoutSeriesForPrimary(
@@ -675,8 +681,12 @@ export function createChartRenderCoordinator(deps: {
               rowSets as ReadonlyMap<string, RowSet>,
               nextCrosshair,
             ),
-          buildReadoutSeriesForPane: (paneSeries, nextCrosshair) =>
-            owner.buildReadoutSeriesForPane(paneSeries as readonly SeriesSourceLike[], nextCrosshair),
+          buildReadoutSeriesForPane: (paneSeries, rowSets, nextCrosshair) =>
+            owner.buildReadoutSeriesForPane(
+              paneSeries as readonly SeriesSourceLike[],
+              rowSets as ReadonlyMap<string, RowSet>,
+              nextCrosshair,
+            ),
           drawLegend: (entries) => {
             deps.drawPaneLegend(context, entries);
           },
@@ -717,6 +727,7 @@ export function createChartRenderCoordinator(deps: {
                   primaryPriceScale,
                   drawingSnapGuide as never,
                   deps.getPriceAxisFormatter(),
+                  chartOptions.priceAxisPosition,
                 )
               : null,
           );
@@ -746,6 +757,7 @@ export function createChartRenderCoordinator(deps: {
                   (state as SeriesSourceLike).priceScale,
                   drawingSnapGuide as never,
                   deps.getPriceAxisFormatter(),
+                  chartOptions.priceAxisPosition,
                 )
               : null,
           );

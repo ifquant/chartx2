@@ -3242,7 +3242,6 @@ test("workbench creates a price alert", async ({ page }) => {
 
   const workbench = page.locator('[data-demo-tab="workbench"]');
   const alerts = workbench.locator(".alert-card");
-  const activity = workbench.locator(".action-card", { hasText: "Activity" });
 
   await expect(alerts).toContainText("Alerts");
   await expect(alerts).not.toContainText("NDX price cross");
@@ -3252,6 +3251,10 @@ test("workbench creates a price alert", async ({ page }) => {
   await expect(alerts).toContainText("NDX price cross");
   await expect(alerts).toContainText(/Price crosses above \d+\.\d{2}/);
   await expect(alerts).toContainText("armed");
+  await workbench.locator('[data-bottom-tab="logs"]').click();
+  const activity = workbench.locator(
+    '[data-bottom-panel-kind="logs"] [data-activity-log-panel]',
+  );
   await expect(activity).toContainText(/created alert NDX price crosses \d+\.\d{2}/);
 
   await page.reload();

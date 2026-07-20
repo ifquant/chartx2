@@ -11,7 +11,7 @@
   export let model: MarketPanelModel = EMPTY_MODEL;
   export let onSelectTab: (tabId: string) => void | Promise<void> = () => {};
 
-  function toneClass(tone?: MarketPanelTone): string | undefined {
+  function toneClass(tone: MarketPanelTone | undefined): string | undefined {
     if (tone === "red") {
       return "red";
     }

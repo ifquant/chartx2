@@ -14,7 +14,7 @@
   export let onSelectTab: (tabId: string) => void | Promise<void> = () => {};
   export let onSelectRow: (rowId: string) => void | Promise<void> = () => {};
 
-  function toneClass(tone?: TradingLedgerRowModel["tone"]): string | undefined {
+  function toneClass(tone: TradingLedgerRowModel["tone"] | undefined): string | undefined {
     if (tone === "red") {
       return "red";
     }

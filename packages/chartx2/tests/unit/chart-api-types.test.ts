@@ -5,6 +5,7 @@ import {
   normalizePhaseOneChartTemplate,
   type PhaseOneChartApi,
   type PhaseOneChartStateSnapshot,
+  type PhaseOneTimeScaleApi,
 } from "../../src/lib/internal/views/chart-api-types";
 import {
   createPhaseOneChartTemplate as createPhaseOneChartTemplateFromHarness,
@@ -72,5 +73,16 @@ describe("chart api types module", () => {
     const methodName: keyof PhaseOneChartApi = "addCandlestickSeries";
 
     expect(methodName).toBe("addCandlestickSeries");
+  });
+
+  it("requires the complete time-scale focus contract", () => {
+    const timeScale = {
+      getVisibleLogicalRange: () => null,
+      setVisibleLogicalRange: () => undefined,
+      focusTime: (_request) => ({ kind: "noData" as const, requestedTime: 0 }),
+      applyOptions: () => undefined,
+    } satisfies PhaseOneTimeScaleApi;
+
+    expect(timeScale.focusTime({ time: 0, maxDistance: 0 }).kind).toBe("noData");
   });
 });

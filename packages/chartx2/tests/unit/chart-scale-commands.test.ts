@@ -15,6 +15,9 @@ describe("chart scale commands use-case", () => {
 
     const api = createTimeScaleApi({
       getPointCount: () => 10,
+      getTimeAxisRows: () => [
+        { time: 10, index: 0 }, { time: 20, index: 1 }, { time: 30, index: 2 },
+      ],
       getLayout: () => ({ width: 500, left: 20, right: 20 }),
       getBarSpacing: () => barSpacing,
       setBarSpacing: (value) => {
@@ -56,11 +59,35 @@ describe("chart scale commands use-case", () => {
     expect(rightOffset).toBe(1.5);
     expect(setTimeAxisFormatter).toHaveBeenCalledTimes(1);
     expect(render).toHaveBeenCalledTimes(2);
+
+    expect(api.focusTime({ time: 20, maxDistance: 0 })).toEqual({
+      kind: "exact", requestedTime: 20, resolvedTime: 20, distance: 0,
+    });
+    expect(applyTimeScaleOptions).toHaveBeenCalledTimes(3);
+    expect(render).toHaveBeenCalledTimes(3);
+
+    const nonZeroAxisApi = createTimeScaleApi({
+      getPointCount: () => 2,
+      getTimeAxisRows: () => [{ time: 10, index: 7 }, { time: 20, index: 8 }],
+      getLayout: () => ({ width: 500, left: 20, right: 20 }),
+      getBarSpacing: () => null,
+      setBarSpacing: vi.fn(),
+      getRightOffset: () => 0,
+      setRightOffset: (value) => { rightOffset = value; },
+      resolveBarSpacing: () => 12,
+      clampBarSpacing: (value) => value,
+      applyTimeScaleOptions: vi.fn(),
+      setTimeAxisFormatter: vi.fn(),
+      render: vi.fn(),
+    });
+    nonZeroAxisApi.focusTime({ time: 20, maxDistance: 0, paddingBeforeBars: 0, paddingAfterBars: 0 });
+    expect(rightOffset).toBe(0.5);
   });
 
   it("rejects invalid time-scale visible ranges", () => {
     const api = createTimeScaleApi({
       getPointCount: () => 0,
+      getTimeAxisRows: () => [],
       getLayout: () => ({ width: 500, left: 20, right: 20 }),
       getBarSpacing: () => null,
       setBarSpacing: vi.fn(),
@@ -76,6 +103,35 @@ describe("chart scale commands use-case", () => {
     expect(() => api.setVisibleLogicalRange({ from: 1, to: 0 })).toThrow(
       "chartx phase-one time scale visible range requires finite from/to with to > from",
     );
+  });
+
+  it("keeps rejected and throwing focus calls outside every owner side effect", () => {
+    const applyTimeScaleOptions = vi.fn();
+    const render = vi.fn();
+    const setBarSpacing = vi.fn();
+    const setRightOffset = vi.fn();
+    const api = createTimeScaleApi({
+      getPointCount: () => 3,
+      getTimeAxisRows: () => [{ time: 10, index: 0 }, { time: 20, index: 1 }, { time: 20, index: 2 }],
+      getLayout: () => ({ width: 500, left: 20, right: 20 }),
+      getBarSpacing: () => null,
+      setBarSpacing,
+      getRightOffset: () => 0,
+      setRightOffset,
+      resolveBarSpacing: () => 12,
+      clampBarSpacing: (value) => value,
+      applyTimeScaleOptions,
+      setTimeAxisFormatter: vi.fn(),
+      render,
+    });
+
+    expect(api.focusTime({ time: 9, maxDistance: 100 }).kind).toBe("outOfDomain");
+    expect(api.focusTime({ time: 20, maxDistance: 0 }).kind).toBe("ambiguous");
+    expect(() => api.focusTime({ time: 20, maxDistance: -1 })).toThrow("non-negative");
+    expect(setBarSpacing).not.toHaveBeenCalled();
+    expect(setRightOffset).not.toHaveBeenCalled();
+    expect(applyTimeScaleOptions).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
   });
 
   it("builds price-scale api behavior through shared command routing", () => {

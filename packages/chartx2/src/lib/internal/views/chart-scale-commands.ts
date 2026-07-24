@@ -2,6 +2,7 @@ import type {
   PhaseOnePriceScaleApi,
   PhaseOneTimeScaleApi,
 } from "./chart-api-types";
+import { resolveTimeFocus, type TimeAxisRow } from "../model/time-focus";
 
 type LogicalRange = { from: number; to: number };
 type PriceRange = { minValue: number; maxValue: number } | null;
@@ -14,6 +15,7 @@ function paneWidthFromLayout(layout: LayoutLike): number {
 export function createTimeScaleApi(
   deps: {
     getPointCount(): number;
+    getTimeAxisRows(): readonly TimeAxisRow[];
     getLayout(): LayoutLike;
     getBarSpacing(): number | null;
     setBarSpacing(value: number): void;
@@ -31,6 +33,22 @@ export function createTimeScaleApi(
     render(): void;
   },
 ): PhaseOneTimeScaleApi {
+  const applyVisibleLogicalRange = (range: LogicalRange, lastLogicalIndex = deps.getPointCount() - 1) => {
+    const pointCount = deps.getPointCount();
+    const layout = deps.getLayout();
+    const paneWidth = paneWidthFromLayout(layout);
+    const spacing = deps.clampBarSpacing(paneWidth / (range.to - range.from));
+    deps.setBarSpacing(spacing);
+    deps.setRightOffset(range.to - lastLogicalIndex);
+    deps.applyTimeScaleOptions({
+      width: paneWidth,
+      pointCount,
+      barSpacing: spacing,
+      rightOffset: deps.getRightOffset(),
+    });
+    deps.render();
+  };
+
   return {
     getVisibleLogicalRange: () => {
       const pointCount = deps.getPointCount();
@@ -58,19 +76,16 @@ export function createTimeScaleApi(
         throw new Error("chartx phase-one time scale visible range requires at least one data point");
       }
 
-      const layout = deps.getLayout();
-      const paneWidth = paneWidthFromLayout(layout);
-      const spacing = deps.clampBarSpacing(paneWidth / (range.to - range.from));
-      const lastIndex = pointCount - 1;
-      deps.setBarSpacing(spacing);
-      deps.setRightOffset(range.to - lastIndex);
-      deps.applyTimeScaleOptions({
-        width: paneWidth,
-        pointCount,
-        barSpacing: spacing,
-        rightOffset: deps.getRightOffset(),
-      });
-      deps.render();
+      applyVisibleLogicalRange(range);
+    },
+    focusTime: (request) => {
+      // Snapshot the ChartModel-owned axis once so resolution cannot race a source update.
+      const axisRows = deps.getTimeAxisRows().slice();
+      const resolution = resolveTimeFocus(axisRows, request);
+      if (resolution.logicalRange !== null) {
+        applyVisibleLogicalRange(resolution.logicalRange, axisRows[axisRows.length - 1]!.index);
+      }
+      return resolution.result;
     },
     applyOptions: (options) => {
       if (options.barSpacing !== undefined) {

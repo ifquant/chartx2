@@ -375,9 +375,28 @@ export type PhaseOnePaneEvent = {
 
 export type PhaseOnePaneEventHandler = (event: PhaseOnePaneEvent) => void;
 
+export type PhaseOneTimeFocusRequest = {
+  time: number;
+  maxDistance: number;
+  paddingBeforeBars?: number;
+  paddingAfterBars?: number;
+};
+
+export type PhaseOneTimeFocusResult =
+  | { kind: "exact"; requestedTime: number; resolvedTime: number; distance: 0 }
+  | { kind: "nearest"; requestedTime: number; resolvedTime: number; distance: number }
+  | {
+      kind: "outOfDomain";
+      requestedTime: number;
+      reason: "beforeFirst" | "afterLast" | "maxDistanceExceeded";
+    }
+  | { kind: "ambiguous"; requestedTime: number; resolvedTime: number }
+  | { kind: "noData"; requestedTime: number };
+
 export type PhaseOneTimeScaleApi = {
   getVisibleLogicalRange(): { from: number; to: number } | null;
   setVisibleLogicalRange(range: { from: number; to: number }): void;
+  focusTime(request: PhaseOneTimeFocusRequest): PhaseOneTimeFocusResult;
   applyOptions(options: {
     barSpacing?: number;
     rightOffset?: number;

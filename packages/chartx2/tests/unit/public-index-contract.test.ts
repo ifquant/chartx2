@@ -15,6 +15,8 @@ import type {
   ShareDialogModel,
   StrategyTesterPanelModel,
   TradingTicketModel,
+  PhaseOneTimeFocusRequest,
+  PhaseOneTimeFocusResult,
 } from "../../src/lib/public";
 import type { WorkbenchReplayPanelModel } from "../../src/lib/public/workbench-bottom-panels";
 
@@ -78,6 +80,14 @@ describe("public chartx barrel", () => {
   it("re-exports script authoring controls through the public index", () => {
     expect(chartxPublic).toHaveProperty("ScriptExpressionBuilder");
     expect(chartxPublic).not.toHaveProperty("ScriptLengthInput");
+  });
+
+  it("exposes only the public row-time focus types through the root barrel", () => {
+    const request: PhaseOneTimeFocusRequest = { time: 1, maxDistance: 0 };
+    const result: PhaseOneTimeFocusResult = { kind: "noData", requestedTime: 1 };
+    expect(request.maxDistance).toBe(0);
+    expect(result.kind).toBe("noData");
+    expect(chartxPublic).not.toHaveProperty("resolveTimeFocus");
   });
 
   it("re-exports workbench bottom-panel primitives through the public index", () => {

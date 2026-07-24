@@ -17,6 +17,7 @@ import type {
   PhaseOnePriceScaleApi,
   PhaseOneTimeScaleApi,
 } from "./chart-api-types";
+import type { TimeAxisRow } from "../model/time-focus";
 
 type PriceRangeRaw = { minValue: number; maxValue: number } | null;
 type ManualLayout = Pick<LayoutGeometry, "width" | "height"> | null;
@@ -29,6 +30,7 @@ export function createChartScaleOwner(deps: {
   getCanvas(): HTMLCanvasElement | null;
   getManualLayout(): ManualLayout;
   getPointCount(): number;
+  getTimeAxisRows(): readonly TimeAxisRow[];
   getBarSpacing(): number | null;
   setBarSpacing(value: number): void;
   getRightOffset(): number;
@@ -65,6 +67,7 @@ export function createChartScaleOwner(deps: {
     timeScaleApi(): PhaseOneTimeScaleApi {
       return createTimeScaleApi({
         getPointCount: deps.getPointCount,
+        getTimeAxisRows: deps.getTimeAxisRows,
         getLayout,
         getBarSpacing: deps.getBarSpacing,
         setBarSpacing: deps.setBarSpacing,

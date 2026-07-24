@@ -460,6 +460,7 @@ export class PhaseOneChartHarness {
     getCanvas: () => this.adapterState.canvas(),
     getManualLayout: () => this.viewState.manualLayout(),
     getPointCount: () => this.runtimeQueryOwner.getPointCount(),
+    getTimeAxisRows: () => this.runtime.contextSnapshot().barSequence.axisBars,
     getBarSpacing: () => this.adapterState.barSpacing(),
     setBarSpacing: (value) => {
       this.adapterState.setBarSpacing(value);

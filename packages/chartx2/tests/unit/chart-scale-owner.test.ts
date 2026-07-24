@@ -19,6 +19,7 @@ describe("chart scale owner", () => {
       getCanvas: () => null,
       getManualLayout: () => null,
       getPointCount: () => 10,
+      getTimeAxisRows: () => [{ time: 10, index: 0 }],
       getBarSpacing: () => barSpacing,
       setBarSpacing: (value) => {
         barSpacing = value;
@@ -69,6 +70,7 @@ describe("chart scale owner", () => {
       getCanvas: () => null,
       getManualLayout: () => null,
       getPointCount: () => 10,
+      getTimeAxisRows: () => [],
       getBarSpacing: () => null,
       setBarSpacing: vi.fn(),
       getRightOffset: () => 0,
@@ -102,4 +104,3 @@ describe("chart scale owner", () => {
     expect(render).toHaveBeenCalledTimes(2);
   });
 });
-

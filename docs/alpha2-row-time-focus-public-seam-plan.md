@@ -1,6 +1,6 @@
 # alpha2 W4：chartx2 row-time focus 最小 public seam 实施计划
 
-> 状态：正式实施计划，尚未实施
+> 状态：实施、修复与 fresh task review 已完成；等待独立 push 与 alpha2 consumer gate
 > 基线：`chartx2/main@73e8db376717619fae91502d74c440c8fa57f88b`
 > 基线关系：`main...origin/main [ahead 3]`
 > 日期：2026-07-25
@@ -483,6 +483,32 @@ git rev-parse origin/main
 ```
 
 最终 `HEAD == origin/main`，禁止 force push。
+
+### 实际实施与 closure history（2026-07-25）
+
+冻结计划之后，实施没有 amend 或重写既有提交，而是按窄切片形成如下实际历史：
+
+```text
+b4362000 docs(chartx2): freeze the row-time focus public seam plan
+00e6eeb feat(chartx2-time-scale): add public row-time focus
+13b5c57 fix(chartx2-release): preserve public consumer coverage
+```
+
+教程编号与提交对应为 `0393`（计划）、`0394`（实现）、`0395`（fresh review
+发现的 release-boundary 修复）及 `0396`（本 closure）。初始实现 review 为
+NO-GO（P1=1、P2=1）；`13b5c57` 以独立窄修复恢复既有 inspector subpath
+consumer coverage，并补全 five-kind exhaustive type proof，fresh re-review 最终为
+GO（P0=P1=P2=0）。
+
+本 closure 是纯文档提交，不在此处 push，也不改变 API 或 release artifact。已验证的
+tgz 为 SHA-256
+`ed3dc752116b51ca5ae11c1fbbc30042395b38015d424acb3a533e9113cf9b4b`，SHA-512
+`d03227aa9c4cf620c40af29ef4dd42fba7ac03de43038eca5f2e74f986b6b919efe6a216eccbdc8733a0787a278ea39e90dea77772d70ccd007dc69e3f4b0e12`。
+
+下一道门是 alpha2：在 chartx2 提交被正常推送、同一 tgz 被安装后，alpha2 必须仅从
+`@chartx2/library` 以 consumer 身份证明 canonical fill 的 `ts_ms`、curve time unit
+与明确 `maxDistance` policy，再完成 five-kind UI 处理。chartx2 的 package gate 不能替代
+这一宿主产品验证。
 
 ## 15. Alpha2 use
 

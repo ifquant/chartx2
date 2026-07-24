@@ -97,6 +97,27 @@ This GO does not authorize selection/event/strategy APIs, multi-chart/source
 selectors, marker creation, alpha2 private integration, Tauri/Rust/DataX2 work,
 or any rewrite of the three existing ahead commits.
 
+## 实际实施 closure（2026-07-25）
+
+本计划的实施历史已按 frozen process 落地：`b4362000`（计划/教程 0393）、
+`00e6eeb`（seam 实现/教程 0394）和 `13b5c57`（fresh implementation review 的
+narrow release-boundary 修复/教程 0395）。初次 implementation review 为
+NO-GO（P0=0、P1=1、P2=1），原因仅是 packed verifier 遗失既有 inspector public
+subpath 覆盖且 type probe 未穷尽 result union；修复后 fresh re-review 的最终结论为：
+
+```text
+GO
+P0 = 0
+P1 = 0
+P2 = 0
+```
+
+已记录的 release gate、clamp/subpath mutations、`/tmp` cleanup 和 artifact hashes
+归入 implementation review 与 closure；本 Sol plan review 不重写其历史裁决。该 GO
+仍只认可 chartx2 public seam。alpha2 的下一步必须使用该 tgz 的 public root 进行
+consumer gate，证明时间单位、tolerance policy 与 five-kind UI handling；不得因本
+chartx2 closure 绕过该门或 deep import。
+
 ---
 
 ## Initial verdict (preserved)

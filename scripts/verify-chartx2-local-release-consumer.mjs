@@ -51,6 +51,21 @@ try {
 
   writeFileSync(path.join(consumerRoot, "type-probe.ts"), `
 import { ChartFrameShell, type PhaseOneTimeFocusResult, type PhaseOneTimeScaleApi } from "@chartx2/library";
+import { WorkbenchDrawingInspectorPanel } from "@chartx2/library/workbench-drawing-inspector";
+
+function describeFocusResult(result: PhaseOneTimeFocusResult): string {
+  switch (result.kind) {
+    case "exact": return result.resolvedTime.toString();
+    case "nearest": return result.distance.toString();
+    case "outOfDomain": return result.reason;
+    case "ambiguous": return result.resolvedTime.toString();
+    case "noData": return result.requestedTime.toString();
+    default: {
+      const impossible: never = result;
+      return impossible;
+    }
+  }
+}
 
 const timeScale = {
   getVisibleLogicalRange: () => null,
@@ -60,6 +75,8 @@ const timeScale = {
 } satisfies PhaseOneTimeScaleApi;
 
 void ChartFrameShell;
+void WorkbenchDrawingInspectorPanel;
+void describeFocusResult(timeScale.focusTime({ time: 0, maxDistance: 0 }));
 void timeScale;
 `);
   writeFileSync(path.join(consumerRoot, "tsconfig.json"), JSON.stringify({
@@ -74,8 +91,10 @@ void timeScale;
   writeFileSync(path.join(consumerRoot, "index.html"), '<canvas id="chart" width="640" height="360"></canvas><canvas id="empty" width="640" height="360"></canvas><script type="module" src="/runtime.js"></script>\n');
   writeFileSync(path.join(consumerRoot, "runtime.js"), `
 import { ChartFrameShell, createChartxPhaseOneChart } from "@chartx2/library";
+import { WorkbenchDrawingInspectorPanel } from "@chartx2/library/workbench-drawing-inspector";
 
 if (!ChartFrameShell) throw new Error("root package lost an existing public export");
+if (!WorkbenchDrawingInspectorPanel) throw new Error("focused inspector public subpath is unavailable");
 const chart = createChartxPhaseOneChart(document.querySelector("#chart"));
 const series = chart.addCandlestickSeries();
 series.setData([

@@ -50,7 +50,14 @@ try {
   run("pnpm", ["exec", "playwright", "install", "chromium"], { cwd: consumerRoot });
 
   writeFileSync(path.join(consumerRoot, "type-probe.ts"), `
-import { ChartFrameShell, type PhaseOneTimeFocusResult, type PhaseOneTimeScaleApi } from "@chartx2/library";
+import {
+  ChartFrameShell,
+  TradingLedgerPanel,
+  TradingTicketPanel,
+  type PhaseOneTimeFocusResult,
+  type PhaseOneTimeScaleApi,
+  type TradingLedgerPanelModel,
+} from "@chartx2/library";
 import { WorkbenchDrawingInspectorPanel } from "@chartx2/library/workbench-drawing-inspector";
 
 function describeFocusResult(result: PhaseOneTimeFocusResult): string {
@@ -75,9 +82,26 @@ const timeScale = {
 } satisfies PhaseOneTimeScaleApi;
 
 void ChartFrameShell;
+void TradingTicketPanel;
+void TradingLedgerPanel;
 void WorkbenchDrawingInspectorPanel;
 void describeFocusResult(timeScale.focusTime({ time: 0, maxDistance: 0 }));
 void timeScale;
+const heterogeneousLedger: TradingLedgerPanelModel = {
+  tabs: [{ id: "account", label: "Account" }],
+  activeTabId: "account",
+  columns: [{ id: "balance", label: "Balance" }],
+  rows: [{
+    id: "account-1",
+    symbol: "--",
+    direction: "--",
+    quantity: "--",
+    average: "--",
+    statusLabel: "ready",
+    cells: [{ valueLabel: "100000" }],
+  }],
+};
+void heterogeneousLedger;
 `);
   writeFileSync(path.join(consumerRoot, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
@@ -88,13 +112,118 @@ void timeScale;
   }, null, 2) + "\n");
   run("pnpm", ["exec", "tsc", "--noEmit"], { cwd: consumerRoot });
 
-  writeFileSync(path.join(consumerRoot, "index.html"), '<canvas id="chart" width="640" height="360"></canvas><canvas id="empty" width="640" height="360"></canvas><script type="module" src="/runtime.js"></script>\n');
+  writeFileSync(path.join(consumerRoot, "index.html"), '<div id="app"></div><canvas id="chart" width="640" height="360"></canvas><canvas id="empty" width="640" height="360"></canvas><script type="module" src="/runtime.js"></script>\n');
+  writeFileSync(path.join(consumerRoot, "App.svelte"), `
+<script>
+  import { TradingLedgerPanel, TradingTicketPanel } from "@chartx2/library";
+
+  const ticket = {
+    title: "Packed ticket",
+    symbol: "rb2605",
+    side: "buy",
+    orderType: "limit",
+    quantity: { label: "Quantity", valueLabel: "2" },
+    limitPrice: { label: "Limit price", valueLabel: "3718" },
+    summaryLabel: "Legacy summary",
+    submitLabel: "Submit legacy ticket",
+    state: { status: "ready", submitEnabled: true },
+  };
+  const legacyLedger = {
+    tabs: [{ id: "orders", label: "Orders" }],
+    activeTabId: "orders",
+    selectedRowId: "legacy-order-1",
+    rows: [{
+      id: "legacy-order-1",
+      symbol: "rb2605",
+      direction: "buy",
+      quantity: "2",
+      average: "3718",
+      statusLabel: "Accepted",
+    }],
+  };
+  const factViews = {
+    orders: {
+      labels: ["订单号", "状态", "方向", "数量", "成交", "价格"],
+      rows: [["order-1", "Accepted", "buy", "2", "0", "3718"], ["order-2", "Working", "sell", "1", "0", "3720"]],
+    },
+    fills: {
+      labels: ["成交号", "时间", "方向", "数量", "价格"],
+      rows: [["fill-1", "09:31:00", "buy", "1", "3718"]],
+    },
+    positions: {
+      labels: ["方向", "数量", "均价", "浮盈"],
+      rows: [["long", "2", "3718", "+120"]],
+    },
+    account: {
+      labels: ["账户", "时间", "权益", "可用", "保证金", "已实现净盈亏"],
+      rows: [["sim-1", "09:31:00", "100120", "85120", "15000", "+120"]],
+    },
+  };
+
+  let legacySubmitCount = $state(0);
+  let activeFactTab = $state("orders");
+  let selectedFactRowId = $state("order-1");
+  let genericLedger = $derived({
+    title: "Packed heterogeneous ledger",
+    tabs: [
+      { id: "orders", label: "Orders" },
+      { id: "fills", label: "Fills" },
+      { id: "positions", label: "Positions" },
+      { id: "account", label: "Account" },
+    ],
+    activeTabId: activeFactTab,
+    selectedRowId: selectedFactRowId,
+    columns: factViews[activeFactTab].labels.map((label, index) => ({ id: "column-" + index, label })),
+    rows: factViews[activeFactTab].rows.map((values, index) => ({
+      id: activeFactTab + "-" + index,
+      symbol: "--",
+      direction: "--",
+      quantity: "--",
+      average: "--",
+      statusLabel: "--",
+      cells: values.map((value) => ({ valueLabel: value })),
+    })),
+  });
+
+  function selectFactTab(tabId) {
+    activeFactTab = tabId;
+    selectedFactRowId = tabId + "-0";
+  }
+</script>
+
+<section data-packed-ticket-legacy>
+  <TradingTicketPanel model={ticket} onSubmit={() => { legacySubmitCount += 1; }} />
+  <output data-packed-legacy-submit-count>{legacySubmitCount}</output>
+</section>
+
+<section data-packed-ticket-custom>
+  {#snippet editor()}
+    <label>Custom quantity <input data-packed-ticket-editor value="3" /></label>
+  {/snippet}
+  {#snippet ticketActions()}
+    <button type="button" data-packed-ticket-action>Preview and submit</button>
+  {/snippet}
+  <TradingTicketPanel model={ticket} {editor} actions={ticketActions} />
+</section>
+
+<section data-packed-ledger-legacy>
+  <TradingLedgerPanel model={legacyLedger} />
+</section>
+
+<section data-packed-ledger-generic>
+  <TradingLedgerPanel model={genericLedger} onSelectTab={selectFactTab} onSelectRow={(rowId) => { selectedFactRowId = rowId; }} />
+</section>
+`);
   writeFileSync(path.join(consumerRoot, "runtime.js"), `
-import { ChartFrameShell, createChartxPhaseOneChart } from "@chartx2/library";
+import { mount } from "svelte";
+import { ChartFrameShell, TradingLedgerPanel, TradingTicketPanel, createChartxPhaseOneChart } from "@chartx2/library";
 import { WorkbenchDrawingInspectorPanel } from "@chartx2/library/workbench-drawing-inspector";
+import App from "./App.svelte";
 
 if (!ChartFrameShell) throw new Error("root package lost an existing public export");
+if (!TradingTicketPanel || !TradingLedgerPanel) throw new Error("root package lost a trading host seam");
 if (!WorkbenchDrawingInspectorPanel) throw new Error("focused inspector public subpath is unavailable");
+mount(App, { target: document.querySelector("#app") });
 const chart = createChartxPhaseOneChart(document.querySelector("#chart"));
 const series = chart.addCandlestickSeries();
 series.setData([
@@ -141,6 +270,50 @@ try {
   if (results.beforeFirst.kind !== "outOfDomain" || results.beforeFirst.reason !== "beforeFirst") throw new Error("packed before-first handling failed");
   if (results.maxDistance.kind !== "outOfDomain" || results.maxDistance.reason !== "maxDistanceExceeded") throw new Error("packed max-distance handling failed");
   if (results.noData.kind !== "noData" || !results.rejectedRangeStable) throw new Error("packed rejected focus changed viewport or no-data handling failed");
+
+  // The consumer mounts each component from the packed package root.  These
+  // assertions deliberately cover both default compatibility and the two new
+  // host seams, rather than merely proving that their types can be imported.
+  const legacyTicket = page.locator("[data-packed-ticket-legacy] [data-trading-ticket]");
+  if (await legacyTicket.locator('[data-trading-ticket-field="quantity"]').count() !== 1) throw new Error("packed legacy ticket lost its default editor");
+  if (await legacyTicket.locator("[data-trading-ticket-summary]").count() !== 1) throw new Error("packed legacy ticket lost its default summary");
+  await legacyTicket.locator("[data-trading-ticket-submit]").click();
+  if (await page.locator("[data-packed-legacy-submit-count]").textContent() !== "1") throw new Error("packed legacy ticket did not call onSubmit");
+
+  const customTicket = page.locator("[data-packed-ticket-custom] [data-trading-ticket]");
+  if (await customTicket.locator("[data-packed-ticket-editor]").count() !== 1) throw new Error("packed custom editor seam did not mount");
+  if (await customTicket.locator("[data-packed-ticket-field]").count() !== 0) throw new Error("packed custom ticket duplicated default fields");
+  if (await customTicket.locator("[data-trading-ticket-actions]").count() !== 1) throw new Error("packed custom actions seam did not mount");
+  if (await customTicket.locator("[data-trading-ticket-summary], [data-trading-ticket-submit]").count() !== 0) throw new Error("packed custom ticket duplicated default actions");
+  if (await customTicket.locator("[data-packed-ticket-editor], [data-packed-ticket-action]").count() !== 2) throw new Error("packed custom ticket content is incomplete");
+
+  const legacyLedger = page.locator("[data-packed-ledger-legacy] [data-trading-ledger]");
+  const legacyHeaders = await legacyLedger.locator('[role="columnheader"]').allTextContents();
+  if (JSON.stringify(legacyHeaders) !== JSON.stringify(["合约", "方向", "数量", "均价", "浮盈/状态"])) throw new Error("packed legacy ledger columns changed");
+
+  const genericLedger = page.locator("[data-packed-ledger-generic] [data-trading-ledger]");
+  if (await genericLedger.locator('[role="tablist"] [role="tab"]').count() !== 4) throw new Error("packed generic ledger tab semantics are missing");
+  if (await genericLedger.locator('[role="tabpanel"]').count() !== 1) throw new Error("packed generic ledger tabpanel semantics are missing");
+  if (await genericLedger.locator('[role="tabpanel"]').getAttribute("aria-labelledby") !== "trading-ledger-tab-0") throw new Error("packed generic ledger active tab is not associated with its panel");
+  const assertHeaders = async (tabId, expected) => {
+    await genericLedger.locator('[data-trading-ledger-tab="' + tabId + '"]').click();
+    const headers = await genericLedger.locator('[role="columnheader"]').allTextContents();
+    if (JSON.stringify(headers) !== JSON.stringify(expected)) throw new Error("packed generic " + tabId + " columns did not render");
+    const selected = genericLedger.locator('[data-trading-ledger-tab="' + tabId + '"]');
+    if (await selected.getAttribute("aria-selected") !== "true") throw new Error("packed generic " + tabId + " tab did not become selected");
+  };
+  await assertHeaders("orders", ["订单号", "状态", "方向", "数量", "成交", "价格"]);
+  await assertHeaders("fills", ["成交号", "时间", "方向", "数量", "价格"]);
+  await assertHeaders("positions", ["方向", "数量", "均价", "浮盈"]);
+  await assertHeaders("account", ["账户", "时间", "权益", "可用", "保证金", "已实现净盈亏"]);
+  await assertHeaders("orders", ["订单号", "状态", "方向", "数量", "成交", "价格"]);
+  const firstOrder = genericLedger.locator('[data-trading-ledger-row="orders-0"]');
+  const secondOrder = genericLedger.locator('[data-trading-ledger-row="orders-1"]');
+  await secondOrder.click();
+  if (await secondOrder.getAttribute("aria-selected") !== "true") throw new Error("packed generic ledger click row selection failed");
+  await firstOrder.focus();
+  await page.keyboard.press("ArrowDown");
+  if (await secondOrder.getAttribute("aria-selected") !== "true") throw new Error("packed generic ledger keyboard row selection failed");
 } finally {
   await browser?.close();
   await server.close();

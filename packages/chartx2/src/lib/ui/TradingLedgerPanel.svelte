@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { TradingLedgerPanelModel, TradingLedgerRowModel } from "../public/trading-ledger-surface";
+  import {
+    resolveTradingLedgerColumns,
+    resolveTradingLedgerRowCells,
+    type TradingLedgerPanelModel,
+    type TradingLedgerRowModel,
+  } from "../public/trading-ledger-surface";
 
   const EMPTY_MODEL: TradingLedgerPanelModel = {
     tabs: [],
@@ -13,6 +18,9 @@
   export let model: TradingLedgerPanelModel = EMPTY_MODEL;
   export let onSelectTab: (tabId: string) => void | Promise<void> = () => {};
   export let onSelectRow: (rowId: string) => void | Promise<void> = () => {};
+
+  let tabButtons: HTMLButtonElement[] = [];
+  let rowButtons: HTMLButtonElement[] = [];
 
   function toneClass(tone: TradingLedgerRowModel["tone"] | undefined): string | undefined {
     if (tone === "red") {
@@ -33,18 +41,61 @@
     }
     return modelValue.rows.find((row) => row.id === modelValue.selectedRowId) ?? modelValue.rows[0] ?? null;
   }
+
+  function activeTabIndex(modelValue: TradingLedgerPanelModel): number {
+    return Math.max(0, modelValue.tabs.findIndex((tab) => tab.id === modelValue.activeTabId));
+  }
+
+  function panelIdForIndex(index: number): string {
+    return `trading-ledger-panel-${index}`;
+  }
+
+  function selectRelativeTab(event: KeyboardEvent, index: number): void {
+    if (!model.tabs.length) return;
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % model.tabs.length;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + model.tabs.length) % model.tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = model.tabs.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const next = model.tabs[nextIndex];
+    tabButtons[nextIndex]?.focus();
+    void onSelectTab(next.id);
+  }
+
+  function selectRelativeRow(event: KeyboardEvent, index: number): void {
+    if (!model.rows.length) return;
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowDown") nextIndex = Math.min(model.rows.length - 1, index + 1);
+    if (event.key === "ArrowUp") nextIndex = Math.max(0, index - 1);
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = model.rows.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const next = model.rows[nextIndex];
+    rowButtons[nextIndex]?.focus();
+    void onSelectRow(next.id);
+  }
 </script>
 
 <section class="trading-ledger-panel" data-trading-ledger data-trading-ledger-active-tab={model.activeTabId}>
-  <div class="ledger-tabs" aria-label={model.title ?? "Trading ledger tabs"}>
-    {#each model.tabs as tab}
+  <div class="ledger-tabs" role="tablist" aria-label={model.title ?? "Trading ledger tabs"}>
+    {#each model.tabs as tab, index}
       <button
         type="button"
         class:active={model.activeTabId === tab.id}
         data-trading-ledger-tab={tab.id}
+        role="tab"
+        id={`trading-ledger-tab-${index}`}
+        aria-selected={model.activeTabId === tab.id}
+        aria-controls={panelIdForIndex(index)}
+        tabindex={model.activeTabId === tab.id ? 0 : -1}
+        bind:this={tabButtons[index]}
         onclick={() => {
           void onSelectTab(tab.id);
         }}
+        onkeydown={(event) => selectRelativeTab(event, index)}
       >
         {tab.label}
         {#if tab.badgeLabel}
@@ -54,33 +105,41 @@
     {/each}
   </div>
 
-  <div class="ledger-body">
-    <div class="ledger-table">
-      <div class="ledger-row header">
-        <span>合约</span>
-        <span>方向</span>
-        <span>数量</span>
-        <span>均价</span>
-        <span>浮盈/状态</span>
+  <div
+    class="ledger-body"
+    role="tabpanel"
+    id={panelIdForIndex(activeTabIndex(model))}
+    aria-labelledby={`trading-ledger-tab-${activeTabIndex(model)}`}
+    tabindex="0"
+  >
+    <div class="ledger-table" role="grid" aria-label={model.title ?? "Trading ledger rows"}>
+      <div class="ledger-row header" role="row" style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}>
+        {#each resolveTradingLedgerColumns(model) as column}
+          <span role="columnheader">{column.label}</span>
+        {/each}
       </div>
       {#if model.rows.length === 0}
         <div class="empty-row">{model.emptyLabel ?? "No host ledger rows available."}</div>
       {:else}
-        {#each model.rows as row}
+        {#each model.rows as row, index}
           <button
             type="button"
             class:ledger-row={true}
             class:selected={selectedRow(model)?.id === row.id}
             data-trading-ledger-row={row.id}
+            role="row"
+            aria-selected={selectedRow(model)?.id === row.id}
+            tabindex={selectedRow(model)?.id === row.id ? 0 : -1}
+            style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}
+            bind:this={rowButtons[index]}
             onclick={() => {
               void onSelectRow(row.id);
             }}
+            onkeydown={(event) => selectRelativeRow(event, index)}
           >
-            <span>{row.symbol}</span>
-            <span>{row.direction}</span>
-            <span>{row.quantity}</span>
-            <span>{row.average}</span>
-            <span class={toneClass(row.tone)}>{row.statusLabel}</span>
+            {#each resolveTradingLedgerRowCells(row, resolveTradingLedgerColumns(model)) as cell}
+              <span role="gridcell" class={toneClass(cell.tone)}>{cell.valueLabel}</span>
+            {/each}
           </button>
         {/each}
       {/if}
@@ -171,7 +230,7 @@
 
   .ledger-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1.2fr;
+    grid-template-columns: repeat(var(--ledger-column-count), minmax(0, 1fr));
     border-bottom: 1px solid #e1e7e9;
     border-left: 0;
     border-top: 0;

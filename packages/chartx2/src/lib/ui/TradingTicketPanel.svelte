@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import type { TradingTicketModel } from "../public/trading-surface";
 
   const EMPTY_MODEL: TradingTicketModel = {
@@ -20,6 +21,10 @@
 
   export let model: TradingTicketModel = EMPTY_MODEL;
   export let onSubmit: (model: TradingTicketModel) => void | Promise<void> = () => {};
+  /** Replaces only the default read-only field region inside the ticket shell. */
+  export let editor: Snippet | undefined = undefined;
+  /** Replaces only the default summary and submit-action region inside the ticket shell. */
+  export let actions: Snippet | undefined = undefined;
 
   function statusClass(status: TradingTicketModel["state"]["status"]): string {
     if (status === "error") {
@@ -79,24 +84,28 @@
           <span class="badge neutral" data-trading-ticket-order-type-badge>{model.orderType}</span>
         </div>
       </div>
-      <dl class="field-grid">
-        <div class="field-row" data-trading-ticket-field="quantity">
-          <dt>{model.quantity.label}</dt>
-          <dd>{fieldValueLabel(model.quantity)}</dd>
-        </div>
-        {#if model.limitPrice}
-          <div class="field-row" data-trading-ticket-field="limit-price">
-            <dt>{model.limitPrice.label}</dt>
-            <dd>{fieldValueLabel(model.limitPrice)}</dd>
+      {#if editor}
+        <div class="ticket-editor" data-trading-ticket-editor>{@render editor()}</div>
+      {:else}
+        <dl class="field-grid">
+          <div class="field-row" data-trading-ticket-field="quantity">
+            <dt>{model.quantity.label}</dt>
+            <dd>{fieldValueLabel(model.quantity)}</dd>
           </div>
-        {/if}
-        {#if model.stopPrice}
-          <div class="field-row" data-trading-ticket-field="stop-price">
-            <dt>{model.stopPrice.label}</dt>
-            <dd>{fieldValueLabel(model.stopPrice)}</dd>
-          </div>
-        {/if}
-      </dl>
+          {#if model.limitPrice}
+            <div class="field-row" data-trading-ticket-field="limit-price">
+              <dt>{model.limitPrice.label}</dt>
+              <dd>{fieldValueLabel(model.limitPrice)}</dd>
+            </div>
+          {/if}
+          {#if model.stopPrice}
+            <div class="field-row" data-trading-ticket-field="stop-price">
+              <dt>{model.stopPrice.label}</dt>
+              <dd>{fieldValueLabel(model.stopPrice)}</dd>
+            </div>
+          {/if}
+        </dl>
+      {/if}
     </article>
 
     <article class="ticket-card">
@@ -104,24 +113,28 @@
         <h3>Summary</h3>
         <span class="section-detail">Host adapter shell</span>
       </div>
-      {#if model.summaryLabel}
-        <p class="summary-label" data-trading-ticket-summary>{model.summaryLabel}</p>
+      {#if actions}
+        <div class="ticket-actions" data-trading-ticket-actions>{@render actions()}</div>
       {:else}
-        <p class="summary-label muted">No fixture summary available.</p>
-      {/if}
+        {#if model.summaryLabel}
+          <p class="summary-label" data-trading-ticket-summary>{model.summaryLabel}</p>
+        {:else}
+          <p class="summary-label muted">No fixture summary available.</p>
+        {/if}
 
-      <button
-        type="button"
-        class="submit-button"
-        data-trading-ticket-submit
-        disabled={!model.state.submitEnabled}
-        aria-disabled={!model.state.submitEnabled}
-        on:click={() => {
-          void onSubmit(model);
-        }}
-      >
-        {model.submitLabel}
-      </button>
+        <button
+          type="button"
+          class="submit-button"
+          data-trading-ticket-submit
+          disabled={!model.state.submitEnabled}
+          aria-disabled={!model.state.submitEnabled}
+          on:click={() => {
+            void onSubmit(model);
+          }}
+        >
+          {model.submitLabel}
+        </button>
+      {/if}
     </article>
   </div>
 </section>
@@ -247,6 +260,11 @@
     flex-direction: column;
     gap: 0.7rem;
     margin: 0;
+  }
+
+  .ticket-editor,
+  .ticket-actions {
+    display: contents;
   }
 
   .field-row dd {

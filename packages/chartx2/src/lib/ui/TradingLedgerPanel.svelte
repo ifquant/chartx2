@@ -15,12 +15,24 @@
     detailEmptyLabel: "Select a row to inspect host-owned detail fields.",
   };
 
-  export let model: TradingLedgerPanelModel = EMPTY_MODEL;
-  export let onSelectTab: (tabId: string) => void | Promise<void> = () => {};
-  export let onSelectRow: (rowId: string) => void | Promise<void> = () => {};
+  type Props = {
+    model?: TradingLedgerPanelModel;
+    onSelectTab?: (tabId: string) => void | Promise<void>;
+    onSelectRow?: (rowId: string) => void | Promise<void>;
+  };
 
-  let tabButtons: HTMLButtonElement[] = [];
-  let rowButtons: HTMLButtonElement[] = [];
+  let {
+    model = EMPTY_MODEL,
+    onSelectTab = () => {},
+    onSelectRow = () => {},
+  }: Props = $props();
+
+  // Svelte derives this ID from the component tree, so multiple mounted panels
+  // stay unique while SSR and hydration agree on the same prefix.
+  let instanceId = $props.id();
+
+  let tabButtons = $state<HTMLButtonElement[]>([]);
+  let rowButtons = $state<HTMLButtonElement[]>([]);
 
   function toneClass(tone: TradingLedgerRowModel["tone"] | undefined): string | undefined {
     if (tone === "red") {
@@ -47,7 +59,11 @@
   }
 
   function panelIdForIndex(index: number): string {
-    return `trading-ledger-panel-${index}`;
+    return `${instanceId}-panel-${index}`;
+  }
+
+  function tabIdForIndex(index: number): string {
+    return `${instanceId}-tab-${index}`;
   }
 
   function selectRelativeTab(event: KeyboardEvent, index: number): void {
@@ -87,7 +103,7 @@
         class:active={model.activeTabId === tab.id}
         data-trading-ledger-tab={tab.id}
         role="tab"
-        id={`trading-ledger-tab-${index}`}
+        id={tabIdForIndex(index)}
         aria-selected={model.activeTabId === tab.id}
         aria-controls={panelIdForIndex(index)}
         tabindex={model.activeTabId === tab.id ? 0 : -1}
@@ -105,63 +121,68 @@
     {/each}
   </div>
 
-  <div
-    class="ledger-body"
-    role="tabpanel"
-    id={panelIdForIndex(activeTabIndex(model))}
-    aria-labelledby={`trading-ledger-tab-${activeTabIndex(model)}`}
-    tabindex="0"
-  >
-    <div class="ledger-table" role="grid" aria-label={model.title ?? "Trading ledger rows"}>
-      <div class="ledger-row header" role="row" style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}>
-        {#each resolveTradingLedgerColumns(model) as column}
-          <span role="columnheader">{column.label}</span>
-        {/each}
+  {#each model.tabs as tab, tabIndex}
+    <div
+      class="ledger-body"
+      role="tabpanel"
+      id={panelIdForIndex(tabIndex)}
+      aria-labelledby={tabIdForIndex(tabIndex)}
+      tabindex="0"
+      hidden={model.activeTabId !== tab.id}
+    >
+      {#if model.activeTabId === tab.id}
+        <div class="ledger-table" role="grid" aria-label={model.title ?? "Trading ledger rows"}>
+        <div class="ledger-row header" role="row" style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}>
+          {#each resolveTradingLedgerColumns(model) as column}
+            <span role="columnheader">{column.label}</span>
+          {/each}
+        </div>
+        {#if model.rows.length === 0}
+          <div class="empty-row">{model.emptyLabel ?? "No host ledger rows available."}</div>
+        {:else}
+          {#each model.rows as row, index}
+            <button
+              type="button"
+              class:ledger-row={true}
+              class:selected={selectedRow(model)?.id === row.id}
+              data-trading-ledger-row={row.id}
+              role="row"
+              aria-selected={selectedRow(model)?.id === row.id}
+              tabindex={selectedRow(model)?.id === row.id ? 0 : -1}
+              style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}
+              bind:this={rowButtons[index]}
+              onclick={() => {
+                void onSelectRow(row.id);
+              }}
+              onkeydown={(event) => selectRelativeRow(event, index)}
+            >
+              {#each resolveTradingLedgerRowCells(row, resolveTradingLedgerColumns(model)) as cell}
+                <span role="gridcell" class={toneClass(cell.tone)}>{cell.valueLabel}</span>
+              {/each}
+            </button>
+          {/each}
+        {/if}
       </div>
-      {#if model.rows.length === 0}
-        <div class="empty-row">{model.emptyLabel ?? "No host ledger rows available."}</div>
-      {:else}
-        {#each model.rows as row, index}
-          <button
-            type="button"
-            class:ledger-row={true}
-            class:selected={selectedRow(model)?.id === row.id}
-            data-trading-ledger-row={row.id}
-            role="row"
-            aria-selected={selectedRow(model)?.id === row.id}
-            tabindex={selectedRow(model)?.id === row.id ? 0 : -1}
-            style={`--ledger-column-count: ${resolveTradingLedgerColumns(model).length}`}
-            bind:this={rowButtons[index]}
-            onclick={() => {
-              void onSelectRow(row.id);
-            }}
-            onkeydown={(event) => selectRelativeRow(event, index)}
-          >
-            {#each resolveTradingLedgerRowCells(row, resolveTradingLedgerColumns(model)) as cell}
-              <span role="gridcell" class={toneClass(cell.tone)}>{cell.valueLabel}</span>
-            {/each}
-          </button>
-        {/each}
+
+      <aside class="detail-card" aria-label="Selected ledger row detail">
+        <div class="detail-head">
+          <strong>{model.detailTitle ?? "Detail"}</strong>
+          <span>{selectedRow(model)?.id ?? "未选择"}</span>
+        </div>
+        {#if !selectedRow(model)}
+          <div class="detail-empty">{model.detailEmptyLabel ?? "Select a row to inspect host detail fields."}</div>
+        {:else}
+          {#each selectedRow(model)?.detailFields ?? [] as field}
+            <div class="detail-row">
+              <span>{field.label}</span>
+              <strong class={toneClass(field.tone)}>{field.valueLabel}</strong>
+            </div>
+          {/each}
+        {/if}
+        </aside>
       {/if}
     </div>
-
-    <aside class="detail-card" aria-label="Selected ledger row detail">
-      <div class="detail-head">
-        <strong>{model.detailTitle ?? "Detail"}</strong>
-        <span>{selectedRow(model)?.id ?? "未选择"}</span>
-      </div>
-      {#if !selectedRow(model)}
-        <div class="detail-empty">{model.detailEmptyLabel ?? "Select a row to inspect host detail fields."}</div>
-      {:else}
-        {#each selectedRow(model)?.detailFields ?? [] as field}
-          <div class="detail-row">
-            <span>{field.label}</span>
-            <strong class={toneClass(field.tone)}>{field.valueLabel}</strong>
-          </div>
-        {/each}
-      {/if}
-    </aside>
-  </div>
+  {/each}
 </section>
 
 <style>

@@ -206,6 +206,20 @@ void heterogeneousLedger;
   <TradingTicketPanel model={ticket} {editor} actions={ticketActions} />
 </section>
 
+<section data-packed-ticket-editor-only>
+  {#snippet editorOnly()}
+    <label>Editor only <input data-packed-ticket-editor-only value="4" /></label>
+  {/snippet}
+  <TradingTicketPanel model={ticket} editor={editorOnly} />
+</section>
+
+<section data-packed-ticket-actions-only>
+  {#snippet actionsOnly()}
+    <button type="button" data-packed-ticket-action-only>Preview only</button>
+  {/snippet}
+  <TradingTicketPanel model={ticket} actions={actionsOnly} />
+</section>
+
 <section data-packed-ledger-legacy>
   <TradingLedgerPanel model={legacyLedger} />
 </section>
@@ -287,21 +301,60 @@ try {
   if (await customTicket.locator("[data-trading-ticket-summary], [data-trading-ticket-submit]").count() !== 0) throw new Error("packed custom ticket duplicated default actions");
   if (await customTicket.locator("[data-packed-ticket-editor], [data-packed-ticket-action]").count() !== 2) throw new Error("packed custom ticket content is incomplete");
 
+  const editorOnlyTicket = page.locator("[data-packed-ticket-editor-only] [data-trading-ticket]");
+  if (await editorOnlyTicket.locator("[data-packed-ticket-editor-only]").count() !== 1) throw new Error("packed editor-only ticket did not mount its editor");
+  if (await editorOnlyTicket.locator("[data-trading-ticket-field]").count() !== 0) throw new Error("packed editor-only ticket duplicated default fields");
+  if (await editorOnlyTicket.locator("[data-trading-ticket-summary], [data-trading-ticket-submit]").count() !== 2) throw new Error("packed editor-only ticket lost default actions");
+
+  const actionsOnlyTicket = page.locator("[data-packed-ticket-actions-only] [data-trading-ticket]");
+  if (await actionsOnlyTicket.locator('[data-trading-ticket-field="quantity"], [data-trading-ticket-field="limit-price"]').count() !== 2) throw new Error("packed actions-only ticket lost default fields");
+  if (await actionsOnlyTicket.locator("[data-trading-ticket-actions], [data-packed-ticket-action-only]").count() !== 2) throw new Error("packed actions-only ticket did not mount its action replacement");
+  if (await actionsOnlyTicket.locator("[data-trading-ticket-summary], [data-trading-ticket-submit]").count() !== 0) throw new Error("packed actions-only ticket duplicated default actions");
+
   const legacyLedger = page.locator("[data-packed-ledger-legacy] [data-trading-ledger]");
   const legacyHeaders = await legacyLedger.locator('[role="columnheader"]').allTextContents();
   if (JSON.stringify(legacyHeaders) !== JSON.stringify(["合约", "方向", "数量", "均价", "浮盈/状态"])) throw new Error("packed legacy ledger columns changed");
 
   const genericLedger = page.locator("[data-packed-ledger-generic] [data-trading-ledger]");
   if (await genericLedger.locator('[role="tablist"] [role="tab"]').count() !== 4) throw new Error("packed generic ledger tab semantics are missing");
-  if (await genericLedger.locator('[role="tabpanel"]').count() !== 1) throw new Error("packed generic ledger tabpanel semantics are missing");
-  if (await genericLedger.locator('[role="tabpanel"]').getAttribute("aria-labelledby") !== "trading-ledger-tab-0") throw new Error("packed generic ledger active tab is not associated with its panel");
+  if (await genericLedger.locator('[role="tabpanel"]').count() !== 4) throw new Error("packed generic ledger tabpanel semantics are missing");
+  const pageIds = await page.locator("[id]").evaluateAll((elements) => elements.map((element) => element.id));
+  if (new Set(pageIds).size !== pageIds.length) throw new Error("packed ledger panels produced duplicate document IDs");
+  const assertTabRelations = async (ledger, label) => {
+    const relations = await ledger.locator('[role="tab"]').evaluateAll((tabs) => tabs.map((tab) => {
+      const controlledId = tab.getAttribute("aria-controls");
+      const panel = controlledId ? document.getElementById(controlledId) : null;
+      return {
+        tabId: tab.id,
+        controlledId,
+        panelId: panel?.id ?? null,
+        panelLabel: panel?.getAttribute("aria-labelledby") ?? null,
+      };
+    }));
+    if (relations.length === 0 || relations.some((relation) => relation.controlledId !== relation.panelId || relation.tabId !== relation.panelLabel)) throw new Error("packed " + label + " tab/panel IDs are not exact per-instance associations");
+  };
+  await assertTabRelations(legacyLedger, "legacy ledger");
+  await assertTabRelations(genericLedger, "generic ledger");
+  const activeGenericPanel = () => genericLedger.locator('[role="tabpanel"]:not([hidden])');
+  const genericTabs = genericLedger.locator('[role="tab"]');
+  const activeGenericTab = () => genericLedger.locator('[role="tab"][aria-selected="true"]');
   const assertHeaders = async (tabId, expected) => {
     await genericLedger.locator('[data-trading-ledger-tab="' + tabId + '"]').click();
-    const headers = await genericLedger.locator('[role="columnheader"]').allTextContents();
+    const headers = await activeGenericPanel().locator('[role="columnheader"]').allTextContents();
     if (JSON.stringify(headers) !== JSON.stringify(expected)) throw new Error("packed generic " + tabId + " columns did not render");
     const selected = genericLedger.locator('[data-trading-ledger-tab="' + tabId + '"]');
     if (await selected.getAttribute("aria-selected") !== "true") throw new Error("packed generic " + tabId + " tab did not become selected");
+    if (await activeGenericPanel().getAttribute("aria-labelledby") !== await selected.getAttribute("id")) throw new Error("packed generic " + tabId + " active tab/panel association is stale");
   };
+  await genericTabs.nth(0).focus();
+  await page.keyboard.press("End");
+  if (await activeGenericTab().getAttribute("data-trading-ledger-tab") !== "account" || !await genericTabs.nth(3).evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger tab End keyboard selection failed");
+  await page.keyboard.press("Home");
+  if (await activeGenericTab().getAttribute("data-trading-ledger-tab") !== "orders" || !await genericTabs.nth(0).evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger tab Home keyboard selection failed");
+  await page.keyboard.press("ArrowRight");
+  if (await activeGenericTab().getAttribute("data-trading-ledger-tab") !== "fills" || !await genericTabs.nth(1).evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger tab ArrowRight keyboard selection failed");
+  await page.keyboard.press("ArrowLeft");
+  if (await activeGenericTab().getAttribute("data-trading-ledger-tab") !== "orders" || !await genericTabs.nth(0).evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger tab ArrowLeft keyboard selection failed");
   await assertHeaders("orders", ["订单号", "状态", "方向", "数量", "成交", "价格"]);
   await assertHeaders("fills", ["成交号", "时间", "方向", "数量", "价格"]);
   await assertHeaders("positions", ["方向", "数量", "均价", "浮盈"]);
@@ -311,9 +364,15 @@ try {
   const secondOrder = genericLedger.locator('[data-trading-ledger-row="orders-1"]');
   await secondOrder.click();
   if (await secondOrder.getAttribute("aria-selected") !== "true") throw new Error("packed generic ledger click row selection failed");
-  await firstOrder.focus();
+  await secondOrder.focus();
+  await page.keyboard.press("Home");
+  if (await firstOrder.getAttribute("aria-selected") !== "true" || !await firstOrder.evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger row Home keyboard selection failed");
   await page.keyboard.press("ArrowDown");
-  if (await secondOrder.getAttribute("aria-selected") !== "true") throw new Error("packed generic ledger keyboard row selection failed");
+  if (await secondOrder.getAttribute("aria-selected") !== "true" || !await secondOrder.evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger row ArrowDown keyboard selection failed");
+  await page.keyboard.press("ArrowUp");
+  if (await firstOrder.getAttribute("aria-selected") !== "true" || !await firstOrder.evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger row ArrowUp keyboard selection failed");
+  await page.keyboard.press("End");
+  if (await secondOrder.getAttribute("aria-selected") !== "true" || !await secondOrder.evaluate((element) => element === document.activeElement)) throw new Error("packed generic ledger row End keyboard selection failed");
 } finally {
   await browser?.close();
   await server.close();

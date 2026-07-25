@@ -23,7 +23,8 @@ chartx2 shell，但 chartx2 不能因此变成订单、账户或 Tauri 命令的
   还是账户事实，也不接收取消或提交命令。
 - `TradingLedgerPanel.svelte` 继续拥有 tab、表头、行、detail 与选择交互；它增加
   `role="tablist"`、`role="tab"`、`role="tabpanel"`、`role="grid"`，并支持 Arrow/Home/End
-  切换 tab 或行。
+  切换 tab 或行。每个 panel 用 Svelte `$props.id()` 生成 hydration-safe instance prefix，因此同页
+  多个 ledger 的 `id`、`aria-controls` 与 `aria-labelledby` 不会互相串线。
 - `verify-chartx2-local-release-consumer.mjs` 现在从打包 tgz 的 package root 实际挂载 legacy
   ticket、custom ticket、legacy ledger 和四种异构 ledger view，而不是只做 import/type probe。
 
@@ -32,8 +33,9 @@ chartx2 shell，但 chartx2 不能因此变成订单、账户或 Tauri 命令的
 ### Snippet 是“区域替换”，不是任意应用协议
 
 Svelte 的 `Snippet` 让宿主在指定位置提供 UI。这里 `editor` 与 `actions` 各自只有一个固定
-落点，因此 chartx2 仍控制 ticket 外壳、状态和布局；alpha2 可以放受控输入或按钮，却不能把
-broker schema、risk 规则或 Tauri 调用传进 chartx2。
+落点，既可单独替换，也可同时替换；未被替换的另一默认区域仍保留。因此 chartx2 仍控制 ticket
+外壳、状态和布局；alpha2 可以放受控输入或按钮，却不能把 broker schema、risk 规则或 Tauri 调用
+传进 chartx2。
 
 ### 异构 ledger 不等于把账务模型搬到图表库
 
@@ -46,7 +48,9 @@ accounting authority。
 - 组件的 source test 只能证明本仓逻辑；packed consumer 在 workspace 外安装 `.tgz` 并运行浏览器
   才能同时覆盖 package-root export、声明文件、运行时 Svelte 编译与默认兼容性。
 - keyboard row selection 不应只依赖鼠标 click。这里保留按钮原生 Enter/Space 行为，并显式处理
-  ArrowUp/ArrowDown/Home/End，让 host callback 与焦点移动保持同一行。
+  ArrowUp/ArrowDown/Home/End，让 host callback 与焦点移动保持同一行。tab 同样处理
+  ArrowLeft/ArrowRight/Home/End；packed consumer 会验证 callback 后的 `aria-selected`、焦点和
+  tab/panel 关联。
 
 ## 验证
 
@@ -59,6 +63,9 @@ pnpm release:local:check
 
 结果：全部通过；library unit 为 164 files / 576 tests，example unit 为 4 files / 16 tests。
 `release:local:check` 的外部浏览器 consumer 验证了 legacy/default 与新 seam 的真实挂载。
+它还同页挂载 legacy 与 generic ledger，检查 document IDs 无重复、每个 tab 的
+`aria-controls` 精确匹配自己的 panel、以及 editor-only/actions-only/both replacement 和完整
+tab/row keyboard 矩阵。
 
 还执行了一次有界 mutation：临时从 package root 移除 `TradingTicketPanel` runtime export，外部
 consumer 的 `type-probe.ts` 以 `TS2724` RED；恢复该行并重建 library 后，完整

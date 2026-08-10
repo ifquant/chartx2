@@ -13,6 +13,10 @@
   } from "../public/market";
   import { formatVolumeAxisLabel } from "../internal/views/chart-axis-format";
   import {
+    consumePhaseOneMarketChartTimeFocusCommand,
+    mintPhaseOneMarketChartMountLifecycleReceipt,
+  } from "../internal/views/market-chart-lifecycle";
+  import {
     normalizePhaseOneMarketChartSurfaceLayout,
     resolvePhaseOneMarketChartActiveDataLength,
     resolvePhaseOneMarketChartDisplayMode,
@@ -29,6 +33,12 @@
     type PhaseOneMarketChartSurfaceRightDockMode,
     type PhaseOneMarketChartSurfaceVirtualRange,
   } from "../public/market-chart-surface";
+  import type {
+    PhaseOneMarketChartDataIdentityV1,
+    PhaseOneMarketChartMountLifecycleReceiptV1,
+    PhaseOneMarketChartTimeFocusCommandV1,
+    PhaseOneMarketChartTimeFocusCompletionV1,
+  } from "../public/market-chart-lifecycle";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
     symbol: "Symbol",
@@ -67,6 +77,12 @@
     rightDockOpen?: boolean;
     rightDockWidth?: string;
     onVirtualRangeChange?: (range: PhaseOneMarketChartSurfaceVirtualRange) => void;
+    /** Host-created identity for the exact axis data supplied through model. */
+    dataIdentity?: PhaseOneMarketChartDataIdentityV1;
+    /** Declarative command accepted only by the matching ready generation. */
+    timeFocusCommand?: PhaseOneMarketChartTimeFocusCommandV1 | null;
+    onMountLifecycleReceipt?: (receipt: PhaseOneMarketChartMountLifecycleReceiptV1) => void;
+    onTimeFocusCompletion?: (completion: PhaseOneMarketChartTimeFocusCompletionV1) => void;
     readoutActions?: Snippet;
     rightDock?: Snippet;
   };
@@ -81,6 +97,10 @@
     rightDockOpen = false,
     rightDockWidth = "260px",
     onVirtualRangeChange,
+    dataIdentity,
+    timeFocusCommand = null,
+    onMountLifecycleReceipt,
+    onTimeFocusCompletion,
     readoutActions,
     rightDock,
   }: Props = $props();
@@ -107,6 +127,9 @@
   let lastVirtualRangeSignature: string | null = null;
   let virtualRangeMonitorFrame: number | null = null;
   let virtualRangeMonitorRemaining = 0;
+  let activeMountLifecycleReceipt = $state<PhaseOneMarketChartMountLifecycleReceiptV1 | null>(null);
+  let activeGenerationAxisReady = $state(false);
+  let lastDataIdentityKey: string | undefined;
 
   type ReadoutState = {
     time: string;
@@ -162,6 +185,44 @@
     timeshareBaselineSeries = null;
     volumeSeries = null;
     indicatorSeries = [];
+    activeGenerationAxisReady = false;
+  }
+
+  function currentDataIdentityKey(): string | undefined {
+    return typeof dataIdentity?.key === "string" && dataIdentity.key.trim() !== "" ? dataIdentity.key : undefined;
+  }
+
+  function invalidateMountLifecycleGeneration(): void {
+    // The old opaque token remains minted so a late host command receives one
+    // truthful superseded terminal fact instead of becoming valid after reuse.
+    activeMountLifecycleReceipt = null;
+    activeGenerationAxisReady = false;
+  }
+
+  function publishReadyMountLifecycleGeneration(): void {
+    if (!mounted || chart === null || activeGenerationAxisReady || currentDataIdentityKey() === undefined) {
+      return;
+    }
+    const receipt = mintPhaseOneMarketChartMountLifecycleReceipt();
+    activeMountLifecycleReceipt = receipt;
+    activeGenerationAxisReady = true;
+    // Axis data and the ordinary auto-fit decision have completed before this
+    // callback. The host can now safely issue a command for this generation.
+    onMountLifecycleReceipt?.(receipt);
+  }
+
+  function consumeTimeFocusCommand(): void {
+    if (timeFocusCommand === null) return;
+    const completion = consumePhaseOneMarketChartTimeFocusCommand(timeFocusCommand, {
+      mounted,
+      receipt: activeMountLifecycleReceipt,
+      dataIdentity,
+      chart,
+      axisReady: activeGenerationAxisReady,
+    });
+    // The coordinator records terminal state before this callback. A host may
+    // synchronously replace model, identity, or command without replaying it.
+    if (completion !== null) onTimeFocusCompletion?.(completion);
   }
 
   function resizeChart(): void {
@@ -527,6 +588,9 @@
       return;
     }
 
+    // Replacing the chart instance is a lifecycle boundary even when the host
+    // data identity is unchanged: the old chart can no longer receive focus.
+    invalidateMountLifecycleGeneration();
     destroyChart();
 
     if (resolvePhaseOneMarketChartActiveDataLength(model) === 0) {
@@ -640,6 +704,7 @@
 
     applyChartData();
     resizeChart();
+    publishReadyMountLifecycleGeneration();
   }
 
   $effect(() => {
@@ -657,9 +722,18 @@
     const nextIndicatorSignature = resolvePhaseOneMarketChartIndicatorPanes(model)
       .map((pane) => `${pane.id}:${pane.height}:${pane.series.map((series) => `${series.kind}:${series.id}:${series.color ?? ""}`).join(",")}`)
       .join("|");
+    const nextDataIdentityKey = currentDataIdentityKey();
+    const dataIdentityChanged = lastDataIdentityKey !== nextDataIdentityKey;
 
     if (!mounted) {
       return;
+    }
+
+    if (dataIdentityChanged) {
+      // A host key change announces that the axis may resolve times differently.
+      // Do this before setData so a command cannot target half-applied new data.
+      invalidateMountLifecycleGeneration();
+      lastDataIdentityKey = nextDataIdentityKey;
     }
 
     if (
@@ -683,10 +757,22 @@
     applyModelPriceScale();
     applyModelTimeFormatter();
     applyChartData();
+    if (dataIdentityChanged) publishReadyMountLifecycleGeneration();
+  });
+
+  $effect(() => {
+    // This is intentionally separate from model application: receipt issuance
+    // happens only after axis data/auto-fit, while command reactivity may be
+    // driven by a receipt callback in the same host turn.
+    void activeMountLifecycleReceipt;
+    void activeGenerationAxisReady;
+    void dataIdentity?.key;
+    consumeTimeFocusCommand();
   });
 
   onMount(() => {
     mounted = true;
+    lastDataIdentityKey = currentDataIdentityKey();
     const nextDisplayMode = resolvePhaseOneMarketChartDisplayMode(model);
     const timesharePoints = model.intradayTimeshare?.points ?? [];
     lastDisplayMode = nextDisplayMode;
@@ -711,6 +797,10 @@
 
     return () => {
       mounted = false;
+      // A command can be present in the same host turn that tears the surface
+      // down. Give its owning receipt the required disposed terminal fact
+      // before the chart/axis references are released.
+      consumeTimeFocusCommand();
       resizeObserver?.disconnect();
       resizeObserver = null;
       if (virtualRangeMonitorFrame !== null) {
@@ -718,6 +808,7 @@
         virtualRangeMonitorFrame = null;
       }
       destroyChart();
+      invalidateMountLifecycleGeneration();
     };
   });
 </script>

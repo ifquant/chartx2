@@ -52,8 +52,13 @@ try {
   writeFileSync(path.join(consumerRoot, "type-probe.ts"), `
 import {
   ChartFrameShell,
+  PhaseOneMarketChartSurface,
   TradingLedgerPanel,
   TradingTicketPanel,
+  type PhaseOneMarketChartDataIdentityV1,
+  type PhaseOneMarketChartMountLifecycleReceiptV1,
+  type PhaseOneMarketChartTimeFocusCommandV1,
+  type PhaseOneMarketChartTimeFocusCompletionV1,
   type PhaseOneTimeFocusResult,
   type PhaseOneTimeScaleApi,
   type TradingLedgerPanelModel,
@@ -82,6 +87,7 @@ const timeScale = {
 } satisfies PhaseOneTimeScaleApi;
 
 void ChartFrameShell;
+void PhaseOneMarketChartSurface;
 void TradingTicketPanel;
 void TradingLedgerPanel;
 void WorkbenchDrawingInspectorPanel;
@@ -102,6 +108,52 @@ const heterogeneousLedger: TradingLedgerPanelModel = {
   }],
 };
 void heterogeneousLedger;
+const lifecycleIdentity = { key: "packed:rb2605:1m:r1" } satisfies PhaseOneMarketChartDataIdentityV1;
+let lifecycleReceipt: PhaseOneMarketChartMountLifecycleReceiptV1 | null = null;
+const lifecycleCommand = (): PhaseOneMarketChartTimeFocusCommandV1 | null => lifecycleReceipt === null ? null : {
+  requestId: 1,
+  mountLifecycleReceipt: lifecycleReceipt,
+  expectedDataIdentity: lifecycleIdentity,
+  focus: { time: 2, maxDistance: 0 },
+};
+const observeLifecycleCompletion = (_completion: PhaseOneMarketChartTimeFocusCompletionV1) => undefined;
+function describeLifecycleCompletion(completion: PhaseOneMarketChartTimeFocusCompletionV1): string {
+  return completion.kind === "completed"
+    ? completion.dataIdentity.key + ":" + completion.result.kind
+    : (completion.checkedMountLifecycleReceipt === null ? "unchecked" : "checked")
+      + ":" + (completion.currentDataIdentity?.key ?? "none") + ":" + completion.reason;
+}
+const invalidCompletedIdentity: PhaseOneMarketChartTimeFocusCompletionV1 = {
+  kind: "completed",
+  requestId: 1,
+  mountLifecycleReceipt: lifecycleReceipt as unknown as PhaseOneMarketChartMountLifecycleReceiptV1,
+  // @ts-expect-error completed facts require a non-null current identity
+  dataIdentity: null,
+  request: { time: 2, maxDistance: 0 },
+  result: { kind: "exact", requestedTime: 2, resolvedTime: 2, distance: 0 },
+};
+const invalidRejectedShape: PhaseOneMarketChartTimeFocusCompletionV1 = {
+  kind: "rejected",
+  requestId: 2,
+  // @ts-expect-error rejected facts cannot echo the unchecked input receipt
+  mountLifecycleReceipt: lifecycleReceipt as unknown as PhaseOneMarketChartMountLifecycleReceiptV1,
+  checkedMountLifecycleReceipt: null,
+  currentDataIdentity: null,
+  reason: "invalidRequest",
+};
+const validRejectedShape: PhaseOneMarketChartTimeFocusCompletionV1 = {
+  kind: "rejected",
+  requestId: 3,
+  checkedMountLifecycleReceipt: null,
+  currentDataIdentity: null,
+  reason: "invalidRequest",
+};
+void lifecycleCommand;
+void observeLifecycleCompletion;
+void describeLifecycleCompletion;
+void invalidCompletedIdentity;
+void invalidRejectedShape;
+void validRejectedShape;
 `);
   writeFileSync(path.join(consumerRoot, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
@@ -115,7 +167,7 @@ void heterogeneousLedger;
   writeFileSync(path.join(consumerRoot, "index.html"), '<div id="app"></div><canvas id="chart" width="640" height="360"></canvas><canvas id="empty" width="640" height="360"></canvas><script type="module" src="/runtime.js"></script>\n');
   writeFileSync(path.join(consumerRoot, "App.svelte"), `
 <script>
-  import { TradingLedgerPanel, TradingTicketPanel } from "@chartx2/library";
+  import { PhaseOneMarketChartSurface, TradingLedgerPanel, TradingTicketPanel } from "@chartx2/library";
 
   const ticket = {
     title: "Packed ticket",
@@ -163,6 +215,31 @@ void heterogeneousLedger;
   let legacySubmitCount = $state(0);
   let activeFactTab = $state("orders");
   let selectedFactRowId = $state("order-1");
+  let marketIdentity = $state({ key: "packed:rb2605:1m:r1" });
+  let marketStatus = $state("Packed market focus ready.");
+  const marketModel = $derived({
+    symbol: "rb2605",
+    timeframeLabel: "1m",
+    statusLabel: marketStatus,
+    bars: [
+      { time: 1, open: 3700, high: 3712, low: 3698, close: 3708 },
+      { time: 2, open: 3708, high: 3720, low: 3702, close: 3718 },
+      { time: 3, open: 3718, high: 3724, low: 3710, close: 3712 },
+    ],
+  });
+  let marketReceipt = $state(null);
+  let marketCompletion = $state(null);
+  let marketCompletionCount = $state(0);
+  let marketReceiptCount = $state(0);
+  const marketFocusCommand = $derived(marketReceipt === null ? null : {
+    requestId: 1,
+    mountLifecycleReceipt: marketReceipt,
+    expectedDataIdentity: marketIdentity,
+    focus: { time: 2, maxDistance: 0 },
+  });
+  let remountVisible = $state(true);
+  let remountCommand = $state(null);
+  let remountCompletionCount = $state(0);
   let genericLedger = $derived({
     title: "Packed heterogeneous ledger",
     tabs: [
@@ -227,6 +304,57 @@ void heterogeneousLedger;
 <section data-packed-ledger-generic>
   <TradingLedgerPanel model={genericLedger} onSelectTab={selectFactTab} onSelectRow={(rowId) => { selectedFactRowId = rowId; }} />
 </section>
+
+<section data-packed-market-focus style="position: relative; z-index: 20; width: 640px; min-height: 300px; background: white;">
+  <div style="position: relative; z-index: 21; pointer-events: auto;">
+    <button type="button" data-packed-market-presentation onclick={() => { marketStatus = "Presentation-only update."; }}>Presentation update</button>
+    <button type="button" data-packed-market-identity onclick={() => { marketIdentity = { key: "packed:rb2605:1m:r2" }; }}>Axis identity update</button>
+    <output data-packed-market-receipt-count>{marketReceiptCount}</output>
+    <output data-packed-market-completion-count>{marketCompletionCount}</output>
+    <output data-packed-market-focus-completion>{marketCompletion?.kind ?? "pending"}</output>
+  </div>
+  <div style="height: 260px;">
+    <PhaseOneMarketChartSurface
+      model={marketModel}
+      dataIdentity={marketIdentity}
+      timeFocusCommand={marketFocusCommand}
+      onMountLifecycleReceipt={(receipt) => { marketReceipt = receipt; marketReceiptCount += 1; }}
+      onTimeFocusCompletion={(completion) => {
+        marketCompletion = completion;
+        marketCompletionCount += 1;
+        marketIdentity = { key: marketIdentity.key };
+      }}
+    />
+  </div>
+</section>
+
+<section data-packed-market-remount style="position: relative; z-index: 20; width: 640px; min-height: 300px; background: white;">
+  <div style="position: relative; z-index: 21; pointer-events: auto;">
+    <button type="button" data-packed-market-remount-hide onclick={() => { remountVisible = false; }}>Unmount</button>
+    <button type="button" data-packed-market-remount-show onclick={() => { remountVisible = true; }}>Remount</button>
+    <output data-packed-market-remount-completion-count>{remountCompletionCount}</output>
+  </div>
+  {#if remountVisible}
+    <div style="height: 260px;">
+      <PhaseOneMarketChartSurface
+        model={marketModel}
+        dataIdentity={marketIdentity}
+        timeFocusCommand={remountCommand}
+        onMountLifecycleReceipt={(receipt) => {
+          if (remountCommand === null) {
+            remountCommand = {
+              requestId: 41,
+              mountLifecycleReceipt: receipt,
+              expectedDataIdentity: marketIdentity,
+              focus: { time: 2, maxDistance: 0 },
+            };
+          }
+        }}
+        onTimeFocusCompletion={() => { remountCompletionCount += 1; }}
+      />
+    </div>
+  {/if}
+</section>
 `);
   writeFileSync(path.join(consumerRoot, "runtime.js"), `
 import { mount } from "svelte";
@@ -289,6 +417,23 @@ try {
   // assertions deliberately cover both default compatibility and the two new
   // host seams, rather than merely proving that their types can be imported.
   const legacyTicket = page.locator("[data-packed-ticket-legacy] [data-trading-ticket]");
+  const packedMarketFocus = page.locator("[data-packed-market-focus]");
+  if (await packedMarketFocus.locator("[data-phase-one-market-chart-surface]").count() !== 1) throw new Error("packed market chart surface root export did not mount");
+  await page.locator("[data-packed-market-focus-completion]").waitFor({ state: "visible" });
+  if (await page.locator("[data-packed-market-focus-completion]").textContent() !== "completed") throw new Error("packed market chart surface did not complete its lifecycle focus command");
+  if (await page.locator("[data-packed-market-receipt-count]").textContent() !== "1") throw new Error("packed market surface did not issue exactly one initial receipt");
+  if (await page.locator("[data-packed-market-completion-count]").textContent() !== "1") throw new Error("packed callback re-entry replayed the same market focus command");
+  await page.waitForFunction(() => document.querySelector("[data-packed-market-remount-completion-count]")?.textContent === "1");
+  await page.locator("[data-packed-market-remount-hide]").click();
+  await page.locator("[data-packed-market-remount-show]").click();
+  await page.waitForTimeout(50);
+  if (await page.locator("[data-packed-market-remount-completion-count]").textContent() !== "1") throw new Error("packed remount replayed an old terminal command pair");
+  await page.locator("[data-packed-market-presentation]").click();
+  if (await page.locator("[data-packed-market-receipt-count]").textContent() !== "1") throw new Error("presentation-only model change rotated market lifecycle receipt");
+  await page.locator("[data-packed-market-identity]").click();
+  await page.waitForFunction(() => document.querySelector("[data-packed-market-receipt-count]")?.textContent === "2");
+  if (await page.locator("[data-packed-market-focus-completion]").textContent() !== "completed") throw new Error("identity rotation did not consume its current receipt command");
+  if (await page.locator("[data-packed-market-completion-count]").textContent() !== "2") throw new Error("identity rotation produced an unexpected completion count");
   if (await legacyTicket.locator('[data-trading-ticket-field="quantity"]').count() !== 1) throw new Error("packed legacy ticket lost its default editor");
   if (await legacyTicket.locator("[data-trading-ticket-summary]").count() !== 1) throw new Error("packed legacy ticket lost its default summary");
   await legacyTicket.locator("[data-trading-ticket-submit]").click();

@@ -1,5 +1,6 @@
 export * from "./chart-frame-surface";
 export * from "./market";
+export * from "./market-chart-lifecycle";
 export * from "./market-chart-surface";
 export * from "./market-panel-surface";
 export * from "./order-book-ladder-surface";

@@ -10,6 +10,7 @@
     "test:unit": "pnpm --filter @chartx2/library test:unit && pnpm --filter @chartx2/example-tauri-svelte test:unit",
     "test:visual": "pnpm --filter @chartx2/example-tauri-svelte test:visual",
     "release:local": "node ./scripts/pack-chartx2-local-release.mjs",
+    "release:local:failure-test": "node ./scripts/test-pack-chartx2-local-release-failures.mjs",
     "release:local:verify": "node ./scripts/verify-chartx2-local-release-consumer.mjs",
     "release:local:check": "node ./scripts/check-chartx2-local-release.mjs"
   }

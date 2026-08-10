@@ -3,6 +3,10 @@ import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertLifecycleDeclarationOmissionIsRejected,
+  assertPackedChartx2LifecycleBarrel,
+} from "./verify-packed-chartx2-barrel.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const releaseRoot = "/Users/dev/workspace2/hc_apps/build/chartx2";
@@ -29,6 +33,9 @@ const consumerRoot = mkdtempSync(path.join(tmpdir(), "chartx2-release-consumer-"
 try {
   run("node", [path.join(repoRoot, "scripts/pack-chartx2-local-release.mjs")], { cwd: repoRoot });
   const tarballPath = newestLocalTarball();
+  const packedBarrel = assertPackedChartx2LifecycleBarrel(tarballPath);
+  assertLifecycleDeclarationOmissionIsRejected(packedBarrel.publicDeclaration);
+  console.log(`Verified chartx2 packed root lifecycle barrel and omission rejection: ${tarballPath}`);
 
   writeFileSync(path.join(consumerRoot, "package.json"), JSON.stringify({
     name: "chartx2-local-release-consumer-smoke",
@@ -59,6 +66,7 @@ import {
   type PhaseOneMarketChartMountLifecycleReceiptV1,
   type PhaseOneMarketChartTimeFocusCommandV1,
   type PhaseOneMarketChartTimeFocusCompletionV1,
+  type PhaseOneMarketChartTimeFocusRejectedReasonV1,
   type PhaseOneTimeFocusResult,
   type PhaseOneTimeScaleApi,
   type TradingLedgerPanelModel,
@@ -117,6 +125,7 @@ const lifecycleCommand = (): PhaseOneMarketChartTimeFocusCommandV1 | null => lif
   focus: { time: 2, maxDistance: 0 },
 };
 const observeLifecycleCompletion = (_completion: PhaseOneMarketChartTimeFocusCompletionV1) => undefined;
+const lifecycleRejectedReason: PhaseOneMarketChartTimeFocusRejectedReasonV1 = "invalidRequest";
 function describeLifecycleCompletion(completion: PhaseOneMarketChartTimeFocusCompletionV1): string {
   return completion.kind === "completed"
     ? completion.dataIdentity.key + ":" + completion.result.kind
@@ -150,6 +159,7 @@ const validRejectedShape: PhaseOneMarketChartTimeFocusCompletionV1 = {
 };
 void lifecycleCommand;
 void observeLifecycleCompletion;
+void lifecycleRejectedReason;
 void describeLifecycleCompletion;
 void invalidCompletedIdentity;
 void invalidRejectedShape;

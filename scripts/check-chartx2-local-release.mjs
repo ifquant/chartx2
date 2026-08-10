@@ -13,4 +13,5 @@ function runPnpmScript(scriptName) {
 
 runPnpmScript("check");
 runPnpmScript("test:unit");
+runPnpmScript("release:local:failure-test");
 runPnpmScript("release:local:verify");

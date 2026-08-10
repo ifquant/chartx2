@@ -1,6 +1,6 @@
 # Alpha2 R11：Market Chart 生命周期回执与时间定位 RFC
 
-> 状态：**APPROVED FOR IMPLEMENTATION**。本文件冻结下一实现切片的公开契约；当前仓库尚未实现其中任何新 API。
+> 状态：**APPROVED FOR IMPLEMENTATION（0402 amendment binding）**。本文件冻结下一实现切片的公开契约；当前仓库尚未实现其中任何新 API。0402 否决了把未经 runtime 认证的 command receipt 回显到 rejection 的旧写法，并冻结下列更严格的读取、认证与异常语义。
 >
 > 依据：Alpha2 已提交的 `tutorials/commit/1858-amend-r11-chartx2-surface-time-focus-seam.md`；ChartX2 当前基线 `754eb8bc3570c2588ca865841827e597d5af6ffd`。
 >
@@ -69,7 +69,12 @@ export type PhaseOneMarketChartTimeFocusCompletionV1 =
   | Readonly<{
       readonly kind: "rejected";
       readonly requestId: number;
-      readonly mountLifecycleReceipt: PhaseOneMarketChartMountLifecycleReceiptV1;
+      /**
+       * The exact receipt which ChartX2 successfully read and authenticated,
+       * or null when the command supplied no authenticated minted receipt.
+       * Rejections never echo an untrusted command value in this field.
+       */
+      readonly checkedMountLifecycleReceipt: PhaseOneMarketChartMountLifecycleReceiptV1 | null;
       /**
        * The surface's actual current identity at rejection time, or null when
        * the surface has no current trustworthy data presentation. This is not
@@ -80,9 +85,9 @@ export type PhaseOneMarketChartTimeFocusCompletionV1 =
     }>;
 ```
 
-`PhaseOneMarketChartMountLifecycleReceiptV1` is a frozen, process-local, nonserializable token minted only by a module-private factory. The nominal declaration is compile-time ergonomics, not the runtime proof: implementation must register every minted object in module-private `WeakSet`/`WeakMap` state and runtime validation must accept only exact object-identity membership. It must not validate a symbol property, object shape, sequence number, string key, chart instance, element, logical range, model data, or lifecycle control method.
+`PhaseOneMarketChartMountLifecycleReceiptV1` is a frozen, process-local, nonserializable token minted only by a module-private factory. The nominal declaration is compile-time ergonomics, not the runtime proof: implementation must register every minted identity in module-private `WeakSet`/`WeakMap` state and runtime validation must accept only exact object-or-function identity membership. It must not validate a symbol property, object shape, sequence number, string key, chart instance, element, logical range, model data, or lifecycle control method. A function is not trusted merely because it is a `WeakMap` key: it is unminted unless it was actually registered by the private factory/registry.
 
-The host receives a receipt only through the callback below and echoes the same reference unchanged. `Reflect`-derived objects, object spread, `structuredClone`, JSON, persistence round trips, deserialization, cross-realm copies, and hand-made lookalikes are invalid even if TypeScript can be bypassed. No host clear/reset API exists; garbage collection may release private ledger entries only when the receipt itself is no longer referenced.
+The host receives a receipt only through the callback below and echoes the same reference unchanged. `Reflect`-derived objects, object spread, `structuredClone`, JSON, persistence round trips, deserialization, cross-realm copies, hand-made lookalikes, and unregistered functions are invalid even if TypeScript can be bypassed. No host clear/reset API exists; garbage collection may release private ledger entries only when the receipt itself is no longer referenced.
 
 `PhaseOneMarketChartDataIdentityV1` is deliberately separate from the receipt. It is an immutable host input whose non-empty `key` identifies the exact data presentation the host believes it supplied. It is not a symbol, title, timeframe label, array reference, generated default, or inferred hash. The surface compares the command value to its current input value by exact value semantics; changing it invalidates pending work even if visible labels happen to match.
 
@@ -112,6 +117,30 @@ The host has a matching responsibility: it **must change** `dataIdentity.key` be
 
 For every new generation, the surface first completes model-axis application (`setData`/active-axis construction), the normal auto-fit decision, and receipt publication; only then may it consume a command for that receipt. A command must never race partially applied data or a later auto-fit.
 
+### 3.1 Receipt authenticity matrix (0402 binding)
+
+`mountLifecycleReceipt` is command input. It is never copied into a rejected
+completion. A rejection instead publishes `checkedMountLifecycleReceipt`, which
+is the exact identity that ChartX2 read once and authenticated, or `null`.
+The distinction prevents a lookalike, getter result, clone, or persistence
+value from becoming a public lifecycle fact merely because it appeared in a
+command object.
+
+| One-read receipt snapshot | Private registry result | `checkedMountLifecycleReceipt` | First terminal outcome |
+| --- | --- | --- | --- |
+| current minted identity | registered and current | the exact same identity | continue to stale/readiness/identity/payload decision |
+| minted identity from another generation | registered but foreign | the exact same identity | `rejected/superseded` |
+| minted identity whose owning generation is disposing | registered and owner-disposed | the exact same identity | `rejected/disposed` only in its owning unmount path |
+| object or function lookalike, clone, cross-realm/persisted value | not registered | `null` | `rejected/invalidRequest` |
+| absent, primitive, or `null` value | not an object-or-function identity | `null` | `rejected/invalidRequest` |
+| receipt getter throws | no snapshot exists | `null` | `rejected/invalidRequest` |
+
+The object-or-function rule is about admissible private-ledger identity, not
+trust. `WeakSet`/`WeakMap` lookup may use either an object or a function key;
+only private registration mints it. The normal private factory continues to
+produce the frozen receipt object described above. The table does not add a
+public function receipt API.
+
 ## 4. Request validity and terminal union
 
 The lifecycle layer has two independent outcome planes.
@@ -119,43 +148,47 @@ The lifecycle layer has two independent outcome planes.
 - `completed` means the command reached the existing focus resolver. Its `request` is the command's exact `focus` object and its `result` is the unmodified existing `PhaseOneTimeFocusResult`, including all five normal result variants: `exact`, `nearest`, `outOfDomain`, `ambiguous`, and `noData`.
 - `rejected` means the lifecycle layer did **not** invoke `focusTime`. Rejections use only the frozen lifecycle reason union above; lifecycle errors must never relabel or compress an existing focus result.
 
-Resolver eligibility requires a non-negative `Number.isSafeInteger(requestId)`, the active opaque receipt, a non-empty `expectedDataIdentity.key`, and a `focus` that satisfies the already-defined `focusTime` request validation. A malformed id is not correlatable and therefore publishes no completion; other malformed inputs with a safe id follow the frozen §5.1 priority and may publish `rejected/invalidRequest`, always with zero viewport mutation. Internal chart-axis invariant failures remain ChartX2 bugs: surface code must not convert them into normal lifecycle completions or silently recover with another range.
+Resolver eligibility requires a non-negative `Number.isSafeInteger(requestId)`, the active opaque receipt, a non-empty `expectedDataIdentity.key`, and a `focus` that satisfies the already-defined `focusTime` request validation. A malformed id (including a throwing `requestId` getter) is not correlatable and therefore publishes **zero completion**; it must not read receipt/focus, reserve a ledger entry, fabricate/coerce an id, or call `focusTime`. Other malformed inputs with a safe id follow the frozen §5.1 priority and may publish `rejected/invalidRequest`, always with zero viewport mutation. Internal chart-axis invariant failures remain ChartX2 bugs: surface code terminalizes its already-private reservation and rethrows; it must publish no completion and must not silently recover with another range.
 
-The emitted completion must echo the exact command `requestId` and the receipt that was checked. A `completed` fact carries the non-null data identity that actually passed every readiness and equality fence, plus the exact command `focus` and raw resolver result. A `rejected` fact instead carries `currentDataIdentity`: a shallow-frozen snapshot of the surface's actual current identity, or `null` if there is none. It must never substitute `expectedDataIdentity`, a prior identity, a generated key, or an inferred identity for that field. Completion objects are immutable facts; the surface must not later mutate or re-emit them.
+The emitted completion must echo the exact command `requestId`. A `completed` fact carries the active authenticated receipt, the non-null data identity that actually passed every readiness and equality fence, plus the exact command `focus` and raw resolver result. A `rejected` fact has **no** `mountLifecycleReceipt` field: it instead carries `checkedMountLifecycleReceipt` from the authenticity matrix and `currentDataIdentity`, a shallow-frozen snapshot of the surface's actual current identity or `null` if there is none. It must never substitute `expectedDataIdentity`, a prior identity, a generated key, an inferred identity, or an untrusted receipt for those fields. Completion objects are immutable facts; the surface must not later mutate or re-emit them.
 
 ## 5. Process-local terminal ledger and lifecycle fences
 
-The terminal ledgers are module-private and process-local, not component-local: a `WeakSet` registers minted receipt objects; an exact-command-object `WeakMap` protects synchronous re-entry; and a `WeakMap<receipt, receiptLedger>` records object-receipt terminal `requestId`s plus the greatest terminal id. The ledgers remain available across component instances while their keys are referenced. There is no host clear/reset operation.
+The terminal ledgers are module-private and process-local, not component-local: a `WeakSet` registers minted object-or-function receipt identities; an exact-command-object `WeakMap` protects synchronous re-entry; and a `WeakMap<receipt, receiptLedger>` records object-or-function receipt terminal `requestId`s plus the greatest terminal id. The ledgers remain available across component instances while their keys are referenced. There is no host clear/reset operation.
 
 ### 5.1 Malformed-command identity and priority (frozen)
 
 There are deliberately **two private ledgers**, because valid command delivery and receipt trust are separate concerns.
 
-1. For every command object with a non-negative `Number.isSafeInteger(requestId)`, a module-private `WeakMap` reserves that exact **command-object identity** as `inflight` before parsing its receipt or any other field. It becomes terminal before a host callback. Re-entering the same prop object therefore silently ignores it even when its receipt is `null`, primitive, forged, or otherwise malformed.
-2. When `mountLifecycleReceipt` is object-valued, a second module-private `WeakMap<receipt, requestId ledger>` reserves the receipt/id pair before parsing/callback. This covers equivalent command objects, remount, and different surface instances. A forged object receipt participates in this dedupe ledger even though it never becomes trusted.
+1. The surface reads `command.requestId` **once** into an immutable local snapshot. If that getter throws or the snapshot is not a non-negative safe integer, it publishes zero completion and performs no later field read, reservation, resolver call, or callback.
+2. For every command object with that safe snapshot, a module-private `WeakMap` reserves that exact **command-object identity** as `inflight` **before reading `mountLifecycleReceipt`** or any other remaining command field. It becomes terminal before a host callback. Re-entering the same prop object therefore silently ignores it even when its receipt is `null`, primitive, forged, accessor-backed, or otherwise malformed.
+3. The surface then reads `command.mountLifecycleReceipt` exactly once into an immutable local snapshot. If that getter throws, the already-reserved command terminalizes as exactly one `rejected/invalidRequest` with `checkedMountLifecycleReceipt: null`; it does not read expected identity/focus or call the resolver.
+4. When that one-read receipt snapshot is an object **or function**, a second module-private `WeakMap<receipt, requestId ledger>` reserves the receipt/id pair before parsing/callback. This covers equivalent command objects, remount, and different surface instances. An unregistered object/function receipt participates in this dedupe ledger even though it never becomes trusted.
 
 If `requestId` is malformed (negative, fractional, non-safe, `NaN`, missing, or a non-number), the surface must emit **no completion at all**: it cannot fabricate/coerce an id, reserve an invalid id, or create a terminal fact with false correlation. It must also never call `focusTime`.
 
 For a safe non-negative id with a primitive, absent, or non-object receipt, only the exact command-object ledger is available. That object yields at most one `rejected/invalidRequest`; a distinct malformed command object may yield its own `invalidRequest`. The implementation must never claim pair-level lifecycle deduplication where no object receipt identity exists. A malformed command must never become an apparent `completed` fact.
 
+After the safe id snapshot and exact-command reservation, the surface reads each later command field at most once and only at the point required by this priority. Getter access itself is part of the hostile input boundary: a throwing receipt getter terminalizes as stated above; a throwing expected-identity or focus getter terminalizes once as `invalidRequest` with the already determined checked receipt/current-identity snapshot. It must not retry a getter, replace it with a fallback, or let callback re-entry read it again.
+
 For every command eligible for the first ledger, the following priority is frozen and is evaluated before any resolver side effect:
 
 1. A previously `inflight` or terminal exact command object, or an already reserved/terminal object-receipt/id pair, is silently ignored.
-2. Reserve the command object (and, when available, receipt/id pair) before parsing, callbacks, or any lifecycle effect.
+2. Reserve the command object before reading receipt; after its single receipt read, reserve the receipt/id pair when the receipt is an object or function, all before parsing, callbacks, or any lifecycle effect.
 3. An absent, primitive, forged, cloned, serialized, cross-realm, or otherwise unminted receipt yields exactly one `rejected/invalidRequest` under the available ledger(s).
 4. A minted but foreign/noncurrent receipt yields exactly one `rejected/superseded`. Owning disposal alone yields exactly one `rejected/disposed`; a receiving surface's unrelated teardown never changes a foreign receipt into `disposed`.
 5. For the active minted receipt, an id less than or equal to its greatest prior terminal id yields exactly one `rejected/staleRequest`.
 6. An absent current identity or unavailable active chart/axis yields `rejected/dataNotReady`; then a current-vs-expected identity mismatch yields `rejected/dataIdentityMismatch`.
-7. Only after the lifecycle/data fences, malformed command payload, `expectedDataIdentity`, or `focus` yields `rejected/invalidRequest`; a valid `focus` makes the single resolver call and `completed` terminal fact.
+7. Only after the lifecycle/data fences, malformed command payload, `expectedDataIdentity`, or `focus` yields `rejected/invalidRequest`; a valid `focus` makes the single resolver call and `completed` terminal fact. If the resolver/chart path throws an internal invariant error, terminalize the private reservation without callback and rethrow the same error; do not convert it to `invalidRequest` or `completed`.
 
 This ordering means an untrusted receipt never gains a lifecycle reason merely because another surface happens to have no data; absent current data truthfully wins over malformed focus; owning disposal has the stated owner-only priority; and a foreign minted receipt stays `superseded`, including when the receiving surface is itself unmounting.
 
 1. The first safe-id terminal pair for a minted receipt may use any safe non-negative `requestId`.
 2. For a current receipt, an unrecorded id less than or equal to the greatest terminal id receives exactly one `rejected/staleRequest`; it never reaches `focusTime`.
-3. The exact command-object reservation occurs before parsing; every resulting terminal is recorded in the applicable ledgers before invoking the host callback. Any later occurrence of the same object or available `(receipt, requestId)` pair is silently ignored: no second completion, no focus call, no viewport/marker change, regardless of same-prop reactivity, callback re-entry, rebuild, remount, or a different component instance.
+3. The exact command-object reservation occurs before the one-read receipt snapshot; every resulting terminal is recorded in the applicable ledgers before invoking the host callback. An invariant throw terminalizes those private reservations without a callback and then rethrows. Any later occurrence of the same object or available `(receipt, requestId)` pair is silently ignored: no second completion, no focus call, no viewport/marker change, regardless of same-prop reactivity, callback re-entry, rebuild, remount, or a different component instance.
 4. An old but minted, unconsumed receipt presented to a different current generation receives exactly one `rejected/superseded` and is then recorded. A later presentation of that pair is silently ignored. `superseded` is only for a foreign/noncurrent receipt or a command displaced before it can run; it is never a synonym for owning-lifecycle disposal.
 5. On owning-lifecycle unmount, every current command that is pending but not terminal receives exactly one `rejected/disposed`, recorded before callback delivery. `disposed` takes precedence only in that owning unmount path. A later remount seeing that old terminal pair silently ignores it; it must not emit `superseded` or replay it.
-6. Before calling `focusTime`, the surface snapshots receipt, identity, mounted state, chart instance, and command. After any await, microtask, animation-frame handoff, resize/rebuild boundary, or user callback re-entry, it re-checks them before a viewport mutation or callback. A stale snapshot has zero viewport mutation and follows the terminal rules above. “The Svelte effect already ran” is not a fence.
+6. Before calling `focusTime`, the surface snapshots the already-read command fields, checked receipt, identity, mounted state, and chart instance. After any await, microtask, animation-frame handoff, resize/rebuild boundary, or user callback re-entry, it re-checks those snapshots before a viewport mutation or callback. A stale snapshot has zero viewport mutation and follows the terminal rules above. “The Svelte effect already ran” is not a fence.
 
 There is no automatic retry. The host issues a new strictly increasing command only after it receives a current receipt/current data identity it considers valid.
 
@@ -169,13 +202,15 @@ The surface must make the following decision before any focus side effect:
 | already terminal `(receipt, requestId)` | silently ignore | 0 | 0 | 0 |
 | current receipt has unrecorded stale/duplicate/non-monotonic id | exactly one `rejected/staleRequest` | 0 | 0 | 0 |
 | minted but foreign/noncurrent receipt is first seen | exactly one `rejected/superseded` | 0 | 0 | 0 |
-| forged/cloned/serialized/cross-realm/unregistered object receipt with safe id | exactly one `rejected/invalidRequest` per private receipt/id pair (and command object) | 0 | 0 | 0 |
+| forged/cloned/serialized/cross-realm/unregistered object **or function** receipt with safe id | exactly one `rejected/invalidRequest` per private receipt/id pair (and command object), checked receipt `null` | 0 | 0 | 0 |
 | safe id with absent/non-object receipt | exactly one `rejected/invalidRequest` per exact command object; distinct malformed objects are not a receipt pair | 0 | 0 | 0 |
-| malformed `requestId` | no completion and no resolver call; no fabricated correlation id | 0 | 0 | 0 |
+| throwing receipt getter after safe-id reservation | exactly one `rejected/invalidRequest`, checked receipt `null`; no remaining command-field reads | 0 | 0 | 0 |
+| malformed or throwing `requestId` getter | no completion, no later command-field reads, no reservation, and no resolver call; no fabricated correlation id | 0 | 0 | 0 |
 | current identity absent or active chart/axis not ready | `rejected/dataNotReady` | 0 | 0 | 0 |
 | identity differs from `expectedDataIdentity` | `rejected/dataIdentityMismatch` | 0 | 0 | 0 |
 | malformed command or focus request | `rejected/invalidRequest` | 0 | 0 | 0 |
 | all lifecycle checks pass | `completed` carrying raw `PhaseOneTimeFocusResult` | 1 | exactly the existing resolver behavior | 0 |
+| `focusTime` or a chart invariant throws | private reservations terminalize, same error rethrows, **no completion** | call began | no additional lifecycle mutation | 0 |
 
 Existing focus behavior remains exact: `exact` and accepted `nearest` adjust only the time viewport once through the existing command; `outOfDomain`, `ambiguous`, and `noData` return their normal result and do not mutate it. The lifecycle seam must not auto-fit afterwards, call `setVisibleLogicalRange` a second time, alter price scale, persist a selection, update symbol/timeframe, or schedule a later corrective focus.
 
@@ -203,18 +238,20 @@ The future implementation may add a small public type module and a surface-local
 Required focused tests:
 
 1. root export/type probe imports all new V1 types from `@chartx2/library`, not an internal path;
-2. receipt is a frozen private-factory token registered by exact object identity; `Reflect`, spread, `structuredClone`, JSON/persistence, cross-realm copies, and hand-made lookalikes fail runtime validation;
+2. receipt is a frozen private-factory token registered by exact object-or-function identity; `Reflect`, spread, `structuredClone`, JSON/persistence, cross-realm copies, hand-made lookalikes, and unregistered functions fail runtime validation, while an actually registered identity is the only positive case;
 3. receipt rotates exactly on mount, internal chart-instance replacement, and `dataIdentity.key` change—never on marker/status/formatter/options/equivalent-model recreation; the host-content-change requirement is hostile-tested;
 4. every generation completes axis `setData`/construction, auto-fit, and receipt publication before command consumption;
 5. exact command calls `focusTime` once and emits one `completed` fact preserving the exact non-null current data identity, request, and result;
-6. each preflight rejection reason is exhaustive, exposes only `currentDataIdentity: Identity | null` (never `expectedDataIdentity` as a fallback), and has zero focus/viewport/marker calls;
-7. malformed-command tests freeze both ledger layers: safe id reserves an exact command object before parsing/re-entry; object receipts reserve a receipt/id pair even when forged; primitive/non-object receipts are deduped only for that exact command object; malformed ids emit no completion and never fabricate/correlate an id; all priority collisions follow §5.1;
-8. process-local WeakMap ledger tests prove duplicate/backward id, same command reactivity, callback re-entry, scheduled replacement, rebuild, remount, and a different component instance give exactly one terminal per available valid pair and never replay;
-9. unmount records pending current pairs as `disposed`; an old unconsumed minted receipt is `superseded` once; later old terminal pairs are silently ignored, with precedence hostile tests;
-10. completed `nearest`, `outOfDomain`, `ambiguous`, and `noData` retain their existing distinct result kinds rather than becoming lifecycle rejections;
-11. readiness/identity changes cannot permit an old command to mutate a new data set; marker fixtures prove focus neither adds nor changes markers;
-12. a production-route browser test mounts the actual public Svelte surface and verifies visible focus/completion behavior. Browser test harnesses may seed/read only through a bridge; they do not prove native Tauri or DataX2 truth;
-13. package gates run `pnpm check`, `pnpm test:unit`, and `pnpm release:local:check`, including a packed root-consumer proof for the callback/types.
+6. each preflight rejection reason is exhaustive, exposes only `currentDataIdentity: Identity | null` plus `checkedMountLifecycleReceipt: Minted | null`, never leaks/repeats an untrusted input receipt or falls back to `expectedDataIdentity`, and has zero focus/viewport/marker calls;
+7. hostile accessor tests freeze one-read order: request id is read once before any other field and a malformed/throwing id gives zero completion/ledger/resolver access; a safe id reserves the exact command object before the one receipt read; a throwing receipt getter yields one typed `invalidRequest` with checked `null`; expected-identity/focus getters are never retried and their throws terminalize once under the established snapshots;
+8. malformed-command tests freeze both ledger layers: object-or-function receipts reserve a receipt/id pair even when unregistered; primitive/non-object receipts are deduped only for that exact command object; malformed ids emit no completion and never fabricate/correlate an id; all priority collisions follow §5.1;
+9. process-local WeakMap ledger tests prove duplicate/backward id, same command reactivity, callback re-entry, scheduled replacement, rebuild, remount, and a different component instance give exactly one terminal per available valid pair and never replay;
+10. focus/chart invariant-throw tests prove reservations terminalize privately, no completion is delivered, the original error rethrows, and replay cannot call or complete again;
+11. unmount records pending current pairs as `disposed`; an old unconsumed minted receipt is `superseded` once; later old terminal pairs are silently ignored, with precedence hostile tests;
+12. completed `nearest`, `outOfDomain`, `ambiguous`, and `noData` retain their existing distinct result kinds rather than becoming lifecycle rejections;
+13. readiness/identity changes cannot permit an old command to mutate a new data set; marker fixtures prove focus neither adds nor changes markers;
+14. a production-route browser test mounts the actual public Svelte surface and verifies visible focus/completion behavior. Browser test harnesses may seed/read only through a bridge; they do not prove native Tauri or DataX2 truth;
+15. package gates run `pnpm check`, `pnpm test:unit`, and `pnpm release:local:check`, including a packed root-consumer proof for the callback/types.
 
 Implementation/release is complete only after a fresh task-level review, a clean main release check, committed ChartX2 HEAD plus tgz SHA-512/SRI evidence, and an Alpha2 dependency-only install update. A source workspace link or a green browser fixture is not a release or native acceptance claim.
 

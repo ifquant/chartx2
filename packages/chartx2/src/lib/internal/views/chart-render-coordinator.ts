@@ -45,6 +45,7 @@ import {
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
 import type { PhaseOneReadoutBody, PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-api-types";
+import type { ChartxVisualTheme } from "../../visual-theme";
 
 type Layout = {
   width: number;
@@ -193,6 +194,7 @@ function rendererForSeriesKind(kind: string): string {
 }
 
 export function createChartRenderCoordinator(deps: {
+  getVisualTheme(): ChartxVisualTheme;
   dpr(): number;
   getLayout(canvas: HTMLCanvasElement): Layout;
   getChartOptions(): ChartLayoutOptions;
@@ -228,7 +230,11 @@ export function createChartRenderCoordinator(deps: {
     context: CanvasRenderingContext2D,
     params: { width: number; height: number; columns: number; rows: number; lineColor: string },
   ): void;
-  drawPaneLegend(context: CanvasRenderingContext2D, entries: readonly PhaseOneReadoutSeriesDetail[]): void;
+  drawPaneLegend(
+    context: CanvasRenderingContext2D,
+    entries: readonly PhaseOneReadoutSeriesDetail[],
+    options: { background: string; border: string; text: string; font: string },
+  ): void;
   drawCrosshair(
     context: CanvasRenderingContext2D,
     paneWidth: number,
@@ -392,6 +398,14 @@ export function createChartRenderCoordinator(deps: {
       }
 
       const chartOptions = deps.getChartOptions();
+      const visualTheme = deps.getVisualTheme();
+      const numericFont = `${visualTheme.typography.fontSize} ${visualTheme.typography.numericFont}`;
+      const axisOptions = { ...chartOptions, numericFont };
+      const magnetTagStyle = {
+        background: visualTheme.colors.magnetTagBackground,
+        border: visualTheme.colors.magnetTagBorder,
+        text: visualTheme.colors.magnetTagText,
+      };
       const drawingOptions = deps.getDrawingOptions();
       const crosshair = deps.getCrosshair();
       const drawingSnapGuide = deps.getDrawingSnapGuide();
@@ -531,6 +545,8 @@ export function createChartRenderCoordinator(deps: {
                   selectedDrawingId,
                   hoveredDrawingId,
                   hoveredDrawingHandle,
+                  selectionColor: deps.getVisualTheme().colors.selection,
+                  handleBackgroundColor: deps.getVisualTheme().colors.paneSurface,
                 },
               );
             },
@@ -631,6 +647,8 @@ export function createChartRenderCoordinator(deps: {
                     selectedDrawingId,
                     hoveredDrawingId,
                     hoveredDrawingHandle,
+                    selectionColor: deps.getVisualTheme().colors.selection,
+                    handleBackgroundColor: deps.getVisualTheme().colors.paneSurface,
                   },
                 );
               }
@@ -688,7 +706,12 @@ export function createChartRenderCoordinator(deps: {
               nextCrosshair,
             ),
           drawLegend: (entries) => {
-            deps.drawPaneLegend(context, entries);
+            deps.drawPaneLegend(context, entries, {
+              background: visualTheme.colors.paneLegendBackground,
+              border: visualTheme.colors.paneLegendBorder,
+              text: visualTheme.colors.paneLegendText,
+              font: numericFont,
+            });
           },
           drawCrosshair: (localCrosshair) => {
             deps.drawCrosshair(context, paneWidth, pane.height, localCrosshair, deps.getCrosshairOptions());
@@ -715,7 +738,7 @@ export function createChartRenderCoordinator(deps: {
             pane.height,
             primaryPriceScale,
             localCrosshair,
-            chartOptions as never,
+            axisOptions,
             "primary",
             deps.getPriceAxisFormatter(),
             drawingOptions.magnetLabelVisible
@@ -728,6 +751,7 @@ export function createChartRenderCoordinator(deps: {
                   drawingSnapGuide as never,
                   deps.getPriceAxisFormatter(),
                   chartOptions.priceAxisPosition,
+                  magnetTagStyle,
                 )
               : null,
           );
@@ -745,7 +769,7 @@ export function createChartRenderCoordinator(deps: {
             pane.height,
             (state as SeriesSourceLike).priceScale,
             localCrosshair,
-            chartOptions as never,
+            axisOptions,
             (state as SeriesSourceLike).kind === "volume" ? "volume" : "primary",
             deps.getPriceAxisFormatter(),
             drawingOptions.magnetLabelVisible
@@ -758,6 +782,7 @@ export function createChartRenderCoordinator(deps: {
                   drawingSnapGuide as never,
                   deps.getPriceAxisFormatter(),
                   chartOptions.priceAxisPosition,
+                  magnetTagStyle,
                 )
               : null,
           );
@@ -781,7 +806,7 @@ export function createChartRenderCoordinator(deps: {
                 timeAxisRows as never,
                 timeScale,
                 crosshair,
-                chartOptions as never,
+                axisOptions,
                 deps.getTimeAxisFormatter(),
                 drawingOptions.timeMagnetLabelVisible && drawingSnapGuide?.time != null
                   ? buildMagnetTimeAxisTag(
@@ -790,6 +815,7 @@ export function createChartRenderCoordinator(deps: {
                       timeScale,
                       drawingSnapGuide as never,
                       deps.getTimeAxisFormatter(),
+                      magnetTagStyle,
                     )
                   : null,
               );

@@ -6,6 +6,7 @@ import {
   type TimePointIndex,
 } from "../../src/lib/internal/model";
 import { createChartRenderCoordinator } from "../../src/lib/internal/views/chart-render-coordinator";
+import { DEFAULT_CHARTX_VISUAL_THEME } from "../../src/lib/visual-theme";
 
 function createRow(index: number, time: number): PlotRow<number> {
   return {
@@ -20,6 +21,7 @@ function createCoordinator(overrides: Partial<Parameters<typeof createChartRende
   const contextSequence = createTimeBasedChartBarSequence([createRow(0, 1), createRow(1, 2)]);
 
   return createChartRenderCoordinator({
+    getVisualTheme: () => DEFAULT_CHARTX_VISUAL_THEME,
     dpr: () => 2,
     getLayout: () => ({ width: 320, height: 240, top: 12, right: 10, bottom: 20, left: 8 }),
     getChartOptions: () => ({

@@ -39,6 +39,15 @@
     PhaseOneMarketChartTimeFocusCommandV1,
     PhaseOneMarketChartTimeFocusCompletionV1,
   } from "../public/market-chart-lifecycle";
+  import {
+    DEFAULT_CHARTX_VISUAL_THEME,
+    mergeChartxMessages,
+    resolveChartxVisualThemeFromElement,
+    serializeChartxVisualThemeStyle,
+    type ChartxMessages,
+    type ChartxThemeRevision,
+    type ChartxVisualTheme,
+  } from "../visual-theme";
 
   const EMPTY_MODEL: PhaseOneMarketChartSurfaceModel = {
     symbol: "Symbol",
@@ -46,26 +55,8 @@
     bars: [],
     volume: [],
     emptyLabel: "No market bars available.",
-    statusLabel: "Waiting for host chart data.",
+    statusLabel: "No chart data",
   };
-
-  const DEFAULT_OPTIONS = {
-    layout: {
-      backgroundColor: "#ffffff",
-      paneBackgroundColor: "#ffffff",
-      gridColor: "rgba(15, 23, 42, 0.08)",
-      frameColor: "#c3cdd2",
-      axisTextColor: "#33434b",
-      axisLabelBackground: "#ffffff",
-      axisLabelBorder: "#c3cdd2",
-      axisActiveBackground: "#0f5964",
-      axisActiveText: "#ffffff",
-    },
-    crosshair: {
-      lineColor: "#0f5964",
-      pointColor: "#0f5964",
-    },
-  } satisfies NonNullable<PhaseOneMarketChartSurfaceModel["chartOptions"]>;
 
   type Props = {
     model?: PhaseOneMarketChartSurfaceModel;
@@ -85,6 +76,9 @@
     onTimeFocusCompletion?: (completion: PhaseOneMarketChartTimeFocusCompletionV1) => void;
     readoutActions?: Snippet;
     rightDock?: Snippet;
+    theme?: ChartxVisualTheme;
+    themeRevision?: ChartxThemeRevision;
+    messages?: Partial<ChartxMessages>;
   };
 
   let {
@@ -103,6 +97,9 @@
     onTimeFocusCompletion,
     readoutActions,
     rightDock,
+    theme,
+    themeRevision = 0,
+    messages,
   }: Props = $props();
 
   let canvasHost = $state<HTMLDivElement | undefined>(undefined);
@@ -118,6 +115,10 @@
   let teardownCrosshair: (() => void) | null = null;
   let resizeObserver: ResizeObserver | null = null;
   let mounted = false;
+  let visualTheme = $state<ChartxVisualTheme>(DEFAULT_CHARTX_VISUAL_THEME);
+  const visualMessages = $derived(mergeChartxMessages(messages));
+  const explicitThemeStyle = $derived(theme === undefined ? "" : serializeChartxVisualThemeStyle(theme));
+  let appliedThemeRevision: ChartxThemeRevision | undefined;
   let lastDisplayMode: ReturnType<typeof resolvePhaseOneMarketChartDisplayMode> | null = null;
   let lastTimeshareBaselineMode: boolean | null = null;
   let lastVolumeMode: boolean | null = null;
@@ -597,19 +598,19 @@
       return;
     }
 
+    visualTheme = theme ?? (canvasHost === undefined
+      ? DEFAULT_CHARTX_VISUAL_THEME
+      : resolveChartxVisualThemeFromElement(canvasHost, themeRevision));
+    appliedThemeRevision = visualTheme.revision;
     chart = createChartxPhaseOneChart(canvas);
+    chart.applyVisualTheme(visualTheme);
     chart.applyOptions({
-      ...DEFAULT_OPTIONS,
       ...model.chartOptions,
       layout: {
-        ...DEFAULT_OPTIONS.layout,
         paneGap: 1,
         ...(model.chartOptions?.layout ?? {}),
       },
-      crosshair: {
-        ...DEFAULT_OPTIONS.crosshair,
-        ...(model.chartOptions?.crosshair ?? {}),
-      },
+      crosshair: model.chartOptions?.crosshair,
     });
     applyModelPriceScale();
     applyModelTimeFormatter();
@@ -618,14 +619,14 @@
       const points = model.intradayTimeshare?.points ?? [];
       timesharePriceSeries = chart.addLineSeries();
       timesharePriceSeries.applyOptions({
-        color: "#0f5964",
+        color: visualTheme.colors.primarySeries,
         lineWidth: 2,
       });
 
       if (points.some((point) => point.averagePrice !== undefined)) {
         timeshareAverageSeries = chart.addOverlaySeries();
         timeshareAverageSeries.applyOptions({
-          color: "#d97706",
+          color: visualTheme.colors.secondarySeries,
           lineWidth: 1,
         });
       }
@@ -633,7 +634,7 @@
       if (model.intradayTimeshare?.previousClose !== undefined) {
         timeshareBaselineSeries = chart.addOverlaySeries();
         timeshareBaselineSeries.applyOptions({
-          color: "#94a3b8",
+          color: visualTheme.colors.mutedText,
           lineWidth: 1,
         });
       }
@@ -649,7 +650,7 @@
       for (const overlayLine of resolvePhaseOneMarketChartOverlayLines(model)) {
         const nextSeries = chart.addOverlaySeries();
         nextSeries.applyOptions({
-          color: overlayLine.color ?? "#0f5964",
+          color: overlayLine.color ?? visualTheme.colors.primarySeries,
           lineWidth: overlayLine.lineWidth ?? 1,
         });
         nextOverlaySeries.push(nextSeries);
@@ -668,8 +669,8 @@
           if (series.kind === "volume") {
             const nextSeries = chart.addVolumeSeries({ pane: chartPane });
             nextSeries.applyOptions({
-              upColor: series.color ?? "#64748b",
-              downColor: series.color ?? "#64748b",
+              upColor: series.color ?? visualTheme.colors.mutedText,
+              downColor: series.color ?? visualTheme.colors.mutedText,
             });
             nextIndicatorSeries.push(nextSeries);
             continue;
@@ -677,15 +678,15 @@
           if (series.kind === "histogram") {
             const nextSeries = chart.addHistogramSeries({ pane: chartPane });
             nextSeries.applyOptions({
-              upColor: series.color ?? "#dc2626",
-              downColor: series.color ?? "#16a34a",
+              upColor: series.color ?? visualTheme.colors.positive,
+              downColor: series.color ?? visualTheme.colors.negative,
             });
             nextIndicatorSeries.push(nextSeries);
             continue;
           }
           const nextSeries = chart.addLineSeries({ pane: chartPane });
           nextSeries.applyOptions({
-            color: series.color ?? "#2563eb",
+            color: series.color ?? visualTheme.colors.primarySeries,
             lineWidth: 1,
           });
           nextIndicatorSeries.push(nextSeries);
@@ -706,6 +707,17 @@
     resizeChart();
     publishReadyMountLifecycleGeneration();
   }
+
+  $effect(() => {
+    const nextRevision = theme?.revision ?? themeRevision;
+    if (mounted && chart !== null && appliedThemeRevision !== nextRevision) {
+      visualTheme = theme ?? (canvasHost === undefined
+        ? DEFAULT_CHARTX_VISUAL_THEME
+        : resolveChartxVisualThemeFromElement(canvasHost, themeRevision));
+      appliedThemeRevision = nextRevision;
+      chart.applyVisualTheme(visualTheme);
+    }
+  });
 
   $effect(() => {
     const nextDisplayMode = resolvePhaseOneMarketChartDisplayMode(model);
@@ -823,6 +835,8 @@
   data-phase-one-market-chart-surface-density={layout.density}
   data-phase-one-market-chart-surface-readout-position={layout.readoutPosition}
   data-phase-one-market-chart-surface-right-dock-mode={layout.rightDockMode}
+  data-chartx-theme-revision={visualTheme.revision}
+  style={explicitThemeStyle}
 >
   <div class="readout" aria-label="Chart readout" data-phase-one-market-chart-readout>
     <strong>{model.symbol}</strong>
@@ -841,7 +855,7 @@
         <span>量 {readout.volume}</span>
       {/if}
     {/if}
-    <span class="status">{model.statusLabel ?? "Mounted through chartx2 public market surface."}</span>
+    <span class="status">{model.statusLabel ?? visualMessages.noChartData}</span>
     {#if readoutActions}
       <span class="readout-actions" data-phase-one-market-chart-readout-actions>
         {@render readoutActions()}
@@ -853,10 +867,11 @@
     class="surface-body"
     class:dock-inline-open={rightDock && rightDockOpen && layout.rightDockMode === "inline"}
     data-phase-one-market-chart-body
-    style={`--chartx2-right-dock-width: ${rightDockWidth};`}
+    style={`--chartx2-right-dock-width: ${rightDockWidth}`}
+    data-chartx-theme-revision={visualTheme.revision}
   >
     {#if activeDataLength === 0}
-      <div class="empty-state">{model.emptyLabel ?? "No market bars available."}</div>
+      <div class="empty-state">{model.emptyLabel ?? visualMessages.noChartData}</div>
     {:else}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
       <div
@@ -921,9 +936,11 @@
     height: 100%;
     display: grid;
     grid-template-rows: minmax(0, 1fr) 26px;
-    border: 1px solid #c3cdd2;
-    border-radius: 10px;
-    background: #ffffff;
+    border: 1px solid var(--chartx-border, rgba(16, 16, 16, 0.18));
+    border-radius: var(--chartx-radius, 4px);
+    background: var(--chartx-surface-canvas, #fffdf7);
+    color: var(--chartx-text-primary, #101010);
+    font-family: var(--chartx-font-ui, Inter, ui-sans-serif, system-ui, sans-serif);
     overflow: hidden;
   }
 
@@ -994,10 +1011,10 @@
     display: grid;
     gap: 2px;
     padding: 6px 7px;
-    border: 1px solid rgba(91, 107, 115, 0.42);
-    background: rgba(248, 250, 249, 0.94);
+    border: 1px solid var(--chartx-border, rgba(16, 16, 16, 0.18));
+    background: var(--chartx-surface-elevated, #ffffff);
     box-shadow: 0 2px 8px rgba(15, 28, 34, 0.16);
-    color: #33434b;
+    color: var(--chartx-text-primary, #101010);
     font-size: 11px;
     line-height: 1.25;
     pointer-events: none;

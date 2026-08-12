@@ -57,13 +57,13 @@ import { createChartAdapterStateOwner } from "./chart-adapter-state-owner";
 import { createChartPublicShellOwner } from "./chart-public-shell-owner";
 import { createChartRuntimeContainer } from "./chart-runtime-container";
 import type { ChartHarnessPublicLike } from "./chart-public-api";
+import { DEFAULT_CHARTX_VISUAL_THEME, type ChartxVisualTheme } from "../../visual-theme";
 import {
   BAR_SPACING_BOUNDS,
   CHART_BACKGROUND,
   DEFAULT_LAYOUT,
   DEFAULT_RIGHT_OFFSET,
   DRAWING_HIT_TOLERANCE,
-  LINE_COLOR,
   LEFT_PRICE_AXIS_MIN_INSET,
   MAX_BAR_SPACING,
   MIN_BAR_SPACING,
@@ -156,6 +156,7 @@ export class PhaseOneChartHarness {
   private readonly histogramOptions: Required<PhaseOneHistogramSeriesOptions> = createDefaultHistogramOptions();
   private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = createDefaultVolumeOptions();
   private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = createDefaultPriceLineOptions();
+  private visualTheme: ChartxVisualTheme = DEFAULT_CHARTX_VISUAL_THEME;
   private readonly renderInvalidation = createChartRenderInvalidation({
     getCanvas: () => this.adapterState.canvas(),
     renderCanvas: (canvas) => {
@@ -271,6 +272,7 @@ export class PhaseOneChartHarness {
     studySources: this.studySourceOwner.studySources,
     secondaryMutations: this.sourceMutationOwner.secondaryMutations,
     secondarySeriesApi: createChartSecondarySeriesApiOwner({
+      getDefaultMarkerColor: () => this.visualTheme.colors.defaultMarker,
       assertSeriesActive: (api) => this.runtimeQueryOwner.assertSeriesActive(api as ChartSeriesApi),
       getSourceByApiOrThrow: (api, message) =>
         this.runtime.getSourceByApiOrThrow(api as ChartSeriesApi, message) as SeriesSourceState,
@@ -350,7 +352,7 @@ export class PhaseOneChartHarness {
     getPaneIndex: (paneId) => this.paneOwner.getPaneIndex(paneId),
     registry: this.runtime.getDrawingRegistry(),
     createPriceLineState: (options) => this.priceLineManager.createState(options),
-    lineColor: LINE_COLOR,
+    lineColor: () => this.visualTheme.colors.primarySeries,
     resolveTrendLineDefaults: () =>
       resolveTrendLineDefaultsUseCase(this.runtime.contextSnapshot().barSequence.axisBars),
     resolveMagnetOptions: (drawing) =>
@@ -435,13 +437,14 @@ export class PhaseOneChartHarness {
       this.handlerRegistry.emitCrosshairMove(readout, crosshair);
     },
     getCrosshair: () => this.viewState.crosshair(),
-    backgroundColor: () => CHART_BACKGROUND,
+    backgroundColor: () => this.chartOptions.backgroundColor,
     resolveBarSpacing: (currentSpacing, paneWidth, pointCount) =>
       resolveBarSpacing(currentSpacing, paneWidth, pointCount, BAR_SPACING_BOUNDS),
   });
   private readonly renderCoordinator = createChartRenderCoordinator({
     ...this.renderInputOwner,
     ...this.renderCallbackOwner,
+    getVisualTheme: () => this.visualTheme,
   });
   private readonly runtimeQueryOwner = createChartRuntimeQueryOwner<ChartSeriesApi>({
     buildMainBarSequence: () =>
@@ -508,6 +511,7 @@ export class PhaseOneChartHarness {
     },
   });
   private readonly primarySeriesOwner = createChartPrimarySeriesOwner<PhaseOneMainSeriesApi, MainSeriesSourceState>({
+    getDefaultMarkerColor: () => this.visualTheme.colors.defaultMarker,
     getCurrentMainSourceId: () => this.runtime.mainSourceId(),
     getPrimaryPriceScale: () => this.runtime.primaryPriceScale(),
     createMeta: (chartType) => this.seriesBuildOwner.createMeta(chartType),
@@ -724,6 +728,7 @@ export class PhaseOneChartHarness {
     },
   });
   private readonly publicShellOwner = createChartPublicShellOwner({
+    applyVisualTheme: (theme) => this.applyVisualTheme(theme),
     detach: () => {
       this.interactionShellOwner.detach();
     },
@@ -742,6 +747,96 @@ export class PhaseOneChartHarness {
 
   private render(canvas: HTMLCanvasElement): void {
     this.renderCoordinator.render(canvas);
+  }
+
+  public applyVisualTheme(theme: ChartxVisualTheme): void {
+    const previous = this.visualTheme.colors;
+    const color = theme.colors;
+    const previousDefaults = {
+      areaTop: this.areaOptions.topColor,
+      areaBottom: this.areaOptions.bottomColor,
+      baselineTopFillTop: this.baselineOptions.topFillTopColor,
+      baselineTopFillBottom: this.baselineOptions.topFillBottomColor,
+      baselineBottomFillTop: this.baselineOptions.bottomFillTopColor,
+      baselineBottomFillBottom: this.baselineOptions.bottomFillBottomColor,
+      priceLine: this.defaultPriceLineOptions.color,
+    };
+    const replaceIfThemed = (target: Record<string, unknown>, key: string, oldValue: string, nextValue: string) => {
+      if (target[key] === oldValue) target[key] = nextValue;
+    };
+    replaceIfThemed(this.chartOptions, "backgroundColor", previous.surface, color.surface);
+    replaceIfThemed(this.chartOptions, "paneBackgroundColor", previous.paneSurface, color.paneSurface);
+    replaceIfThemed(this.chartOptions, "gridColor", previous.grid, color.grid);
+    replaceIfThemed(this.chartOptions, "frameColor", previous.border, color.border);
+    replaceIfThemed(this.chartOptions, "axisTextColor", previous.axisText, color.axisText);
+    replaceIfThemed(this.chartOptions, "axisLabelBackground", previous.axisLabelBackground, color.axisLabelBackground);
+    replaceIfThemed(this.chartOptions, "axisLabelBorder", previous.axisLabelBorder, color.axisLabelBorder);
+    replaceIfThemed(this.chartOptions, "axisActiveBackground", previous.axisActiveBackground, color.axisActiveBackground);
+    replaceIfThemed(this.chartOptions, "axisActiveText", previous.axisActiveText, color.axisActiveText);
+    replaceIfThemed(this.crosshairOptions, "lineColor", previous.crosshair, color.crosshair);
+    replaceIfThemed(this.crosshairOptions, "pointColor", previous.focus, color.focus);
+    Object.assign(this.candlestickOptions, { upColor: color.positive, downColor: color.negative, wickColor: color.mutedText });
+    Object.assign(this.barOptions, { upColor: color.positive, downColor: color.negative });
+    Object.assign(this.lineOptions, { color: color.primarySeries, kagiYangColor: color.positive, kagiYinColor: color.negative });
+    Object.assign(this.areaOptions, {
+      lineColor: color.primarySeries,
+      topColor: color.selection,
+      bottomColor: color.paneSurface,
+    });
+    Object.assign(this.baselineOptions, {
+      topLineColor: color.positive,
+      topFillTopColor: color.selection,
+      topFillBottomColor: color.paneSurface,
+      bottomLineColor: color.negative,
+      bottomFillTopColor: color.paneSurface,
+      bottomFillBottomColor: color.selection,
+    });
+    Object.assign(this.histogramOptions, { upColor: color.positive, downColor: color.negative });
+    Object.assign(this.volumeOptions, { upColor: color.positive, downColor: color.negative });
+    this.defaultPriceLineOptions.color = color.crosshair;
+    // Source option objects are renderer inputs. Replace only the previous theme defaults;
+    // a host's explicit series color remains authoritative across later theme revisions.
+    for (const source of this.runtime.listSources()) {
+      const options = source.options as Record<string, unknown>;
+      if (source.kind === "candlestick" || source.kind === "bar" || source.kind === "histogram" || source.kind === "volume") {
+        replaceIfThemed(options, "upColor", previous.positive, color.positive);
+        replaceIfThemed(options, "downColor", previous.negative, color.negative);
+      } else if (source.kind === "line") {
+        replaceIfThemed(options, "color", previous.primarySeries, color.primarySeries);
+        replaceIfThemed(options, "kagiYangColor", previous.positive, color.positive);
+        replaceIfThemed(options, "kagiYinColor", previous.negative, color.negative);
+      } else if (source.kind === "area") {
+        replaceIfThemed(options, "lineColor", previous.primarySeries, color.primarySeries);
+        replaceIfThemed(options, "topColor", previousDefaults.areaTop, color.selection);
+        replaceIfThemed(options, "bottomColor", previousDefaults.areaBottom, color.paneSurface);
+      } else if (source.kind === "baseline") {
+        replaceIfThemed(options, "topLineColor", previous.positive, color.positive);
+        replaceIfThemed(options, "topFillTopColor", previousDefaults.baselineTopFillTop, color.selection);
+        replaceIfThemed(options, "topFillBottomColor", previousDefaults.baselineTopFillBottom, color.paneSurface);
+        replaceIfThemed(options, "bottomLineColor", previous.negative, color.negative);
+        replaceIfThemed(options, "bottomFillTopColor", previousDefaults.baselineBottomFillTop, color.paneSurface);
+        replaceIfThemed(options, "bottomFillBottomColor", previousDefaults.baselineBottomFillBottom, color.selection);
+      }
+      for (const line of source.priceLines.values()) {
+        if (line.color === previousDefaults.priceLine) line.color = color.crosshair;
+      }
+      source.markers = source.markers.map((marker) => marker.usesDefaultColor
+        ? { ...marker, color: color.defaultMarker }
+        : marker);
+    }
+    for (const drawing of this.drawingOwner.listDrawings()) {
+      if (drawing.kind === "horizontal-line") {
+        if (drawing.line.color === previousDefaults.priceLine) drawing.line.color = color.crosshair;
+      } else if (drawing.color === previous.primarySeries) {
+        drawing.color = color.primarySeries;
+      }
+    }
+    const guide = this.viewState.drawingSnapGuide();
+    if (guide !== null && guide.color === previous.primarySeries) {
+      this.viewState.setDrawingSnapGuide({ ...guide, color: color.primarySeries });
+    }
+    this.visualTheme = theme;
+    this.renderInvalidation.renderIfAttached();
   }
 
   public attach(canvas: HTMLCanvasElement): void {

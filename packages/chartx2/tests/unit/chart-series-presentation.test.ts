@@ -55,20 +55,22 @@ describe("chart series presentation use-cases", () => {
       { time: 3, text: "B", color: "#f00", position: "belowBar", shape: "arrowDown" },
       { time: 1 },
       { time: 3, text: "A" },
-    ])).toEqual([
+    ], "#marker-default")).toEqual([
       {
         time: 1,
         position: "aboveBar",
         shape: "circle",
-        color: "#2563eb",
+        color: "#marker-default",
         text: "",
+        usesDefaultColor: true,
       },
       {
         time: 3,
         position: "aboveBar",
         shape: "circle",
-        color: "#2563eb",
+        color: "#marker-default",
         text: "A",
+        usesDefaultColor: true,
       },
       {
         time: 3,
@@ -76,6 +78,7 @@ describe("chart series presentation use-cases", () => {
         shape: "arrowDown",
         color: "#f00",
         text: "B",
+        usesDefaultColor: false,
       },
     ]);
   });

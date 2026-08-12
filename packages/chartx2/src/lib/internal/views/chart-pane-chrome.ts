@@ -93,13 +93,14 @@ export function drawPaneCrosshair(
 export function drawPaneLegend(
   context: CanvasRenderingContext2D,
   entries: readonly PhaseOneReadoutSeriesDetail[],
+  options: { background: string; border: string; text: string; font: string },
 ): void {
   if (entries.length === 0) {
     return;
   }
 
   context.save();
-  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.font = options.font;
   context.textBaseline = "top";
 
   let x = 10;
@@ -107,8 +108,8 @@ export function drawPaneLegend(
     const text = `${entry.label} ${entry.formattedValue}`;
     const textWidth = context.measureText(text).width;
 
-    context.fillStyle = "rgba(255, 253, 247, 0.92)";
-    context.strokeStyle = "rgba(16, 16, 16, 0.12)";
+    context.fillStyle = options.background;
+    context.strokeStyle = options.border;
     context.lineWidth = 1;
     context.fillRect(x, 8, textWidth + 22, 18);
     context.strokeRect(x + 0.5, 8.5, textWidth + 21, 17);
@@ -118,7 +119,7 @@ export function drawPaneLegend(
     context.arc(x + 7, 17, 3, 0, Math.PI * 2);
     context.fill();
 
-    context.fillStyle = "rgba(16, 16, 16, 0.78)";
+    context.fillStyle = options.text;
     context.fillText(text, x + 13, 12);
     x += textWidth + 30;
   }

@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packScript = path.join(repoRoot, "scripts/pack-chartx2-local-release.mjs");
 const releaseRoot = mkdtempSync(path.join(tmpdir(), "chartx2-pack-failure-test-"));
-const artifactName = "chartx2-library-0.1.0.tgz";
+const packageMetadata = JSON.parse(readFileSync(path.join(repoRoot, "packages/chartx2/package.json"), "utf8"));
+// Derive the filename from the publish authority so a version bump cannot make
+// the failure-path test protect a stale artifact while the packer writes another.
+const artifactName = `chartx2-library-${packageMetadata.version}.tgz`;
 const artifactPath = path.join(releaseRoot, artifactName);
 
 function sha256(filePath) {

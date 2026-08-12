@@ -74,7 +74,7 @@ describe("chart primary series owner", () => {
     expect(source.data).toEqual([{ time: 1, open: 9, high: 11, low: 8, close: 10 }]);
     expect(source.options).toMatchObject({ color: "#ef4444", lineWidth: 2 });
     expect(source.markers).toEqual([
-      { time: 3, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B" },
+      { time: 3, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
     ]);
     expect(source.priceLines.get("price-line-2")).toEqual({
       id: "price-line-2",

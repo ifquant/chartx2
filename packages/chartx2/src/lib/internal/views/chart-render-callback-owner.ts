@@ -40,8 +40,9 @@ export function createChartRenderCallbackOwner(deps: {
     drawPaneLegend: (
       context: CanvasRenderingContext2D,
       entries: readonly PhaseOneReadoutSeriesDetail[],
+      options: { background: string; border: string; text: string; font: string },
     ) => {
-      drawPaneLegend(context, entries);
+      drawPaneLegend(context, entries, options);
     },
     drawCrosshair: (
       context: CanvasRenderingContext2D,

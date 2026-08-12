@@ -24,8 +24,8 @@ describe("chart secondary series api owner", () => {
       { time: 3, open: 11, high: 13, low: 10, close: 12, resolved: true },
     ]);
     expect(source.markers).toEqual([
-      { time: 1, position: "aboveBar", shape: "circle", color: "#2563eb", text: "A" },
-      { time: 4, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B" },
+      { time: 1, position: "aboveBar", shape: "circle", color: "#2563eb", text: "A", usesDefaultColor: true },
+      { time: 4, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
     ]);
     expect(source.priceLines.get("line-1")).toEqual({
       id: "line-1",

@@ -45,6 +45,7 @@ export type ChartHarnessPublicLike = {
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePaneByHandle(pane: PhaseOnePaneApi): void;
   applyOptions(options: Parameters<PhaseOneChartApi["applyOptions"]>[0]): void;
+  applyVisualTheme(theme: Parameters<PhaseOneChartApi["applyVisualTheme"]>[0]): void;
   getChartType(): ReturnType<PhaseOneChartApi["getChartType"]>;
   getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null;
   applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): ReturnType<PhaseOneChartApi["applyMainSeriesState"]>;
@@ -144,6 +145,9 @@ export function createChartPublicApi(harness: ChartHarnessPublicLike): PhaseOneC
     },
     applyOptions(options) {
       harness.applyOptions(options);
+    },
+    applyVisualTheme(theme) {
+      harness.applyVisualTheme(theme);
     },
     getChartType() {
       return harness.getChartType();

@@ -61,10 +61,11 @@ describe("chart axis tag helpers", () => {
       price: 150,
       source: "close",
       time: null,
-    }, null)).toMatchObject({
+    }, null, "right", { background: "magnet-bg", border: "magnet-border", text: "magnet-text" })).toMatchObject({
       text: "MAG CLOSE 150",
-      backgroundColor: "#2563eb",
-      borderColor: "#2563eb",
+      backgroundColor: "magnet-bg",
+      borderColor: "magnet-border",
+      textColor: "magnet-text",
     });
 
     expect(buildMagnetTimeAxisTag(layout, [
@@ -77,10 +78,11 @@ describe("chart axis tag helpers", () => {
       price: null,
       source: null,
       time: 20,
-    }, null)).toMatchObject({
+    }, null, { background: "magnet-bg", border: "magnet-border", text: "magnet-text" })).toMatchObject({
       text: "MAG T 20",
-      backgroundColor: "#2563eb",
-      borderColor: "#2563eb",
+      backgroundColor: "magnet-bg",
+      borderColor: "magnet-border",
+      textColor: "magnet-text",
     });
   });
 

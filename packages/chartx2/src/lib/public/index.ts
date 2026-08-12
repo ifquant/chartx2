@@ -21,3 +21,4 @@ export * from "./workbench-layout";
 export * from "./workbench-script-components";
 export * from "./workbench-scripts";
 export * from "./workbench-workspace-tabs";
+export * from "../visual-theme";

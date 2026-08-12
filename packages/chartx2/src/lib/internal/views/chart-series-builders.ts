@@ -36,6 +36,7 @@ type SeriesMarkerState = {
   shape: PhaseOneSeriesMarkerShape;
   color: string;
   text: string;
+  usesDefaultColor?: boolean;
 };
 
 type ChartSeriesKind = "candlestick" | "line" | "area" | "baseline" | "bar" | "histogram" | "volume";

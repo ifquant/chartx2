@@ -24,6 +24,7 @@ export type SeriesMarkerState = {
   color: string;
   text: string;
   tooltip?: string;
+  usesDefaultColor?: boolean;
 };
 
 type ReadoutState = {
@@ -54,15 +55,16 @@ export function setSeriesMarkers<State>(
   deps.render();
 }
 
-export function normalizeSeriesMarkers(markers: readonly MarkerInput[]): readonly SeriesMarkerState[] {
+export function normalizeSeriesMarkers(markers: readonly MarkerInput[], defaultColor: string): readonly SeriesMarkerState[] {
   return markers.map((marker) => {
     const normalized = {
       time: marker.time,
       position: marker.position ?? "aboveBar",
       shape: marker.shape ?? "circle",
       ...(marker.fill === "hollow" ? { fill: marker.fill } : {}),
-      color: marker.color ?? "#2563eb",
+      color: marker.color ?? defaultColor,
       text: marker.text ?? "",
+      usesDefaultColor: marker.color === undefined,
     };
     const tooltip = marker.tooltip?.trim();
     return tooltip === undefined || tooltip === ""

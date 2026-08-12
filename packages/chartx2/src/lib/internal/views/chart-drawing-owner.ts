@@ -169,7 +169,7 @@ export function createChartDrawingOwner<PaneTarget>(
     getPaneIndex(paneId: string): number;
     registry: DrawingRegistryLike;
     createPriceLineState(options: PhaseOnePriceLineOptions): PriceLineState;
-    lineColor: string;
+    lineColor: string | (() => string);
     resolveTrendLineDefaults?(): Required<Pick<
       PhaseOneTrendLineDrawingOptions,
       "startTime" | "startPrice" | "endTime" | "endPrice"
@@ -294,7 +294,7 @@ export function createChartDrawingOwner<PaneTarget>(
           return drawing?.kind === "trend-line";
         },
       },
-      lineColor: deps.lineColor,
+      lineColor: typeof deps.lineColor === "function" ? deps.lineColor() : deps.lineColor,
       resolveDefaults: resolveTrendLineDefaults,
       selectDrawing: (id) => selectDrawing(id),
       removeDrawing,

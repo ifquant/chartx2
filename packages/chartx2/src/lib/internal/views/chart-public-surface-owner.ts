@@ -119,6 +119,7 @@ type SourceOwner = {
 
 export function createChartPublicSurfaceOwner(deps: {
   detach(): void;
+  applyVisualTheme(theme: Parameters<PhaseOneChartApi["applyVisualTheme"]>[0]): void;
   seriesCommandOwner: SeriesCommandOwner;
   drawingOwner: DrawingOwner;
   paneOwner: PaneOwner;
@@ -170,6 +171,9 @@ export function createChartPublicSurfaceOwner(deps: {
         },
         applyOptions: (options) => {
           deps.shellOwner.applyOptions(options);
+        },
+        applyVisualTheme: (theme) => {
+          deps.applyVisualTheme(theme);
         },
         getChartType: () => deps.runtimeQueryOwner.getChartType() as PhaseOneMainChartType | null,
         getMainSeriesState: () => deps.mainSeriesStateOwner.getState(),

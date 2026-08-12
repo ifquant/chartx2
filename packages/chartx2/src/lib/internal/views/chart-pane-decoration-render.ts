@@ -91,7 +91,6 @@ export function drawPriceLines(
       },
       {
         ...options,
-        axisLabelBackground: "rgba(255, 253, 247, 0.9)",
         axisLabelBorder: line.color,
         axisTextColor: line.color,
       },

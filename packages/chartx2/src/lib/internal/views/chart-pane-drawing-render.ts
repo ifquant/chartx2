@@ -39,6 +39,8 @@ export function drawPaneDrawings(
     selectedDrawingId: string | null;
     hoveredDrawingId: string | null;
     hoveredDrawingHandle: DrawingDragHandle | null;
+    selectionColor: string;
+    handleBackgroundColor: string;
   },
 ): void {
   for (const drawing of drawings) {
@@ -50,7 +52,7 @@ export function drawPaneDrawings(
       if (deps.selectedDrawingId === drawing.id) {
         const y = toCoordinate(deps.priceScale.priceToCoordinate(drawing.line.price));
         context.save();
-        context.strokeStyle = "rgba(16, 16, 16, 0.18)";
+        context.strokeStyle = deps.selectionColor;
         context.lineWidth = drawing.line.lineWidth + 6;
         context.beginPath();
         context.moveTo(0, y);
@@ -74,7 +76,7 @@ export function drawPaneDrawings(
     context.lineTo(endX, endY);
     context.stroke();
     if (deps.selectedDrawingId === drawing.id) {
-      context.strokeStyle = "rgba(16, 16, 16, 0.18)";
+      context.strokeStyle = deps.selectionColor;
       context.lineWidth = drawing.lineWidth + 6;
       context.beginPath();
       context.moveTo(startX, startY);
@@ -88,7 +90,7 @@ export function drawPaneDrawings(
       if (deps.hoveredDrawingId === drawing.id && deps.hoveredDrawingHandle !== null) {
         const hoveredX = deps.hoveredDrawingHandle === "start" ? startX : endX;
         const hoveredY = deps.hoveredDrawingHandle === "start" ? startY : endY;
-        context.fillStyle = "#fffdf7";
+        context.fillStyle = deps.handleBackgroundColor;
         context.strokeStyle = drawing.color;
         context.lineWidth = 2;
         context.beginPath();

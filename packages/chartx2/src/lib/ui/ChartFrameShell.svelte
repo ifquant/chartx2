@@ -3,7 +3,7 @@
 
   const EMPTY_MODEL: ChartFrameShellModel = {
     title: "Chart frame",
-    statusLabel: "No host frame metadata available.",
+    statusLabel: "No chart metadata available.",
     toolRailLabel: "Chart tools",
     tools: [],
     chips: [],

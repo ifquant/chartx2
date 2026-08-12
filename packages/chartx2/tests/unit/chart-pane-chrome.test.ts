@@ -144,10 +144,12 @@ describe("chart pane chrome use-case", () => {
       value: 10,
       formattedValue: "10.00",
       color: "#0f0",
-    }]);
+    }], { background: "legend-bg", border: "legend-border", text: "legend-text", font: "12px numeric" });
 
-    expect(context.font).toBe('11px "SF Mono", "Menlo", monospace');
+    expect(context.font).toBe("12px numeric");
     expect(context.textBaseline).toBe("top");
+    expect(context.fillStyle).toBe("legend-text");
+    expect(context.strokeStyle).toBe("legend-border");
     expect(calls).toContain("fillRect:10:8:72:18");
     expect(calls).toContain("strokeRect:10.5:8.5:71:17");
     expect(calls).toContain("arc:17:17:3");

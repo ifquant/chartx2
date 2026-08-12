@@ -5,6 +5,7 @@ import {
   formatVolumeAxisLabel,
 } from "./chart-axis-format";
 import { resolveDrawingTimeCoordinate } from "./chart-drawing-geometry";
+import { DEFAULT_CHARTX_VISUAL_THEME } from "../../visual-theme";
 
 type Layout = {
   width: number;
@@ -34,6 +35,7 @@ type AxisStyleOptions = {
   axisTextColor: string;
   axisActiveBackground: string;
   axisActiveText: string;
+  numericFont?: string;
 };
 
 type LayoutOptions = AxisStyleOptions & {
@@ -71,7 +73,7 @@ export function drawPriceAxis(
   }
 
   context.save();
-  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.font = options.numericFont ?? `${DEFAULT_CHARTX_VISUAL_THEME.typography.fontSize} ${DEFAULT_CHARTX_VISUAL_THEME.typography.numericFont}`;
   context.textBaseline = "middle";
 
   const tickCount = clamp(Math.floor(paneHeight / 76), 3, 7);
@@ -127,6 +129,7 @@ export function buildMagnetAxisTag(
   guide: DrawingSnapGuideState,
   formatter: ((value: number) => string) | null,
   axisPosition: "left" | "right" = "right",
+  tagStyle?: { background: string; border: string; text: string },
 ): AxisTag | null {
   if (guide.price === null) {
     return null;
@@ -141,9 +144,9 @@ export function buildMagnetAxisTag(
     x: axisPosition === "left" ? 4 : layout.width - layout.right + 6,
     y: layout.top + paneTop + y - 9,
     maxWidth: axisPosition === "left" ? resolveLeftPriceAxisTagMaxWidth(layout) : undefined,
-    backgroundColor: guide.color,
-    borderColor: guide.color,
-    textColor: "#fffdf7",
+    backgroundColor: tagStyle?.background ?? guide.color,
+    borderColor: tagStyle?.border ?? guide.color,
+    textColor: tagStyle?.text,
   };
 }
 
@@ -171,7 +174,7 @@ export function drawTimeAxis(
   const anchors = collectVisibleTimeAnchors(rows, start, end, tickCount);
 
   context.save();
-  context.font = '11px "SF Mono", "Menlo", monospace';
+  context.font = options.numericFont ?? `${DEFAULT_CHARTX_VISUAL_THEME.typography.fontSize} ${DEFAULT_CHARTX_VISUAL_THEME.typography.numericFont}`;
   context.textBaseline = "top";
   context.fillStyle = options.axisTextColor;
 
@@ -214,6 +217,7 @@ export function buildMagnetTimeAxisTag(
   timeScale: TimeScale,
   guide: DrawingSnapGuideState,
   formatter: ((time: number) => string) | null,
+  tagStyle?: { background: string; border: string; text: string },
 ): AxisTag | null {
   if (guide.time === null || rows.length === 0) {
     return null;
@@ -225,9 +229,9 @@ export function buildMagnetTimeAxisTag(
     text,
     x: clampCenterTag(layout.left + x, estimatedWidth, layout.left, layout.width - layout.right),
     y: layout.top + (layout.height - layout.top - layout.bottom) + 8,
-    backgroundColor: guide.color,
-    borderColor: guide.color,
-    textColor: "#fffdf7",
+    backgroundColor: tagStyle?.background ?? guide.color,
+    borderColor: tagStyle?.border ?? guide.color,
+    textColor: tagStyle?.text,
   };
 }
 

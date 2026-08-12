@@ -40,6 +40,7 @@ import type {
   PhaseOnePriceLineOptions,
   PhaseOneSeriesMarker,
 } from "./chart-api-types";
+import { DEFAULT_CHARTX_VISUAL_THEME } from "../../visual-theme";
 
 type PhaseOneSeriesFormatterOptions = {
   valueFormatter?: ((value: number) => string) | null;
@@ -74,6 +75,7 @@ export type ChartPrimarySeriesOwnerDeps<
   Source extends PrimarySeriesSourceState,
 > = {
   getCurrentMainSourceId(): string | null;
+  getDefaultMarkerColor?(): string;
   getPrimaryPriceScale(): PriceScale;
   createMeta(chartType: PhaseOneMainChartType): { id: string; label: string };
   createLabel(chartType: PhaseOneMainChartType, id: string): string;
@@ -163,7 +165,10 @@ export function createChartPrimarySeriesOwner<
     setMarkers: (api, markers, sourceKind) => {
       const state = deps.getSourceByApi(api, sourceKind);
       setSeriesMarkers(state, markers, {
-        normalizeMarkers: (nextMarkers) => normalizeSeriesMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+        normalizeMarkers: (nextMarkers) => normalizeSeriesMarkers(
+          nextMarkers as readonly PhaseOneSeriesMarker[],
+          deps.getDefaultMarkerColor?.() ?? DEFAULT_CHARTX_VISUAL_THEME.colors.defaultMarker,
+        ),
         render: () => {
           deps.render();
         },

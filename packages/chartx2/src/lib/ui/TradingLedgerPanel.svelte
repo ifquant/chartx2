@@ -10,9 +10,9 @@
     tabs: [],
     activeTabId: "loading",
     rows: [],
-    emptyLabel: "No host ledger rows available.",
+    emptyLabel: "No orders or trades",
     detailTitle: "Detail",
-    detailEmptyLabel: "Select a row to inspect host-owned detail fields.",
+    detailEmptyLabel: "No row selected",
   };
 
   type Props = {
@@ -138,7 +138,7 @@
           {/each}
         </div>
         {#if model.rows.length === 0}
-          <div class="empty-row">{model.emptyLabel ?? "No host ledger rows available."}</div>
+          <div class="empty-row">{model.emptyLabel ?? "No orders or trades"}</div>
         {:else}
           {#each model.rows as row, index}
             <button
@@ -170,7 +170,7 @@
           <span>{selectedRow(model)?.id ?? "未选择"}</span>
         </div>
         {#if !selectedRow(model)}
-          <div class="detail-empty">{model.detailEmptyLabel ?? "Select a row to inspect host detail fields."}</div>
+          <div class="detail-empty">{model.detailEmptyLabel ?? "No row selected"}</div>
         {:else}
           {#each selectedRow(model)?.detailFields ?? [] as field}
             <div class="detail-row">

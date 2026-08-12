@@ -40,6 +40,7 @@ describe("chart factory", () => {
         addPane: vi.fn(),
         removePaneByHandle: vi.fn(),
         applyOptions: vi.fn(),
+        applyVisualTheme: vi.fn(),
         getChartType: vi.fn(),
         getMainSeriesState: vi.fn(),
         applyMainSeriesState: vi.fn(),

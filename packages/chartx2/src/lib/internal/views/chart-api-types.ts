@@ -14,6 +14,7 @@ import type {
   VersionedChartTemplateInput,
 } from "../model";
 import { createChartTemplate, normalizeChartTemplate } from "./chart-template";
+import type { ChartxVisualTheme } from "../../visual-theme";
 
 type PanePoint = {
   x: number;
@@ -678,6 +679,7 @@ export type PhaseOneChartApi = {
   addPane(options?: PhaseOnePaneOptions): PhaseOnePaneApi;
   removePane(pane: PhaseOnePaneApi): void;
   applyOptions(options: PhaseOneChartOptions): void;
+  applyVisualTheme(theme: ChartxVisualTheme): void;
   getChartType(): PhaseOneMainChartType | null;
   getMainSeriesState(): PhaseOneMainSeriesStateSnapshot | null;
   applyMainSeriesState(state: PhaseOneMainSeriesStateSnapshot): PhaseOneMainSeriesApi;

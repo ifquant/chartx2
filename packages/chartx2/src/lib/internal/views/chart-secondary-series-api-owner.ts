@@ -36,6 +36,7 @@ import type {
 } from "./chart-api-types";
 import type { PriceLineState } from "./chart-price-line-runtime";
 import type { SecondarySeriesKind } from "./chart-secondary-series-factory";
+import { DEFAULT_CHARTX_VISUAL_THEME } from "../../visual-theme";
 
 type PhaseOneSeriesFormatterOptions = {
   valueFormatter?: ((value: number) => string) | null;
@@ -80,6 +81,7 @@ type ScriptedStudyState = SecondarySeriesSourceState & {
 };
 
 export function createChartSecondarySeriesApiOwner(deps: {
+  getDefaultMarkerColor?(): string;
   assertSeriesActive(api: unknown): void;
   getSourceByApiOrThrow(api: unknown, message: string): SecondarySeriesSourceState;
   resolveDisplayData(source: SecondarySeriesSourceState): readonly unknown[];
@@ -159,7 +161,10 @@ export function createChartSecondarySeriesApiOwner(deps: {
     setMarkers: (api: unknown, markers: readonly unknown[], _kind: SecondarySeriesKind) => {
       setSeriesMarkers(getSource(api), markers as readonly PhaseOneSeriesMarker[], {
         normalizeMarkers: (nextMarkers) =>
-          normalizeSeriesMarkers(nextMarkers as readonly PhaseOneSeriesMarker[]),
+          normalizeSeriesMarkers(
+            nextMarkers as readonly PhaseOneSeriesMarker[],
+            deps.getDefaultMarkerColor?.() ?? DEFAULT_CHARTX_VISUAL_THEME.colors.defaultMarker,
+          ),
         render: deps.render,
       });
     },

@@ -14,7 +14,7 @@
     submitLabel: "Submit",
     state: {
       status: "loading",
-      statusLabel: "Waiting for host adapter",
+      statusLabel: "Not ready",
       submitEnabled: false,
     },
   };
@@ -111,7 +111,7 @@
     <article class="ticket-card">
       <div class="card-header">
         <h3>Summary</h3>
-        <span class="section-detail">Host adapter shell</span>
+        <span class="section-detail">Order details</span>
       </div>
       {#if actions}
         <div class="ticket-actions" data-trading-ticket-actions>{@render actions()}</div>
@@ -119,7 +119,7 @@
         {#if model.summaryLabel}
           <p class="summary-label" data-trading-ticket-summary>{model.summaryLabel}</p>
         {:else}
-          <p class="summary-label muted">No fixture summary available.</p>
+          <p class="summary-label muted">No order summary available.</p>
         {/if}
 
         <button

@@ -58,6 +58,8 @@ describe("chart pane drawing render helpers", () => {
       selectedDrawingId: "tl",
       hoveredDrawingId: "tl",
       hoveredDrawingHandle: "end",
+      selectionColor: "rgba(0, 80, 255, 0.2)",
+      handleBackgroundColor: "#ffffff",
     });
 
     expect(context.beginPath).toHaveBeenCalled();

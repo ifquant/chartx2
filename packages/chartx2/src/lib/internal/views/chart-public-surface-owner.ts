@@ -18,6 +18,7 @@ import type {
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneMainSeriesApi,
   PhaseOneMainSeriesStateSnapshot,
+  PhaseOneMarkerGeometryHandler,
   PhaseOneMovingAverageStudyApi,
   PhaseOnePaneApi,
   PhaseOnePaneEventHandler,
@@ -86,6 +87,8 @@ type EventSubscriptionOwner = {
   unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
   subscribeChartTypeChange(handler: Parameters<PhaseOneChartApi["subscribeChartTypeChange"]>[0]): void;
   unsubscribeChartTypeChange(handler: Parameters<PhaseOneChartApi["unsubscribeChartTypeChange"]>[0]): void;
+  subscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
+  unsubscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
 };
 
 type RuntimeQueryOwner = {
@@ -223,6 +226,12 @@ export function createChartPublicSurfaceOwner(deps: {
         },
         unsubscribePaneEvents: (handler) => {
           deps.eventSubscriptionOwner.unsubscribePaneEvents(handler);
+        },
+        subscribeMarkerGeometry: (handler) => {
+          deps.eventSubscriptionOwner.subscribeMarkerGeometry(handler);
+        },
+        unsubscribeMarkerGeometry: (handler) => {
+          deps.eventSubscriptionOwner.unsubscribeMarkerGeometry(handler);
         },
         detach: () => {
           deps.detach();

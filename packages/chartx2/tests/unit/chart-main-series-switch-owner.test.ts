@@ -18,7 +18,7 @@ describe("chart main series switch owner", () => {
           id: "main-1",
           label: "Main 1",
           data: [{ time: 1, open: 9, high: 11, low: 8, close: 10 }],
-          markers: [{ time: 1, text: "A" }],
+          markers: [{ markerId: "marker-a", time: 1, text: "A" }],
           options: { color: "#2563eb" },
           previousStyleSchemaId: "lineStyle",
         });
@@ -33,7 +33,7 @@ describe("chart main series switch owner", () => {
       label: "Main 1",
       inputData: [{ time: 1, open: 9, high: 11, low: 8, close: 10 }],
       visuals: new Map([[1, { color: "#10b981", isUp: true }]]),
-      markers: [{ time: 1, text: "A" }],
+      markers: [{ markerId: "marker-a", time: 1, text: "A" }],
       priceLines: new Map([[
         "line-1",
         { id: "line-1", price: 10, color: "#111111", lineWidth: 1, title: "Entry" },

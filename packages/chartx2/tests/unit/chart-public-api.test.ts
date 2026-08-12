@@ -57,6 +57,8 @@ describe("chart public api wrapper", () => {
       unsubscribeClick: vi.fn(),
       subscribePaneEvents: vi.fn(),
       unsubscribePaneEvents: vi.fn(),
+      subscribeMarkerGeometry: vi.fn(),
+      unsubscribeMarkerGeometry: vi.fn(),
       detach: vi.fn(),
     };
 
@@ -108,6 +110,8 @@ describe("chart public api wrapper", () => {
     api.unsubscribeClick(clickHandler);
     api.subscribePaneEvents(paneEventHandler);
     api.unsubscribePaneEvents(paneEventHandler);
+    api.subscribeMarkerGeometry(paneEventHandler as never);
+    api.unsubscribeMarkerGeometry(paneEventHandler as never);
     api.destroy();
 
     expect(harness.removePaneByHandle).toHaveBeenCalledWith("pane-ref");
@@ -123,6 +127,8 @@ describe("chart public api wrapper", () => {
     expect(harness.unsubscribeClick).toHaveBeenCalledWith(clickHandler);
     expect(harness.subscribePaneEvents).toHaveBeenCalledWith(paneEventHandler);
     expect(harness.unsubscribePaneEvents).toHaveBeenCalledWith(paneEventHandler);
+    expect(harness.subscribeMarkerGeometry).toHaveBeenCalledWith(paneEventHandler);
+    expect(harness.unsubscribeMarkerGeometry).toHaveBeenCalledWith(paneEventHandler);
     expect(harness.detach).toHaveBeenCalledTimes(1);
   });
 });

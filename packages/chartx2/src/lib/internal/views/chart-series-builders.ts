@@ -31,6 +31,7 @@ type PriceLineState = {
 };
 
 type SeriesMarkerState = {
+  markerId: string;
   time: number;
   position: PhaseOneSeriesMarkerPosition;
   shape: PhaseOneSeriesMarkerShape;

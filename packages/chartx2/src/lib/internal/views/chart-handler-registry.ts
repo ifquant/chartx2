@@ -7,6 +7,8 @@ import type {
   PhaseOneClickHandler,
   PhaseOneCrosshairMoveHandler,
   PhaseOneDrawingSelectionChangeHandler,
+  PhaseOneMarkerGeometryHandler,
+  PhaseOneMarkerGeometrySnapshot,
   PhaseOnePaneEvent,
   PhaseOnePaneEventHandler,
   PhaseOnePaneEventType,
@@ -24,6 +26,7 @@ export function createChartHandlerRegistry() {
   const drawingSelectionHandlers = new Set<PhaseOneDrawingSelectionChangeHandler>();
   const paneEventHandlers = new Set<PhaseOnePaneEventHandler>();
   const chartTypeChangeHandlers = new Set<PhaseOneChartTypeChangeHandler>();
+  const markerGeometryHandlers = new Set<PhaseOneMarkerGeometryHandler>();
   const paneResizeHandlers = new Map<string, Set<PhaseOnePaneResizeHandler>>();
 
   return {
@@ -56,6 +59,15 @@ export function createChartHandlerRegistry() {
     },
     unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void {
       unsubscribePublicHandler(chartTypeChangeHandlers, handler);
+    },
+    subscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void {
+      subscribePublicHandler(markerGeometryHandlers, handler);
+    },
+    unsubscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void {
+      unsubscribePublicHandler(markerGeometryHandlers, handler);
+    },
+    emitMarkerGeometry(snapshot: PhaseOneMarkerGeometrySnapshot): void {
+      for (const handler of markerGeometryHandlers) handler(snapshot);
     },
     subscribePaneResize(
       paneId: string,
@@ -136,6 +148,7 @@ export function createChartHandlerRegistry() {
       drawingSelectionHandlers.clear();
       paneEventHandlers.clear();
       chartTypeChangeHandlers.clear();
+      markerGeometryHandlers.clear();
       paneResizeHandlers.clear();
     },
   };

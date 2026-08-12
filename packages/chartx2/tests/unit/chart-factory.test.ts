@@ -64,6 +64,8 @@ describe("chart factory", () => {
         unsubscribeClick: vi.fn(),
         subscribePaneEvents: vi.fn(),
         unsubscribePaneEvents: vi.fn(),
+        subscribeMarkerGeometry: vi.fn(),
+        unsubscribeMarkerGeometry: vi.fn(),
       };
       const api = createAttachedChart(canvas, () => ({
         attach,

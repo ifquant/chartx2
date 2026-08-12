@@ -138,6 +138,8 @@ export type PhaseOneSeriesMarkerShape = "circle" | "square" | "arrowUp" | "arrow
 export type PhaseOneSeriesMarkerFill = "solid" | "hollow";
 
 export type PhaseOneSeriesMarker = {
+  /** Stable host identity used by activation, accessibility and overlap cycling. */
+  markerId: string;
   time: number;
   position?: PhaseOneSeriesMarkerPosition;
   shape?: PhaseOneSeriesMarkerShape;
@@ -146,6 +148,23 @@ export type PhaseOneSeriesMarker = {
   text?: string;
   tooltip?: string;
 };
+
+/** Exact CSS-pixel marker centers published by the render generation that drew them. */
+export type PhaseOneSeriesMarkerGeometry = Readonly<{
+  markerId: string;
+  time: number;
+  paneId: string;
+  x: number;
+  y: number;
+  position: PhaseOneSeriesMarkerPosition;
+}>;
+
+export type PhaseOneMarkerGeometrySnapshot = Readonly<{
+  revision: number;
+  markers: readonly PhaseOneSeriesMarkerGeometry[];
+}>;
+
+export type PhaseOneMarkerGeometryHandler = (snapshot: PhaseOneMarkerGeometrySnapshot) => void;
 
 export type PhaseOneCrosshairMoveEvent = PhaseOneReadoutDetail & {
   point: PanePoint | null;
@@ -715,5 +734,7 @@ export type PhaseOneChartApi = {
   unsubscribeClick(handler: PhaseOneClickHandler): void;
   subscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
   unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
+  subscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
+  unsubscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
   destroy(): void;
 };

@@ -72,12 +72,20 @@ describe("chart pane decoration render helpers", () => {
     priceScale.setHeight(200);
     priceScale.setPriceRange(new PriceRangeImpl(100, 200));
 
-    drawSeriesMarkers(
+    const geometry = drawSeriesMarkers(
       context,
-      [{ time: 10, index: 5 as never, value: [110, 120, 105, 118] }],
-      [{ time: 10, position: "aboveBar", shape: "circle", color: "#2563eb", text: "M" }],
+      [
+        { time: 10, index: 5 as never, value: [110, 120, 105, 118] },
+        { time: 20, index: 100 as never, value: [110, 120, 105, 118] },
+      ],
+      [
+        { markerId: "marker-above", time: 10, position: "aboveBar", shape: "circle", color: "#2563eb", text: "M" },
+        { markerId: "marker-below", time: 10, position: "belowBar", shape: "circle", color: "#2563eb", text: "M" },
+        { markerId: "marker-offscreen", time: 20, position: "aboveBar", shape: "circle", color: "#2563eb", text: "M" },
+      ],
       timeScale,
       priceScale,
+      300,
       200,
       "candlestick",
     );
@@ -113,6 +121,9 @@ describe("chart pane decoration render helpers", () => {
     expect(context.arc).toHaveBeenCalled();
     expect(context.fillRect).toHaveBeenCalled();
     expect(context.fillText).toHaveBeenCalled();
+    expect(geometry.map((marker) => marker.markerId)).toEqual(["marker-above", "marker-below"]);
+    expect(geometry[0]!.x).toBe(geometry[1]!.x);
+    expect(geometry[0]!.y).toBeLessThan(geometry[1]!.y);
   });
 
   it("renders hollow series markers with strokes instead of filled shapes", () => {
@@ -130,9 +141,10 @@ describe("chart pane decoration render helpers", () => {
     drawSeriesMarkers(
       context,
       [{ time: 10, index: 5 as never, value: [110, 120, 105, 118] }],
-      [{ time: 10, position: "aboveBar", shape: "circle", fill: "hollow", color: "#2563eb", text: "" }],
+      [{ markerId: "marker-1", time: 10, position: "aboveBar", shape: "circle", fill: "hollow", color: "#2563eb", text: "" }],
       timeScale,
       priceScale,
+      300,
       200,
       "candlestick",
     );

@@ -6,6 +6,7 @@ import type {
   PhaseOneDrawingSelectionChangeHandler,
   PhaseOneHorizontalLineDrawingOptions,
   PhaseOneMainSeriesStateSnapshot,
+  PhaseOneMarkerGeometryHandler,
   PhaseOnePaneApi,
   PhaseOnePaneEventHandler,
   PhaseOnePaneOptions,
@@ -72,6 +73,8 @@ export type ChartHarnessPublicLike = {
   unsubscribeClick(handler: PhaseOneClickHandler): void;
   subscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
   unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
+  subscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
+  unsubscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
   detach(): void;
 };
 
@@ -217,6 +220,12 @@ export function createChartPublicApi(harness: ChartHarnessPublicLike): PhaseOneC
     },
     unsubscribePaneEvents(handler) {
       harness.unsubscribePaneEvents(handler);
+    },
+    subscribeMarkerGeometry(handler) {
+      harness.subscribeMarkerGeometry(handler);
+    },
+    unsubscribeMarkerGeometry(handler) {
+      harness.unsubscribeMarkerGeometry(handler);
     },
     destroy() {
       harness.detach();

@@ -7,6 +7,7 @@ type MarkerShape = "circle" | "square" | "arrowUp" | "arrowDown";
 type MarkerFill = "solid" | "hollow";
 
 type MarkerInput = {
+  markerId: string;
   time: number;
   position?: MarkerPosition;
   shape?: MarkerShape;
@@ -17,6 +18,7 @@ type MarkerInput = {
 };
 
 export type SeriesMarkerState = {
+  markerId: string;
   time: number;
   position: MarkerPosition;
   shape: MarkerShape;
@@ -56,8 +58,9 @@ export function setSeriesMarkers<State>(
 }
 
 export function normalizeSeriesMarkers(markers: readonly MarkerInput[], defaultColor: string): readonly SeriesMarkerState[] {
-  return markers.map((marker) => {
+  return markers.map((marker, inputIndex) => {
     const normalized = {
+      markerId: marker.markerId,
       time: marker.time,
       position: marker.position ?? "aboveBar",
       shape: marker.shape ?? "circle",
@@ -67,10 +70,9 @@ export function normalizeSeriesMarkers(markers: readonly MarkerInput[], defaultC
       usesDefaultColor: marker.color === undefined,
     };
     const tooltip = marker.tooltip?.trim();
-    return tooltip === undefined || tooltip === ""
-      ? normalized
-      : { ...normalized, tooltip };
-  }).sort((left, right) => left.time - right.time || left.text.localeCompare(right.text) || 0);
+    return { marker: tooltip === undefined || tooltip === "" ? normalized : { ...normalized, tooltip }, inputIndex };
+  }).sort((left, right) => left.marker.time - right.marker.time || left.inputIndex - right.inputIndex)
+    .map(({ marker }) => marker);
 }
 
 export function formatSeriesReadoutValue(

@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import type { PhaseOneMarketChartMarkerActivationEventV1 } from "../../src/lib/public";
 
 import {
   normalizePhaseOneMarketChartSurfaceLayout,
@@ -13,6 +15,14 @@ import {
 } from "../../src/lib/public/market-chart-surface";
 
 describe("phase one market chart surface model", () => {
+  it("exports the versioned marker activation event through the public barrel", () => {
+    expectTypeOf<PhaseOneMarketChartMarkerActivationEventV1>().toMatchTypeOf<Readonly<{
+      markerId: string;
+      time: number;
+      inputKind: "pointer" | "keyboard";
+    }>>();
+  });
+
   it("normalizes attached indicator panes with readout metadata", () => {
     const model: PhaseOneMarketChartSurfaceModel = {
       symbol: "rb2605",
@@ -169,6 +179,7 @@ describe("phase one market chart surface model", () => {
       },
       markers: [
         {
+          markerId: "entry-1",
           time: 1,
           position: "belowBar",
           shape: "arrowUp",
@@ -179,6 +190,12 @@ describe("phase one market chart surface model", () => {
     };
 
     expect(resolvePhaseOneMarketChartSurfaceMarkers(model)).toEqual(model.markers);
+  });
+
+  it("rejects blank and duplicate marker identities before rendering a model", () => {
+    const base = { symbol: "rb2605", timeframeLabel: "1m", bars: [] } satisfies PhaseOneMarketChartSurfaceModel;
+    expect(() => resolvePhaseOneMarketChartSurfaceMarkers({ ...base, markers: [{ markerId: "", time: 1 }] })).toThrow(/nonempty/);
+    expect(() => resolvePhaseOneMarketChartSurfaceMarkers({ ...base, markers: [{ markerId: "same", time: 1 }, { markerId: "same", time: 2 }] })).toThrow(/unique per model/);
   });
 
   it("resolves multi-overlay lines while preserving the legacy overlay field", () => {

@@ -6,6 +6,21 @@ import type {
   PhaseOneSeriesMarker,
   PhaseOneVolumeData,
 } from "./market";
+import type {
+  PhaseOneMarketChartDataIdentityV1,
+  PhaseOneMarketChartMountLifecycleReceiptV1,
+} from "./market-chart-lifecycle";
+
+export type PhaseOneMarketChartMarkerActivationInputKind = "pointer" | "keyboard";
+
+/** Authenticated marker activation emitted only by the current ready surface generation. */
+export type PhaseOneMarketChartMarkerActivationEventV1 = Readonly<{
+  markerId: string;
+  time: number;
+  dataIdentity: PhaseOneMarketChartDataIdentityV1;
+  mountLifecycleReceipt: PhaseOneMarketChartMountLifecycleReceiptV1;
+  inputKind: PhaseOneMarketChartMarkerActivationInputKind;
+}>;
 
 export type PhaseOneMarketChartSurfaceIndicatorSeries =
   | {
@@ -103,7 +118,18 @@ export interface PhaseOneMarketChartSurfaceModel {
 export function resolvePhaseOneMarketChartSurfaceMarkers(
   model: PhaseOneMarketChartSurfaceModel,
 ): readonly PhaseOneSeriesMarker[] {
-  return model.markers ?? [];
+  const markers = model.markers ?? [];
+  const ids = new Set<string>();
+  for (const marker of markers) {
+    if (typeof marker.markerId !== "string" || marker.markerId.trim() === "") {
+      throw new Error("PhaseOneSeriesMarker.markerId must be nonempty");
+    }
+    if (ids.has(marker.markerId)) {
+      throw new Error(`PhaseOneSeriesMarker.markerId must be unique per model: ${marker.markerId}`);
+    }
+    ids.add(marker.markerId);
+  }
+  return markers;
 }
 
 export function resolvePhaseOneMarketChartOverlayLines(

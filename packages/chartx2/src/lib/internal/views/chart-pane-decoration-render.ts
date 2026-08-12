@@ -12,6 +12,7 @@ type LayoutOptions = {
 };
 
 type MarkerState = {
+  markerId: string;
   time: number;
   position: "aboveBar" | "belowBar" | "inBar";
   shape: "circle" | "square" | "arrowUp" | "arrowDown";
@@ -19,6 +20,14 @@ type MarkerState = {
   color: string;
   text: string;
 };
+
+export type RenderedSeriesMarkerGeometry = Readonly<{
+  markerId: string;
+  time: number;
+  x: number;
+  y: number;
+  position: MarkerState["position"];
+}>;
 
 type Row = {
   time: number;
@@ -106,11 +115,12 @@ export function drawSeriesMarkers(
   markers: readonly MarkerState[],
   timeScale: TimeScale,
   priceScale: PriceScale,
+  paneWidth: number,
   paneHeight: number,
   kind: ChartSeriesKind | null,
-): void {
+): readonly RenderedSeriesMarkerGeometry[] {
   if (markers.length === 0 || rows.length === 0 || kind === null) {
-    return;
+    return [];
   }
 
   const rowsByTime = new Map(rows.map((row) => [row.time, row]));
@@ -120,6 +130,7 @@ export function drawSeriesMarkers(
   context.textAlign = "center";
   context.textBaseline = "middle";
 
+  const geometry: RenderedSeriesMarkerGeometry[] = [];
   for (const marker of markers) {
     const row = rowsByTime.get(marker.time);
     if (row === undefined) {
@@ -128,11 +139,12 @@ export function drawSeriesMarkers(
 
     const x = timeScale.indexToCoordinate(row.index);
     const y = markerYForRow(row, marker.position, priceScale, kind, paneHeight);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < -24 || x > 5000) {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > paneWidth || y < 0 || y > paneHeight) {
       continue;
     }
 
     drawMarkerShape(context, x, y, marker.shape, marker.color, marker.fill ?? "solid");
+    geometry.push({ markerId: marker.markerId, time: marker.time, x, y, position: marker.position });
     if (marker.text !== "") {
       const textY = marker.position === "belowBar" ? y + 13 : y - 13;
       context.fillStyle = marker.color;
@@ -141,6 +153,7 @@ export function drawSeriesMarkers(
   }
 
   context.restore();
+  return geometry;
 }
 
 export function drawTradeLocationOverlay(

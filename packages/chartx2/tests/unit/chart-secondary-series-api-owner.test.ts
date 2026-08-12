@@ -12,7 +12,7 @@ describe("chart secondary series api owner", () => {
 
     owner.setSecondaryData("api-1", [{ time: 2, open: 9, high: 12, low: 8, close: 11 }], "line");
     owner.updateSecondary("api-1", { time: 3, open: 11, high: 13, low: 10, close: 12 }, "line");
-    owner.setMarkers("api-1", [{ time: 4, text: "B" }, { time: 1, text: "A" }], "line");
+    owner.setMarkers("api-1", [{ markerId: "marker-b", time: 4, text: "B" }, { markerId: "marker-a", time: 1, text: "A" }], "line");
     owner.createPriceLine(source, { price: 12, title: "Entry" });
 
     expect(source.inputData).toEqual([
@@ -24,8 +24,8 @@ describe("chart secondary series api owner", () => {
       { time: 3, open: 11, high: 13, low: 10, close: 12, resolved: true },
     ]);
     expect(source.markers).toEqual([
-      { time: 1, position: "aboveBar", shape: "circle", color: "#2563eb", text: "A", usesDefaultColor: true },
-      { time: 4, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
+      { markerId: "marker-a", time: 1, position: "aboveBar", shape: "circle", color: "#2563eb", text: "A", usesDefaultColor: true },
+      { markerId: "marker-b", time: 4, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
     ]);
     expect(source.priceLines.get("line-1")).toEqual({
       id: "line-1",
@@ -190,6 +190,7 @@ function createSource() {
     data: [] as unknown[],
     visuals: new Map<number, { color?: string; isUp: boolean }>(),
     markers: [] as Array<{
+      markerId: string;
       time: number;
       position: "aboveBar" | "belowBar" | "inBar";
       shape: "circle" | "square" | "arrowUp" | "arrowDown";

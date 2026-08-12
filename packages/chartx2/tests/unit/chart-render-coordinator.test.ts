@@ -97,6 +97,7 @@ function createCoordinator(overrides: Partial<Parameters<typeof createChartRende
     emitCrosshairMove() {},
     backgroundColor: () => "#fff",
     resolveBarSpacing: () => 6,
+    publishMarkerGeometry() {},
     ...overrides,
   });
 }

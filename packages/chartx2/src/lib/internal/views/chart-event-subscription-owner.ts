@@ -3,6 +3,7 @@ import type {
   PhaseOneClickHandler,
   PhaseOneCrosshairMoveHandler,
   PhaseOneDrawingSelectionChangeHandler,
+  PhaseOneMarkerGeometryHandler,
   PhaseOnePaneEventHandler,
 } from "./chart-api-types";
 
@@ -17,6 +18,8 @@ export function createChartEventSubscriptionOwner(deps: {
   unsubscribePaneEvents(handler: PhaseOnePaneEventHandler): void;
   subscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
   unsubscribeChartTypeChange(handler: PhaseOneChartTypeChangeHandler): void;
+  subscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
+  unsubscribeMarkerGeometry(handler: PhaseOneMarkerGeometryHandler): void;
 }) {
   return {
     subscribeCrosshairMove: deps.subscribeCrosshairMove,
@@ -29,6 +32,7 @@ export function createChartEventSubscriptionOwner(deps: {
     unsubscribePaneEvents: deps.unsubscribePaneEvents,
     subscribeChartTypeChange: deps.subscribeChartTypeChange,
     unsubscribeChartTypeChange: deps.unsubscribeChartTypeChange,
+    subscribeMarkerGeometry: deps.subscribeMarkerGeometry,
+    unsubscribeMarkerGeometry: deps.unsubscribeMarkerGeometry,
   };
 }
-

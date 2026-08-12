@@ -8,6 +8,7 @@
     type PhaseOneCrosshairMoveEvent,
     type PhaseOneHistogramSeriesApi,
     type PhaseOneLineSeriesApi,
+    type PhaseOneMarkerGeometrySnapshot,
     type PhaseOneVolumeData,
     type PhaseOneVolumeSeriesApi,
   } from "../public/market";
@@ -16,6 +17,12 @@
     consumePhaseOneMarketChartTimeFocusCommand,
     mintPhaseOneMarketChartMountLifecycleReceipt,
   } from "../internal/views/market-chart-lifecycle";
+  import {
+    moveKeyboardMarker,
+    orderedKeyboardMarkerTargets,
+    resolvePointerMarkerActivation,
+    type MarkerPointerCycle,
+  } from "../internal/views/market-chart-marker-activation";
   import {
     normalizePhaseOneMarketChartSurfaceLayout,
     resolvePhaseOneMarketChartActiveDataLength,
@@ -28,6 +35,7 @@
     type PhaseOneMarketChartSurfaceChrome,
     type PhaseOneMarketChartSurfaceDensity,
     type PhaseOneMarketChartSurfaceModel,
+    type PhaseOneMarketChartMarkerActivationEventV1,
     type PhaseOneMarketChartSurfaceReadoutDisplay,
     type PhaseOneMarketChartSurfaceReadoutPosition,
     type PhaseOneMarketChartSurfaceRightDockMode,
@@ -74,6 +82,7 @@
     timeFocusCommand?: PhaseOneMarketChartTimeFocusCommandV1 | null;
     onMountLifecycleReceipt?: (receipt: PhaseOneMarketChartMountLifecycleReceiptV1) => void;
     onTimeFocusCompletion?: (completion: PhaseOneMarketChartTimeFocusCompletionV1) => void;
+    onMarkerActivate?: (event: PhaseOneMarketChartMarkerActivationEventV1) => void;
     readoutActions?: Snippet;
     rightDock?: Snippet;
     theme?: ChartxVisualTheme;
@@ -95,6 +104,7 @@
     timeFocusCommand = null,
     onMountLifecycleReceipt,
     onTimeFocusCompletion,
+    onMarkerActivate,
     readoutActions,
     rightDock,
     theme,
@@ -130,7 +140,12 @@
   let virtualRangeMonitorRemaining = 0;
   let activeMountLifecycleReceipt = $state<PhaseOneMarketChartMountLifecycleReceiptV1 | null>(null);
   let activeGenerationAxisReady = $state(false);
+  let mountGeneration = $state(0);
+  let markerGeometrySnapshot = $state<PhaseOneMarkerGeometrySnapshot>({ revision: 0, markers: [] });
   let lastDataIdentityKey: string | undefined;
+  let activeKeyboardMarkerId = $state<string | null>(null);
+  let pointerCycle: MarkerPointerCycle | null = null;
+  let markerPointerDown: Readonly<{ markerId: string; pointerId: number; x: number; y: number }> | null = null;
 
   type ReadoutState = {
     time: string;
@@ -173,10 +188,26 @@
   const layout = $derived(normalizePhaseOneMarketChartSurfaceLayout({ chrome, density, readoutPosition, rightDockMode }));
   const readoutMode = $derived(resolvePhaseOneMarketChartReadoutMode(model));
   const activeDataLength = $derived(resolvePhaseOneMarketChartActiveDataLength(model));
+  const resolvedMarkers = $derived(resolvePhaseOneMarketChartSurfaceMarkers(model));
+  const visibleMarkers = $derived(resolvedMarkers.filter((marker) =>
+    markerGeometrySnapshot.markers.some((geometry) =>
+      geometry.paneId === "primary"
+      && geometry.markerId === marker.markerId
+      && geometry.time === marker.time
+    )
+  ));
+  const keyboardMarkers = $derived(orderedKeyboardMarkerTargets(visibleMarkers));
 
   function destroyChart(): void {
     teardownCrosshair?.();
     teardownCrosshair = null;
+    // A replacement chart owns a fresh geometry stream. Clear the old stream
+    // synchronously because the new engine correctly keeps its initial empty
+    // snapshot silent, and therefore cannot retract stale DOM on our behalf.
+    markerGeometrySnapshot = Object.freeze({
+      revision: markerGeometrySnapshot.revision + 1,
+      markers: Object.freeze([]),
+    });
     chart?.destroy();
     chart = null;
     candleSeries = null;
@@ -198,6 +229,73 @@
     // truthful superseded terminal fact instead of becoming valid after reuse.
     activeMountLifecycleReceipt = null;
     activeGenerationAxisReady = false;
+    mountGeneration += 1;
+    pointerCycle = null;
+  }
+
+  function markerPositionStyle(marker: (typeof resolvedMarkers)[number]): string {
+    const geometry = markerGeometrySnapshot.markers.find((candidate) =>
+      candidate.paneId === "primary"
+      && candidate.markerId === marker.markerId
+      && candidate.time === marker.time
+    );
+    return geometry === undefined
+      ? "display: none;"
+      : `left: ${geometry.x - 12}px; top: ${geometry.y - 12}px;`;
+  }
+
+  function markerAccessibleLabel(marker: (typeof resolvedMarkers)[number]): string {
+    const time = model.timeFormatter?.(marker.time) ?? String(marker.time);
+    return [time, marker.text?.trim(), marker.tooltip?.trim()].filter(Boolean).join(" · ");
+  }
+
+  function emitMarkerActivation(marker: (typeof resolvedMarkers)[number], inputKind: "pointer" | "keyboard"): void {
+    const current = visibleMarkers.find((candidate) => candidate.markerId === marker.markerId && candidate.time === marker.time);
+    const identityKey = currentDataIdentityKey();
+    const receipt = activeMountLifecycleReceipt;
+    if (!current || !mounted || chart === null || !activeGenerationAxisReady || identityKey === undefined || receipt === null) return;
+    const identity = Object.freeze({ key: identityKey });
+    onMarkerActivate?.(Object.freeze({ markerId: current.markerId, time: current.time, dataIdentity: identity, mountLifecycleReceipt: receipt, inputKind }));
+  }
+
+  function markerElements(): readonly HTMLButtonElement[] {
+    return canvasHost === undefined ? [] : [...canvasHost.querySelectorAll<HTMLButtonElement>("[data-phase-one-market-marker-target]")];
+  }
+
+  function focusMarker(markerId: string): void {
+    activeKeyboardMarkerId = markerId;
+    markerElements().find((element) => element.dataset.markerId === markerId)?.focus({ preventScroll: true });
+  }
+
+  function handleMarkerPointerDown(event: PointerEvent, markerId: string): void {
+    if (event.button !== 0) { markerPointerDown = null; return; }
+    markerPointerDown = { markerId, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  }
+
+  function handleMarkerPointerClick(event: MouseEvent): void {
+    const down = markerPointerDown;
+    markerPointerDown = null;
+    if (event.button !== 0 || !down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4) return;
+    const targets = markerElements().flatMap((element, inputIndex) => {
+      const marker = resolvedMarkers.find((candidate) => candidate.markerId === element.dataset.markerId);
+      if (!marker) return [];
+      const rect = element.getBoundingClientRect();
+      return [{ marker, inputIndex, centerX: rect.left + rect.width / 2, centerY: rect.top + rect.height / 2 }];
+    });
+    const modelSignature = visibleMarkers.map((marker) => `${marker.markerId}:${marker.time}`).join("|");
+    const signature = `${event.clientX}:${event.clientY}:${modelSignature}:${currentDataIdentityKey() ?? ""}:${mountGeneration}:${markerGeometrySnapshot.revision}`;
+    const resolved = resolvePointerMarkerActivation(targets, { x: event.clientX, y: event.clientY }, signature, pointerCycle);
+    pointerCycle = resolved.cycle;
+    if (resolved.target) emitMarkerActivation(resolved.target.marker, "pointer");
+  }
+
+  function handleMarkerKeydown(event: KeyboardEvent, marker: (typeof resolvedMarkers)[number]): void {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); emitMarkerActivation(marker, "keyboard"); return; }
+    if (event.key === "Escape") { event.preventDefault(); canvasHost?.focus({ preventScroll: true }); return; }
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = moveKeyboardMarker(keyboardMarkers, marker.markerId, event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" | "Home" | "End");
+    if (next) focusMarker(next.markerId);
   }
 
   function publishReadyMountLifecycleGeneration(): void {
@@ -401,6 +499,11 @@
   }
 
   function handleCanvasHostKeydown(event: KeyboardEvent): void {
+    if (event.key === "Tab" && !event.shiftKey && keyboardMarkers.length > 0) {
+      event.preventDefault();
+      focusMarker(activeKeyboardMarkerId ?? keyboardMarkers[0]!.markerId);
+      return;
+    }
     if (model.virtualRange?.enabled !== true) {
       return;
     }
@@ -697,9 +800,14 @@
     const handleCrosshair = (event: PhaseOneCrosshairMoveEvent) => {
       applyReadout(event);
     };
+    const handleMarkerGeometry = (snapshot: PhaseOneMarkerGeometrySnapshot) => {
+      markerGeometrySnapshot = snapshot;
+    };
     chart.subscribeCrosshairMove(handleCrosshair);
+    chart.subscribeMarkerGeometry(handleMarkerGeometry);
     teardownCrosshair = () => {
       chart?.unsubscribeCrosshairMove(handleCrosshair);
+      chart?.unsubscribeMarkerGeometry(handleMarkerGeometry);
       teardownCrosshair = null;
     };
 
@@ -780,6 +888,21 @@
     void activeGenerationAxisReady;
     void dataIdentity?.key;
     consumeTimeFocusCommand();
+  });
+
+  $effect(() => {
+    const markers = keyboardMarkers;
+    const nextKeyboardMarkerId = markers.some((marker) => marker.markerId === activeKeyboardMarkerId)
+      ? activeKeyboardMarkerId
+      : (markers[0]?.markerId ?? null);
+    if (nextKeyboardMarkerId !== activeKeyboardMarkerId) {
+      activeKeyboardMarkerId = nextKeyboardMarkerId;
+    }
+    // Any model mutation invalidates repeat-pointer cycling, even when a host
+    // reuses marker identities and dataIdentity by mistake.
+    void markers.map((marker) => `${marker.markerId}:${marker.time}`).join("|");
+    void markerGeometrySnapshot.revision;
+    pointerCycle = null;
   });
 
   onMount(() => {
@@ -885,6 +1008,28 @@
         onkeydown={handleCanvasHostKeydown}
       >
         <canvas bind:this={canvas} aria-label={`${model.symbol} ${model.timeframeLabel} market chart`}></canvas>
+        <div
+          class="marker-hit-layer"
+          data-phase-one-market-marker-layer
+          data-marker-geometry-revision={markerGeometrySnapshot.revision}
+        >
+          {#each visibleMarkers as marker (marker.markerId)}
+            <button
+              type="button"
+              class="marker-hit-target"
+              data-phase-one-market-marker-target
+              data-marker-id={marker.markerId}
+              style={markerPositionStyle(marker)}
+              tabindex={activeKeyboardMarkerId === marker.markerId ? 0 : -1}
+              aria-label={markerAccessibleLabel(marker)}
+              onfocus={() => activeKeyboardMarkerId = marker.markerId}
+              onpointerdown={(event) => handleMarkerPointerDown(event, marker.markerId)}
+              onclick={handleMarkerPointerClick}
+              oncontextmenu={(event) => event.preventDefault()}
+              onkeydown={(event) => handleMarkerKeydown(event, marker)}
+            ></button>
+          {/each}
+        </div>
         {#if readoutDisplay === "tooltip" && readoutTooltip.visible}
           <div
             class="readout-tooltip"
@@ -965,6 +1110,34 @@
   .surface-body.dock-inline-open .empty-state {
     grid-column: 1;
     grid-row: 1;
+  }
+
+  .marker-hit-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .marker-hit-target {
+    position: absolute;
+    z-index: 4;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: transparent;
+    pointer-events: auto;
+  }
+
+  .marker-hit-target:focus-visible {
+    outline: 2px solid var(--chartx-accent, #246bce);
+    outline-offset: 1px;
+    background: color-mix(in srgb, var(--chartx-accent, #246bce) 12%, transparent);
   }
 
   .market-chart-surface.readout-top {

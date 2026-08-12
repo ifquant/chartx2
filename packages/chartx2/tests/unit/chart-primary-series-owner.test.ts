@@ -49,7 +49,7 @@ describe("chart primary series owner", () => {
       label: "ignored",
       data: [{ time: 1, open: 9, high: 11, low: 8, close: 10 }],
       visuals: new Map([[1, { color: "#10b981", isUp: true }]]),
-      markers: [{ time: 1, position: "belowBar", shape: "circle", color: "#111111", text: "A" }],
+      markers: [{ markerId: "marker-a", time: 1, position: "belowBar", shape: "circle", color: "#111111", text: "A" }],
       priceLines: new Map([[
         "price-line-1",
         { id: "price-line-1", price: 10, color: "#111111", lineWidth: 1, title: "Line 1" },
@@ -61,20 +61,20 @@ describe("chart primary series owner", () => {
     const lineApi = api as {
       setData(data: readonly { time: number; value: number }[]): void;
       applyOptions(options: { color?: string; lineWidth?: number }): void;
-      setMarkers(markers: readonly { time: number; text?: string }[]): void;
+      setMarkers(markers: readonly { markerId: string; time: number; text?: string }[]): void;
       createPriceLine(options: { price: number }): void;
     };
 
     lineApi.setData([{ time: 2, value: 11 }]);
     lineApi.applyOptions({ color: "#ef4444", lineWidth: 2 });
-    lineApi.setMarkers([{ time: 3, text: "B" }]);
+    lineApi.setMarkers([{ markerId: "marker-b", time: 3, text: "B" }]);
     lineApi.createPriceLine({ price: 12 });
 
     expect(source.inputData).toEqual([{ time: 1, open: 9, high: 11, low: 8, close: 10 }]);
     expect(source.data).toEqual([{ time: 1, open: 9, high: 11, low: 8, close: 10 }]);
     expect(source.options).toMatchObject({ color: "#ef4444", lineWidth: 2 });
     expect(source.markers).toEqual([
-      { time: 3, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
+      { markerId: "marker-b", time: 3, position: "aboveBar", shape: "circle", color: "#2563eb", text: "B", usesDefaultColor: true },
     ]);
     expect(source.priceLines.get("price-line-2")).toEqual({
       id: "price-line-2",
@@ -147,6 +147,7 @@ function createSource() {
     data: [] as Array<{ time: number; open: number; high: number; low: number; close: number }>,
     visuals: new Map<number, { color: string; isUp: boolean }>(),
     markers: [] as Array<{
+      markerId: string;
       time: number;
       position: "aboveBar" | "belowBar" | "inBar";
       shape: "circle" | "square" | "arrowUp" | "arrowDown";

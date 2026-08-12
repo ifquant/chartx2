@@ -47,6 +47,7 @@ import { createChartRenderCoordinator } from "./chart-render-coordinator";
 import { createChartRenderInputOwner } from "./chart-render-input-owner";
 import { createChartRenderCallbackOwner } from "./chart-render-callback-owner";
 import { createChartRenderInvalidation } from "./chart-render-invalidation";
+import { createChartMarkerGeometryOwner } from "./chart-marker-geometry-owner";
 import { createChartStateShellOwner } from "./chart-state-shell-owner";
 import { createChartStateRestoreShellOwner } from "./chart-state-restore-shell-owner";
 import { createChartRuntimeQueryOwner } from "./chart-runtime-query-owner";
@@ -157,6 +158,9 @@ export class PhaseOneChartHarness {
   private readonly volumeOptions: Required<PhaseOneVolumeSeriesOptions> = createDefaultVolumeOptions();
   private readonly defaultPriceLineOptions: Required<PhaseOnePriceLineOptions> = createDefaultPriceLineOptions();
   private visualTheme: ChartxVisualTheme = DEFAULT_CHARTX_VISUAL_THEME;
+  private readonly markerGeometryOwner = createChartMarkerGeometryOwner({
+    emit: (snapshot) => this.handlerRegistry.emitMarkerGeometry(snapshot),
+  });
   private readonly renderInvalidation = createChartRenderInvalidation({
     getCanvas: () => this.adapterState.canvas(),
     renderCanvas: (canvas) => {
@@ -445,6 +449,9 @@ export class PhaseOneChartHarness {
     ...this.renderInputOwner,
     ...this.renderCallbackOwner,
     getVisualTheme: () => this.visualTheme,
+    publishMarkerGeometry: (markers) => {
+      this.markerGeometryOwner.publish(markers);
+    },
   });
   private readonly runtimeQueryOwner = createChartRuntimeQueryOwner<ChartSeriesApi>({
     buildMainBarSequence: () =>

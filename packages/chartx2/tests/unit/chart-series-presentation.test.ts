@@ -29,9 +29,10 @@ describe("chart series presentation use-cases", () => {
     };
     const render = vi.fn();
 
-    setSeriesMarkers(state, [{ time: 1 }], {
+    setSeriesMarkers(state, [{ markerId: "marker-a", time: 1 }], {
       normalizeMarkers: () => [{
         time: 1,
+        markerId: "marker-a",
         position: "aboveBar",
         shape: "circle",
         color: "#111",
@@ -41,6 +42,7 @@ describe("chart series presentation use-cases", () => {
     });
 
     expect(state.markers).toEqual([{
+      markerId: "marker-a",
       time: 1,
       position: "aboveBar",
       shape: "circle",
@@ -52,11 +54,12 @@ describe("chart series presentation use-cases", () => {
 
   it("normalizes marker defaults and stable display order", () => {
     expect(normalizeSeriesMarkers([
-      { time: 3, text: "B", color: "#f00", position: "belowBar", shape: "arrowDown" },
-      { time: 1 },
-      { time: 3, text: "A" },
+      { markerId: "marker-b", time: 3, text: "B", color: "#f00", position: "belowBar", shape: "arrowDown" },
+      { markerId: "marker-early", time: 1 },
+      { markerId: "marker-a", time: 3, text: "A" },
     ], "#marker-default")).toEqual([
       {
+        markerId: "marker-early",
         time: 1,
         position: "aboveBar",
         shape: "circle",
@@ -65,20 +68,22 @@ describe("chart series presentation use-cases", () => {
         usesDefaultColor: true,
       },
       {
-        time: 3,
-        position: "aboveBar",
-        shape: "circle",
-        color: "#marker-default",
-        text: "A",
-        usesDefaultColor: true,
-      },
-      {
+        markerId: "marker-b",
         time: 3,
         position: "belowBar",
         shape: "arrowDown",
         color: "#f00",
         text: "B",
         usesDefaultColor: false,
+      },
+      {
+        markerId: "marker-a",
+        time: 3,
+        position: "aboveBar",
+        shape: "circle",
+        color: "#marker-default",
+        text: "A",
+        usesDefaultColor: true,
       },
     ]);
   });

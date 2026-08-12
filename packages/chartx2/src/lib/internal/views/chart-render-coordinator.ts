@@ -44,7 +44,7 @@ import {
   buildReadoutSeriesForPane as buildReadoutSeriesForPaneUseCase,
   buildReadoutSeriesForPrimary as buildReadoutSeriesForPrimaryUseCase,
 } from "./chart-readout-series";
-import type { PhaseOneReadoutBody, PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail } from "./chart-api-types";
+import type { PhaseOneReadoutBody, PhaseOneReadoutDetail, PhaseOneReadoutSeriesDetail, PhaseOneSeriesMarkerGeometry } from "./chart-api-types";
 import type { ChartxVisualTheme } from "../../visual-theme";
 
 type Layout = {
@@ -69,6 +69,7 @@ type HistogramVisual = {
 };
 
 type SeriesMarkerLike = {
+  markerId: string;
   time: number;
   position?: string;
   shape?: string;
@@ -246,6 +247,7 @@ export function createChartRenderCoordinator(deps: {
   emitCrosshairMove(readout: PhaseOneReadoutDetail): void;
   backgroundColor(): string;
   resolveBarSpacing(currentSpacing: number | null, paneWidth: number, pointCount: number): number;
+  publishMarkerGeometry(markers: readonly PhaseOneSeriesMarkerGeometry[]): void;
 }): {
   renderSeriesSource(
     context: CanvasRenderingContext2D,
@@ -390,6 +392,7 @@ export function createChartRenderCoordinator(deps: {
     },
 
     render(canvas: HTMLCanvasElement): void {
+      const markerGeometry: PhaseOneSeriesMarkerGeometry[] = [];
       const dpr = deps.dpr();
       const layout = deps.getLayout(canvas);
       const context = canvas.getContext("2d");
@@ -462,6 +465,7 @@ export function createChartRenderCoordinator(deps: {
           paneBackgroundColor: chartOptions.paneBackgroundColor,
           frameColor: chartOptions.frameColor,
         });
+        deps.publishMarkerGeometry(markerGeometry);
         return;
       }
 
@@ -577,15 +581,22 @@ export function createChartRenderCoordinator(deps: {
               );
             },
             drawMarkers: (source, rows) => {
-              drawSeriesMarkers(
+              const rendered = drawSeriesMarkers(
                 context,
                 rows as never,
                 (source as SeriesSourceLike).markers as never,
                 timeScale,
                 primaryPriceScale,
+                paneWidth,
                 pane.height,
                 (source as SeriesSourceLike).kind as never,
               );
+              markerGeometry.push(...rendered.map((marker) => ({
+                ...marker,
+                paneId: pane.id,
+                x: layout.left + marker.x,
+                y: layout.top + pane.top + marker.y,
+              })));
             },
           });
         }
@@ -670,15 +681,22 @@ export function createChartRenderCoordinator(deps: {
               }
             },
             drawMarkers: (source, rows) => {
-              drawSeriesMarkers(
+              const rendered = drawSeriesMarkers(
                 context,
                 rows as never,
                 (source as SeriesSourceLike).markers as never,
                 timeScale,
                 (source as SeriesSourceLike).priceScale,
+                paneWidth,
                 pane.height,
                 (source as SeriesSourceLike).kind as never,
               );
+              markerGeometry.push(...rendered.map((marker) => ({
+                ...marker,
+                paneId: pane.id,
+                x: layout.left + marker.x,
+                y: layout.top + pane.top + marker.y,
+              })));
             },
           });
         }
@@ -830,6 +848,9 @@ export function createChartRenderCoordinator(deps: {
           deps.emitCrosshairMove(readout);
         },
       });
+      // This snapshot is emitted after the same render pass that drew the markers.
+      // Consumers never reconstruct pane offsets or scale coordinates themselves.
+      deps.publishMarkerGeometry(markerGeometry);
     },
   };
 

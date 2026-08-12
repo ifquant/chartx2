@@ -13,6 +13,235 @@ const VOLUME_CANDLE_API_DATA = [
   { time: 3, open: 133, high: 140, low: 129, close: 131, volume: 960_000 },
   { time: 4, open: 131, high: 138, low: 126, close: 136, volume: 1_760_000 },
 ] as const;
+
+test("market chart surface authenticates pointer and keyboard marker activation", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async ({ data }) => {
+    const svelteClientEntry = "/@id/svelte";
+    const { mount } = await import(/* @vite-ignore */ svelteClientEntry);
+    const surfaceSource = "/@fs/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/ui/PhaseOneMarketChartSurface.svelte";
+    const { default: PhaseOneMarketChartSurface } = await import(/* @vite-ignore */ surfaceSource);
+    const target = document.createElement("div");
+    target.id = "marker-activation-fixture";
+    target.style.cssText = "position:fixed;inset:0 auto auto 0;z-index:10000;width:720px;height:420px;background:white";
+    document.body.append(target);
+    const state = window as any;
+    state.__markerReceipts = [];
+    state.__markerActivations = [];
+    state.__markerIdentityInput = { key: "dataset-a" };
+    mount(PhaseOneMarketChartSurface, { target, props: {
+      model: { symbol: "rb2605", timeframeLabel: "1m", bars: data, markers: [
+        { markerId: "overlap-a", time: 2, position: "inBar", text: "成交 A", tooltip: "第一笔" },
+        { markerId: "overlap-b", time: 2, position: "inBar", text: "成交 B", tooltip: "第二笔" },
+        { markerId: "later", time: 4, position: "aboveBar", text: "成交 C", tooltip: "第三笔" },
+        { markerId: "offscreen", time: 999, position: "aboveBar", text: "不可见" },
+      ] },
+      dataIdentity: state.__markerIdentityInput,
+      onMountLifecycleReceipt: (receipt: unknown) => state.__markerReceipts.push(receipt),
+      onMarkerActivate: (event: unknown) => state.__markerActivations.push(event),
+    } });
+  }, { data: API_DATA });
+
+  const targets = page.locator("[data-phase-one-market-marker-target]");
+  await expect(targets).toHaveCount(3);
+  await expect(page.locator('[data-marker-id="offscreen"]')).toHaveCount(0);
+  for (let index = 0; index < 3; index += 1) {
+    const box = await targets.nth(index).boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(24);
+    expect(box?.height).toBeGreaterThanOrEqual(24);
+  }
+  const overlapTarget = page.locator('[data-marker-id="overlap-b"]');
+  await overlapTarget.click();
+  await overlapTarget.click();
+  await expect.poll(() => page.evaluate(() => (window as any).__markerActivations.map((event: any) => `${event.markerId}:${event.inputKind}:${event.dataIdentity.key}`))).toEqual([
+    "overlap-b:pointer:dataset-a", "overlap-a:pointer:dataset-a",
+  ]);
+  await overlapTarget.click({ button: "right" });
+  const box = await overlapTarget.boundingBox();
+  if (!box) throw new Error("marker target has no browser geometry");
+  await page.mouse.move(box.x + 12, box.y + 12);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + 30);
+  await page.mouse.up();
+  expect(await page.evaluate(() => (window as any).__markerActivations.length)).toBe(2);
+
+  const fixtureViewport = page.locator("#marker-activation-fixture [data-phase-one-market-chart-surface] [role=application]");
+  await fixtureViewport.focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator('[data-phase-one-market-marker-target][tabindex="0"]')).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => (window as any).__markerActivations.at(-1)?.inputKind)).toBe("keyboard");
+  await page.keyboard.press("Escape");
+  await expect(fixtureViewport).toBeFocused();
+  expect(await page.evaluate(() => {
+    const event = (window as any).__markerActivations.at(-1);
+    return event.mountLifecycleReceipt === (window as any).__markerReceipts.at(-1);
+  })).toBe(true);
+  expect(await page.evaluate(() => {
+    const state = window as any;
+    const event = state.__markerActivations[0];
+    state.__markerIdentityInput.key = "host-mutated";
+    const result = { key: event.dataIdentity.key, frozen: Object.isFrozen(event.dataIdentity) };
+    state.__markerIdentityInput.key = "dataset-a";
+    return result;
+  })).toEqual({ key: "dataset-a", frozen: true });
+
+  // Resize through the ordinary engine path. The transparent target consumes
+  // the new render revision, which also invalidates pointer overlap cycling.
+  const laterTarget = page.locator('[data-marker-id="later"]');
+  const beforeWheel = await laterTarget.boundingBox();
+  const markerLayer = page.locator("#marker-activation-fixture [data-phase-one-market-marker-layer]");
+  const beforeWheelRevision = Number(await markerLayer.getAttribute("data-marker-geometry-revision"));
+  const viewportBox = await fixtureViewport.boundingBox();
+  if (!beforeWheel || !viewportBox) throw new Error("surface marker geometry is unavailable");
+  await page.evaluate(() => { document.querySelector<HTMLElement>("#marker-activation-fixture")!.style.width = "600px"; });
+  await expect.poll(async () => Number(await markerLayer.getAttribute("data-marker-geometry-revision"))).toBeGreaterThan(beforeWheelRevision);
+  await overlapTarget.click();
+  await expect.poll(() => page.evaluate(() => (window as any).__markerActivations.at(-1)?.markerId)).toBe("overlap-b");
+
+  const acceptedCount = await page.evaluate(() => (window as any).__markerActivations.length);
+  await page.evaluate(async ({ data }) => {
+    const svelteClientEntry = "/@id/svelte";
+    const surfaceSource = "/@fs/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/ui/PhaseOneMarketChartSurface.svelte";
+    const { mount } = await import(/* @vite-ignore */ svelteClientEntry);
+    const { default: PhaseOneMarketChartSurface } = await import(/* @vite-ignore */ surfaceSource);
+    const target = document.createElement("div");
+    target.id = "marker-no-identity-fixture";
+    target.style.cssText = "position:fixed;left:730px;top:0;z-index:10000;width:480px;height:320px;background:white";
+    document.body.append(target);
+    mount(PhaseOneMarketChartSurface, { target, props: {
+      model: { symbol: "rb2605", timeframeLabel: "1m", bars: data, markers: [{ markerId: "untrusted", time: 2, text: "No identity" }] },
+      onMarkerActivate: (event: unknown) => (window as any).__markerActivations.push(event),
+    } });
+  }, { data: API_DATA });
+  await page.locator('#marker-no-identity-fixture [data-marker-id="untrusted"]').click();
+  expect(await page.evaluate(() => (window as any).__markerActivations.length)).toBe(acceptedCount);
+});
+
+test("engine publishes exact marker geometry across panes, axes, pan and wheel renders", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const marketSource = "/@fs/Users/dev/workspace2/hc_apps/chartx2/packages/chartx2/src/lib/public/market.ts";
+    const { createChartxPhaseOneChart } = await import(/* @vite-ignore */ marketSource);
+    const canvas = document.createElement("canvas");
+    canvas.id = "marker-geometry-engine-canvas";
+    canvas.style.cssText = "position:fixed;left:0;top:0;width:800px;height:520px;z-index:12000;background:white";
+    document.body.append(canvas);
+    const chart = createChartxPhaseOneChart(canvas);
+    const state = window as any;
+    state.__markerGeometrySnapshots = [];
+    chart.subscribeMarkerGeometry((snapshot: unknown) => state.__markerGeometrySnapshots.push(snapshot));
+    chart.resize(800, 520);
+    chart.applyOptions({ layout: { priceAxisPosition: "right", paneGap: 8 } });
+    const bars = Array.from({ length: 80 }, (_, index) => ({
+      time: index + 1,
+      open: 100 + index,
+      high: 108 + index,
+      low: 94 + index,
+      close: 102 + index,
+    }));
+    const main = chart.addCandlestickSeries();
+    main.setData(bars);
+    main.setMarkers([
+      { markerId: "main-above", time: 20, position: "aboveBar", text: "Above" },
+      { markerId: "main-below", time: 20, position: "belowBar", text: "Below" },
+    ]);
+    const pane = chart.addPane({ height: 130 });
+    const secondary = chart.addLineSeries({ pane });
+    secondary.setData(bars.map((bar) => ({ time: bar.time, value: bar.close / 2 })));
+    secondary.setMarkers([{ markerId: "pane-marker", time: 20, position: "inBar", text: "Pane" }]);
+    state.__markerGeometryChart = chart;
+    state.__markerGeometryMain = main;
+    state.__markerGeometrySecondary = secondary;
+  });
+
+  await expect.poll(() => page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1)?.markers.length)).toBe(3);
+  const exact = await page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1));
+  const above = exact.markers.find((marker: any) => marker.markerId === "main-above");
+  const below = exact.markers.find((marker: any) => marker.markerId === "main-below");
+  const pane = exact.markers.find((marker: any) => marker.markerId === "pane-marker");
+  expect(above.paneId).toBe("primary");
+  expect(pane.paneId).not.toBe("primary");
+  expect(above.x).toBe(below.x);
+  expect(above.y).toBeLessThan(below.y);
+  expect(pane.y).toBeGreaterThan(below.y);
+
+  const beforeCrosshairRevision = exact.revision;
+  const engineCanvas = page.locator("#marker-geometry-engine-canvas");
+  const engineBox = await engineCanvas.boundingBox();
+  if (!engineBox) throw new Error("engine marker geometry canvas is unavailable");
+  await page.mouse.move(engineBox.x + 360, engineBox.y + 180);
+  await page.waitForTimeout(50);
+  expect(await page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).revision)).toBe(beforeCrosshairRevision);
+
+  const beforeAxisRevision = exact.revision;
+  await page.evaluate(() => (window as any).__markerGeometryChart.applyOptions({ layout: { priceAxisPosition: "left" } }));
+  await expect.poll(() => page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).revision)).toBeGreaterThan(beforeAxisRevision);
+  const leftAxisX = await page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).markers.find((marker: any) => marker.markerId === "main-above").x);
+  expect(leftAxisX).not.toBe(above.x);
+
+  const box = engineBox;
+  const beforePan = await page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1));
+  await page.mouse.move(box.x + 400, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 470, box.y + 200, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).revision)).toBeGreaterThan(beforePan.revision);
+  const afterPan = await page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1));
+  expect(afterPan.markers.find((marker: any) => marker.markerId === "main-above").x).not.toBe(
+    beforePan.markers.find((marker: any) => marker.markerId === "main-above").x,
+  );
+
+  await page.mouse.move(box.x + 300, box.y + 200);
+  const beforeWheelRevision = afterPan.revision;
+  await page.mouse.wheel(0, -240);
+  await expect.poll(() => page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).revision)).toBeGreaterThan(beforeWheelRevision);
+
+  const emptyBefore = await page.evaluate(() => (window as any).__markerGeometrySnapshots.filter((snapshot: any) => snapshot.markers.length === 0).length);
+  await page.evaluate(() => {
+    const state = window as any;
+    state.__markerGeometryMain.setMarkers([]);
+    state.__markerGeometrySecondary.setMarkers([]);
+    state.__markerGeometrySecondary.setMarkers([]);
+  });
+  await expect.poll(() => page.evaluate(() => (window as any).__markerGeometrySnapshots.at(-1).markers.length)).toBe(0);
+  expect(await page.evaluate(() => (window as any).__markerGeometrySnapshots.filter((snapshot: any) => snapshot.markers.length === 0).length)).toBe(emptyBefore + 1);
+});
+
+test("surface rebuild synchronously retracts marker geometry before a silent empty generation", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const svelteClientEntry = "/@id/svelte";
+    const fixtureSource = "/src/lib/MarkerRebuildFixture.svelte";
+    const { mount } = await import(/* @vite-ignore */ svelteClientEntry);
+    const { default: Fixture } = await import(/* @vite-ignore */ fixtureSource);
+    const state = window as any;
+    state.__markerRebuildReceipts = [];
+    state.__markerRebuildActivations = [];
+    const target = document.createElement("div");
+    target.id = "marker-rebuild-fixture";
+    target.style.cssText = "position:fixed;inset:0 auto auto 0;z-index:13000;background:white";
+    document.body.append(target);
+    mount(Fixture, { target });
+  });
+
+  const fixture = page.locator("#marker-rebuild-fixture");
+  await expect(fixture.locator('[data-marker-id="old-visible"]')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => (window as any).__markerRebuildReceipts.length)).toBe(1);
+  await fixture.locator("[data-marker-rebuild]").click();
+  await expect.poll(() => page.evaluate(() => (window as any).__markerRebuildReceipts.length)).toBe(2);
+  await expect(fixture.locator("[data-phase-one-market-marker-target]")).toHaveCount(0);
+
+  const viewport = fixture.locator('[data-phase-one-market-chart-surface] [role="application"]');
+  const before = await page.evaluate(() => (window as any).__markerRebuildActivations.length);
+  await viewport.focus();
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => document.activeElement?.hasAttribute("data-phase-one-market-marker-target"))).toBe(false);
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__markerRebuildActivations.length)).toBe(before);
+});
 const LINE_API_DATA = [
   { time: 1, value: 126 },
   { time: 2, value: 130 },
@@ -2185,9 +2414,9 @@ test("phase-one public api renders series-level markers", async ({ page }) => {
     const series = chart.addCandlestickSeries();
     series.setData(data);
     series.setMarkers([
-      { time: 2, position: "belowBar", shape: "arrowUp", color: "#0c8f62", text: "Buy" },
-      { time: 3, position: "aboveBar", shape: "arrowDown", color: "#c7543e", text: "Sell" },
-      { time: 4, position: "inBar", shape: "circle", color: "#2563eb", text: "Info" },
+      { markerId: "buy-2", time: 2, position: "belowBar", shape: "arrowUp", color: "#0c8f62", text: "Buy" },
+      { markerId: "sell-3", time: 3, position: "aboveBar", shape: "arrowDown", color: "#c7543e", text: "Sell" },
+      { markerId: "info-4", time: 4, position: "inBar", shape: "circle", color: "#2563eb", text: "Info" },
     ]);
   }, { data: API_DATA, publicEntry: PUBLIC_ENTRY });
 

@@ -42,8 +42,8 @@ describe("chartx2 visual contract", () => {
     explicitSeries.setData([{ time: 1, value: 7 }, { time: 2, value: 8 }]);
     explicitSeries.applyOptions({ color: "#explicit-series" });
     area.setMarkers([
-      { time: 1, text: "default marker" },
-      { time: 2, text: "explicit marker", color: "#explicit-marker" },
+      { markerId: "default-marker", time: 1, text: "default marker" },
+      { markerId: "explicit-marker", time: 2, text: "explicit marker", color: "#explicit-marker" },
     ]);
     const themedPriceLine = area.createPriceLine({ price: 11 });
     const explicitPriceLine = area.createPriceLine({ price: 12, color: "#explicit-price" });

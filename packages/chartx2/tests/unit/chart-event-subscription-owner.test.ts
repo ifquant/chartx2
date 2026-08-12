@@ -16,6 +16,8 @@ describe("chart event subscription owner", () => {
       unsubscribePaneEvents: () => calls.push("unsub-pane"),
       subscribeChartTypeChange: () => calls.push("sub-chart-type"),
       unsubscribeChartTypeChange: () => calls.push("unsub-chart-type"),
+      subscribeMarkerGeometry: () => calls.push("sub-marker-geometry"),
+      unsubscribeMarkerGeometry: () => calls.push("unsub-marker-geometry"),
     });
 
     const handler = vi.fn();
@@ -29,6 +31,8 @@ describe("chart event subscription owner", () => {
     owner.unsubscribePaneEvents(handler as never);
     owner.subscribeChartTypeChange(handler as never);
     owner.unsubscribeChartTypeChange(handler as never);
+    owner.subscribeMarkerGeometry(handler as never);
+    owner.unsubscribeMarkerGeometry(handler as never);
 
     expect(calls).toEqual([
       "sub-crosshair",
@@ -41,7 +45,8 @@ describe("chart event subscription owner", () => {
       "unsub-pane",
       "sub-chart-type",
       "unsub-chart-type",
+      "sub-marker-geometry",
+      "unsub-marker-geometry",
     ]);
   });
 });
-
